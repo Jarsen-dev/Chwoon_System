@@ -1,0 +1,16 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+asyncpg
+greenlet
+alembic
+pydantic
+python-dotenv
+pandas
+openpyxl
+reportlab
+qrcode[pil]
+Pillow
+scikit-learn
+numpy
+python-multipart

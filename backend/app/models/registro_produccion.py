@@ -8,7 +8,7 @@ class RegistroProduccion(Base):
     id = Column(Integer, primary_key=True)
     fecha = Column(String(20))
     hora = Column(String(20))
-    turno = Column(String(10))  # DIA o NOCHE
+    turno = Column(String(10))
     maquina = Column(String(50))
     numero_parte = Column(String(50))
     descripcion = Column(String(200))

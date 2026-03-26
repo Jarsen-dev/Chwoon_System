@@ -24,7 +24,7 @@ async def importar_partes_excel(file: UploadFile = File(...), db: AsyncSession =
         df = pd.read_excel(io.BytesIO(contents), dtype=str)
         df.fillna('', inplace=True)
 
-        # Mapeo exacto a las columnas de tu imagen
+        # Mapeo exacto a las columnas de la imagen
         column_map = {
             'Número de Parte': 'numero_parte',
             'Descripción': 'descripcion',

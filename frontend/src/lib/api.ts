@@ -98,8 +98,29 @@ export async function eliminarDeCola(item_id: number): Promise<void> {
 }
 
 export async function limpiarCola(): Promise<void> {
-  const res = await fetch(`${API_URL}/etiquetas/cola/`, {
+  const res = await fetch(`${API_URL}/etiquetas/cola/limpiar/`, {
     method: 'DELETE',
   });
   if (!res.ok) throw new Error('Error limpiando la cola');
+}
+
+export async function getRegistros(fecha?: string): Promise<RegistroProduccion[]> {
+  const url = new URL(`${API_URL}/produccion/registros/`);
+  if (fecha) url.searchParams.append('fecha', fecha);
+  
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error('Error cargando registros');
+  return res.json();
+}
+
+export async function getPlanProduccion(): Promise<any[]> {
+  const res = await fetch(`${API_URL}/produccion/plan/`);
+  if (!res.ok) throw new Error('Error cargando plan de producción');
+  return res.json();
+}
+
+export async function getAnomalias(limite: number = 10): Promise<Anomalia[]> {
+  const res = await fetch(`${API_URL}/produccion/anomalias/?limite=${limite}`)
+  if (!res.ok) throw new Error('Error cargando anomalías')
+  return res.json()
 }

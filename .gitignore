@@ -8,6 +8,8 @@ __pycache__/
 .env
 *.sqlite3
 *.db
+*.pyc
+*.pyo
 
 # =========================
 # FRONTEND (Next.js / Node)
@@ -24,3 +26,10 @@ frontend/.env*.local
 .DS_Store
 *.log
 npm-debug.log*
+
+# Docker
+postgres_data/
+
+# Archivos generados
+*.pdf
+*.xlsx

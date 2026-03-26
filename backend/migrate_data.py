@@ -3,46 +3,56 @@ import asyncio
 import os
 import sys
 
-# Añadir backend al path
-sys.path.insert(0, '/home/jarsen/production/produccion/backend')
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app.database import engine, AsyncSessionLocal, Base
 from app.models.parte import Parte
-from sqlalchemy import select, func
+from sqlalchemy import select, func, text  # ✅ Importar text
 
 
 async def migrar():
-    # Ruta absoluta al data.json
-    ruta_data = "/home/jarsen/production/produccion/etiqueta/data.json"
-    
+    ruta_data = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        '..', 'etiqueta', 'data.json'
+    )
+    ruta_data = os.path.normpath(ruta_data)
+
     print(f"Cargando desde: {ruta_data}")
-    
+
     if not os.path.exists(ruta_data):
         print(f"❌ No existe: {ruta_data}")
         return
-    
+
     with open(ruta_data, 'r', encoding='utf-8') as f:
         data = json.load(f)
-    
+
     print(f"📦 {len(data)} partes encontradas en JSON")
-    
+
     # Crear tablas
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     print("✅ Tablas creadas/verificadas")
-    
-    # Migrar datos
+
     async with AsyncSessionLocal() as db:
         # Verificar si ya hay datos
-        result = await db.execute(select(func.count()).select_from(Parte))
+        result = await db.execute(
+            select(func.count()).select_from(Parte)
+        )
         count_existente = result.scalar()
-        
+
         if count_existente > 0:
             print(f"⚠️  Ya existen {count_existente} partes")
-            await db.execute("TRUNCATE TABLE partes RESTART IDENTITY CASCADE")
+            respuesta = input("¿Deseas limpiar y reimportar? (s/n): ")
+            if respuesta.lower() != 's':
+                print("Migración cancelada.")
+                return
+            # ✅ FIX: usar text() para SQL raw
+            await db.execute(
+                text("TRUNCATE TABLE partes RESTART IDENTITY CASCADE")
+            )
             await db.commit()
-            print("🗑️ Tabla limpiada")
-        
+            print("🗑️  Tabla limpiada")
+
         for numero_parte, info in data.items():
             parte = Parte(
                 numero_parte=numero_parte,
@@ -54,9 +64,9 @@ async def migrar():
                 ayuda_visual=info.get('ayuda_visual', '')
             )
             db.add(parte)
-        
+
         await db.commit()
-        print(f"✅ {len(data)} partes migradas")
+        print(f"✅ {len(data)} partes migradas exitosamente")
 
 
 if __name__ == "__main__":
