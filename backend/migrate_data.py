@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app.database import engine, AsyncSessionLocal, Base
 from app.models.parte import Parte
-from sqlalchemy import select, func, text  # ✅ Importar text
+from sqlalchemy import select, func, text
 
 
 async def migrar():
@@ -46,7 +46,6 @@ async def migrar():
             if respuesta.lower() != 's':
                 print("Migración cancelada.")
                 return
-            # ✅ FIX: usar text() para SQL raw
             await db.execute(
                 text("TRUNCATE TABLE partes RESTART IDENTITY CASCADE")
             )

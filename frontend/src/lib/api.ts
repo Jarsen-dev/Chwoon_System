@@ -80,7 +80,7 @@ export async function importarExcelPartes(file: File): Promise<{message: string,
 
   const res = await fetch(`${API_URL}/importar/partes/excel`, {
     method: 'POST',
-    body: formData, // No enviamos Content-Type, fetch lo pone automático para FormData
+    body: formData,
   });
   
   if (!res.ok) {

@@ -58,7 +58,7 @@ export default function PartesPage() {
   const okButtonRef                     = useRef<HTMLButtonElement>(null)
   const confirmButtonRef                = useRef<HTMLButtonElement>(null)
 
-  // Modal cola (ya existía)
+  // Modal cola
   const [isQueueModalOpen, setIsQueueModalOpen] = useState(false)
   const [parteForQueue, setParteForQueue]       = useState<Parte | null>(null)
   const [queueQty, setQueueQty]                 = useState('1')

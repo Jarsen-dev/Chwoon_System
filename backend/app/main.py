@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import init_db
 from app.routers import partes, etiquetas, produccion, importar
-from app.routers import plan  # ✅ Agregar
+from app.routers import plan
 
 
 @asynccontextmanager
@@ -28,12 +28,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ✅ Todos los routers registrados
 app.include_router(partes.router)
 app.include_router(etiquetas.router)
 app.include_router(produccion.router)
 app.include_router(importar.router)
-app.include_router(plan.router)  # ✅ Agregar
+app.include_router(plan.router)
 
 
 @app.get("/")

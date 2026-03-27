@@ -1,11 +1,11 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
 import os
-from dotenv import load_dotenv  # ✅ pip install python-dotenv
+from dotenv import load_dotenv
 
 load_dotenv()
 
-# ✅ Leer desde .env con fallback para desarrollo local
+# Leer desde .env con fallback para desarrollo local
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
     "postgresql+asyncpg://planta_user:password123@localhost:5432/planta_db"
