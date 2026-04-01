@@ -32,4 +32,4 @@ postgres_data/
 
 # Archivos generados
 *.pdf
-*.xlsx
+*.xlsxdocker-compose.local.yml
