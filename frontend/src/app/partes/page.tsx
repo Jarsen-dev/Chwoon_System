@@ -2,52 +2,42 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { getPartes, createParte, updateParte, deleteParte, importarExcelPartes, agregarACola } from '@/lib/api'
-
-interface Parte {
-  id: number
-  numero_parte: string
-  descripcion: string
-  linea: string
-  id_interno: string
-  cantidad_por_etiqueta: string
-  cliente_lg: string
-  ayuda_visual?: string
-}
+import { getInventario, createInventario, updateInventario, deleteInventario, importarExcelInventario, agregarACola } from '@/lib/api'
+import { InventarioItem } from '@/types'
 
 // ==========================================
 // TIPOS DE MODALES
 // ==========================================
 type ModalInfo = {
-  title: string
+  title:   string
   message: string
-  type: 'success' | 'error' | 'info'
+  type:    'success' | 'error' | 'info'
 } | null
 
 type ConfirmModal = {
-  title: string
-  message: string
+  title:     string
+  message:   string
   onConfirm: () => void
 } | null
 
 export default function PartesPage() {
   const router = useRouter()
-  const [partes, setPartes] = useState<Parte[]>([])
-  const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
+  const [inventario, setInventario] = useState<InventarioItem[]>([])
+  const [loading, setLoading]       = useState(true)
+  const [search, setSearch]         = useState('')
 
   const [formData, setFormData] = useState({
-    numero_parte: '',
-    descripcion: '',
-    linea: '',
-    id_interno: 'assy',
-    cantidad_por_etiqueta: '45',
-    cliente_lg: 'R1',
+    codigo:       '',
+    descripcion:  '',
+    linea:        '',
+    tipo:         'assy',
+    qtu:          45,
+    linea_lg:     'R1',
     ayuda_visual: ''
   })
   const [editing, setEditing] = useState<string | null>(null)
 
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const fileInputRef              = useRef<HTMLInputElement>(null)
   const [isImporting, setIsImporting] = useState(false)
 
   // ==========================================
@@ -60,21 +50,17 @@ export default function PartesPage() {
 
   // Modal cola
   const [isQueueModalOpen, setIsQueueModalOpen] = useState(false)
-  const [parteForQueue, setParteForQueue]       = useState<Parte | null>(null)
+  const [itemForQueue, setItemForQueue]         = useState<InventarioItem | null>(null)
   const [queueQty, setQueueQty]                 = useState('1')
   const qtyInputRef                             = useRef<HTMLInputElement>(null)
 
   // Auto-focus modales
   useEffect(() => {
-    if (modalInfo && okButtonRef.current) {
-      okButtonRef.current.focus()
-    }
+    if (modalInfo && okButtonRef.current) okButtonRef.current.focus()
   }, [modalInfo])
 
   useEffect(() => {
-    if (confirmModal && confirmButtonRef.current) {
-      confirmButtonRef.current.focus()
-    }
+    if (confirmModal && confirmButtonRef.current) confirmButtonRef.current.focus()
   }, [confirmModal])
 
   useEffect(() => {
@@ -85,89 +71,94 @@ export default function PartesPage() {
   }, [isQueueModalOpen])
 
   useEffect(() => {
-    loadPartes()
+    loadInventario()
   }, [])
 
-  const loadPartes = async () => {
+  // ==========================================
+  // CARGA DE DATOS
+  // ==========================================
+  const loadInventario = async () => {
     try {
-      const data = await getPartes()
-      setPartes(data)
+      const data = await getInventario()
+      setInventario(data)
     } catch (error) {
       setModalInfo({
-        title: 'Error de Conexión',
+        title:   'Error de Conexión',
         message: 'No se pudieron cargar las partes. Verifica que el servidor esté activo.',
-        type: 'error'
+        type:    'error'
       })
     } finally {
       setLoading(false)
     }
   }
 
+  // ==========================================
+  // FORMULARIO
+  // ==========================================
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
       if (editing) {
-        const { numero_parte, ...updateData } = formData
-        await updateParte(editing, updateData)
+        const { codigo, ...updateData } = formData
+        await updateInventario(editing, updateData)
         setModalInfo({
-          title: '¡Actualizado!',
+          title:   '¡Actualizado!',
           message: `La parte ${editing} fue actualizada correctamente.`,
-          type: 'success'
+          type:    'success'
         })
         setEditing(null)
       } else {
-        await createParte(formData)
+        await createInventario(formData)
         setModalInfo({
-          title: '¡Parte Agregada!',
-          message: `La parte ${formData.numero_parte} fue agregada correctamente.`,
-          type: 'success'
+          title:   '¡Parte Agregada!',
+          message: `La parte ${formData.codigo} fue agregada correctamente.`,
+          type:    'success'
         })
       }
       resetForm()
-      loadPartes()
+      loadInventario()
     } catch (error: any) {
       setModalInfo({
-        title: 'Error al Guardar',
+        title:   'Error al Guardar',
         message: error.message || 'Ocurrió un error inesperado.',
-        type: 'error'
+        type:    'error'
       })
     }
   }
 
-  const handleEdit = (parte: Parte) => {
+  const handleEdit = (item: InventarioItem) => {
     setFormData({
-      numero_parte: parte.numero_parte,
-      descripcion: parte.descripcion,
-      linea: parte.linea,
-      id_interno: parte.id_interno,
-      cantidad_por_etiqueta: parte.cantidad_por_etiqueta,
-      cliente_lg: parte.cliente_lg,
-      ayuda_visual: parte.ayuda_visual || ''
+      codigo:       item.codigo,
+      descripcion:  item.descripcion,
+      linea:        item.linea,
+      tipo:         item.tipo,
+      qtu:          item.qtu,
+      linea_lg:     item.linea_lg,
+      ayuda_visual: item.ayuda_visual || ''
     })
-    setEditing(parte.numero_parte)
+    setEditing(item.codigo)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  // ✅ Reemplaza confirm() nativo
-  const handleDelete = (numero_parte: string) => {
+  const handleDelete = (codigo: string) => {
     setConfirmModal({
-      title: 'Confirmar Eliminación',
-      message: `¿Estás seguro de que deseas eliminar la pieza "${numero_parte}"? Esta acción no se puede deshacer.`,
+      title:   'Confirmar Eliminación',
+      message: `¿Estás seguro de que deseas eliminar la pieza "${codigo}"? Esta acción no se puede deshacer.`,
       onConfirm: async () => {
         setConfirmModal(null)
         try {
-          await deleteParte(numero_parte)
-          loadPartes()
+          await deleteInventario(codigo)
+          loadInventario()
           setModalInfo({
-            title: '¡Eliminado!',
-            message: `La parte "${numero_parte}" fue eliminada correctamente.`,
-            type: 'success'
+            title:   '¡Eliminado!',
+            message: `La parte "${codigo}" fue eliminada correctamente.`,
+            type:    'success'
           })
         } catch (error: any) {
           setModalInfo({
-            title: 'Error al Eliminar',
+            title:   'Error al Eliminar',
             message: error.message || 'No se pudo eliminar la parte.',
-            type: 'error'
+            type:    'error'
           })
         }
       }
@@ -177,33 +168,36 @@ export default function PartesPage() {
   const resetForm = () => {
     setEditing(null)
     setFormData({
-      numero_parte: '',
-      descripcion: '',
-      linea: '',
-      id_interno: 'assy',
-      cantidad_por_etiqueta: '45',
-      cliente_lg: 'R1',
+      codigo:       '',
+      descripcion:  '',
+      linea:        '',
+      tipo:         'assy',
+      qtu:          45,
+      linea_lg:     'R1',
       ayuda_visual: ''
     })
   }
 
+  // ==========================================
+  // IMPORTAR EXCEL
+  // ==========================================
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
     setIsImporting(true)
     try {
-      const result = await importarExcelPartes(file)
+      const result = await importarExcelInventario(file)   // ← CAMBIO
       setModalInfo({
-        title: '¡Importación Exitosa!',
+        title:   '¡Importación Exitosa!',
         message: `Se importaron/actualizaron ${result.count} partes correctamente.`,
-        type: 'success'
+        type:    'success'
       })
-      loadPartes()
+      loadInventario()
     } catch (error: any) {
       setModalInfo({
-        title: 'Error al Importar',
+        title:   'Error al Importar',
         message: error.message || 'No se pudo procesar el archivo Excel.',
-        type: 'error'
+        type:    'error'
       })
     } finally {
       setIsImporting(false)
@@ -211,38 +205,43 @@ export default function PartesPage() {
     }
   }
 
-  const openQueueModal = (parte: Parte) => {
-    setParteForQueue(parte)
+  // ==========================================
+  // MODAL COLA
+  // ==========================================
+  const openQueueModal = (item: InventarioItem) => {
+    setItemForQueue(item)
     setQueueQty('1')
     setIsQueueModalOpen(true)
   }
 
   const confirmAddToQueue = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!parteForQueue) return
+    if (!itemForQueue) return
     const cantidad = parseInt(queueQty) || 1
     try {
       await agregarACola({
-        parte_id: parteForQueue.id,
-        numero_parte: parteForQueue.numero_parte,
-        descripcion: parteForQueue.descripcion,
+        codigo_inventario:  itemForQueue.codigo,   // ← CAMBIO
         cantidad_etiquetas: cantidad,
-        turno: 'Día'
+        turno:              'Día'
       })
       setIsQueueModalOpen(false)
       router.push('/etiquetas')
     } catch (error: any) {
       setModalInfo({
-        title: 'Error',
+        title:   'Error',
         message: 'No se pudo añadir a la cola: ' + error.message,
-        type: 'error'
+        type:    'error'
       })
     }
   }
 
-  const partesFiltradas = partes.filter(p =>
-    p.numero_parte.toLowerCase().includes(search.toLowerCase()) ||
-    p.descripcion.toLowerCase().includes(search.toLowerCase())
+  // ==========================================
+  // FILTRO
+  // ==========================================
+  const inventarioFiltrado = inventario.filter(item =>
+    item.codigo.toLowerCase().includes(search.toLowerCase())      ||
+    item.descripcion.toLowerCase().includes(search.toLowerCase()) ||
+    item.linea_lg.toLowerCase().includes(search.toLowerCase())
   )
 
   if (loading) return (
@@ -255,7 +254,7 @@ export default function PartesPage() {
     <div className="p-4 max-w-6xl mx-auto relative">
 
       {/* ========================================================= */}
-      {/* MODAL: NOTIFICACIÓN (Éxito, Error, Info)                  */}
+      {/* MODAL: NOTIFICACIÓN                                       */}
       {/* ========================================================= */}
       {modalInfo && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
@@ -292,7 +291,7 @@ export default function PartesPage() {
       )}
 
       {/* ========================================================= */}
-      {/* MODAL: CONFIRMAR ELIMINACIÓN                              */}
+      {/* MODAL: CONFIRMAR ELIMINACIÓN                             */}
       {/* ========================================================= */}
       {confirmModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
@@ -325,9 +324,9 @@ export default function PartesPage() {
       )}
 
       {/* ========================================================= */}
-      {/* MODAL: AÑADIR A COLA                                      */}
+      {/* MODAL: AÑADIR A COLA                                     */}
       {/* ========================================================= */}
-      {isQueueModalOpen && parteForQueue && (
+      {isQueueModalOpen && itemForQueue && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="bg-blue-600 px-6 py-4">
@@ -339,7 +338,7 @@ export default function PartesPage() {
               <p className="text-gray-600 mb-4">
                 ¿Cuántas etiquetas para{' '}
                 <strong className="text-blue-700 font-mono bg-blue-50 px-1 rounded">
-                  {parteForQueue.numero_parte}
+                  {itemForQueue.codigo}
                 </strong>{' '}
                 deseas añadir?
               </p>
@@ -377,7 +376,7 @@ export default function PartesPage() {
       {/* ========================================================= */}
       <div className="flex items-center gap-2 mb-6">
         <span className="text-2xl">⚙️</span>
-        <h1 className="text-2xl font-bold text-slate-800">Gestión de Partes</h1>
+        <h1 className="text-2xl font-bold text-slate-800">Gestión de Inventario</h1>
       </div>
 
       {/* FORMULARIO */}
@@ -388,11 +387,13 @@ export default function PartesPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">N° Parte</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">
+              Código
+            </label>
             <input
               type="text"
-              value={formData.numero_parte}
-              onChange={e => setFormData({...formData, numero_parte: e.target.value})}
+              value={formData.codigo}
+              onChange={e => setFormData({...formData, codigo: e.target.value})}
               className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-200 focus:outline-none"
               required
               disabled={!!editing}
@@ -400,7 +401,9 @@ export default function PartesPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Descripción</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">
+              Descripción
+            </label>
             <input
               type="text"
               value={formData.descripcion}
@@ -411,7 +414,9 @@ export default function PartesPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Línea (máquina)</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">
+              Línea (máquina)
+            </label>
             <input
               type="text"
               value={formData.linea}
@@ -421,10 +426,12 @@ export default function PartesPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">ID</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">
+              Tipo
+            </label>
             <select
-              value={formData.id_interno}
-              onChange={e => setFormData({...formData, id_interno: e.target.value})}
+              value={formData.tipo}
+              onChange={e => setFormData({...formData, tipo: e.target.value})}
               className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-200 focus:outline-none"
             >
               <option value="assy">assy</option>
@@ -434,20 +441,24 @@ export default function PartesPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">QTY por etiqueta</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">
+              QTU (piezas por carrito)
+            </label>
             <input
               type="number"
-              value={formData.cantidad_por_etiqueta}
-              onChange={e => setFormData({...formData, cantidad_por_etiqueta: e.target.value})}
+              value={formData.qtu}
+              onChange={e => setFormData({...formData, qtu: parseInt(e.target.value) || 1})}
               className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-200 focus:outline-none"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Cliente (LG)</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">
+              Línea LG
+            </label>
             <select
-              value={formData.cliente_lg}
-              onChange={e => setFormData({...formData, cliente_lg: e.target.value})}
+              value={formData.linea_lg}
+              onChange={e => setFormData({...formData, linea_lg: e.target.value})}
               className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-200 focus:outline-none"
             >
               <option value="R1">R1</option>
@@ -458,7 +469,9 @@ export default function PartesPage() {
           </div>
 
           <div className="md:col-span-3">
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Ayuda Visual (link)</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">
+              Ayuda Visual (link)
+            </label>
             <input
               type="text"
               placeholder="https://..."
@@ -483,7 +496,7 @@ export default function PartesPage() {
                 type="file"
                 ref={fileInputRef}
                 onChange={handleFileUpload}
-                accept=".xlsx, .xls"
+                accept=".xlsx,.xls"
                 className="hidden"
               />
               <button
@@ -502,7 +515,7 @@ export default function PartesPage() {
           {editing && (
             <button
               type="button"
-              onClick={() => openQueueModal(partes.find(p => p.numero_parte === editing)!)}
+              onClick={() => openQueueModal(inventario.find(i => i.codigo === editing)!)}
               className="bg-purple-600 text-white px-5 py-2.5 rounded font-medium hover:bg-purple-700 transition shadow-sm flex items-center gap-2"
             >
               🖨️ Añadir a la Cola e Imprimir
@@ -528,7 +541,7 @@ export default function PartesPage() {
         </div>
         <input
           type="text"
-          placeholder="Buscar por número de parte o descripción..."
+          placeholder="Buscar por código, descripción o línea LG..."
           value={search}
           onChange={e => setSearch(e.target.value)}
           className="w-full border border-gray-300 pl-10 p-3 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-200 focus:outline-none"
@@ -540,46 +553,51 @@ export default function PartesPage() {
         <table className="w-full text-sm">
           <thead className="bg-slate-50 border-b border-gray-200">
             <tr>
-              <th className="p-3 text-left font-semibold text-slate-700">N° Parte</th>
+              <th className="p-3 text-left font-semibold text-slate-700">Código</th>
               <th className="p-3 text-left font-semibold text-slate-700">Descripción</th>
               <th className="p-3 text-left font-semibold text-slate-700">Línea</th>
-              <th className="p-3 text-left font-semibold text-slate-700">ID</th>
-              <th className="p-3 text-center font-semibold text-slate-700">QTY</th>
-              <th className="p-3 text-center font-semibold text-slate-700">Cliente</th>
+              <th className="p-3 text-left font-semibold text-slate-700">Tipo</th>
+              <th className="p-3 text-center font-semibold text-slate-700">QTU</th>
+              <th className="p-3 text-center font-semibold text-slate-700">Línea LG</th>
               <th className="p-3 text-center font-semibold text-slate-700">Acciones</th>
             </tr>
           </thead>
           <tbody>
-            {partesFiltradas.map(parte => (
-              <tr key={parte.id} className="border-b last:border-b-0 hover:bg-blue-50/30 transition">
-                <td className="p-3 font-mono font-medium text-slate-800">{parte.numero_parte}</td>
-                <td className="p-3 text-slate-600">{parte.descripcion}</td>
-                <td className="p-3 text-slate-600">{parte.linea}</td>
-                <td className="p-3 text-slate-600">{parte.id_interno}</td>
-                <td className="p-3 text-center font-semibold">{parte.cantidad_por_etiqueta}</td>
+            {inventarioFiltrado.map(item => (
+              <tr
+                key={item.codigo}
+                className="border-b last:border-b-0 hover:bg-blue-50/30 transition"
+              >
+                <td className="p-3 font-mono font-medium text-slate-800">
+                  {item.codigo}
+                </td>
+                <td className="p-3 text-slate-600">{item.descripcion}</td>
+                <td className="p-3 text-slate-600">{item.linea}</td>
+                <td className="p-3 text-slate-600">{item.tipo}</td>
+                <td className="p-3 text-center font-semibold">{item.qtu}</td>
                 <td className="p-3 text-center">
                   <span className={`px-2.5 py-1 rounded-full text-xs font-bold tracking-wide ${
-                    parte.cliente_lg === 'BOSCH' ? 'bg-blue-100 text-blue-800'     :
-                    parte.cliente_lg === 'EPS'   ? 'bg-purple-100 text-purple-800' :
-                    parte.cliente_lg === 'R2'    ? 'bg-green-100 text-green-800'   :
-                                                   'bg-gray-100 text-gray-800'
+                    item.linea_lg === 'BOSCH' ? 'bg-blue-100   text-blue-800'   :
+                    item.linea_lg === 'EPS'   ? 'bg-purple-100 text-purple-800' :
+                    item.linea_lg === 'R2'    ? 'bg-green-100  text-green-800'  :
+                                               'bg-gray-100   text-gray-800'
                   }`}>
-                    {parte.cliente_lg}
+                    {item.linea_lg}
                   </span>
                 </td>
                 <td className="p-3 text-center space-x-2">
                   <button
-                    onClick={() => openQueueModal(parte)}
+                    onClick={() => openQueueModal(item)}
                     className="text-purple-600 hover:text-purple-900 bg-purple-50 hover:bg-purple-100 p-1.5 rounded transition"
                     title="Añadir a la Cola e Imprimir"
                   >🖨️</button>
                   <button
-                    onClick={() => handleEdit(parte)}
+                    onClick={() => handleEdit(item)}
                     className="text-blue-600 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 p-1.5 rounded transition"
                     title="Editar"
                   >✏️</button>
                   <button
-                    onClick={() => handleDelete(parte.numero_parte)}
+                    onClick={() => handleDelete(item.codigo)}
                     className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 p-1.5 rounded transition"
                     title="Eliminar"
                   >🗑️</button>
@@ -589,7 +607,7 @@ export default function PartesPage() {
           </tbody>
         </table>
 
-        {partesFiltradas.length === 0 && (
+        {inventarioFiltrado.length === 0 && (
           <div className="p-10 text-center text-gray-500">
             <span className="text-4xl block mb-2">📦</span>
             No se encontraron partes que coincidan con la búsqueda.
@@ -598,7 +616,7 @@ export default function PartesPage() {
       </div>
 
       <div className="mt-4 text-sm font-medium text-slate-500 text-right">
-        Mostrando {partesFiltradas.length} de {partes.length} partes registradas
+        Mostrando {inventarioFiltrado.length} de {inventario.length} partes registradas
       </div>
     </div>
   )

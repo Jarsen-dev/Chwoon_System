@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.database import init_db
 from app.routers import partes, etiquetas, produccion, importar
 from app.routers import plan
+from app.routers import inventario
 
 
 @asynccontextmanager
@@ -23,7 +24,10 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(","),
+    allow_origins=os.getenv(
+        "ALLOWED_ORIGINS", 
+        "http://localhost:3000,http://localhost:5050"
+    ).split(","),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -34,6 +38,7 @@ app.include_router(etiquetas.router)
 app.include_router(produccion.router)
 app.include_router(importar.router)
 app.include_router(plan.router)
+app.include_router(inventario.router)
 
 
 @app.get("/")

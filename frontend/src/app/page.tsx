@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { getRegistros, getPlanProduccion, getPartes } from '@/lib/api'
+import { getRegistros, getPlanProduccion, getInventario } from '@/lib/api'
 
 // ==========================================
 // TIPOS

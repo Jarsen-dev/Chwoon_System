@@ -1,24 +1,63 @@
-export interface Parte {
-  id:                   number
-  numero_parte:         string
-  descripcion:          string
-  linea:                string
-  id_interno:           string
-  cantidad_por_etiqueta: string
-  cliente_lg:           string
-  ayuda_visual:         string
+// ==========================================
+// INVENTARIO PLANTA
+// ==========================================
+export interface InventarioItem {
+  codigo:        string
+  descripcion:   string
+  linea:         string
+  tipo:          string
+  qtu:           number
+  linea_lg:      string
+  ayuda_visual?: string
+}
+
+// ==========================================
+// COLA DE IMPRESIÓN
+// ==========================================
+export interface ColaItemCreate {
+  codigo_inventario:  string
+  cantidad_etiquetas: number
+  turno:              string
 }
 
 export interface ColaItem {
   id?:                number
-  parte_id:           number
+  codigo_inventario:  string
   numero_parte:       string
   descripcion:        string
   cantidad_etiquetas: number
-  turno:              'Día' | 'Noche'
-  estado?:            'pendiente' | 'generado'
+  turno:              string
+  estado?:            string
+  user?:              string | null
 }
 
+// ==========================================
+// PLAN - lo que guarda la BD
+// ==========================================
+export interface PlanItem {
+  id?:            number
+  numero_parte:   string
+  meta_piezas:    number
+  turno_objetivo: string
+  created_at?:    string
+}
+
+// ==========================================
+// PLAN PRODUCCIÓN - lo que muestra el dashboard
+// ==========================================
+export interface PlanProduccion {
+  numero_parte: string
+  descripcion:  string
+  maquina:      string
+  meta:         number
+  producido:    number
+  faltan:       number
+  estado:       '✅ COMPLETO' | '🔄 EN PROCESO' | '⏸️ EN COLA'
+}
+
+// ==========================================
+// REGISTRO PRODUCCIÓN
+// ==========================================
 export interface RegistroProduccion {
   id:              number
   fecha:           string
@@ -32,16 +71,9 @@ export interface RegistroProduccion {
   total_acumulado: number
 }
 
-export interface PlanProduccion {
-  numero_parte:  string
-  descripcion:   string
-  maquina:       string
-  meta:          number
-  producido:     number
-  faltan:        number
-  estado:        '✅ COMPLETO' | '🔄 EN PROCESO' | '⏸️ EN COLA'
-}
-
+// ==========================================
+// ANOMALÍA
+// ==========================================
 export interface Anomalia {
   id:           number
   fecha:        string
@@ -49,4 +81,19 @@ export interface Anomalia {
   numero_parte: string
   motivo:       string
   tipo:         'FRAUDE' | 'MANTENIMIENTO' | 'LENTITUD_PLAN'
+}
+
+// ==========================================
+// REGISTRO PARO
+// ==========================================
+export interface RegistroParo {
+  id?:               number
+  fecha:             string
+  hora_inicio:       string
+  hora_fin?:         string
+  duracion_minutos?: number
+  maquina:           string
+  motivo:            string
+  turno:             string
+  created_at?:       string
 }

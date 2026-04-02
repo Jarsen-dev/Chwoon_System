@@ -1,49 +1,48 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
-import { getPartes, getCola, agregarACola, generarPDF, eliminarDeCola, limpiarCola } from '@/lib/api'
-import { Parte, ColaItem } from '@/types'
+import { getInventario, getCola, agregarACola, generarPDF, eliminarDeCola, limpiarCola } from '@/lib/api'
+import { InventarioItem, ColaItem } from '@/types'
 
 export default function EtiquetasPage() {
-  const [partes, setPartes]           = useState<Parte[]>([])
-  const [cola, setCola]               = useState<ColaItem[]>([])
-  const [loading, setLoading]         = useState(true)
+  const [inventario, setInventario]     = useState<InventarioItem[]>([])
+  const [cola, setCola]                 = useState<ColaItem[]>([])
+  const [loading, setLoading]           = useState(true)
   const [isGenerating, setIsGenerating] = useState(false)
 
   // Formulario
-  const [selectedParteId, setSelectedParteId] = useState<string>('')
-  const [cantidad, setCantidad]               = useState<string>('1')
-  const [turno, setTurno]                     = useState<'Día' | 'Noche'>('Día')
+  const [selectedCodigo, setSelectedCodigo] = useState<string>('')
+  const [cantidad, setCantidad]             = useState<string>('1')
+  const [turno, setTurno]                   = useState<'Día' | 'Noche'>('Día')
 
-  // ✅ Buscador de partes
+  // Buscador
   const [searchParte, setSearchParte] = useState('')
 
   // Modales
-  const [modalInfo, setModalInfo]           = useState<{
-    title: string
+  const [modalInfo, setModalInfo] = useState<{
+    title:   string
     message: string
-    type: 'success' | 'error' | 'info'
+    type:    'success' | 'error' | 'info'
   } | null>(null)
   const [isClearModalOpen, setIsClearModalOpen] = useState(false)
 
   const okButtonRef = useRef<HTMLButtonElement>(null)
 
   // ==========================================
-  // PARTES FILTRADAS (buscador reactivo)
+  // INVENTARIO FILTRADO
   // ==========================================
-  const partesFiltradas = partes.filter(p => {
+  const inventarioFiltrado = inventario.filter(item => {
     const term = searchParte.toLowerCase()
     return (
-      p.numero_parte.toLowerCase().includes(term) ||
-      p.descripcion.toLowerCase().includes(term)
+      item.codigo.toLowerCase().includes(term)      ||
+      item.descripcion.toLowerCase().includes(term) ||
+      item.linea_lg.toLowerCase().includes(term)    ||
+      item.linea.toLowerCase().includes(term)
     )
   })
 
-  // ── Auto-focus botón OK del modal ──
   useEffect(() => {
-    if (modalInfo && okButtonRef.current) {
-      okButtonRef.current.focus()
-    }
+    if (modalInfo && okButtonRef.current) okButtonRef.current.focus()
   }, [modalInfo])
 
   useEffect(() => {
@@ -56,14 +55,17 @@ export default function EtiquetasPage() {
   const cargarDatos = async () => {
     try {
       setLoading(true)
-      const [partesData, colaData] = await Promise.all([getPartes(), getCola()])
-      setPartes(partesData)
+      const [inventarioData, colaData] = await Promise.all([
+        getInventario(),
+        getCola()
+      ])
+      setInventario(inventarioData)
       setCola(colaData)
     } catch (error: any) {
       setModalInfo({
-        title: 'Error de Conexión',
+        title:   'Error de Conexión',
         message: error.message,
-        type: 'error'
+        type:    'error'
       })
     } finally {
       setLoading(false)
@@ -73,46 +75,42 @@ export default function EtiquetasPage() {
   // ==========================================
   // HANDLERS
   // ==========================================
-  const ejecutarAgregarACola = async (parteId: string) => {
-  if (!parteId) {
-    setModalInfo({
-      title: 'Atención',
-      message: 'Por favor selecciona un número de parte.',
-      type: 'info'
-    })
-    return
+  const ejecutarAgregarACola = async (codigo: string) => {
+    if (!codigo) {
+      setModalInfo({
+        title:   'Atención',
+        message: 'Por favor selecciona un número de parte.',
+        type:    'info'
+      })
+      return
+    }
+
+    try {
+      await agregarACola({
+        codigo_inventario:  codigo,
+        cantidad_etiquetas: parseInt(cantidad) || 1,
+        turno:              turno
+      })
+
+      setCantidad('1')
+      setSelectedCodigo('')
+      setSearchParte('')
+
+      const colaActualizada = await getCola()
+      setCola(colaActualizada)
+    } catch (error: any) {
+      setModalInfo({
+        title:   'Error al Añadir',
+        message: error.message,
+        type:    'error'
+      })
+    }
   }
 
-  try {
-    await agregarACola({
-      parte_id: parseInt(parteId),
-      numero_parte: '',
-      descripcion: '',
-      cantidad_etiquetas: parseInt(cantidad) || 1,
-      turno: turno
-    })
-
-    // Limpiar formulario
-    setCantidad('1')
-    setSelectedParteId('')
-    setSearchParte('')
-
-    const colaActualizada = await getCola()
-    setCola(colaActualizada)
-  } catch (error: any) {
-    setModalInfo({
-      title: 'Error al Añadir',
-      message: error.message,
-      type: 'error'
-    })
+  const handleAdd = async (e: React.FormEvent) => {
+    e.preventDefault()
+    await ejecutarAgregarACola(selectedCodigo)
   }
-}
-
-// Form submit llama a la función separada
-const handleAdd = async (e: React.FormEvent) => {
-  e.preventDefault()
-  await ejecutarAgregarACola(selectedParteId)
-}
 
   const handleDelete = async (id: number) => {
     try {
@@ -130,9 +128,9 @@ const handleAdd = async (e: React.FormEvent) => {
       setCola([])
       setIsClearModalOpen(false)
       setModalInfo({
-        title: 'Cola Limpia',
+        title:   'Cola Limpia',
         message: 'Se han eliminado todas las etiquetas de la cola.',
-        type: 'success'
+        type:    'success'
       })
     } catch (error: any) {
       setModalInfo({ title: 'Error', message: error.message, type: 'error' })
@@ -142,9 +140,9 @@ const handleAdd = async (e: React.FormEvent) => {
   const handleGeneratePDF = async () => {
     if (cola.length === 0) {
       setModalInfo({
-        title: 'Cola Vacía',
+        title:   'Cola Vacía',
         message: 'No hay etiquetas para generar. Añade algunas primero.',
-        type: 'info'
+        type:    'info'
       })
       return
     }
@@ -164,15 +162,15 @@ const handleAdd = async (e: React.FormEvent) => {
 
       setCola([])
       setModalInfo({
-        title: '¡Éxito!',
+        title:   '¡Éxito!',
         message: 'El PDF ha sido generado y descargado correctamente.',
-        type: 'success'
+        type:    'success'
       })
     } catch (error: any) {
       setModalInfo({
-        title: 'Error al Generar PDF',
+        title:   'Error al Generar PDF',
         message: error.message,
-        type: 'error'
+        type:    'error'
       })
     } finally {
       setIsGenerating(false)
@@ -192,7 +190,7 @@ const handleAdd = async (e: React.FormEvent) => {
   // RENDER
   // ==========================================
   return (
-    <div className="p-4 max-w-5xl mx-auto relative">
+    <div className="p-4 max-w-full mx-auto relative">   {/* ← max-w-full */}
 
       {/* ======================================================= */}
       {/* MODAL: NOTIFICACIÓN                                      */}
@@ -200,8 +198,6 @@ const handleAdd = async (e: React.FormEvent) => {
       {modalInfo && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
-
-            {/* Header */}
             <div className={`px-6 py-4 ${
               modalInfo.type === 'success' ? 'bg-green-600' :
               modalInfo.type === 'error'   ? 'bg-red-600'   : 'bg-blue-600'
@@ -213,8 +209,6 @@ const handleAdd = async (e: React.FormEvent) => {
                 {modalInfo.title}
               </h3>
             </div>
-
-            {/* Body */}
             <div className="p-6">
               <p className="text-gray-700 text-base mb-6">{modalInfo.message}</p>
               <div className="flex justify-end">
@@ -231,7 +225,6 @@ const handleAdd = async (e: React.FormEvent) => {
                 </button>
               </div>
             </div>
-
           </div>
         </div>
       )}
@@ -242,15 +235,11 @@ const handleAdd = async (e: React.FormEvent) => {
       {isClearModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
-
-            {/* Header */}
             <div className="bg-orange-500 px-6 py-4">
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
                 ⚠️ Confirmar Acción
               </h3>
             </div>
-
-            {/* Body */}
             <div className="p-6">
               <p className="text-gray-700 text-base mb-6">
                 ¿Estás seguro de que deseas limpiar <strong>TODA</strong> la cola
@@ -271,7 +260,6 @@ const handleAdd = async (e: React.FormEvent) => {
                 </button>
               </div>
             </div>
-
           </div>
         </div>
       )}
@@ -281,16 +269,18 @@ const handleAdd = async (e: React.FormEvent) => {
       {/* ======================================================= */}
       <div className="flex items-center gap-2 mb-6">
         <span className="text-2xl">🖨️</span>
-        <h1 className="text-2xl font-bold text-slate-800">Cola de Impresión de Etiquetas</h1>
+        <h1 className="text-2xl font-bold text-slate-800">
+          Cola de Impresión de Etiquetas
+        </h1>
       </div>
 
       {/* ======================================================= */}
-      {/* GRID PRINCIPAL                                           */}
+      {/* GRID PRINCIPAL — 4 columnas                             */}
       {/* ======================================================= */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
 
         {/* ─────────────────────────────────────────────────────── */}
-        {/* PANEL IZQUIERDO: FORMULARIO                            */}
+        {/* PANEL IZQUIERDO: FORMULARIO                             */}
         {/* ─────────────────────────────────────────────────────── */}
         <div className="md:col-span-1">
           <form
@@ -301,25 +291,23 @@ const handleAdd = async (e: React.FormEvent) => {
               Añadir a la Cola
             </h2>
 
-            {/* N° Parte / Descripción */}
+            {/* Buscador */}
             <div className="mb-4">
               <label className="block text-sm font-semibold text-gray-700 mb-1">
                 N° Parte / Descripción
               </label>
 
-              {/* ✅ Buscador */}
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 pl-2.5 flex items-center text-gray-400 pointer-events-none">
                   🔍
                 </span>
                 <input
                   type="text"
-                  placeholder="Buscar por N° parte o descripción..."
+                  placeholder="Buscar por código, descripción, línea..."
                   value={searchParte}
                   onChange={e => setSearchParte(e.target.value)}
                   className="w-full border border-gray-300 border-b-0 pl-8 pr-8 py-2 rounded-t-md focus:ring-2 focus:ring-blue-200 focus:outline-none bg-gray-50 text-sm"
                 />
-                {/* Botón limpiar */}
                 {searchParte && (
                   <button
                     type="button"
@@ -331,12 +319,10 @@ const handleAdd = async (e: React.FormEvent) => {
                 )}
               </div>
 
-              {/* ✅ Select filtrado como lista */}
               <select
-                value={selectedParteId}
-                onChange={e => setSelectedParteId(e.target.value)}
+                value={selectedCodigo}
+                onChange={e => setSelectedCodigo(e.target.value)}
                 onDoubleClick={e => {
-                  // Leer el valor del option clickeado directamente del DOM
                   const value = (e.target as HTMLSelectElement).value
                   if (value) ejecutarAgregarACola(value)
                 }}
@@ -345,21 +331,30 @@ const handleAdd = async (e: React.FormEvent) => {
                 size={5}
               >
                 <option value="">-- Seleccionar --</option>
-                {partesFiltradas.map(p => (
-                  <option key={p.id} value={p.id}>
-                    {p.numero_parte} — {p.descripcion}
+                {inventarioFiltrado.map(item => (
+                  <option key={item.codigo} value={item.codigo}>
+                    {item.codigo} — {item.descripcion}
                   </option>
                 ))}
               </select>
 
-              {/* Hint de doble clic */}
-              <p className="text-xs text-gray-400 mt-1 flex justify-between">
+              {/* Info del item seleccionado */}
+              {selectedCodigo && (() => {
+                const item = inventario.find(i => i.codigo === selectedCodigo)
+                return item ? (
+                  <div className="mt-2 p-2 bg-blue-50 rounded text-xs text-blue-700 border border-blue-100">
+                    <span className="font-semibold">Línea:</span> {item.linea} &nbsp;|&nbsp;
+                    <span className="font-semibold">QTU:</span> {item.qtu} &nbsp;|&nbsp;
+                    <span className="font-semibold">Cliente:</span> {item.linea_lg}
+                  </div>
+                ) : null
+              })()}
+
+              <p className="text-xs text-gray-400 mt-1">
                 <span className="italic">💡 Doble clic o Enter para añadir directo</span>
               </p>
-
-              {/* Contador */}
               <p className="text-xs text-gray-400 mt-1 text-right">
-                {partesFiltradas.length} de {partes.length} partes
+                {inventarioFiltrado.length} de {inventario.length} partes
               </p>
             </div>
 
@@ -393,7 +388,6 @@ const handleAdd = async (e: React.FormEvent) => {
               </select>
             </div>
 
-            {/* Botón añadir */}
             <button
               type="submit"
               className="w-full bg-blue-600 text-white font-medium px-4 py-2.5 rounded hover:bg-blue-700 transition shadow-sm"
@@ -404,12 +398,12 @@ const handleAdd = async (e: React.FormEvent) => {
         </div>
 
         {/* ─────────────────────────────────────────────────────── */}
-        {/* PANEL DERECHO: LISTA Y ACCIONES                        */}
+        {/* PANEL DERECHO: TABLA                                    */}
         {/* ─────────────────────────────────────────────────────── */}
-        <div className="md:col-span-2">
+        <div className="md:col-span-3">
           <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-200 h-full">
 
-            {/* Header del panel */}
+            {/* Header */}
             <div className="flex justify-between items-center mb-4 border-b pb-3">
               <h2 className="text-lg font-bold text-gray-700">
                 Etiquetas en Cola ({cola.length})
@@ -432,22 +426,22 @@ const handleAdd = async (e: React.FormEvent) => {
               </div>
             </div>
 
-            {/* Tabla */}
-            <div className="overflow-x-auto rounded border border-gray-100">
-              <table className="w-full text-sm">
+            <div className="rounded border border-gray-100">
+              <table className="w-full text-sm table-fixed">
                 <thead className="bg-slate-50 border-b border-gray-100">
                   <tr>
-                    <th className="p-3 text-left   font-semibold text-gray-700">N° Parte</th>
+                    <th className="p-3 text-left   font-semibold text-gray-700 w-36">N° Parte</th>
                     <th className="p-3 text-left   font-semibold text-gray-700">Descripción</th>
-                    <th className="p-3 text-center font-semibold text-gray-700">Cant.</th>
-                    <th className="p-3 text-center font-semibold text-gray-700">Turno</th>
-                    <th className="p-3 text-center font-semibold text-gray-700">Acción</th>
+                    <th className="p-3 text-center font-semibold text-gray-700 w-16">Cant.</th>
+                    <th className="p-3 text-center font-semibold text-gray-700 w-24">Turno</th>
+                    <th className="p-3 text-center font-semibold text-gray-700 w-28">Usuario</th>
+                    <th className="p-3 text-center font-semibold text-gray-700 w-16">Acción</th>
                   </tr>
                 </thead>
                 <tbody>
                   {cola.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="p-10 text-center text-gray-500">
+                      <td colSpan={6} className="p-10 text-center text-gray-500">
                         <span className="text-3xl block mb-2">📥</span>
                         La cola está vacía. Selecciona un número de parte y añádelo.
                       </td>
@@ -459,12 +453,12 @@ const handleAdd = async (e: React.FormEvent) => {
                         className="border-t border-gray-100 hover:bg-blue-50/50 transition"
                       >
                         {/* N° Parte */}
-                        <td className="p-3 font-mono font-bold text-blue-800">
+                        <td className="p-3 font-mono font-bold text-blue-800 break-all">
                           {item.numero_parte}
                         </td>
 
                         {/* Descripción */}
-                        <td className="p-3 text-gray-600 truncate max-w-xs">
+                        <td className="p-3 text-gray-600 break-words">
                           {item.descripcion}
                         </td>
 
@@ -482,6 +476,19 @@ const handleAdd = async (e: React.FormEvent) => {
                           }`}>
                             {item.turno}
                           </span>
+                        </td>
+
+                        {/* Usuario */}
+                        <td className="p-3 text-center">
+                          {item.user ? (
+                            <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-800">
+                              {item.user}
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-400 italic">
+                              Sin asignar
+                            </span>
+                          )}
                         </td>
 
                         {/* Acción */}
@@ -503,7 +510,6 @@ const handleAdd = async (e: React.FormEvent) => {
 
           </div>
         </div>
-
       </div>
     </div>
   )

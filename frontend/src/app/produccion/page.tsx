@@ -9,6 +9,7 @@ import DashboardTab  from './DashboardTab'
 import PlanTab       from './PlanTab'
 import PredictionTab from './PredictionTab'
 import AnomaliesTab  from './AnomaliesTab'
+import CuartoSecadoTab  from './CuartoSecadoTab'
 
 // ── Tipos exportados para los componentes hijos ──
 export interface RegistroConMeta extends RegistroProduccion {
@@ -221,6 +222,7 @@ export default function ProduccionPage() {
     { id: 'plan',       label: '📋 Plan Prod.'    },
     { id: 'prediccion', label: '🤖 Predicción IA' },
     { id: 'anomalias',  label: '🚨 Anomalías'     },
+    { id: 'cuarto_secado', label: '🌡️ Cuarto Secado'  },
   ]
 
   return (
@@ -281,7 +283,8 @@ export default function ProduccionPage() {
           />
         )}
         {activeTab === 'plan' && (
-          <PlanTab planes={planes} />
+          <PlanTab planes={planes}
+          onRefresh={cargarPlan} />
         )}
         {activeTab === 'prediccion' && (
           <PredictionTab
@@ -294,6 +297,9 @@ export default function ProduccionPage() {
             anomalias={anomalias}
             cargarAnomalias={cargarAnomalias}
           />
+        )}
+        {activeTab === 'cuarto_secado' && (
+          <CuartoSecadoTab />
         )}
       </div>
 
