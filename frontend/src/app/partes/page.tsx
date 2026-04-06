@@ -442,7 +442,7 @@ export default function PartesPage() {
 
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">
-              QTU (piezas por carrito)
+              QTY (piezas por carrito)
             </label>
             <input
               type="number"
@@ -557,7 +557,7 @@ export default function PartesPage() {
               <th className="p-3 text-left font-semibold text-slate-700">Descripción</th>
               <th className="p-3 text-left font-semibold text-slate-700">Línea</th>
               <th className="p-3 text-left font-semibold text-slate-700">Tipo</th>
-              <th className="p-3 text-center font-semibold text-slate-700">QTU</th>
+              <th className="p-3 text-center font-semibold text-slate-700">QTY</th>
               <th className="p-3 text-center font-semibold text-slate-700">Línea LG</th>
               <th className="p-3 text-center font-semibold text-slate-700">Acciones</th>
             </tr>

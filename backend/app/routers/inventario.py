@@ -1,7 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List
+import pandas as pd
+import io
 
 from app.database import AsyncSessionLocal
 from app.models.inventario import InventarioPlanta
@@ -77,3 +79,45 @@ async def eliminar_inventario(
     await db.delete(item)
     await db.commit()
     return {"message": f"Código '{codigo}' eliminado del inventario"}
+
+@router.post("/importar-excel")
+async def importar_excel(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db)
+):
+    if not file.filename.endswith(('.xlsx', '.xls')):
+        raise HTTPException(status_code=400, detail="El archivo debe ser Excel (.xlsx o .xls)")
+
+    contents = await file.read()
+    df = pd.read_excel(io.BytesIO(contents))
+
+    # Columnas esperadas
+    columnas = ['codigo', 'descripcion', 'linea', 'tipo', 'qtu', 'linea_lg', 'ayuda_visual']
+
+    registros_creados = 0
+    registros_actualizados = 0
+
+    for _, row in df.iterrows():
+        codigo = str(row['codigo']).strip()
+        result = await db.execute(
+            select(InventarioPlanta).where(InventarioPlanta.codigo == codigo)
+        )
+        existing = result.scalar_one_or_none()
+
+        if existing:
+            for col in columnas:
+                if col != 'codigo' and col in df.columns:
+                    setattr(existing, col, row[col])
+            registros_actualizados += 1
+        else:
+            data = {col: row[col] for col in columnas if col in df.columns}
+            item = InventarioPlanta(**data)
+            db.add(item)
+            registros_creados += 1
+
+    await db.commit()
+    return {
+        "message": "Importación exitosa",
+        "creados": registros_creados,
+        "actualizados": registros_actualizados
+    }
