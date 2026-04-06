@@ -7,11 +7,12 @@ from app.database import init_db
 from app.routers import partes, etiquetas, produccion, importar
 from app.routers import plan
 from app.routers import inventario
+from app.models.contador_carrito import ContadorCarrito
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await init_db()
+    await init_db()  # Crea todas las tablas incluyendo contador_carritos
     yield
 
 
@@ -25,7 +26,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=os.getenv(
-        "ALLOWED_ORIGINS", 
+        "ALLOWED_ORIGINS",
         "http://localhost:3000,http://localhost:5050"
     ).split(","),
     allow_credentials=True,

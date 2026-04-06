@@ -87,44 +87,67 @@ export default function ProduccionPage() {
 
     ws.current.onmessage = (event) => {
       const data = JSON.parse(event.data)
+
       if (data.type === 'scan_complete') {
         const reg  = data.registro
         const meta = planMap.current[reg.numero_parte]
+
         setRegistros(prev => [{
           ...reg,
           meta_plan: meta ?? 'N/A',
           faltan:    meta != null ? Math.max(0, meta - reg.total_acumulado) : 'N/A'
         }, ...prev])
+
         if (data.alertas?.length > 0) {
-          data.alertas.forEach((a: any) =>
-            setAlertas(prev => [{ ...a, id: Date.now() }, ...prev])
-          )
+          data.alertas.forEach((a: any) => agregarAlerta({
+            tipo:   a.tipo,
+            motivo: a.motivo
+          }))
         }
+
       } else if (data.type === 'error') {
-        setAlertas(prev => [{ tipo: 'ERROR', motivo: data.message, id: Date.now() }, ...prev])
+        agregarAlerta({
+          tipo:   'ERROR',
+          motivo: data.message
+        })
       }
     }
   }
 
-  const enviarCodigo = () => {
-    const codigo = inputValueRef.current.trim()
-    if (!codigo) return
-    if (ws.current?.readyState === WebSocket.OPEN) {
-      ws.current.send(codigo)
-    } else {
-      setAlertas(prev => [{ tipo: 'ERROR', motivo: 'Sin conexión al servidor. Reconectando...', id: Date.now() }, ...prev])
-    }
-    inputValueRef.current = ''
-    setInputValue('')
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const valor = e.target.value.toUpperCase()  // ✅ Ya puede usar uppercase
+  inputValueRef.current = valor
+  setInputValue(valor)
+
+  if (scanTimer.current) clearTimeout(scanTimer.current)
+  if (valor.trim()) {
+    scanTimer.current = setTimeout(enviarCodigo, 600)
+  }
+}
+
+const enviarCodigo = () => {
+  const codigo = inputValueRef.current.trim()
+  if (!codigo) return
+
+  // Extrae solo el número de parte si tiene formato con °
+  let codigoFinal = codigo
+  if (codigo.includes('°')) {
+    codigoFinal = codigo.split('°')[0].trim()
   }
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const valor = e.target.value.toUpperCase()
-    inputValueRef.current = valor
-    setInputValue(valor)
-    if (scanTimer.current) clearTimeout(scanTimer.current)
-    if (valor.trim()) scanTimer.current = setTimeout(enviarCodigo, 600)
+  if (ws.current?.readyState === WebSocket.OPEN) {
+    ws.current.send(codigoFinal)
+  } else {
+    setAlertas(prev => [{
+      tipo:   'ERROR',
+      motivo: 'Sin conexión al servidor. Reconectando...',
+      id:     Date.now()
+    }, ...prev])
   }
+
+  inputValueRef.current = ''
+  setInputValue('')
+}
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -224,6 +247,15 @@ export default function ProduccionPage() {
     { id: 'anomalias',  label: '🚨 Anomalías'     },
     { id: 'cuarto_secado', label: '🌡️ Cuarto Secado'  },
   ]
+
+  const agregarAlerta = (alerta: Omit<{ tipo: string; motivo: string; id: number }, 'id'>) => {
+    const id = Date.now()
+    setAlertas(prev => [{ ...alerta, id }, ...prev])
+    // Auto-elimina después de 15 segundos
+    setTimeout(() => {
+      setAlertas(prev => prev.filter(a => a.id !== id))
+    }, 15000)
+  }
 
   return (
     <div className="p-4 max-w-6xl mx-auto">

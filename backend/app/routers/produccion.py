@@ -8,7 +8,7 @@ from app.database import AsyncSessionLocal
 from app.models.registro_produccion import RegistroProduccion
 from app.models.plan_produccion import PlanProduccion
 from app.models.anomalia import Anomalia
-from app.models.inventario import InventarioPlanta          # ← CAMBIO
+from app.models.inventario import InventarioPlanta
 from app.models.registro_paro import RegistroParo
 from app.schemas.produccion import (
     RegistroProduccion as RegistroSchema,
@@ -212,15 +212,27 @@ async def websocket_scanner(websocket: WebSocket):
 
     try:
         while True:
-            data   = await websocket.receive_text()
-            codigo = data.strip().upper()
+            data       = await websocket.receive_text()
+            codigo_raw = data.strip()
+
+            numero_carrito_qr = None
+
+            if '?' in codigo_raw:
+                partes = codigo_raw.split('?')
+                codigo = partes[0].strip().upper()
+                if len(partes) >= 4:
+                    try:
+                        numero_carrito_qr = int(partes[3].strip())
+                    except (ValueError, IndexError):
+                        numero_carrito_qr = None
+            else:
+                codigo = codigo_raw.strip().upper()
 
             if not codigo:
                 continue
 
             async with AsyncSessionLocal() as db:
 
-                # ← CAMBIO: buscar en inventario_planta
                 result = await db.execute(
                     select(InventarioPlanta).where(
                         InventarioPlanta.codigo == codigo
@@ -240,12 +252,35 @@ async def websocket_scanner(websocket: WebSocket):
                 hora_str  = ahora.strftime("%H:%M:%S")
                 turno     = obtener_turno()
 
-                # ← CAMBIO: qtu en lugar de cantidad_por_etiqueta
+                # ── Verifica duplicado de parte + carrito en mismo turno ──
+                if numero_carrito_qr is not None:
+                    result_duplicado = await db.execute(
+                        select(RegistroProduccion).where(
+                            RegistroProduccion.numero_parte   == codigo,
+                            RegistroProduccion.carrito_numero == numero_carrito_qr,
+                            RegistroProduccion.fecha          == fecha_str,
+                            RegistroProduccion.turno          == turno
+                        )
+                    )
+                    duplicado = result_duplicado.scalar_one_or_none()
+
+                    if duplicado:
+                        await websocket.send_json({
+                            "type":    "error",
+                            "message": f"⚠️ Parte {codigo} · Carrito #{numero_carrito_qr} ya fue escaneado en este turno ({turno}). No se puede registrar de nuevo."
+                        })
+                        continue
+
                 qty_bolsa = int(inventario.qtu or 1)
 
-                carrito_numero  = await _calcular_conteo(
-                    db, codigo, fecha_str, turno
-                )
+                # Usa número de carrito del QR o calcula
+                if numero_carrito_qr is not None:
+                    carrito_numero = numero_carrito_qr
+                else:
+                    carrito_numero = await _calcular_conteo(
+                        db, codigo, fecha_str, turno
+                    )
+
                 total_acumulado = await _calcular_total_acumulado(
                     db, codigo, fecha_str, turno, qty_bolsa
                 )

@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 
 interface RegistroSecado {
   id:                 number
+  numero_parte:       string
   carrito:            string
   hora_entrada:       string
   hora_salida:        string | null
@@ -11,16 +12,23 @@ interface RegistroSecado {
   estado:             'dentro' | 'salido'
 }
 
+interface Alerta {
+  id:      number
+  tipo:    string
+  mensaje: string
+}
+
 export default function CuartoSecadoTab() {
   const [registros, setRegistros] = useState<RegistroSecado[]>([])
   const [inputValue, setInputValue] = useState('')
-  const [alertas, setAlertas]       = useState<{ id: number; tipo: string; mensaje: string }[]>([])
+  const [alertas, setAlertas]       = useState<Alerta[]>([])
 
   const inputRef      = useRef<HTMLInputElement | null>(null)
   const inputValueRef = useRef('')
   const scanTimer     = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const turnoRef      = useRef<'D' | 'N'>(getTurnoActual())
 
-  // Mantener foco en el input
+  // ── Mantener foco ──
   useEffect(() => {
     const interval = setInterval(() => {
       if (document.activeElement !== inputRef.current) {
@@ -30,61 +38,122 @@ export default function CuartoSecadoTab() {
     return () => clearInterval(interval)
   }, [])
 
-  // ── Helpers de tiempo ──
-  const getHoraActual = () => {
-    const now = new Date()
-    return now.toTimeString().slice(0, 8) // HH:MM:SS
+  // ── Reset por cambio de turno ──
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const turnoActual = getTurnoActual()
+      if (turnoActual !== turnoRef.current) {
+        turnoRef.current = turnoActual
+        setRegistros([])
+        agregarAlerta({
+          tipo:    'TURNO',
+          mensaje: `Turno cambiado a ${turnoActual === 'D' ? 'Día' : 'Noche'}. Registros reseteados.`
+        })
+      }
+    }, 30000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // ── Helpers ──
+  function getTurnoActual(): 'D' | 'N' {
+    const now          = new Date()
+    const totalMinutos = now.getHours() * 60 + now.getMinutes()
+    return totalMinutos >= 450 && totalMinutos < 1170 ? 'D' : 'N'
+  }
+
+  const getHoraActual = (): string => {
+    return new Date().toTimeString().slice(0, 8)
   }
 
   const calcularTiempo = (entrada: string, salida: string): string => {
     const [hE, mE, sE] = entrada.split(':').map(Number)
     const [hS, mS, sS] = salida.split(':').map(Number)
-    const totalSegE = hE * 3600 + mE * 60 + sE
-    const totalSegS = hS * 3600 + mS * 60 + sS
-    const diff      = totalSegS - totalSegE
+    const totalSegE    = hE * 3600 + mE * 60 + sE
+    const totalSegS    = hS * 3600 + mS * 60 + sS
+    const diff         = totalSegS - totalSegE
 
     if (diff <= 0) return '—'
-
     const h = Math.floor(diff / 3600)
     const m = Math.floor((diff % 3600) / 60)
     const s = diff % 60
-
     if (h > 0) return `${h}h ${m}min ${s}s`
     if (m > 0) return `${m}min ${s}s`
     return `${s}s`
+  }
+
+  const parsearCodigo = (codigo: string): { numeroParte: string; numeroCarrito: string } => {
+    if (codigo.includes('?')) {
+      const partes = codigo.split('?')
+      return {
+        numeroParte:   partes[0]?.trim().toUpperCase() || codigo,
+        numeroCarrito: partes[3]?.trim() || '?'
+      }
+    }
+    return {
+      numeroParte:   codigo.trim().toUpperCase(),
+      numeroCarrito: '?'
+    }
+  }
+
+  const agregarAlerta = (alerta: Omit<Alerta, 'id'>) => {
+    const id = Date.now()
+    setAlertas(prev => [{ ...alerta, id }, ...prev])
+    // Auto-elimina después de 15 segundos
+    setTimeout(() => {
+      setAlertas(prev => prev.filter(a => a.id !== id))
+    }, 15000)
   }
 
   // ── Procesar escaneo ──
   const procesarEscaneo = (codigo: string) => {
     if (!codigo.trim()) return
 
-    const horaActual = getHoraActual()
-    const carritoNorm = codigo.trim().toUpperCase()
+    const horaActual                     = getHoraActual()
+    const { numeroParte, numeroCarrito } = parsearCodigo(codigo)
 
-    // Busca si el carrito ya tiene entrada y está "dentro"
+    // 3er escaneo → ERROR: ya completó su ciclo
+    const yaCompleto = registros.some(
+      r => r.numero_parte === numeroParte &&
+           r.carrito      === numeroCarrito &&
+           r.estado       === 'salido'
+    )
+
+    if (yaCompleto) {
+      agregarAlerta({
+        tipo:    'ERROR',
+        mensaje: `⚠️ Parte ${numeroParte} · Carrito #${numeroCarrito} ya completó su ciclo (Entrada y Salida). No se puede registrar de nuevo.`
+      })
+      inputValueRef.current = ''
+      setInputValue('')
+      return
+    }
+
+    // Busca si está "dentro"
     const idx = registros.findIndex(
-      r => r.carrito === carritoNorm && r.estado === 'dentro'
+      r => r.numero_parte === numeroParte &&
+           r.carrito      === numeroCarrito &&
+           r.estado       === 'dentro'
     )
 
     if (idx === -1) {
-      // ── ENTRADA ──
+      // ── 1er escaneo → ENTRADA ──
       const nuevo: RegistroSecado = {
         id:               Date.now(),
-        carrito:          carritoNorm,
+        numero_parte:     numeroParte,
+        carrito:          numeroCarrito,
         hora_entrada:     horaActual,
         hora_salida:      null,
         tiempo_en_camara: null,
         estado:           'dentro',
       }
       setRegistros(prev => [nuevo, ...prev])
-      setAlertas(prev => [{
-        id:      Date.now(),
+      agregarAlerta({
         tipo:    'ENTRADA',
-        mensaje: `Carrito #${carritoNorm} registrado. Hora entrada: ${horaActual}`
-      }, ...prev])
+        mensaje: `Parte ${numeroParte} · Carrito #${numeroCarrito} → Entrada: ${horaActual}`
+      })
 
     } else {
-      // ── SALIDA ──
+      // ── 2do escaneo → SALIDA ──
       const entrada = registros[idx].hora_entrada
       const tiempo  = calcularTiempo(entrada, horaActual)
 
@@ -93,11 +162,10 @@ export default function CuartoSecadoTab() {
           ? { ...r, hora_salida: horaActual, tiempo_en_camara: tiempo, estado: 'salido' }
           : r
       ))
-      setAlertas(prev => [{
-        id:      Date.now(),
+      agregarAlerta({
         tipo:    'SALIDA',
-        mensaje: `Carrito #${carritoNorm} salió. Tiempo en cámara: ${tiempo}`
-      }, ...prev])
+        mensaje: `Parte ${numeroParte} · Carrito #${numeroCarrito} → Tiempo: ${tiempo}`
+      })
     }
 
     inputValueRef.current = ''
@@ -144,7 +212,7 @@ export default function CuartoSecadoTab() {
           value={inputValue}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
-          placeholder="Esperando lectura de código de barras..."
+          placeholder="Esperando lectura de código QR..."
           className="w-full max-w-xl text-center text-2xl p-4 border-2 border-blue-400 rounded-lg shadow-inner focus:outline-none focus:ring-4 focus:ring-blue-200 uppercase tracking-widest placeholder:text-gray-300 placeholder:text-lg"
           autoComplete="off"
           autoFocus
@@ -174,36 +242,43 @@ export default function CuartoSecadoTab() {
       {/* Alertas */}
       {alertas.length > 0 && (
         <div className="flex flex-col gap-2">
-          {alertas.slice(0, 3).map(alerta => (
+            {alertas.slice(0, 3).map(alerta => (
             <div
-              key={alerta.id}
-              className={`border-l-4 p-3 rounded flex justify-between items-start ${
+                key={alerta.id}
+                className={`border-l-4 p-3 rounded flex justify-between items-start ${
                 alerta.tipo === 'ENTRADA'
-                  ? 'bg-green-50 border-green-500 text-green-700'
-                  : 'bg-blue-50 border-blue-500 text-blue-700'
-              }`}
+                    ? 'bg-green-50  border-green-500  text-green-700'
+                    : alerta.tipo === 'SALIDA'
+                    ? 'bg-blue-50   border-blue-500   text-blue-700'
+                    : alerta.tipo === 'ERROR'
+                        ? 'bg-red-50    border-red-500    text-red-700'
+                        : 'bg-yellow-50 border-yellow-500 text-yellow-700'  // TURNO
+                }`}
             >
-              <div>
+                <div>
                 <p className="font-bold text-sm">
-                  {alerta.tipo === 'ENTRADA' ? '🟢' : '🔵'} {alerta.tipo}
+                    {alerta.tipo === 'ENTRADA' ? '🟢'
+                    : alerta.tipo === 'SALIDA'  ? '🔵'
+                    : alerta.tipo === 'ERROR'   ? '🚨'
+                    : '🔄'} {alerta.tipo}
                 </p>
                 <p className="text-sm mt-0.5">{alerta.mensaje}</p>
-              </div>
-              <button
+                </div>
+                <button
                 onClick={() => setAlertas(alertas.filter(a => a.id !== alerta.id))}
                 className="font-bold ml-4 text-lg opacity-50 hover:opacity-100"
-              >✖</button>
+                >✖</button>
             </div>
-          ))}
+            ))}
         </div>
-      )}
+        )}
 
       {/* Tabla */}
       <div className="overflow-x-auto border border-gray-200 rounded-xl">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-gray-100 border-b border-gray-200">
-              {['Carrito', 'Hora Entrada', 'Hora Salida', 'Tiempo en Cámara', 'Estado'].map(col => (
+              {['N° Parte', 'Carrito', 'Hora Entrada', 'Hora Salida', 'Tiempo en Cámara', 'Estado'].map(col => (
                 <th key={col} className="p-3 text-center font-semibold text-slate-600 whitespace-nowrap">
                   {col}
                 </th>
@@ -213,7 +288,7 @@ export default function CuartoSecadoTab() {
           <tbody>
             {registros.length === 0 ? (
               <tr>
-                <td colSpan={5} className="p-12 text-center">
+                <td colSpan={6} className="p-12 text-center">
                   <span className="text-4xl block mb-2">🌡️</span>
                   <span className="text-gray-400">Esperando escaneo...</span>
                 </td>
@@ -228,9 +303,16 @@ export default function CuartoSecadoTab() {
                       : 'hover:bg-gray-50'
                   }`}
                 >
-                  {/* Carrito */}
+                  {/* N° Parte */}
                   <td className={`p-3 text-center font-mono font-bold ${
                     idx === 0 ? 'text-blue-700' : 'text-blue-600'
+                  }`}>
+                    {reg.numero_parte}
+                  </td>
+
+                  {/* Carrito */}
+                  <td className={`p-3 text-center font-mono font-bold ${
+                    idx === 0 ? 'text-slate-800' : 'text-slate-600'
                   }`}>
                     #{reg.carrito}
                   </td>

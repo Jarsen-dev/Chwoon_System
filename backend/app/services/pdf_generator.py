@@ -13,74 +13,42 @@ from reportlab.graphics.barcode import qr
 from reportlab.graphics.shapes import Drawing
 from reportlab.graphics import renderPDF
 
+from app.services.contador_service import obtener_siguiente_carrito
+
 
 # ── Helpers ─────────────────────────────────────────────────────────
 
-def _get_turno() -> str:
-    now     = datetime.now()
-    hora    = now.hour
-    minutos = now.minute
+def _normalizar_turno(turno_str: str | None) -> str:
+    if not turno_str:
+        return _get_turno_por_hora()
+    t = turno_str.strip().upper()
+    if t in ['D', 'DIA', 'DÍA', 'DAY', 'DIURNO']:
+        return 'D'
+    if t in ['N', 'NOCHE', 'NIGHT', 'NOCTURNO']:
+        return 'N'
+    return _get_turno_por_hora()
 
-    # Convierte hora actual a minutos totales para comparar fácilmente
-    total_minutos = hora * 60 + minutos
 
-    # Turno Día:   7:30 → 19:30  (450 → 1170 minutos)
-    # Turno Noche: 19:30 → 7:30  (1170 → 450 minutos)
-    if 450 <= total_minutos < 1170:
-        return "D"
-    else:
-        return "N"
+def _get_turno_por_hora() -> str:
+    now           = datetime.now()
+    total_minutos = now.hour * 60 + now.minute
+    return 'D' if 450 <= total_minutos < 1170 else 'N'
+
 
 def _get_fecha() -> str:
-    return datetime.now().strftime('%d/%m/%Y')
+    return datetime.now().strftime('%d%m%Y')  # Sin / → "06042026"
 
-def _generar_codigo_carrito(numero_parte: str, contador: dict) -> str:
-    """
-    Genera el JSON para el QR1.
+async def _generar_codigo_carrito(
+    numero_parte: str,
+    turno_item:   str | None,
+) -> str:
+    turno_qr    = _normalizar_turno(turno_item)
+    fecha       = _get_fecha()
+    num_carrito = await obtener_siguiente_carrito(numero_parte, turno_qr)
 
-    El contador tiene esta estructura:
-    {
-        "ABC123": { "turno": "D", "count": 3 },
-        "XYZ999": { "turno": "N", "count": 1 },
-    }
-
-    - Si es la primera vez que aparece la parte   → empieza en 1
-    - Si el turno cambió respecto al último        → resetea a 1
-    - Si es el mismo turno                         → incrementa
-    """
-    turno_actual = _get_turno()
-    fecha_actual = _get_fecha()
-
-    if numero_parte not in contador:
-        # Primera vez que aparece esta parte
-        contador[numero_parte] = {
-            "turno": turno_actual,
-            "count": 1
-        }
-    else:
-        turno_anterior = contador[numero_parte]["turno"]
-
-        if turno_anterior != turno_actual:
-            # El turno cambió → resetea el contador
-            contador[numero_parte] = {
-                "turno": turno_actual,
-                "count": 1
-            }
-        else:
-            # Mismo turno → incrementa
-            contador[numero_parte]["count"] += 1
-
-    numero_carrito = contador[numero_parte]["count"]
-
-    # Genera el JSON
-    data = {
-        "parte":    numero_parte,
-        "turno":    turno_actual,
-        "fecha":    fecha_actual,
-        "carrito":  numero_carrito
-    }
-
-    return json.dumps(data, ensure_ascii=False)
+    # Formato: PARTE_TURNO_FECHA_CARRITO
+    # Solo caracteres seguros para cualquier scanner
+    return f"{numero_parte}_{turno_qr}_{fecha}_{num_carrito}"
 
 
 # ── Generador principal ─────────────────────────────────────────────
@@ -113,10 +81,6 @@ async def generar_pdf_etiquetas(items_cola: list) -> bytes:
     label_count_on_page    = 0
     total_labels_generated = 0
 
-    # Contador persistente durante toda la generación del PDF
-    # { "numero_parte": { "turno": "D", "count": N } }
-    contador_carritos: dict = {}
-
     for item in items_cola:
         num_labels = item.get('cantidad_etiquetas', 1)
 
@@ -131,9 +95,10 @@ async def generar_pdf_etiquetas(items_cola: list) -> bytes:
             c.translate(x_offset, y_offset)
             c.scale(scale_x, scale_y)
 
-            codigo_carrito = _generar_codigo_carrito(
+            # 👇 await porque ahora consulta DB
+            codigo_carrito = await _generar_codigo_carrito(
                 item.get('numero_parte', ''),
-                contador_carritos
+                item.get('turno', None),
             )
             _draw_single_label(c, item, codigo_carrito)
 
@@ -152,17 +117,15 @@ async def generar_pdf_etiquetas(items_cola: list) -> bytes:
         return buffer.getvalue()
 
 
-# ── Dibujo de una etiqueta ──────────────────────────────────────────
+# ── Sin cambios desde aquí ───────────────────────────────────────────
 
 def _draw_single_label(c, item, codigo_carrito: str):
     default_font = "Helvetica"
     bold_font    = "Helvetica-Bold"
 
-    # --- Cuadros base ---
     c.rect(0.25 * inch, 0.25 * inch, 5.5 * inch, 4.5 * inch)
     c.rect(0.5  * inch, 3.72 * inch, 1.5 * inch, 0.8 * inch)
 
-    # --- Logo ---
     base_dir  = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     logo_path = os.path.join(base_dir, "static", "Logo.png")
 
@@ -177,7 +140,6 @@ def _draw_single_label(c, item, codigo_carrito: str):
         c.setFont(default_font, 10)
         c.drawCentredString(1.25 * inch, 4.12 * inch, "LG / EPS")
 
-    # --- Cuadro superior derecho (Cliente) ---
     box_top_right_x      = 4    * inch
     box_top_right_y      = 3.72 * inch
     box_top_right_width  = 1.5  * inch
@@ -198,12 +160,17 @@ def _draw_single_label(c, item, codigo_carrito: str):
     text_y_top_right = box_top_right_y + (box_top_right_height - font_size_top_right * 0.8) / 2
     c.drawString(text_x_top_right, text_y_top_right, display_text_top_right)
 
-    # --- Fecha y Turno ---
+    try:
+        partes_qr     = codigo_carrito.split('~')
+        turno_qr      = partes_qr[1] if len(partes_qr) > 1 else 'D'
+        turno_display = 'Día' if turno_qr == 'D' else 'Noche'
+    except Exception:
+        turno_display = item.get('turno', 'Día')
+
     c.setFont(default_font, 12)
     c.drawString(2.33 * inch, 4.1 * inch, f"Fecha: {datetime.now().strftime('%d/%m/%Y')}")
-    c.drawString(2.33 * inch, 3.8 * inch, f"Turno: {item.get('turno', 'Día')}")
+    c.drawString(2.33 * inch, 3.8 * inch, f"Turno: {turno_display}")
 
-    # --- Información de la Parte ---
     info_y_start      = 3.2 * inch
     box_label_x       = 0.5 * inch
     box_value_x       = 1.5 * inch
@@ -247,7 +214,6 @@ def _draw_single_label(c, item, codigo_carrito: str):
 
         y_pos -= 0.4 * inch
 
-    # --- Línea y texto dinámico ---
     linea = item.get('linea', 'SIN LINEA').strip().upper()
     c.setFont(bold_font, 12)
     dynamic_text_width = c.stringWidth(linea, bold_font, 12)
@@ -260,11 +226,9 @@ def _draw_single_label(c, item, codigo_carrito: str):
     qr_size  = 0.75 * inch
     qr_x_pos = 4 * inch + (1.75 * inch - qr_size) / 2
 
-    # QR 1 → JSON con parte, turno, fecha, carrito
     y_qr1 = line_y_separator - 0.05 * inch - qr_size
     _generar_qr_code(c, codigo_carrito, qr_x_pos, y_qr1, qr_size)
 
-    # QR 2 → Toda la info
     y_qr2        = y_qr1 - 0.15 * inch - qr_size
     qr_data_info = (
         f"Fecha: {datetime.now().strftime('%d/%m/%Y')}\n"
@@ -275,22 +239,19 @@ def _draw_single_label(c, item, codigo_carrito: str):
     )
     _generar_qr_code(c, qr_data_info, qr_x_pos, y_qr2, qr_size)
 
-    # --- Líneas adicionales y textos inferiores ---
     c.line(0.25 * inch, 3.5  * inch, 5.75 * inch, 3.5  * inch)
     c.line(4    * inch, 3.5  * inch, 4    * inch,  0.25 * inch)
     c.line(1.4  * inch, line_y_separator, 1.4  * inch, 0.25 * inch)
     c.line(2.75 * inch, line_y_separator, 2.75 * inch, 0.25 * inch)
 
     c.setFont(default_font, 10)
-    bottom_text_y = y_qr2 - 0.25 * inch
+    bottom_text_y = y_qr2 - 0.15 * inch
     texto_iqc     = f"{display_text_top_right} IQC" if display_text_top_right else "IQC"
 
     c.drawString(0.6  * inch, bottom_text_y, "LQC")
     c.drawString(1.9  * inch, bottom_text_y, "OQC")
     c.drawString(3.12 * inch, bottom_text_y, texto_iqc)
 
-
-# ── QR helper ───────────────────────────────────────────────────────
 
 def _generar_qr_code(canvas_obj, data, x, y, size):
     qr_widget = qr.QrCodeWidget(data)

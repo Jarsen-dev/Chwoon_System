@@ -30,7 +30,7 @@ export default function ScannerTab({
           value={inputValue}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
-          placeholder="Esperando lectura de código de barras..."
+          placeholder="Esperando lectura de código QR..."
           className="w-full max-w-xl text-center text-2xl p-4 border-2 border-blue-400 rounded-lg shadow-inner focus:outline-none focus:ring-4 focus:ring-blue-200 uppercase tracking-widest placeholder:text-gray-300 placeholder:text-lg"
           autoComplete="off"
           autoFocus
