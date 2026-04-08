@@ -15,15 +15,17 @@ def _get_turno_por_hora() -> str:
     total_minutos = now.hour * 60 + now.minute
     return 'D' if 450 <= total_minutos < 1170 else 'N'
 
+def _get_fecha_hoy() -> str:
+    return datetime.now().strftime('%Y-%m-%d')
+
 
 async def obtener_siguiente_carrito(numero_parte: str, turno_item: str) -> int:
-    """
-    Obtiene el siguiente número de carrito para un número de parte.
-    - Si no existe en DB         → crea con count = 1
-    - Si el turno por hora cambió → resetea a 1
-    - Si mismo turno              → incrementa
-    """
     turno_hora = _get_turno_por_hora()
+    fecha_hoy  = _get_fecha_hoy()
+
+    # Clave única: fecha + turno
+    # Si cualquiera cambia → resetea
+    clave_actual = f"{fecha_hoy}_{turno_hora}"  # ej: "2026-04-07_D"
 
     async with AsyncSessionLocal() as db:
         result = await db.execute(
@@ -34,25 +36,29 @@ async def obtener_siguiente_carrito(numero_parte: str, turno_item: str) -> int:
         registro = result.scalar_one_or_none()
 
         if not registro:
-            # Primera vez → crea
+            # Primera vez
             registro = ContadorCarrito(
                 numero_parte = numero_parte,
                 turno_hora   = turno_hora,
+                fecha        = fecha_hoy,
                 count        = 1,
                 updated_at   = datetime.utcnow()
             )
             db.add(registro)
 
-        elif registro.turno_hora != turno_hora:
-            # El turno real cambió → resetea
-            registro.turno_hora = turno_hora
-            registro.count      = 1
-            registro.updated_at = datetime.utcnow()
-
         else:
-            # Mismo turno → incrementa
-            registro.count     += 1
-            registro.updated_at = datetime.utcnow()
+            clave_guardada = f"{registro.fecha}_{registro.turno_hora}"
+
+            if clave_guardada != clave_actual:
+                # Cambió el turno O el día → RESETEA siempre
+                registro.turno_hora = turno_hora
+                registro.fecha      = fecha_hoy
+                registro.count      = 1
+                registro.updated_at = datetime.utcnow()
+            else:
+                # Mismo turno, mismo día → incrementa
+                registro.count     += 1
+                registro.updated_at = datetime.utcnow()
 
         await db.commit()
         await db.refresh(registro)
@@ -96,6 +102,7 @@ async def obtener_estado_contador_db() -> list:
             {
                 "numero_parte":   r.numero_parte,
                 "turno_hora":     r.turno_hora,
+                "fecha":         r.fecha,
                 "ultimo_carrito": r.count,
                 "updated_at":     r.updated_at,
             }

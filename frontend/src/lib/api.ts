@@ -1,13 +1,19 @@
-import { 
-  InventarioItem, 
-  ColaItem, 
+import {
+  InventarioItem,
+  ColaItem,
   ColaItemCreate,
-  RegistroProduccion, 
-  PlanItem, 
-  Anomalia 
+  RegistroProduccion,
+  PlanItem,
+  Anomalia,
+  Token,
+  Usuario,
+  UsuarioCreate,
+  UsuarioUpdate,
 } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+// resto del código...
 
 // ==========================================
 // INVENTARIO PLANTA
@@ -186,4 +192,104 @@ export async function getAnomalias(limite: number = 10): Promise<Anomalia[]> {
   );
   if (!res.ok) throw new Error('Error cargando anomalías');
   return res.json();
+}
+
+// ==========================================
+// AUTH
+// ==========================================
+export async function login(
+  username: string,
+  password: string
+): Promise<Token> {
+  const res = await fetch(`${API_URL}/api/auth/login`, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ username, password }),
+  })
+  if (!res.ok) {
+    const error = await res.json()
+    throw new Error(error.detail || 'Error al iniciar sesión')
+  }
+  return res.json()
+}
+
+export async function getMe(token: string): Promise<Usuario> {
+  const res = await fetch(`${API_URL}/api/auth/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Token inválido')
+  return res.json()
+}
+
+// ==========================================
+// USUARIOS (solo admin)
+// ==========================================
+export async function getUsuarios(token: string): Promise<Usuario[]> {
+  const res = await fetch(`${API_URL}/api/auth/usuarios`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error cargando usuarios')
+  return res.json()
+}
+
+export async function createUsuario(
+  token: string,
+  data:  UsuarioCreate
+): Promise<Usuario> {
+  const res = await fetch(`${API_URL}/api/auth/usuarios`, {
+    method:  'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization:  `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const error = await res.json()
+    throw new Error(error.detail || 'Error creando usuario')
+  }
+  return res.json()
+}
+
+export async function updateUsuario(
+  token:  string,
+  id:     number,
+  data:   UsuarioUpdate
+): Promise<Usuario> {
+  const res = await fetch(`${API_URL}/api/auth/usuarios/${id}`, {
+    method:  'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization:  `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const error = await res.json()
+    throw new Error(error.detail || 'Error actualizando usuario')
+  }
+  return res.json()
+}
+
+export async function deleteUsuario(
+  token: string,
+  id:    number
+): Promise<void> {
+  const res = await fetch(`${API_URL}/api/auth/usuarios/${id}`, {
+    method:  'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error eliminando usuario')
+}
+
+export async function toggleUsuario(
+  token: string,
+  id:    number
+): Promise<{ activo: boolean; username: string }> {
+  const res = await fetch(`${API_URL}/api/auth/usuarios/${id}/toggle`, {
+    method:  'PATCH',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error cambiando estado del usuario')
+  return res.json()
 }

@@ -7,12 +7,36 @@ from app.database import init_db
 from app.routers import partes, etiquetas, produccion, importar
 from app.routers import plan
 from app.routers import inventario
+from app.routers import auth
 from app.models.contador_carrito import ContadorCarrito
+from app.core.security import get_password_hash
+from app.models.usuario import Usuario, RolUsuario
+from app.database import AsyncSessionLocal
+from sqlalchemy import select
+
+
+async def crear_admin_inicial():
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            select(Usuario).where(Usuario.username == "admin")
+        )
+        if not result.scalar_one_or_none():
+            admin = Usuario(
+                username="admin",
+                email="admin@planta.com",
+                hashed_password=get_password_hash("admin123"),
+                rol=RolUsuario.admin,
+                activo=True
+            )
+            db.add(admin)
+            await db.commit()
+            print("✅ Usuario admin creado: admin / admin123")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await init_db()  # Crea todas las tablas incluyendo contador_carritos
+    await init_db()
+    await crear_admin_inicial()
     yield
 
 
@@ -34,6 +58,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router,       prefix="/api")
 app.include_router(partes.router)
 app.include_router(etiquetas.router)
 app.include_router(produccion.router)

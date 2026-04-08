@@ -97,3 +97,43 @@ export interface RegistroParo {
   turno:             string
   created_at?:       string
 }
+
+// ==========================================
+// AUTH
+// ==========================================
+export type RolUsuario = 'admin' | 'supervisor' | 'operador'
+
+export interface LoginRequest {
+  username: string
+  password: string
+}
+
+export interface Token {
+  access_token: string
+  token_type:   string
+  rol:          RolUsuario
+  username:     string
+}
+
+export interface Usuario {
+  id:         number
+  username:   string
+  email:      string
+  rol:        RolUsuario
+  activo:     boolean
+  created_at: string
+}
+
+export interface UsuarioCreate {
+  username: string
+  email:    string
+  password: string
+  rol:      RolUsuario
+}
+
+export interface UsuarioUpdate {
+  email?:    string
+  rol?:      RolUsuario
+  activo?:   boolean
+  password?: string
+}

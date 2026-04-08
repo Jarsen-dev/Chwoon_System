@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { AuthProvider } from "@/context/AuthContext";
+import Navbar from "@/components/Navbar";
+import MainWrapper from "@/components/MainWrapper";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,25 +30,12 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50`}
       >
-        {/* Menú principal - reemplaza PartApp.__init__ */}
-        <nav className="bg-slate-800 text-white p-4">
-          <div className="container mx-auto flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <img src="/Logo.png" alt="Logo" className="h-8 w-auto" />
-              <h1 className="text-xl font-bold">Sistema de Producción</h1>
-            </div>
-            <div className="flex gap-4">
-              <a href="/" className="hover:text-blue-300 transition">Dashboard</a>
-              <a href="/partes" className="hover:text-blue-300 transition">⚙️ Partes</a>
-              <a href="/etiquetas" className="hover:text-blue-300 transition">🖨️ Etiquetas</a>
-              <a href="/produccion" className="hover:text-blue-300 transition">🔍 Producción</a>
-            </div>
-          </div>
-        </nav>
-        
-        <main className="container mx-auto p-4">
-          {children}
-        </main>
+        <AuthProvider>
+          <Navbar />
+          <MainWrapper>
+            {children}
+          </MainWrapper>
+        </AuthProvider>
       </body>
     </html>
   );

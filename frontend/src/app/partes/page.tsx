@@ -376,7 +376,7 @@ export default function PartesPage() {
       {/* ========================================================= */}
       <div className="flex items-center gap-2 mb-6">
         <span className="text-2xl">⚙️</span>
-        <h1 className="text-2xl font-bold text-slate-800">Gestión de Inventario</h1>
+        <h1 className="text-2xl font-bold text-slate-800">Gestión de Partes</h1>
       </div>
 
       {/* FORMULARIO */}

@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { RegistroProduccion }          from '@/types'
 import { getRegistros, getProyeccion, getSaludMaquinas, getPlanProduccion } from '@/lib/api'
+import { useAuth } from '@/context/AuthContext'
 
 import ScannerTab    from './ScannerTab'
 import DashboardTab  from './DashboardTab'
@@ -29,6 +30,7 @@ interface Anomalia {
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 export default function ProduccionPage() {
+  const { rol } = useAuth()
   const [activeTab, setActiveTab] = useState('captura')
   const [wsStatus, setWsStatus]   = useState<'conectado' | 'desconectado' | 'conectando'>('desconectado')
 
@@ -240,13 +242,13 @@ const enviarCodigo = () => {
   const ws_cfg = wsStatusConfig[wsStatus]
 
   const tabs = [
-    { id: 'captura',    label: '📷 Captura'      },
-    { id: 'dashboard',  label: '📊 Dashboard'     },
-    { id: 'plan',       label: '📋 Plan Prod.'    },
-    { id: 'prediccion', label: '🤖 Predicción IA' },
-    { id: 'anomalias',  label: '🚨 Anomalías'     },
-    { id: 'cuarto_secado', label: '🌡️ Cuarto Secado'  },
-  ]
+    { id: 'captura',       label: '📷 Captura',       roles: ['admin', 'supervisor', 'operador'] },
+    { id: 'dashboard',     label: '📊 Dashboard',     roles: ['admin', 'supervisor', 'operador'] },
+    { id: 'plan',          label: '📋 Plan Prod.',    roles: ['admin', 'supervisor']             },
+    { id: 'prediccion',    label: '🤖 Predicción IA', roles: ['admin', 'supervisor']             },
+    { id: 'anomalias',     label: '🚨 Anomalías',     roles: ['admin', 'supervisor']             },
+    { id: 'cuarto_secado', label: '🌡️ Cuarto Secado', roles: ['admin', 'supervisor', 'operador'] },
+  ].filter(tab => tab.roles.includes(rol ?? ''))
 
   const agregarAlerta = (alerta: Omit<{ tipo: string; motivo: string; id: number }, 'id'>) => {
     const id = Date.now()

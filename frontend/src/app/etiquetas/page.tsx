@@ -270,7 +270,7 @@ export default function EtiquetasPage() {
       <div className="flex items-center gap-2 mb-6">
         <span className="text-2xl">🖨️</span>
         <h1 className="text-2xl font-bold text-slate-800">
-          Cola de Impresión de Etiquetas
+          Impresión de Etiquetas
         </h1>
       </div>
 
