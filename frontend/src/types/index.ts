@@ -69,6 +69,7 @@ export interface RegistroProduccion {
   carrito_numero:  number
   qty_bolsa:       number
   total_acumulado: number
+  usuario?:        string | null
 }
 
 // ==========================================

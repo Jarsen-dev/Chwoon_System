@@ -10,3 +10,4 @@ class ColaImpresion(Base):
     turno               = Column(String(20), nullable=False)
     estado              = Column(String(20), default="pendiente")
     created_at          = Column(DateTime, nullable=True)
+    usuario             = Column(String(100), nullable=True)

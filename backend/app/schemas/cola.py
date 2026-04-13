@@ -17,10 +17,10 @@ class ColaItemCreate(ColaItemBase):
 class ColaItem(ColaItemBase):
     """Schema completo para leer un item de la cola"""
     id:           int
-    numero_parte: str        # viene del JOIN con inventario_planta
-    descripcion:  str        # viene del JOIN con inventario_planta
+    numero_parte: str
+    descripcion:  str
     estado:       str
-    user:         Optional[str] = None  # listo para sistema de usuarios
+    user:         Optional[str] = None
 
     class Config:
         from_attributes = True

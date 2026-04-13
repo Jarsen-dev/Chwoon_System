@@ -1,13 +1,11 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { useAuth } from '@/context/AuthContext'
 import { getInventario, createInventario, updateInventario, deleteInventario, importarExcelInventario, agregarACola } from '@/lib/api'
 import { InventarioItem } from '@/types'
 
-// ==========================================
-// TIPOS DE MODALES
-// ==========================================
 type ModalInfo = {
   title:   string
   message: string
@@ -21,10 +19,17 @@ type ConfirmModal = {
 } | null
 
 export default function PartesPage() {
-  const router = useRouter()
+  const router       = useRouter()
+  const { token }    = useAuth()
+
   const [inventario, setInventario] = useState<InventarioItem[]>([])
   const [loading, setLoading]       = useState(true)
-  const [search, setSearch]         = useState('')
+
+  // ── Filtros ───────────────────────────────────────────────────────
+  const [busqueda,      setBusqueda]      = useState('')
+  const [filtroMaquina, setFiltroMaquina] = useState('')
+  const [filtroParte,   setFiltroParte]   = useState('')
+  const [filtroDesc,    setFiltroDesc]    = useState('')
 
   const [formData, setFormData] = useState({
     codigo:       '',
@@ -37,24 +42,22 @@ export default function PartesPage() {
   })
   const [editing, setEditing] = useState<string | null>(null)
 
-  const fileInputRef              = useRef<HTMLInputElement>(null)
+  const fileInputRef                  = useRef<HTMLInputElement>(null)
   const [isImporting, setIsImporting] = useState(false)
 
-  // ==========================================
-  // ESTADOS DE MODALES
-  // ==========================================
   const [modalInfo, setModalInfo]       = useState<ModalInfo>(null)
   const [confirmModal, setConfirmModal] = useState<ConfirmModal>(null)
   const okButtonRef                     = useRef<HTMLButtonElement>(null)
   const confirmButtonRef                = useRef<HTMLButtonElement>(null)
 
-  // Modal cola
   const [isQueueModalOpen, setIsQueueModalOpen] = useState(false)
   const [itemForQueue, setItemForQueue]         = useState<InventarioItem | null>(null)
   const [queueQty, setQueueQty]                 = useState('1')
   const qtyInputRef                             = useRef<HTMLInputElement>(null)
 
-  // Auto-focus modales
+  // Estado para turno en el modal de cola
+  const [turnoQueue, setTurnoQueue] = useState<'Día' | 'Noche'>('Día')
+
   useEffect(() => {
     if (modalInfo && okButtonRef.current) okButtonRef.current.focus()
   }, [modalInfo])
@@ -74,9 +77,6 @@ export default function PartesPage() {
     loadInventario()
   }, [])
 
-  // ==========================================
-  // CARGA DE DATOS
-  // ==========================================
   const loadInventario = async () => {
     try {
       const data = await getInventario()
@@ -92,9 +92,44 @@ export default function PartesPage() {
     }
   }
 
-  // ==========================================
-  // FORMULARIO
-  // ==========================================
+  // ── Opciones únicas para selects ─────────────────────────────────
+  const maquinasUnicas = useMemo(() =>
+    [...new Set(inventario.map(i => i.linea).filter(Boolean))].sort()
+  , [inventario])
+
+  const partesUnicas = useMemo(() =>
+    [...new Set(inventario.map(i => i.codigo).filter(Boolean))].sort()
+  , [inventario])
+
+  const descsUnicas = useMemo(() =>
+    [...new Set(inventario.map(i => i.descripcion).filter(Boolean))].sort()
+  , [inventario])
+
+  // ── Registros filtrados ───────────────────────────────────────────
+  const inventarioFiltrado = useMemo(() => {
+    const q = busqueda.toLowerCase().trim()
+    return inventario.filter(item => {
+      const pasaBusqueda = !q || (
+        (item.codigo      || '').toLowerCase().includes(q) ||
+        (item.descripcion || '').toLowerCase().includes(q) ||
+        (item.linea       || '').toLowerCase().includes(q)
+      )
+      const pasaMaquina = !filtroMaquina || item.linea       === filtroMaquina
+      const pasaParte   = !filtroParte   || item.codigo      === filtroParte
+      const pasaDesc    = !filtroDesc    || item.descripcion === filtroDesc
+      return pasaBusqueda && pasaMaquina && pasaParte && pasaDesc
+    })
+  }, [inventario, busqueda, filtroMaquina, filtroParte, filtroDesc])
+
+  const hayFiltros = busqueda || filtroMaquina || filtroParte || filtroDesc
+
+  const limpiarFiltros = () => {
+    setBusqueda('')
+    setFiltroMaquina('')
+    setFiltroParte('')
+    setFiltroDesc('')
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
@@ -178,15 +213,12 @@ export default function PartesPage() {
     })
   }
 
-  // ==========================================
-  // IMPORTAR EXCEL
-  // ==========================================
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
     setIsImporting(true)
     try {
-      const result = await importarExcelInventario(file)   // ← CAMBIO
+      const result = await importarExcelInventario(file)
       setModalInfo({
         title:   '¡Importación Exitosa!',
         message: `Se importaron/actualizaron ${result.count} partes correctamente.`,
@@ -205,9 +237,6 @@ export default function PartesPage() {
     }
   }
 
-  // ==========================================
-  // MODAL COLA
-  // ==========================================
   const openQueueModal = (item: InventarioItem) => {
     setItemForQueue(item)
     setQueueQty('1')
@@ -217,13 +246,17 @@ export default function PartesPage() {
   const confirmAddToQueue = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!itemForQueue) return
+    if (!token) {
+      setModalInfo({ title: 'Error', message: 'No hay sesión activa.', type: 'error' })
+      return
+    }
     const cantidad = parseInt(queueQty) || 1
     try {
       await agregarACola({
-        codigo_inventario:  itemForQueue.codigo,   // ← CAMBIO
+        codigo_inventario:  itemForQueue.codigo,
         cantidad_etiquetas: cantidad,
-        turno:              'Día'
-      })
+        turno:              turnoQueue,
+      }, token)
       setIsQueueModalOpen(false)
       router.push('/etiquetas')
     } catch (error: any) {
@@ -235,15 +268,6 @@ export default function PartesPage() {
     }
   }
 
-  // ==========================================
-  // FILTRO
-  // ==========================================
-  const inventarioFiltrado = inventario.filter(item =>
-    item.codigo.toLowerCase().includes(search.toLowerCase())      ||
-    item.descripcion.toLowerCase().includes(search.toLowerCase()) ||
-    item.linea_lg.toLowerCase().includes(search.toLowerCase())
-  )
-
   if (loading) return (
     <div className="p-8 text-center text-xl font-semibold text-gray-600">
       Cargando datos...
@@ -253,12 +277,10 @@ export default function PartesPage() {
   return (
     <div className="p-4 max-w-6xl mx-auto relative">
 
-      {/* ========================================================= */}
-      {/* MODAL: NOTIFICACIÓN                                       */}
-      {/* ========================================================= */}
+      {/* MODAL NOTIFICACIÓN */}
       {modalInfo && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
             <div className={`px-6 py-4 ${
               modalInfo.type === 'success' ? 'bg-green-600' :
               modalInfo.type === 'error'   ? 'bg-red-600'   : 'bg-blue-600'
@@ -290,16 +312,12 @@ export default function PartesPage() {
         </div>
       )}
 
-      {/* ========================================================= */}
-      {/* MODAL: CONFIRMAR ELIMINACIÓN                             */}
-      {/* ========================================================= */}
+      {/* MODAL CONFIRMAR ELIMINACIÓN */}
       {confirmModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
             <div className="bg-red-600 px-6 py-4">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                🗑️ {confirmModal.title}
-              </h3>
+              <h3 className="text-lg font-bold text-white">🗑️ {confirmModal.title}</h3>
             </div>
             <div className="p-6">
               <p className="text-gray-700 text-base mb-6">{confirmModal.message}</p>
@@ -323,34 +341,46 @@ export default function PartesPage() {
         </div>
       )}
 
-      {/* ========================================================= */}
-      {/* MODAL: AÑADIR A COLA                                     */}
-      {/* ========================================================= */}
+      {/* MODAL AÑADIR A COLA */}
       {isQueueModalOpen && itemForQueue && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
             <div className="bg-blue-600 px-6 py-4">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                🖨️ Añadir a Cola
-              </h3>
+              <h3 className="text-lg font-bold text-white">🖨️ Añadir a Cola</h3>
             </div>
             <form onSubmit={confirmAddToQueue} className="p-6">
               <p className="text-gray-600 mb-4">
-                ¿Cuántas etiquetas para{' '}
+                Parte:{' '}
                 <strong className="text-blue-700 font-mono bg-blue-50 px-1 rounded">
                   {itemForQueue.codigo}
-                </strong>{' '}
-                deseas añadir?
+                </strong>
               </p>
+
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
+                Cantidad de Etiquetas
+              </label>
               <input
                 ref={qtyInputRef}
                 type="number"
                 min="1"
                 value={queueQty}
                 onChange={e => setQueueQty(e.target.value)}
-                className="w-full border-2 border-gray-300 p-3 rounded-lg focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none text-2xl text-center font-bold mb-6 transition-all"
+                className="w-full border-2 border-gray-300 p-3 rounded-lg focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none text-2xl text-center font-bold mb-4 transition-all"
                 required
               />
+
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
+                Turno
+              </label>
+              <select
+                value={turnoQueue}
+                onChange={e => setTurnoQueue(e.target.value as 'Día' | 'Noche')}
+                className="w-full border-2 border-gray-300 p-2.5 rounded-lg focus:border-blue-500 outline-none mb-6"
+              >
+                <option value="Día">Día</option>
+                <option value="Noche">Noche</option>
+              </select>
+
               <div className="flex justify-end gap-3">
                 <button
                   type="button"
@@ -371,25 +401,19 @@ export default function PartesPage() {
         </div>
       )}
 
-      {/* ========================================================= */}
-      {/* CONTENIDO PRINCIPAL                                       */}
-      {/* ========================================================= */}
+      {/* CONTENIDO PRINCIPAL */}
       <div className="flex items-center gap-2 mb-6">
         <span className="text-2xl">⚙️</span>
         <h1 className="text-2xl font-bold text-slate-800">Gestión de Partes</h1>
       </div>
 
-      {/* FORMULARIO */}
       <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-6">
         <h2 className="text-lg font-bold text-gray-700 mb-4 pb-2 border-b">
           {editing ? `✏️ Editar Parte: ${editing}` : '➕ Nueva Parte'}
         </h2>
-
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">
-              Código
-            </label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">N° Parte</label>
             <input
               type="text"
               value={formData.codigo}
@@ -399,11 +423,8 @@ export default function PartesPage() {
               disabled={!!editing}
             />
           </div>
-
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">
-              Descripción
-            </label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Descripción</label>
             <input
               type="text"
               value={formData.descripcion}
@@ -412,11 +433,8 @@ export default function PartesPage() {
               required
             />
           </div>
-
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">
-              Línea (máquina)
-            </label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Línea (máquina)</label>
             <input
               type="text"
               value={formData.linea}
@@ -424,11 +442,8 @@ export default function PartesPage() {
               className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-200 focus:outline-none"
             />
           </div>
-
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">
-              Tipo
-            </label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Tipo</label>
             <select
               value={formData.tipo}
               onChange={e => setFormData({...formData, tipo: e.target.value})}
@@ -439,11 +454,8 @@ export default function PartesPage() {
               <option value="Assy">Assy</option>
             </select>
           </div>
-
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">
-              QTY (piezas por carrito)
-            </label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">QTY (piezas por carrito)</label>
             <input
               type="number"
               value={formData.qtu}
@@ -451,11 +463,8 @@ export default function PartesPage() {
               className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-200 focus:outline-none"
             />
           </div>
-
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">
-              Línea LG
-            </label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Línea LG</label>
             <select
               value={formData.linea_lg}
               onChange={e => setFormData({...formData, linea_lg: e.target.value})}
@@ -467,11 +476,8 @@ export default function PartesPage() {
               <option value="EPS">EPS</option>
             </select>
           </div>
-
           <div className="md:col-span-3">
-            <label className="block text-sm font-semibold text-gray-700 mb-1">
-              Ayuda Visual (link)
-            </label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Ayuda Visual (link)</label>
             <input
               type="text"
               placeholder="https://..."
@@ -481,15 +487,13 @@ export default function PartesPage() {
             />
           </div>
         </div>
-
         <div className="mt-5 flex flex-wrap gap-3 border-t pt-4">
           <button
             type="submit"
-            className="bg-blue-600 text-white px-5 py-2.5 rounded font-medium hover:bg-blue-700 transition shadow-sm flex items-center gap-2"
+            className="bg-blue-600 text-white px-5 py-2.5 rounded font-medium hover:bg-blue-700 transition shadow-sm"
           >
             {editing ? '💾 Actualizar Parte' : '➕ Agregar Parte'}
           </button>
-
           {!editing && (
             <>
               <input
@@ -503,7 +507,7 @@ export default function PartesPage() {
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isImporting}
-                className={`px-5 py-2.5 rounded font-medium text-white shadow-sm transition flex items-center gap-2 ${
+                className={`px-5 py-2.5 rounded font-medium text-white shadow-sm transition ${
                   isImporting ? 'bg-gray-400' : 'bg-green-600 hover:bg-green-700'
                 }`}
               >
@@ -511,22 +515,20 @@ export default function PartesPage() {
               </button>
             </>
           )}
-
           {editing && (
             <button
               type="button"
               onClick={() => openQueueModal(inventario.find(i => i.codigo === editing)!)}
-              className="bg-purple-600 text-white px-5 py-2.5 rounded font-medium hover:bg-purple-700 transition shadow-sm flex items-center gap-2"
+              className="bg-purple-600 text-white px-5 py-2.5 rounded font-medium hover:bg-purple-700 transition shadow-sm"
             >
               🖨️ Añadir a la Cola e Imprimir
             </button>
           )}
-
           {editing && (
             <button
               type="button"
               onClick={resetForm}
-              className="bg-gray-500 text-white px-5 py-2.5 rounded font-medium hover:bg-gray-600 transition shadow-sm flex items-center gap-2 ml-auto"
+              className="bg-gray-500 text-white px-5 py-2.5 rounded font-medium hover:bg-gray-600 transition shadow-sm ml-auto"
             >
               ❌ Cancelar Edición
             </button>
@@ -534,26 +536,89 @@ export default function PartesPage() {
         </div>
       </form>
 
-      {/* BUSCADOR */}
-      <div className="relative mb-4">
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <span className="text-gray-400">🔍</span>
-        </div>
+      {/* ── BARRA DE FILTROS (igual que ScannerTab) ──────────────── */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        {/* Buscador libre */}
         <input
           type="text"
-          placeholder="Buscar por código, descripción o línea LG..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="w-full border border-gray-300 pl-10 p-3 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-200 focus:outline-none"
+          value={busqueda}
+          onChange={e => setBusqueda(e.target.value)}
+          placeholder="Buscar máquina, parte o descripción..."
+          className="flex-1 min-w-[200px] border border-gray-300 rounded-lg
+                     px-3 py-2 text-sm focus:outline-none focus:ring-2
+                     focus:ring-blue-200 focus:border-blue-400
+                     placeholder:text-gray-400"
         />
+
+        {/* Filtro Máquina */}
+        <select
+          value={filtroMaquina}
+          onChange={e => setFiltroMaquina(e.target.value)}
+          className="border border-gray-300 rounded-lg px-3 py-2 text-sm
+                     focus:outline-none focus:ring-2 focus:ring-blue-200
+                     focus:border-blue-400 bg-white text-gray-700"
+        >
+          <option value="">Todas las Máquinas</option>
+          {maquinasUnicas.map(m => (
+            <option key={m} value={m}>{m}</option>
+          ))}
+        </select>
+
+        {/* Filtro N° Parte */}
+        <select
+          value={filtroParte}
+          onChange={e => setFiltroParte(e.target.value)}
+          className="border border-gray-300 rounded-lg px-3 py-2 text-sm
+                     focus:outline-none focus:ring-2 focus:ring-blue-200
+                     focus:border-blue-400 bg-white text-gray-700"
+        >
+          <option value="">Todos los N° Parte</option>
+          {partesUnicas.map(p => (
+            <option key={p} value={p}>{p}</option>
+          ))}
+        </select>
+
+        {/* Filtro Descripción */}
+        <select
+          value={filtroDesc}
+          onChange={e => setFiltroDesc(e.target.value)}
+          className="border border-gray-300 rounded-lg px-3 py-2 text-sm
+                     focus:outline-none focus:ring-2 focus:ring-blue-200
+                     focus:border-blue-400 bg-white text-gray-700"
+        >
+          <option value="">Todas las Descripciones</option>
+          {descsUnicas.map(d => (
+            <option key={d} value={d}>{d}</option>
+          ))}
+        </select>
+
+        {/* Contador + limpiar */}
+        <div className="flex items-center gap-2 ml-auto">
+          {hayFiltros && (
+            <button
+              onClick={limpiarFiltros}
+              className="text-xs text-gray-500 hover:text-red-600
+                         underline underline-offset-2 transition-colors"
+            >
+              Limpiar filtros
+            </button>
+          )}
+          <span className="bg-gray-100 text-gray-600 text-xs font-semibold
+                           px-3 py-2 rounded-lg whitespace-nowrap border border-gray-200">
+            {inventarioFiltrado.length === inventario.length
+              ? `${inventario.length} registro${inventario.length !== 1 ? 's' : ''}`
+              : `${inventarioFiltrado.length} de ${inventario.length} registros`
+            }
+          </span>
+        </div>
       </div>
 
-      {/* TABLA */}
+      {/* ── TABLA ────────────────────────────────────────────────── */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 border-b border-gray-200">
             <tr>
-              <th className="p-3 text-left font-semibold text-slate-700">Código</th>
+              <th className="p-3 text-left font-semibold text-slate-700">N° Parte</th>
               <th className="p-3 text-left font-semibold text-slate-700">Descripción</th>
               <th className="p-3 text-left font-semibold text-slate-700">Línea</th>
               <th className="p-3 text-left font-semibold text-slate-700">Tipo</th>
@@ -564,13 +629,8 @@ export default function PartesPage() {
           </thead>
           <tbody>
             {inventarioFiltrado.map(item => (
-              <tr
-                key={item.codigo}
-                className="border-b last:border-b-0 hover:bg-blue-50/30 transition"
-              >
-                <td className="p-3 font-mono font-medium text-slate-800">
-                  {item.codigo}
-                </td>
+              <tr key={item.codigo} className="border-b last:border-b-0 hover:bg-blue-50/30 transition">
+                <td className="p-3 font-mono font-medium text-slate-800">{item.codigo}</td>
                 <td className="p-3 text-slate-600">{item.descripcion}</td>
                 <td className="p-3 text-slate-600">{item.linea}</td>
                 <td className="p-3 text-slate-600">{item.tipo}</td>
@@ -606,11 +666,22 @@ export default function PartesPage() {
             ))}
           </tbody>
         </table>
-
         {inventarioFiltrado.length === 0 && (
           <div className="p-10 text-center text-gray-500">
             <span className="text-4xl block mb-2">📦</span>
-            No se encontraron partes que coincidan con la búsqueda.
+            {hayFiltros ? (
+              <>
+                No se encontraron partes con los filtros aplicados.
+                <button
+                  onClick={limpiarFiltros}
+                  className="block mx-auto mt-2 text-blue-600 hover:underline text-sm"
+                >
+                  Limpiar filtros
+                </button>
+              </>
+            ) : (
+              'No se encontraron partes que coincidan con la búsqueda.'
+            )}
           </div>
         )}
       </div>

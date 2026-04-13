@@ -1,24 +1,23 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
+import { useAuth } from '@/context/AuthContext'
 import { getInventario, getCola, agregarACola, generarPDF, eliminarDeCola, limpiarCola } from '@/lib/api'
 import { InventarioItem, ColaItem } from '@/types'
 
 export default function EtiquetasPage() {
+  const { token, username } = useAuth()
+
   const [inventario, setInventario]     = useState<InventarioItem[]>([])
   const [cola, setCola]                 = useState<ColaItem[]>([])
   const [loading, setLoading]           = useState(true)
   const [isGenerating, setIsGenerating] = useState(false)
 
-  // Formulario
   const [selectedCodigo, setSelectedCodigo] = useState<string>('')
   const [cantidad, setCantidad]             = useState<string>('1')
   const [turno, setTurno]                   = useState<'Día' | 'Noche'>('Día')
+  const [searchParte, setSearchParte]       = useState('')
 
-  // Buscador
-  const [searchParte, setSearchParte] = useState('')
-
-  // Modales
   const [modalInfo, setModalInfo] = useState<{
     title:   string
     message: string
@@ -28,9 +27,6 @@ export default function EtiquetasPage() {
 
   const okButtonRef = useRef<HTMLButtonElement>(null)
 
-  // ==========================================
-  // INVENTARIO FILTRADO
-  // ==========================================
   const inventarioFiltrado = inventario.filter(item => {
     const term = searchParte.toLowerCase()
     return (
@@ -49,9 +45,6 @@ export default function EtiquetasPage() {
     cargarDatos()
   }, [])
 
-  // ==========================================
-  // CARGA DE DATOS
-  // ==========================================
   const cargarDatos = async () => {
     try {
       setLoading(true)
@@ -62,26 +55,19 @@ export default function EtiquetasPage() {
       setInventario(inventarioData)
       setCola(colaData)
     } catch (error: any) {
-      setModalInfo({
-        title:   'Error de Conexión',
-        message: error.message,
-        type:    'error'
-      })
+      setModalInfo({ title: 'Error de Conexión', message: error.message, type: 'error' })
     } finally {
       setLoading(false)
     }
   }
 
-  // ==========================================
-  // HANDLERS
-  // ==========================================
   const ejecutarAgregarACola = async (codigo: string) => {
     if (!codigo) {
-      setModalInfo({
-        title:   'Atención',
-        message: 'Por favor selecciona un número de parte.',
-        type:    'info'
-      })
+      setModalInfo({ title: 'Atención', message: 'Por favor selecciona un número de parte.', type: 'info' })
+      return
+    }
+    if (!token) {
+      setModalInfo({ title: 'Error', message: 'No hay sesión activa.', type: 'error' })
       return
     }
 
@@ -90,7 +76,7 @@ export default function EtiquetasPage() {
         codigo_inventario:  codigo,
         cantidad_etiquetas: parseInt(cantidad) || 1,
         turno:              turno
-      })
+      }, token)
 
       setCantidad('1')
       setSelectedCodigo('')
@@ -99,11 +85,7 @@ export default function EtiquetasPage() {
       const colaActualizada = await getCola()
       setCola(colaActualizada)
     } catch (error: any) {
-      setModalInfo({
-        title:   'Error al Añadir',
-        message: error.message,
-        type:    'error'
-      })
+      setModalInfo({ title: 'Error al Añadir', message: error.message, type: 'error' })
     }
   }
 
@@ -127,11 +109,7 @@ export default function EtiquetasPage() {
       await limpiarCola()
       setCola([])
       setIsClearModalOpen(false)
-      setModalInfo({
-        title:   'Cola Limpia',
-        message: 'Se han eliminado todas las etiquetas de la cola.',
-        type:    'success'
-      })
+      setModalInfo({ title: 'Cola Limpia', message: 'Se han eliminado todas las etiquetas de la cola.', type: 'success' })
     } catch (error: any) {
       setModalInfo({ title: 'Error', message: error.message, type: 'error' })
     }
@@ -139,65 +117,49 @@ export default function EtiquetasPage() {
 
   const handleGeneratePDF = async () => {
     if (cola.length === 0) {
-      setModalInfo({
-        title:   'Cola Vacía',
-        message: 'No hay etiquetas para generar. Añade algunas primero.',
-        type:    'info'
-      })
+      setModalInfo({ title: 'Cola Vacía', message: 'No hay etiquetas para generar. Añade algunas primero.', type: 'info' })
+      return
+    }
+    if (!token) {
+      setModalInfo({ title: 'Error', message: 'No hay sesión activa.', type: 'error' })
       return
     }
 
     try {
       setIsGenerating(true)
-      const blob = await generarPDF()
+      const blob = await generarPDF(token)
 
-      const url = window.URL.createObjectURL(blob)
-      const a   = document.createElement('a')
-      a.href    = url
-      a.download = `lote_etiquetas_${new Date().toISOString().split('T')[0]}.pdf`
+      const url  = window.URL.createObjectURL(blob)
+      const a    = document.createElement('a')
+      a.href     = url
+      a.download = `lote_etiquetas_${username}_${new Date().toISOString().split('T')[0]}.pdf`
       document.body.appendChild(a)
       a.click()
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
 
       setCola([])
-      setModalInfo({
-        title:   '¡Éxito!',
-        message: 'El PDF ha sido generado y descargado correctamente.',
-        type:    'success'
-      })
+      setModalInfo({ title: '¡Éxito!', message: 'El PDF ha sido generado y descargado correctamente.', type: 'success' })
     } catch (error: any) {
-      setModalInfo({
-        title:   'Error al Generar PDF',
-        message: error.message,
-        type:    'error'
-      })
+      setModalInfo({ title: 'Error al Generar PDF', message: error.message, type: 'error' })
     } finally {
       setIsGenerating(false)
     }
   }
 
-  // ==========================================
-  // LOADING
-  // ==========================================
   if (loading) return (
     <div className="p-8 text-center text-xl font-semibold text-gray-600">
       Cargando datos...
     </div>
   )
 
-  // ==========================================
-  // RENDER
-  // ==========================================
   return (
-    <div className="p-4 max-w-full mx-auto relative">   {/* ← max-w-full */}
+    <div className="p-4 max-w-full mx-auto relative">
 
-      {/* ======================================================= */}
-      {/* MODAL: NOTIFICACIÓN                                      */}
-      {/* ======================================================= */}
+      {/* MODAL NOTIFICACIÓN */}
       {modalInfo && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
             <div className={`px-6 py-4 ${
               modalInfo.type === 'success' ? 'bg-green-600' :
               modalInfo.type === 'error'   ? 'bg-red-600'   : 'bg-blue-600'
@@ -229,21 +191,16 @@ export default function EtiquetasPage() {
         </div>
       )}
 
-      {/* ======================================================= */}
-      {/* MODAL: CONFIRMAR LIMPIEZA                               */}
-      {/* ======================================================= */}
+      {/* MODAL CONFIRMAR LIMPIEZA */}
       {isClearModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
             <div className="bg-orange-500 px-6 py-4">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                ⚠️ Confirmar Acción
-              </h3>
+              <h3 className="text-lg font-bold text-white">⚠️ Confirmar Acción</h3>
             </div>
             <div className="p-6">
               <p className="text-gray-700 text-base mb-6">
-                ¿Estás seguro de que deseas limpiar <strong>TODA</strong> la cola
-                de impresión? Se perderán las etiquetas no generadas.
+                ¿Estás seguro de que deseas limpiar <strong>TODA</strong> la cola de impresión?
               </p>
               <div className="flex justify-end gap-3">
                 <button
@@ -264,43 +221,26 @@ export default function EtiquetasPage() {
         </div>
       )}
 
-      {/* ======================================================= */}
-      {/* TÍTULO                                                   */}
-      {/* ======================================================= */}
+      {/* TÍTULO */}
       <div className="flex items-center gap-2 mb-6">
         <span className="text-2xl">🖨️</span>
-        <h1 className="text-2xl font-bold text-slate-800">
-          Impresión de Etiquetas
-        </h1>
+        <h1 className="text-2xl font-bold text-slate-800">Impresión de Etiquetas</h1>
       </div>
 
-      {/* ======================================================= */}
-      {/* GRID PRINCIPAL — 4 columnas                             */}
-      {/* ======================================================= */}
+      {/* GRID PRINCIPAL */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
 
-        {/* ─────────────────────────────────────────────────────── */}
-        {/* PANEL IZQUIERDO: FORMULARIO                             */}
-        {/* ─────────────────────────────────────────────────────── */}
+        {/* FORMULARIO */}
         <div className="md:col-span-1">
-          <form
-            onSubmit={handleAdd}
-            className="bg-white p-5 rounded-lg shadow-sm border border-gray-200"
-          >
-            <h2 className="text-lg font-bold text-gray-700 mb-4 border-b pb-2">
-              Añadir a la Cola
-            </h2>
+          <form onSubmit={handleAdd} className="bg-white p-5 rounded-lg shadow-sm border border-gray-200">
+            <h2 className="text-lg font-bold text-gray-700 mb-4 border-b pb-2">Añadir a la Cola</h2>
 
-            {/* Buscador */}
             <div className="mb-4">
               <label className="block text-sm font-semibold text-gray-700 mb-1">
                 N° Parte / Descripción
               </label>
-
               <div className="relative">
-                <span className="absolute inset-y-0 left-0 pl-2.5 flex items-center text-gray-400 pointer-events-none">
-                  🔍
-                </span>
+                <span className="absolute inset-y-0 left-0 pl-2.5 flex items-center text-gray-400 pointer-events-none">🔍</span>
                 <input
                   type="text"
                   placeholder="Buscar por código, descripción, línea..."
@@ -312,13 +252,10 @@ export default function EtiquetasPage() {
                   <button
                     type="button"
                     onClick={() => setSearchParte('')}
-                    className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-gray-400 hover:text-gray-600 transition"
-                  >
-                    ✖
-                  </button>
+                    className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-gray-400 hover:text-gray-600"
+                  >✖</button>
                 )}
               </div>
-
               <select
                 value={selectedCodigo}
                 onChange={e => setSelectedCodigo(e.target.value)}
@@ -338,7 +275,6 @@ export default function EtiquetasPage() {
                 ))}
               </select>
 
-              {/* Info del item seleccionado */}
               {selectedCodigo && (() => {
                 const item = inventario.find(i => i.codigo === selectedCodigo)
                 return item ? (
@@ -350,19 +286,12 @@ export default function EtiquetasPage() {
                 ) : null
               })()}
 
-              <p className="text-xs text-gray-400 mt-1">
-                <span className="italic">💡 Doble clic o Enter para añadir directo</span>
-              </p>
-              <p className="text-xs text-gray-400 mt-1 text-right">
-                {inventarioFiltrado.length} de {inventario.length} partes
-              </p>
+              <p className="text-xs text-gray-400 mt-1 italic">💡 Doble clic o Enter para añadir directo</p>
+              <p className="text-xs text-gray-400 mt-1 text-right">{inventarioFiltrado.length} de {inventario.length} partes</p>
             </div>
 
-            {/* Cantidad */}
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
-                Cantidad de Etiquetas
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Cantidad de Etiquetas</label>
               <input
                 type="number"
                 min="1"
@@ -373,11 +302,8 @@ export default function EtiquetasPage() {
               />
             </div>
 
-            {/* Turno */}
             <div className="mb-6">
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
-                Turno
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Turno</label>
               <select
                 value={turno}
                 onChange={e => setTurno(e.target.value as 'Día' | 'Noche')}
@@ -397,13 +323,9 @@ export default function EtiquetasPage() {
           </form>
         </div>
 
-        {/* ─────────────────────────────────────────────────────── */}
-        {/* PANEL DERECHO: TABLA                                    */}
-        {/* ─────────────────────────────────────────────────────── */}
+        {/* TABLA */}
         <div className="md:col-span-3">
           <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-200 h-full">
-
-            {/* Header */}
             <div className="flex justify-between items-center mb-4 border-b pb-3">
               <h2 className="text-lg font-bold text-gray-700">
                 Etiquetas en Cola ({cola.length})
@@ -448,26 +370,10 @@ export default function EtiquetasPage() {
                     </tr>
                   ) : (
                     cola.map(item => (
-                      <tr
-                        key={item.id}
-                        className="border-t border-gray-100 hover:bg-blue-50/50 transition"
-                      >
-                        {/* N° Parte */}
-                        <td className="p-3 font-mono font-bold text-blue-800 break-all">
-                          {item.numero_parte}
-                        </td>
-
-                        {/* Descripción */}
-                        <td className="p-3 text-gray-600 break-words">
-                          {item.descripcion}
-                        </td>
-
-                        {/* Cantidad */}
-                        <td className="p-3 text-center text-lg font-bold text-slate-700">
-                          {item.cantidad_etiquetas}
-                        </td>
-
-                        {/* Turno */}
+                      <tr key={item.id} className="border-t border-gray-100 hover:bg-blue-50/50 transition">
+                        <td className="p-3 font-mono font-bold text-blue-800 break-all">{item.numero_parte}</td>
+                        <td className="p-3 text-gray-600 break-words">{item.descripcion}</td>
+                        <td className="p-3 text-center text-lg font-bold text-slate-700">{item.cantidad_etiquetas}</td>
                         <td className="p-3 text-center">
                           <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
                             item.turno === 'Día'
@@ -477,12 +383,10 @@ export default function EtiquetasPage() {
                             {item.turno}
                           </span>
                         </td>
-
-                        {/* Usuario */}
                         <td className="p-3 text-center">
                           {item.user ? (
                             <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-800">
-                              {item.user}
+                              {item.user}  {/* ✅ Muestra el usuario real */}
                             </span>
                           ) : (
                             <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-400 italic">
@@ -490,16 +394,11 @@ export default function EtiquetasPage() {
                             </span>
                           )}
                         </td>
-
-                        {/* Acción */}
                         <td className="p-3 text-center">
                           <button
                             onClick={() => handleDelete(item.id!)}
                             className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-full w-8 h-8 inline-flex items-center justify-center transition"
-                            title="Eliminar de la cola"
-                          >
-                            ✖
-                          </button>
+                          >✖</button>
                         </td>
                       </tr>
                     ))
@@ -507,7 +406,6 @@ export default function EtiquetasPage() {
                 </tbody>
               </table>
             </div>
-
           </div>
         </div>
       </div>

@@ -16,6 +16,7 @@ class RegistroProduccionBase(BaseModel):
     carrito_numero:  int
     qty_bolsa:       int
     total_acumulado: int
+    usuario:         str
 
 class RegistroProduccionCreate(RegistroProduccionBase):
     pass

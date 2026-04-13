@@ -11,9 +11,7 @@ import {
   UsuarioUpdate,
 } from '@/types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-
-// resto del código...
+const API_URL = '';
 
 // ==========================================
 // INVENTARIO PLANTA
@@ -78,46 +76,53 @@ export async function importarExcelInventario(
 // COLA DE IMPRESIÓN
 // ==========================================
 export async function getCola(): Promise<ColaItem[]> {
-  const res = await fetch(`${API_URL}/etiquetas/cola/`);
-  if (!res.ok) throw new Error('Error cargando cola');
-  return res.json();
+  const res = await fetch(`${API_URL}/etiquetas/cola/`)
+  if (!res.ok) throw new Error('Error cargando cola')
+  return res.json()
 }
 
 export async function agregarACola(
-  item: ColaItemCreate
+  item:  ColaItemCreate,
+  token: string
 ): Promise<ColaItem> {
   const res = await fetch(`${API_URL}/etiquetas/cola/`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method:  'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization:  `Bearer ${token}`,
+    },
     body: JSON.stringify(item),
-  });
+  })
   if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.detail || 'Error agregando a cola');
+    const error = await res.json()
+    throw new Error(error.detail || 'Error agregando a cola')
   }
-  return res.json();
+  return res.json()
 }
 
 export async function eliminarDeCola(item_id: number): Promise<void> {
   const res = await fetch(`${API_URL}/etiquetas/cola/${item_id}`, {
     method: 'DELETE',
-  });
-  if (!res.ok) throw new Error('Error eliminando item de la cola');
+  })
+  if (!res.ok) throw new Error('Error eliminando item de la cola')
 }
 
 export async function limpiarCola(): Promise<void> {
   const res = await fetch(`${API_URL}/etiquetas/cola/limpiar/`, {
     method: 'DELETE',
-  });
-  if (!res.ok) throw new Error('Error limpiando la cola');
+  })
+  if (!res.ok) throw new Error('Error limpiando la cola')
 }
 
-export async function generarPDF(): Promise<Blob> {
+export async function generarPDF(token: string): Promise<Blob> {
   const res = await fetch(`${API_URL}/etiquetas/generar/`, {
-    method: 'POST',
-  });
-  if (!res.ok) throw new Error('Error generando PDF');
-  return res.blob();
+    method:  'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  })
+  if (!res.ok) throw new Error('Error generando PDF')
+  return res.blob()
 }
 
 // ==========================================
@@ -131,7 +136,7 @@ export async function getPlanProduccion(): Promise<PlanItem[]> {
 
 export async function importarPlanExcel(
   file: File
-): Promise<{ 
+): Promise<{
   message:           string
   partes_importadas: number
   etiquetas_en_cola: number
@@ -139,7 +144,6 @@ export async function importarPlanExcel(
 }> {
   const formData = new FormData()
   formData.append('file', file)
-  // ← ya no se envía turno
 
   const res = await fetch(`${API_URL}/plan/importar-excel`, {
     method: 'POST',
@@ -164,34 +168,33 @@ export async function eliminarDelPlan(numero_parte: string): Promise<void> {
 // PRODUCCIÓN
 // ==========================================
 export async function getRegistros(
-  fecha?: string
+  fecha?: string,
+  turno?: string
 ): Promise<RegistroProduccion[]> {
-  const url = new URL(`${API_URL}/produccion/registros/`);
-  if (fecha) url.searchParams.append('fecha', fecha);
-
-  const res = await fetch(url.toString());
-  if (!res.ok) throw new Error('Error cargando registros');
-  return res.json();
+  const url = new URL('/produccion/registros/', window.location.origin)
+  if (fecha) url.searchParams.append('fecha', fecha)
+  if (turno) url.searchParams.append('turno', turno)
+  const res = await fetch(url.toString())
+  if (!res.ok) throw new Error('Error cargando registros')
+  return res.json()
 }
 
 export async function getProyeccion(turno: string): Promise<any> {
-  const res = await fetch(`${API_URL}/produccion/proyeccion/${turno}`);
-  if (!res.ok) throw new Error('Error cargando proyección');
-  return res.json();
+  const res = await fetch(`${API_URL}/produccion/proyeccion/${turno}`)
+  if (!res.ok) throw new Error('Error cargando proyección')
+  return res.json()
 }
 
 export async function getSaludMaquinas(): Promise<any> {
-  const res = await fetch(`${API_URL}/produccion/salud-maquinas/`);
-  if (!res.ok) throw new Error('Error cargando salud de máquinas');
-  return res.json();
+  const res = await fetch(`${API_URL}/produccion/salud-maquinas/`)
+  if (!res.ok) throw new Error('Error cargando salud de máquinas')
+  return res.json()
 }
 
 export async function getAnomalias(limite: number = 10): Promise<Anomalia[]> {
-  const res = await fetch(
-    `${API_URL}/produccion/anomalias/?limite=${limite}`
-  );
-  if (!res.ok) throw new Error('Error cargando anomalías');
-  return res.json();
+  const res = await fetch(`${API_URL}/produccion/anomalias/?limite=${limite}`)
+  if (!res.ok) throw new Error('Error cargando anomalías')
+  return res.json()
 }
 
 // ==========================================

@@ -1,5 +1,4 @@
 import os
-import json
 from io import BytesIO
 from datetime import datetime
 
@@ -19,24 +18,22 @@ from app.services.contador_service import obtener_siguiente_carrito
 # ── Helpers ─────────────────────────────────────────────────────────
 
 def _normalizar_turno(turno_str: str | None) -> str:
+    """Convierte cualquier variante de turno a 'D' o 'N'"""
     if not turno_str:
-        return _get_turno_por_hora()
-    t = turno_str.strip().upper()
-    if t in ['D', 'DIA', 'DÍA', 'DAY', 'DIURNO']:
         return 'D'
+    t = turno_str.strip().upper()
+    # Cubre 'Día', 'DÍA', 'DIA', 'D', 'DAY'
+    if t in ['D', 'DIA', 'DÍA', 'DAY', 'DIURNO', 'DÍA']:
+        return 'D'
+    # Cubre 'Noche', 'NOCHE', 'N', 'NIGHT'
     if t in ['N', 'NOCHE', 'NIGHT', 'NOCTURNO']:
         return 'N'
-    return _get_turno_por_hora()
-
-
-def _get_turno_por_hora() -> str:
-    now           = datetime.now()
-    total_minutos = now.hour * 60 + now.minute
-    return 'D' if 450 <= total_minutos < 1170 else 'N'
+    return 'D'
 
 
 def _get_fecha() -> str:
-    return datetime.now().strftime('%d%m%Y')  # Sin / → "06042026"
+    return datetime.now().strftime('%d%m%Y')
+
 
 async def _generar_codigo_carrito(
     numero_parte: str,
@@ -47,27 +44,23 @@ async def _generar_codigo_carrito(
     num_carrito = await obtener_siguiente_carrito(numero_parte, turno_qr)
 
     # Formato: PARTE_TURNO_FECHA_CARRITO
-    # Solo caracteres seguros para cualquier scanner
     return f"{numero_parte}_{turno_qr}_{fecha}_{num_carrito}"
 
 
 # ── Generador principal ─────────────────────────────────────────────
 
 async def generar_pdf_etiquetas(items_cola: list) -> bytes:
-    buffer = BytesIO()
-    c = canvas.Canvas(buffer, pagesize=landscape(letter))
+    buffer   = BytesIO()
+    c        = canvas.Canvas(buffer, pagesize=landscape(letter))
     page_w, page_h = landscape(letter)
 
-    margin    = 0.5 * cm
-    usable_w  = page_w - (2 * margin)
-    usable_h  = page_h - (2 * margin)
-
+    margin         = 0.5 * cm
+    usable_w       = page_w - (2 * margin)
+    usable_h       = page_h - (2 * margin)
     target_label_w = usable_w / 2
     target_label_h = usable_h / 2
-
     original_label_w = 6 * inch
     original_label_h = 5 * inch
-
     scale_x = target_label_w / original_label_w
     scale_y = target_label_h / original_label_h
 
@@ -78,46 +71,44 @@ async def generar_pdf_etiquetas(items_cola: list) -> bytes:
         (margin + target_label_w, margin),
     ]
 
-    label_count_on_page    = 0
-    total_labels_generated = 0
-
+    # Pre-calcular todos los códigos de forma async antes del canvas
+    todas_las_etiquetas = []
     for item in items_cola:
         num_labels = item.get('cantidad_etiquetas', 1)
-
         for _ in range(num_labels):
-            if label_count_on_page >= 4:
-                c.showPage()
-                label_count_on_page = 0
-
-            x_offset, y_offset = positions[label_count_on_page]
-
-            c.saveState()
-            c.translate(x_offset, y_offset)
-            c.scale(scale_x, scale_y)
-
-            # 👇 await porque ahora consulta DB
             codigo_carrito = await _generar_codigo_carrito(
                 item.get('numero_parte', ''),
                 item.get('turno', None),
             )
-            _draw_single_label(c, item, codigo_carrito)
+            todas_las_etiquetas.append((item, codigo_carrito))
 
-            c.restoreState()
-            label_count_on_page    += 1
-            total_labels_generated += 1
-
-    if total_labels_generated > 0:
-        c.save()
-        buffer.seek(0)
-        return buffer.getvalue()
-    else:
+    if not todas_las_etiquetas:
         c.drawString(100, 100, "Cola de impresión vacía")
         c.save()
         buffer.seek(0)
         return buffer.getvalue()
 
+    # Dibujar de forma síncrona
+    label_count_on_page = 0
+    for item, codigo_carrito in todas_las_etiquetas:
+        if label_count_on_page >= 4:
+            c.showPage()
+            label_count_on_page = 0
 
-# ── Sin cambios desde aquí ───────────────────────────────────────────
+        x_offset, y_offset = positions[label_count_on_page]
+        c.saveState()
+        c.translate(x_offset, y_offset)
+        c.scale(scale_x, scale_y)
+        _draw_single_label(c, item, codigo_carrito)
+        c.restoreState()
+        label_count_on_page += 1
+
+    c.save()
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
+# ── Dibujar etiqueta ─────────────────────────────────────────────────
 
 def _draw_single_label(c, item, codigo_carrito: str):
     default_font = "Helvetica"
@@ -149,7 +140,6 @@ def _draw_single_label(c, item, codigo_carrito: str):
     display_text_top_right = item.get('cliente_lg', 'IQC').upper()
     font_size_top_right    = 40
     c.setFont(bold_font, font_size_top_right)
-
     text_width_top_right = c.stringWidth(display_text_top_right, bold_font, font_size_top_right)
     while text_width_top_right > (box_top_right_width - 0.1 * inch) and font_size_top_right > 5:
         font_size_top_right -= 1
@@ -161,11 +151,17 @@ def _draw_single_label(c, item, codigo_carrito: str):
     c.drawString(text_x_top_right, text_y_top_right, display_text_top_right)
 
     try:
-        partes_qr     = codigo_carrito.split('~')
-        turno_qr      = partes_qr[1] if len(partes_qr) > 1 else 'D'
+        partes_codigo = codigo_carrito.split('_')
+        # El turno es el segundo elemento después del número de parte
+        # Buscamos 'D' o 'N' en las partes
+        turno_qr = 'D'
+        for parte in partes_codigo:
+            if parte in ('D', 'N'):
+                turno_qr = parte
+                break
         turno_display = 'Día' if turno_qr == 'D' else 'Noche'
     except Exception:
-        turno_display = item.get('turno', 'Día')
+        turno_display = 'Día'
 
     c.setFont(default_font, 12)
     c.drawString(2.33 * inch, 4.1 * inch, f"Fecha: {datetime.now().strftime('%d/%m/%Y')}")
@@ -258,10 +254,8 @@ def _generar_qr_code(canvas_obj, data, x, y, size):
     bounds    = qr_widget.getBounds()
     width     = bounds[2] - bounds[0]
     height    = bounds[3] - bounds[1]
-
-    scale_x = size / width
-    scale_y = size / height
-
-    drawing = Drawing(size, size, transform=[scale_x, 0, 0, scale_y, 0, 0])
+    scale_x   = size / width
+    scale_y   = size / height
+    drawing   = Drawing(size, size, transform=[scale_x, 0, 0, scale_y, 0, 0])
     drawing.add(qr_widget)
     renderPDF.draw(drawing, canvas_obj, x, y)

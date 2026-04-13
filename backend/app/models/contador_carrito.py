@@ -7,6 +7,7 @@ class ContadorCarrito(Base):
 
     id           = Column(Integer, primary_key=True, index=True)
     numero_parte = Column(String,  unique=True, nullable=False, index=True)
-    turno_hora   = Column(String,  nullable=False)   # 'D' o 'N'
+    turno_hora   = Column(String,  nullable=False)
+    fecha        = Column(String,   nullable=False, default="")
     count        = Column(Integer, nullable=False, default=1)
     updated_at   = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
