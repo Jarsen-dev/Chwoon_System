@@ -6,11 +6,18 @@ from datetime import datetime, timedelta
 from typing import List, Optional
 from io import BytesIO
 from sqlalchemy import select, func
+from datetime import datetime, timedelta, timezone
 
 from app.database import AsyncSessionLocal
 from app.models.registro_secado  import RegistroSecado
 from app.models.inventario        import InventarioPlanta
 from app.core.security            import decode_token
+
+# Zona horaria UTC-6 (CST México)
+TZ_LOCAL = timezone(timedelta(hours=-6))
+
+def ahora_local() -> datetime:
+    return datetime.now(TZ_LOCAL)
 
 router = APIRouter(prefix="/secado", tags=["secado"])
 
@@ -18,16 +25,17 @@ router = APIRouter(prefix="/secado", tags=["secado"])
 # ── Helpers ──────────────────────────────────────────────────────────
 
 def get_turno_actual() -> str:
-    total_min = datetime.now().hour * 60 + datetime.now().minute
+    now = ahora_local()
+    total_min = now.hour * 60 + now.minute
     return "DIA" if 450 <= total_min < 1170 else "NOCHE"
 
 
 def get_fecha_turno() -> str:
-    ahora     = datetime.now()
-    total_min = ahora.hour * 60 + ahora.minute
+    now = ahora_local()
+    total_min = now.hour * 60 + now.minute
     if total_min < 450:
-        return (ahora - timedelta(days=1)).strftime("%Y-%m-%d")
-    return ahora.strftime("%Y-%m-%d")
+        return (now - timedelta(days=1)).strftime("%Y-%m-%d")
+    return now.strftime("%Y-%m-%d")
 
 
 def calcular_tiempo(entrada: str, salida: str) -> str:
@@ -171,7 +179,7 @@ async def escanear(body: dict):
 
     turno      = get_turno_actual()
     fecha      = get_fecha_turno()
-    hora_ahora = datetime.now().strftime("%H:%M:%S")
+    hora_ahora = ahora_local().strftime("%H:%M:%S")
 
     async with AsyncSessionLocal() as db:
 
@@ -230,7 +238,7 @@ async def escanear(body: dict):
                 qty_total    = qty_total,
                 estado       = "dentro",
                 usuario      = usuario,
-                created_at   = datetime.utcnow()
+                created_at   = ahora_local().replace(tzinfo=None)
             )
             db.add(nuevo)
             await db.commit()
@@ -389,7 +397,7 @@ async def descargar_excel_secado(
     i.value     = (
         f"Fecha: {fecha_q}   |   Turno: {turno_q}   |   "
         f"Total registros: {len(registros)}   |   "
-        f"Generado: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}"
+        f"Generado: {ahora_local().strftime('%d/%m/%Y %H:%M:%S')}"
     )
     i.font      = Font(name="Calibri", size=9, color="64748B")
     i.alignment = Alignment(horizontal="center", vertical="center")
