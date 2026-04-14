@@ -2,7 +2,8 @@
 
 import { useRef, useState } from 'react'
 import { useRouter }        from 'next/navigation'
-import { importarPlanExcel, eliminarDelPlan } from '@/lib/api'
+import { useAuth }           from '@/context/AuthContext'
+import { importarPlanExcel, eliminarDelPlan, agregarACola } from '@/lib/api'
 
 interface Props {
   planes:    any[]
@@ -22,9 +23,11 @@ type ConfirmModal = {
 } | null
 
 export default function PlanTab({ planes, onRefresh }: Props) {
-  const router = useRouter()
+  const router    = useRouter()
+  const { token } = useAuth()
 
   const [isImporting, setIsImporting]           = useState(false)
+  const [isPrinting, setIsPrinting]             = useState<string | null>(null)
   const [modalInfo, setModalInfo]               = useState<ModalInfo>(null)
   const [confirmModal, setConfirmModal]         = useState<ConfirmModal>(null)
   const [erroresImport, setErroresImport]       = useState<string[]>([])
@@ -60,6 +63,53 @@ export default function PlanTab({ planes, onRefresh }: Props) {
     } finally {
       setIsImporting(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  // ==========================================
+  // IMPRIMIR → agregar a cola + redirigir
+  // ==========================================
+  const handleImprimir = async (plan: any) => {
+    if (!token) {
+      setModalInfo({
+        title:   '❌ Error',
+        message: 'No hay sesión activa. Inicia sesión para imprimir.',
+        type:    'error'
+      })
+      return
+    }
+
+    const carritos = plan.qtu && plan.qtu > 0
+      ? Math.ceil(plan.meta_piezas / plan.qtu)
+      : 0
+
+    if (carritos <= 0) {
+      setModalInfo({
+        title:   '⚠️ Sin etiquetas',
+        message: `No se puede calcular la cantidad de etiquetas para "${plan.numero_parte}". Verifica que tenga QTU en el inventario.`,
+        type:    'error'
+      })
+      return
+    }
+
+    setIsPrinting(plan.numero_parte)
+
+    try {
+      await agregarACola({
+        codigo_inventario:  plan.numero_parte,
+        cantidad_etiquetas: carritos,
+        turno:              plan.turno_objetivo,
+      }, token)
+
+      // Redirigir a etiquetas
+      router.push('/etiquetas')
+    } catch (error: any) {
+      setModalInfo({
+        title:   '❌ Error al agregar a cola',
+        message: error.message || 'No se pudo añadir a la cola de impresión.',
+        type:    'error'
+      })
+      setIsPrinting(null)
     }
   }
 
@@ -295,73 +345,95 @@ export default function PlanTab({ planes, onRefresh }: Props) {
                 </td>
               </tr>
             ) : (
-              planes.map((p, idx) => (
-                <tr key={idx} className="border-t hover:bg-gray-50 transition">
+              planes.map((p, idx) => {
+                const carritos = p.qtu && p.qtu > 0
+                  ? Math.ceil(p.meta_piezas / p.qtu)
+                  : 0
+                const estaImprimiendo = isPrinting === p.numero_parte
 
-                  {/* N° Parte */}
-                  <td className="p-3 text-center font-mono font-medium text-blue-800">
-                    {p.numero_parte}
-                  </td>
+                return (
+                  <tr key={idx} className="border-t hover:bg-gray-50 transition">
 
-                  {/* Turno */}
-                  <td className="p-3 text-center">
-                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                      p.turno_objetivo === 'Día'
-                        ? 'bg-yellow-100 text-yellow-800'
-                        : 'bg-indigo-100 text-indigo-800'
-                    }`}>
-                      {p.turno_objetivo === 'Día' ? '☀️' : '🌙'} {p.turno_objetivo}
-                    </span>
-                  </td>
+                    {/* N° Parte */}
+                    <td className="p-3 text-center font-mono font-medium text-blue-800">
+                      {p.numero_parte}
+                    </td>
 
-                  {/* Meta */}
-                  <td className="p-3 text-center font-bold text-slate-700">
-                    {p.meta_piezas?.toLocaleString()}
-                  </td>
-
-                  {/* Carritos — total calculado con qtu */}
-                  <td className="p-3 text-center">
-                    {p.qtu && p.qtu > 0 ? (
-                      <span className="font-bold text-purple-700">
-                        {Math.ceil(p.meta_piezas / p.qtu).toLocaleString()}
+                    {/* Turno */}
+                    <td className="p-3 text-center">
+                      <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                        p.turno_objetivo === 'Día'
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : 'bg-indigo-100 text-indigo-800'
+                      }`}>
+                        {p.turno_objetivo === 'Día' ? '☀️' : '🌙'} {p.turno_objetivo}
                       </span>
-                    ) : (
-                      <span className="text-gray-400">—</span>
-                    )}
-                  </td>
+                    </td>
 
-                  {/* Estado */}
-                  <td className="p-3 text-center">
-                    {getEstadoBadge(p.estado || 'pendiente')}
-                  </td>
+                    {/* Meta */}
+                    <td className="p-3 text-center font-bold text-slate-700">
+                      {p.meta_piezas?.toLocaleString()}
+                    </td>
 
-                  {/* Acciones */}
-                  <td className="p-3 text-center">
-                    <div className="flex items-center justify-center gap-2">
+                    {/* Carritos */}
+                    <td className="p-3 text-center">
+                      {carritos > 0 ? (
+                        <span className="font-bold text-purple-700">
+                          {carritos.toLocaleString()}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
+                    </td>
 
-                      {/* Imprimir → redirige a /etiquetas */}
-                      <button
-                        onClick={() => router.push('/etiquetas')}
-                        className="px-3 py-1.5 rounded text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 transition shadow-sm flex items-center gap-1"
-                        title="Ir a cola de etiquetas"
-                      >
-                        🖨️ Imprimir
-                      </button>
+                    {/* Estado */}
+                    <td className="p-3 text-center">
+                      {getEstadoBadge(p.estado || 'pendiente')}
+                    </td>
 
-                      {/* Eliminar fila */}
-                      <button
-                        onClick={() => handleEliminar(p.numero_parte)}
-                        className="px-3 py-1.5 rounded text-xs font-bold text-white bg-red-500 hover:bg-red-600 transition shadow-sm flex items-center gap-1"
-                        title="Eliminar del plan"
-                      >
-                        🗑️ Eliminar
-                      </button>
+                    {/* Acciones */}
+                    <td className="p-3 text-center">
+                      <div className="flex items-center justify-center gap-2">
 
-                    </div>
-                  </td>
+                        {/* Imprimir → agrega a cola + redirige */}
+                        <button
+                          onClick={() => handleImprimir(p)}
+                          disabled={estaImprimiendo || carritos <= 0}
+                          className={`px-3 py-1.5 rounded text-xs font-bold text-white transition shadow-sm flex items-center gap-1 ${
+                            estaImprimiendo || carritos <= 0
+                              ? 'bg-gray-400 cursor-not-allowed'
+                              : 'bg-purple-600 hover:bg-purple-700'
+                          }`}
+                          title={carritos <= 0
+                            ? 'Sin QTU en inventario'
+                            : `Agregar ${carritos} etiquetas a la cola`
+                          }
+                        >
+                          {estaImprimiendo ? (
+                            <>
+                              <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              Enviando...
+                            </>
+                          ) : (
+                            <>🖨️ Imprimir</>
+                          )}
+                        </button>
 
-                </tr>
-              ))
+                        {/* Eliminar fila */}
+                        <button
+                          onClick={() => handleEliminar(p.numero_parte)}
+                          className="px-3 py-1.5 rounded text-xs font-bold text-white bg-red-500 hover:bg-red-600 transition shadow-sm flex items-center gap-1"
+                          title="Eliminar del plan"
+                        >
+                          🗑️ Eliminar
+                        </button>
+
+                      </div>
+                    </td>
+
+                  </tr>
+                )
+              })
             )}
           </tbody>
         </table>

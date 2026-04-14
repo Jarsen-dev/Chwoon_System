@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useAuth } from '@/context/AuthContext'
 import { getRegistros, getPlanProduccion, getInventario } from '@/lib/api'
 
 // ==========================================
@@ -32,6 +33,19 @@ interface AlertaReciente {
   tipo: string
 }
 
+interface ReporteTurno {
+  fecha: string
+  turno: string
+  escaneos: number
+  piezas: number
+  partes_unicas: number
+  maquinas: number
+  primer_escaneo: string
+  ultimo_escaneo: string
+  secado_total: number
+  secado_salidos: number
+}
+
 // ==========================================
 // HELPERS
 // ==========================================
@@ -49,6 +63,13 @@ function formatearFecha(): string {
     month: 'long',
     day: 'numeric'
   })
+}
+
+function formatearFechaCorta(fecha: string): string {
+  try {
+    const [y, m, d] = fecha.split('-')
+    return `${d}/${m}/${y}`
+  } catch { return fecha }
 }
 
 function calcularPorcentaje(producido: number, meta: number): number {
@@ -94,6 +115,8 @@ function MetricCard({ label, value, sub, icon, color, border }: MetricaCard) {
 // PÁGINA PRINCIPAL
 // ==========================================
 export default function DashboardPage() {
+  const { token, rol } = useAuth()
+
   const [loading, setLoading]                       = useState(true)
   const [produccionPorParte, setProduccionPorParte] = useState<ProduccionPorParte[]>([])
   const [alertasRecientes, setAlertasRecientes]     = useState<AlertaReciente[]>([])
@@ -104,12 +127,17 @@ export default function DashboardPage() {
   const [porcentajePlan, setPorcentajePlan]         = useState(0)
   const [ultimaActualizacion, setUltimaActualizacion] = useState('')
 
+  // Reportes por turno
+  const [reportes, setReportes]             = useState<ReporteTurno[]>([])
+  const [loadingReportes, setLoadingReportes] = useState(false)
+  const [showReportes, setShowReportes]       = useState(false)
+  const [descargandoExcel, setDescargandoExcel] = useState<string | null>(null)
+
   const turno     = obtenerTurno()
   const fechaHoy  = new Date().toISOString().split('T')[0]
 
   useEffect(() => {
     cargarDatos()
-    // Refrescar cada 30 segundos
     const interval = setInterval(cargarDatos, 30_000)
     return () => clearInterval(interval)
   }, [])
@@ -122,7 +150,6 @@ export default function DashboardPage() {
         fetch(`${API_URL}/produccion/anomalias/?limite=10`).then(r => r.json()).catch(() => [])
       ])
 
-      // ── Métricas generales ──
       const totalPzs = registros.reduce((acc: number, r: any) => acc + (r.qty_bolsa || 0), 0)
       setTotalPiezas(totalPzs)
 
@@ -135,7 +162,6 @@ export default function DashboardPage() {
       setTotalAlertas(alertasHoy.length)
       setAlertasRecientes(alertasHoy.slice(0, 6))
 
-      // ── Producción por parte ──
       const acumulado: Record<string, number> = {}
       registros.forEach((r: any) => {
         if (!acumulado[r.numero_parte] || r.total_acumulado > acumulado[r.numero_parte]) {
@@ -160,7 +186,6 @@ export default function DashboardPage() {
 
       setProduccionPorParte(porParteArr)
 
-      // ── % Plan completado global ──
       if (plan.length > 0) {
         const completadas = porParteArr.filter(p => p.porcentaje >= 100).length
         setPorcentajePlan(Math.round((completadas / plan.length) * 100))
@@ -182,41 +207,81 @@ export default function DashboardPage() {
     }
   }
 
+  // ── Cargar reportes por turno ─────────────────────────────────────
+  const cargarReportes = async () => {
+    if (!token) return
+    try {
+      setLoadingReportes(true)
+      const res = await fetch('/api/admin/reportes-turnos?limite=30', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (res.ok) {
+        setReportes(await res.json())
+        setShowReportes(true)
+      }
+    } catch (e) {
+      console.error('Error cargando reportes:', e)
+    } finally {
+      setLoadingReportes(false)
+    }
+  }
+
+  // ── Descargar Excel de un turno específico ────────────────────────
+  const descargarExcelTurno = async (fecha: string, turno: string) => {
+    const key = `${fecha}_${turno}`
+    setDescargandoExcel(key)
+    try {
+      const url = `/produccion/registros/excel?fecha=${fecha}&turno=${turno}&t=${Date.now()}`
+      const response = await fetch(url, { method: 'GET' })
+
+      const contentType = response.headers.get('content-type') ?? ''
+      if (!response.ok || !contentType.includes('spreadsheetml')) {
+        console.error('Error descargando Excel')
+        return
+      }
+
+      const blob    = await response.blob()
+      const blobUrl = window.URL.createObjectURL(blob)
+      const link    = document.createElement('a')
+      link.href     = blobUrl
+      link.download = `produccion_${fecha}_${turno}.xlsx`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(blobUrl)
+    } catch (e) {
+      console.error('Error:', e)
+    } finally {
+      setDescargandoExcel(null)
+    }
+  }
+
   // ── Tarjetas ──
   const metricas: MetricaCard[] = [
     {
-      label:  'Total Piezas Hoy',
-      value:  totalPiezas.toLocaleString(),
-      sub:    `Turno ${turno}`,
-      icon:   '📦',
-      color:  'bg-blue-50',
-      border: 'border-blue-500',
+      label: 'Total Piezas Hoy', value: totalPiezas.toLocaleString(),
+      sub: `Turno ${turno}`, icon: '📦', color: 'bg-blue-50', border: 'border-blue-500',
     },
     {
-      label:  'Máquinas Activas',
-      value:  maquinasActivas,
-      sub:    'Con producción hoy',
-      icon:   '⚙️',
-      color:  'bg-emerald-50',
-      border: 'border-emerald-500',
+      label: 'Máquinas Activas', value: maquinasActivas,
+      sub: 'Con producción hoy', icon: '⚙️', color: 'bg-emerald-50', border: 'border-emerald-500',
     },
     {
-      label:  'Alertas Detectadas',
-      value:  totalAlertas,
-      sub:    'Hoy por IA',
-      icon:   '🚨',
-      color:  totalAlertas > 0 ? 'bg-red-50'    : 'bg-gray-50',
+      label: 'Alertas Detectadas', value: totalAlertas,
+      sub: 'Hoy por IA', icon: '🚨',
+      color: totalAlertas > 0 ? 'bg-red-50' : 'bg-gray-50',
       border: totalAlertas > 0 ? 'border-red-500' : 'border-gray-300',
     },
     {
-      label:  'Plan Completado',
-      value:  `${porcentajePlan}%`,
-      sub:    `${planData.filter(p => p.porcentaje >= 100).length} de ${planData.length} partes`,
-      icon:   '📋',
-      color:  porcentajePlan >= 80 ? 'bg-emerald-50' : 'bg-yellow-50',
+      label: 'Plan Completado', value: `${porcentajePlan}%`,
+      sub: `${planData.filter(p => p.porcentaje >= 100).length} de ${planData.length} partes`,
+      icon: '📋',
+      color: porcentajePlan >= 80 ? 'bg-emerald-50' : 'bg-yellow-50',
       border: porcentajePlan >= 80 ? 'border-emerald-500' : 'border-yellow-500',
     },
   ]
+
+  const esAdmin = rol === 'admin' || rol === 'supervisor'
 
   if (loading) return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center">
@@ -230,9 +295,9 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-gray-100 p-6">
 
-      {/* ======================================================= */}
-      {/* HEADER                                                   */}
-      {/* ======================================================= */}
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {/* HEADER                                                     */}
+      {/* ═══════════════════════════════════════════════════════════ */}
       <div className="bg-slate-900 rounded-xl px-6 py-5 mb-6 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-lg">
         <div>
           <div className="flex items-center gap-3 mb-1">
@@ -245,7 +310,6 @@ export default function DashboardPage() {
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
-          {/* Badge turno */}
           <div className={`flex items-center gap-2 px-4 py-2 rounded-lg border font-semibold text-sm ${
             turno === 'DÍA'
               ? 'bg-yellow-500/10 border-yellow-500/40 text-yellow-400'
@@ -255,43 +319,221 @@ export default function DashboardPage() {
             <span>TURNO {turno}</span>
           </div>
 
-          {/* Última actualización */}
           <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 text-sm">
             <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
             <span>Actualizado: {ultimaActualizacion}</span>
           </div>
 
-          {/* Botón refrescar */}
-          <button
-            onClick={cargarDatos}
-            className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition flex items-center gap-2"
-          >
+          <button onClick={cargarDatos}
+            className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition flex items-center gap-2">
             🔄 Refrescar
           </button>
+
+          {/* Botón reportes — solo admin/supervisor */}
+          {esAdmin && (
+            <button
+              onClick={() => showReportes ? setShowReportes(false) : cargarReportes()}
+              disabled={loadingReportes}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 ${
+                showReportes
+                  ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                  : 'bg-slate-700 hover:bg-slate-600 text-slate-200'
+              }`}
+            >
+              {loadingReportes ? (
+                <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Cargando...</>
+              ) : showReportes ? '✖ Cerrar Reportes' : '📈 Reportes por Turno'}
+            </button>
+          )}
         </div>
       </div>
 
-      {/* ======================================================= */}
-      {/* TARJETAS DE MÉTRICAS                                     */}
-      {/* ======================================================= */}
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {/* REPORTES POR TURNO (colapsable)                            */}
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {showReportes && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6 animate-in fade-in duration-300">
+          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-purple-50 to-white">
+            <div>
+              <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                📈 Reportes por Turno
+              </h2>
+              <p className="text-xs text-gray-400 mt-0.5">
+                Historial de producción — últimos {reportes.length} turnos
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={cargarReportes} disabled={loadingReportes}
+                className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-lg transition-colors">
+                {loadingReportes ? '⏳' : '🔄'} Actualizar
+              </button>
+              <button onClick={() => setShowReportes(false)}
+                className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-lg transition-colors">
+                ✖ Cerrar
+              </button>
+            </div>
+          </div>
+
+          {reportes.length === 0 ? (
+            <div className="p-12 text-center">
+              <span className="text-4xl block mb-2">📊</span>
+              <p className="text-gray-400">No hay datos de turnos anteriores.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-gray-100">
+                    <th className="p-3 text-left font-semibold text-slate-600">Fecha</th>
+                    <th className="p-3 text-center font-semibold text-slate-600">Turno</th>
+                    <th className="p-3 text-center font-semibold text-slate-600">Escaneos</th>
+                    <th className="p-3 text-center font-semibold text-slate-600">Piezas</th>
+                    <th className="p-3 text-center font-semibold text-slate-600">Partes</th>
+                    <th className="p-3 text-center font-semibold text-slate-600">Máquinas</th>
+                    <th className="p-3 text-center font-semibold text-slate-600">Primer Escaneo</th>
+                    <th className="p-3 text-center font-semibold text-slate-600">Último Escaneo</th>
+                    <th className="p-3 text-center font-semibold text-slate-600">Secado</th>
+                    <th className="p-3 text-center font-semibold text-slate-600">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {reportes.map((r, idx) => {
+                    const esHoy = r.fecha === fechaHoy
+                    const key = `${r.fecha}_${r.turno}`
+                    return (
+                      <tr key={idx}
+                        className={`border-b border-gray-50 transition ${
+                          esHoy ? 'bg-blue-50/50' : 'hover:bg-gray-50'
+                        }`}>
+
+                        {/* Fecha */}
+                        <td className="p-3">
+                          <div className="flex items-center gap-2">
+                            {esHoy && <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />}
+                            <span className={`font-mono text-sm ${esHoy ? 'font-bold text-blue-700' : 'text-slate-700'}`}>
+                              {formatearFechaCorta(r.fecha)}
+                            </span>
+                            {esHoy && <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded font-medium">Hoy</span>}
+                          </div>
+                        </td>
+
+                        {/* Turno */}
+                        <td className="p-3 text-center">
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                            r.turno === 'DIA'
+                              ? 'bg-yellow-100 text-yellow-800 border border-yellow-200'
+                              : 'bg-indigo-100 text-indigo-800 border border-indigo-200'
+                          }`}>
+                            {r.turno === 'DIA' ? '☀️' : '🌙'} {r.turno}
+                          </span>
+                        </td>
+
+                        {/* Escaneos */}
+                        <td className="p-3 text-center">
+                          <span className="font-bold text-slate-700">{r.escaneos.toLocaleString()}</span>
+                        </td>
+
+                        {/* Piezas */}
+                        <td className="p-3 text-center">
+                          <span className="font-bold text-blue-700 text-base">{r.piezas.toLocaleString()}</span>
+                        </td>
+
+                        {/* Partes */}
+                        <td className="p-3 text-center">
+                          <span className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full text-xs font-semibold">
+                            {r.partes_unicas}
+                          </span>
+                        </td>
+
+                        {/* Máquinas */}
+                        <td className="p-3 text-center">
+                          <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full text-xs font-semibold">
+                            {r.maquinas}
+                          </span>
+                        </td>
+
+                        {/* Primer escaneo */}
+                        <td className="p-3 text-center font-mono text-xs text-gray-500">
+                          {r.primer_escaneo || '—'}
+                        </td>
+
+                        {/* Último escaneo */}
+                        <td className="p-3 text-center font-mono text-xs text-gray-500">
+                          {r.ultimo_escaneo || '—'}
+                        </td>
+
+                        {/* Secado */}
+                        <td className="p-3 text-center">
+                          {r.secado_total > 0 ? (
+                            <span className="text-xs text-orange-600 font-semibold">
+                              🌡️ {r.secado_salidos}/{r.secado_total}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-gray-300">—</span>
+                          )}
+                        </td>
+
+                        {/* Acciones */}
+                        <td className="p-3 text-center">
+                          <button
+                            onClick={() => descargarExcelTurno(r.fecha, r.turno)}
+                            disabled={descargandoExcel === key}
+                            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-sm ${
+                              descargandoExcel === key
+                                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                : 'bg-green-600 hover:bg-green-700 text-white'
+                            }`}
+                            title={`Descargar Excel ${r.fecha} ${r.turno}`}
+                          >
+                            {descargandoExcel === key ? (
+                              <><span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> ...</>
+                            ) : (
+                              <>📥 Excel</>
+                            )}
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Resumen al pie */}
+          {reportes.length > 0 && (
+            <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
+              <span>
+                Total: <strong className="text-gray-700">{reportes.reduce((a, r) => a + r.piezas, 0).toLocaleString()}</strong> piezas
+                en <strong className="text-gray-700">{reportes.length}</strong> turnos
+              </span>
+              <span>
+                Promedio: <strong className="text-gray-700">{Math.round(reportes.reduce((a, r) => a + r.piezas, 0) / reportes.length).toLocaleString()}</strong> piezas/turno
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {/* TARJETAS DE MÉTRICAS                                       */}
+      {/* ═══════════════════════════════════════════════════════════ */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
         {metricas.map((m, i) => (
           <MetricCard key={i} {...m} />
         ))}
       </div>
 
-      {/* ======================================================= */}
-      {/* FILA CENTRAL: GRÁFICA + ALERTAS                         */}
-      {/* ======================================================= */}
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {/* FILA CENTRAL: GRÁFICA + ALERTAS                           */}
+      {/* ═══════════════════════════════════════════════════════════ */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">
 
         {/* ── Producción por parte (2/3) ── */}
         <div className="xl:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
             <div>
-              <h2 className="text-base font-bold text-slate-800">
-                📊 Producción por Número de Parte
-              </h2>
+              <h2 className="text-base font-bold text-slate-800">📊 Producción por Número de Parte</h2>
               <p className="text-xs text-gray-400 mt-0.5">Acumulado del turno actual</p>
             </div>
             <span className="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full font-semibold">
@@ -308,54 +550,35 @@ export default function DashboardPage() {
             ) : (
               produccionPorParte.map((item, idx) => (
                 <div key={idx}>
-                  {/* Fila de datos */}
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-xs font-bold text-gray-400 w-5 text-right flex-shrink-0">
-                        {idx + 1}
-                      </span>
+                      <span className="text-xs font-bold text-gray-400 w-5 text-right flex-shrink-0">{idx + 1}</span>
                       <div className="min-w-0">
-                        <span className="font-mono font-bold text-slate-800 text-sm">
-                          {item.numero_parte}
-                        </span>
+                        <span className="font-mono font-bold text-slate-800 text-sm">{item.numero_parte}</span>
                         {item.descripcion && (
-                          <span className="text-gray-400 text-xs ml-2 truncate hidden sm:inline">
-                            {item.descripcion}
-                          </span>
+                          <span className="text-gray-400 text-xs ml-2 truncate hidden sm:inline">{item.descripcion}</span>
                         )}
                       </div>
                     </div>
                     <div className="flex items-center gap-3 flex-shrink-0 ml-4">
-                      <span className="text-slate-700 font-bold text-sm">
-                        {item.total.toLocaleString()}
-                      </span>
+                      <span className="text-slate-700 font-bold text-sm">{item.total.toLocaleString()}</span>
                       {item.meta > 0 && (
                         <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                          item.porcentaje >= 100
-                            ? 'bg-emerald-100 text-emerald-700'
-                            : item.porcentaje >= 60
-                              ? 'bg-blue-100 text-blue-700'
-                              : 'bg-yellow-100 text-yellow-700'
-                        }`}>
-                          {item.porcentaje}%
-                        </span>
+                          item.porcentaje >= 100 ? 'bg-emerald-100 text-emerald-700'
+                          : item.porcentaje >= 60 ? 'bg-blue-100 text-blue-700'
+                          : 'bg-yellow-100 text-yellow-700'
+                        }`}>{item.porcentaje}%</span>
                       )}
                     </div>
                   </div>
-
-                  {/* Barra de progreso */}
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-gray-400 w-5 flex-shrink-0" />
                     <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
-                      <div
-                        className={`h-2 rounded-full transition-all duration-500 ${getBarColor(item.porcentaje)}`}
-                        style={{ width: `${item.meta > 0 ? item.porcentaje : 100}%` }}
-                      />
+                      <div className={`h-2 rounded-full transition-all duration-500 ${getBarColor(item.porcentaje)}`}
+                        style={{ width: `${item.meta > 0 ? item.porcentaje : 100}%` }} />
                     </div>
                     {item.meta > 0 && (
-                      <span className="text-xs text-gray-400 w-16 text-right flex-shrink-0">
-                        / {item.meta.toLocaleString()}
-                      </span>
+                      <span className="text-xs text-gray-400 w-16 text-right flex-shrink-0">/ {item.meta.toLocaleString()}</span>
                     )}
                   </div>
                 </div>
@@ -386,24 +609,15 @@ export default function DashboardPage() {
               </div>
             ) : (
               alertasRecientes.map((alerta, idx) => (
-                <div
-                  key={idx}
-                  className="p-3 rounded-lg border bg-gray-50 hover:bg-gray-100 transition"
-                >
+                <div key={idx} className="p-3 rounded-lg border bg-gray-50 hover:bg-gray-100 transition">
                   <div className="flex items-center gap-2 mb-1">
                     <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${getTipoBadge(alerta.tipo)}`}>
                       {alerta.tipo}
                     </span>
-                    <span className="text-xs text-gray-400 font-mono ml-auto">
-                      {alerta.hora}
-                    </span>
+                    <span className="text-xs text-gray-400 font-mono ml-auto">{alerta.hora}</span>
                   </div>
-                  <p className="text-xs font-semibold text-slate-700 font-mono">
-                    {alerta.numero_parte}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">
-                    {alerta.motivo}
-                  </p>
+                  <p className="text-xs font-semibold text-slate-700 font-mono">{alerta.numero_parte}</p>
+                  <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{alerta.motivo}</p>
                 </div>
               ))
             )}
@@ -411,9 +625,9 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ======================================================= */}
-      {/* TABLA DE ESTADO DEL PLAN                                 */}
-      {/* ======================================================= */}
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {/* TABLA DE ESTADO DEL PLAN                                   */}
+      {/* ═══════════════════════════════════════════════════════════ */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
           <div>
@@ -431,13 +645,13 @@ export default function DashboardPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-slate-50 border-b border-gray-100">
-                <th className="p-3 text-left   font-semibold text-slate-600">#</th>
-                <th className="p-3 text-left   font-semibold text-slate-600">N° Parte</th>
+                <th className="p-3 text-left font-semibold text-slate-600">#</th>
+                <th className="p-3 text-left font-semibold text-slate-600">N° Parte</th>
                 <th className="p-3 text-center font-semibold text-slate-600">Turno</th>
                 <th className="p-3 text-center font-semibold text-slate-600">Meta</th>
                 <th className="p-3 text-center font-semibold text-slate-600">Producido</th>
                 <th className="p-3 text-center font-semibold text-slate-600">Faltan</th>
-                <th className="p-3 text-left   font-semibold text-slate-600 min-w-[160px]">Progreso</th>
+                <th className="p-3 text-left font-semibold text-slate-600 min-w-[160px]">Progreso</th>
                 <th className="p-3 text-center font-semibold text-slate-600">Estado</th>
               </tr>
             </thead>
@@ -446,88 +660,44 @@ export default function DashboardPage() {
                 <tr>
                   <td colSpan={8} className="p-12 text-center">
                     <span className="text-4xl block mb-2">📋</span>
-                    <p className="text-gray-400">
-                      No hay plan de producción activo.
-                    </p>
+                    <p className="text-gray-400">No hay plan de producción activo.</p>
                   </td>
                 </tr>
               ) : (
                 planData.map((p, idx) => {
                   const faltan = Math.max(0, p.meta_piezas - p.producido)
                   return (
-                    <tr
-                      key={idx}
-                      className="border-b border-gray-50 hover:bg-gray-50 transition"
-                    >
-                      {/* # */}
+                    <tr key={idx} className="border-b border-gray-50 hover:bg-gray-50 transition">
                       <td className="p-3 text-gray-400 text-xs font-medium">{idx + 1}</td>
-
-                      {/* N° Parte */}
                       <td className="p-3">
-                        <span className="font-mono font-bold text-slate-800 text-sm">
-                          {p.numero_parte}
-                        </span>
+                        <span className="font-mono font-bold text-slate-800 text-sm">{p.numero_parte}</span>
                       </td>
-
-                      {/* Turno */}
                       <td className="p-3 text-center">
                         <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                          p.turno_objetivo === 'Día'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-indigo-100 text-indigo-800'
-                        }`}>
-                          {p.turno_objetivo}
-                        </span>
+                          p.turno_objetivo === 'Día' ? 'bg-yellow-100 text-yellow-800' : 'bg-indigo-100 text-indigo-800'
+                        }`}>{p.turno_objetivo}</span>
                       </td>
-
-                      {/* Meta */}
-                      <td className="p-3 text-center font-semibold text-slate-700">
-                        {p.meta_piezas.toLocaleString()}
-                      </td>
-
-                      {/* Producido */}
-                      <td className="p-3 text-center font-bold text-blue-700">
-                        {p.producido.toLocaleString()}
-                      </td>
-
-                      {/* Faltan */}
-                      <td className={`p-3 text-center font-semibold ${
-                        faltan === 0
-                          ? 'text-emerald-600'
-                          : 'text-orange-500'
-                      }`}>
+                      <td className="p-3 text-center font-semibold text-slate-700">{p.meta_piezas.toLocaleString()}</td>
+                      <td className="p-3 text-center font-bold text-blue-700">{p.producido.toLocaleString()}</td>
+                      <td className={`p-3 text-center font-semibold ${faltan === 0 ? 'text-emerald-600' : 'text-orange-500'}`}>
                         {faltan === 0 ? '—' : faltan.toLocaleString()}
                       </td>
-
-                      {/* Barra de progreso */}
                       <td className="p-3">
                         <div className="flex items-center gap-2">
                           <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
-                            <div
-                              className={`h-2 rounded-full transition-all duration-500 ${getBarColor(p.porcentaje)}`}
-                              style={{ width: `${p.porcentaje}%` }}
-                            />
+                            <div className={`h-2 rounded-full transition-all duration-500 ${getBarColor(p.porcentaje)}`}
+                              style={{ width: `${p.porcentaje}%` }} />
                           </div>
-                          <span className="text-xs font-bold text-gray-500 w-9 text-right">
-                            {p.porcentaje}%
-                          </span>
+                          <span className="text-xs font-bold text-gray-500 w-9 text-right">{p.porcentaje}%</span>
                         </div>
                       </td>
-
-                      {/* Estado */}
                       <td className="p-3 text-center">
                         {p.porcentaje >= 100 ? (
-                          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">
-                            ✅ Completo
-                          </span>
+                          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">✅ Completo</span>
                         ) : p.producido > 0 ? (
-                          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 border border-blue-200">
-                            🔄 En Proceso
-                          </span>
+                          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 border border-blue-200">🔄 En Proceso</span>
                         ) : (
-                          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-600 border border-gray-200">
-                            ⏸️ En Cola
-                          </span>
+                          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-600 border border-gray-200">⏸️ En Cola</span>
                         )}
                       </td>
                     </tr>
@@ -539,9 +709,9 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ======================================================= */}
-      {/* FOOTER                                                   */}
-      {/* ======================================================= */}
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {/* FOOTER                                                     */}
+      {/* ═══════════════════════════════════════════════════════════ */}
       <div className="mt-6 text-center text-xs text-gray-400">
         Sistema de Control de Producción — Datos en tiempo real · Auto-refresco cada 30 seg
       </div>

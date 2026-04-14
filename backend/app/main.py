@@ -12,6 +12,7 @@ from app.routers                import plan, inventario, auth, secado
 from app.models.usuario         import Usuario, RolUsuario
 from app.core.security          import get_password_hash
 from app.services.turno_service import iniciar_scheduler
+from app.routers import admin as admin_router
 
 logging.basicConfig(
     level  = logging.INFO,
@@ -89,6 +90,7 @@ app.include_router(importar.router)
 app.include_router(plan.router)
 app.include_router(inventario.router)
 app.include_router(secado.router)
+app.include_router(admin_router.router)
 
 
 @app.get("/")
