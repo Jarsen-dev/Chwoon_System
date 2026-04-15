@@ -12,6 +12,84 @@ export interface InventarioItem {
 }
 
 // ==========================================
+// PRODUCTOS
+// ==========================================
+export interface BomItem {
+  sku_componente: string
+  cantidad:       number
+}
+
+export interface CaracteristicasInyeccion {
+  id_proceso?:  string
+  tipo_resina?: string
+  resina?:      string
+  densidad?:    number
+  peso?:        number
+  peso_seco?:   number
+  cav?:         number
+}
+
+export interface ProductoItem {
+  id:                        number
+  sku:                       string
+  nombre:                    string
+  tipo:                      string
+  clase_producto:            string
+  unidad_de_medida:          string
+  descripcion:               string
+  cantidad_carrito:          number
+  proveedor:                 string
+  cliente_id:                string
+  cliente_asociado:          string
+  linea_produccion:          string
+  ubicacion:                 string
+  status:                    string
+  controles_calidad:         string[]
+  puntos_inspeccion_iqc:     Record<string, any>[]
+  puntos_inspeccion_lqc:     Record<string, any>[]
+  puntos_inspeccion_oqc:     Record<string, any>[]
+  bom:                       BomItem[]
+  caracteristicas_inyeccion: CaracteristicasInyeccion
+}
+
+export interface ProductoCreate {
+  sku:                        string
+  nombre:                     string
+  tipo?:                      string
+  clase_producto?:            string
+  unidad_de_medida?:          string
+  descripcion?:               string
+  cantidad_carrito?:          number
+  proveedor?:                 string
+  cliente_id?:                string
+  cliente_asociado?:          string
+  linea_produccion?:          string
+  ubicacion?:                 string
+  caracteristicas_inyeccion?: CaracteristicasInyeccion
+}
+
+export interface ProductoUpdate {
+  nombre?:                    string
+  tipo?:                      string
+  clase_producto?:            string
+  unidad_de_medida?:          string
+  descripcion?:               string
+  cantidad_carrito?:          number
+  proveedor?:                 string
+  cliente_id?:                string
+  cliente_asociado?:          string
+  linea_produccion?:          string
+  ubicacion?:                 string
+  status?:                    string
+  controles_calidad?:         string[]
+  puntos_inspeccion_iqc?:     Record<string, any>[]
+  puntos_inspeccion_lqc?:     Record<string, any>[]
+  puntos_inspeccion_oqc?:     Record<string, any>[]
+  bom?:                       BomItem[]
+  caracteristicas_inyeccion?: CaracteristicasInyeccion
+}
+
+// ==========================================
 // COLA DE IMPRESIÓN
 // ==========================================
 export interface ColaItemCreate {

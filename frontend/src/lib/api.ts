@@ -9,17 +9,21 @@ import {
   Usuario,
   UsuarioCreate,
   UsuarioUpdate,
-} from '@/types';
+  ProductoItem,
+  ProductoCreate,
+  ProductoUpdate,
+  BomItem,
+} from '@/types'
 
-const API_URL = '';
+const API_URL = ''
 
 // ==========================================
 // INVENTARIO PLANTA
 // ==========================================
 export async function getInventario(): Promise<InventarioItem[]> {
-  const res = await fetch(`${API_URL}/inventario/`);
-  if (!res.ok) throw new Error('Error cargando inventario');
-  return res.json();
+  const res = await fetch(`${API_URL}/inventario/`)
+  if (!res.ok) throw new Error('Error cargando inventario')
+  return res.json()
 }
 
 export async function createInventario(
@@ -29,9 +33,9 @@ export async function createInventario(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(item),
-  });
-  if (!res.ok) throw new Error('Error creando item en inventario');
-  return res.json();
+  })
+  if (!res.ok) throw new Error('Error creando item en inventario')
+  return res.json()
 }
 
 export async function updateInventario(
@@ -42,34 +46,184 @@ export async function updateInventario(
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(item),
-  });
-  if (!res.ok) throw new Error('Error actualizando item en inventario');
-  return res.json();
+  })
+  if (!res.ok) throw new Error('Error actualizando item en inventario')
+  return res.json()
 }
 
 export async function deleteInventario(codigo: string): Promise<void> {
   const res = await fetch(`${API_URL}/inventario/${codigo}`, {
     method: 'DELETE',
-  });
-  if (!res.ok) throw new Error('Error eliminando item del inventario');
+  })
+  if (!res.ok) throw new Error('Error eliminando item del inventario')
 }
 
 export async function importarExcelInventario(
   file: File
 ): Promise<{ message: string; count: number }> {
-  const formData = new FormData();
-  formData.append('file', file);
+  const formData = new FormData()
+  formData.append('file', file)
 
   const res = await fetch(`${API_URL}/inventario/importar-excel`, {
     method: 'POST',
     body: formData,
-  });
+  })
 
   if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.detail || 'Error importando Excel de inventario');
+    const error = await res.json()
+    throw new Error(error.detail || 'Error importando Excel de inventario')
   }
-  return res.json();
+  return res.json()
+}
+
+// ==========================================
+// PRODUCTOS
+// ==========================================
+export async function getProductos(): Promise<ProductoItem[]> {
+  const res = await fetch(`${API_URL}/productos/`)
+  if (!res.ok) throw new Error('Error al obtener productos')
+  return res.json()
+}
+
+export async function getProducto(sku: string): Promise<ProductoItem> {
+  const res = await fetch(`${API_URL}/productos/${encodeURIComponent(sku)}`)
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Producto no encontrado')
+  }
+  return res.json()
+}
+
+export async function createProducto(
+  data: ProductoCreate
+): Promise<ProductoItem> {
+  const res = await fetch(`${API_URL}/productos/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al crear producto')
+  }
+  return res.json()
+}
+
+export async function updateProducto(
+  sku: string,
+  data: ProductoUpdate
+): Promise<ProductoItem> {
+  const res = await fetch(
+    `${API_URL}/productos/${encodeURIComponent(sku)}`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }
+  )
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al actualizar producto')
+  }
+  return res.json()
+}
+
+export async function deleteProducto(sku: string): Promise<void> {
+  const res = await fetch(
+    `${API_URL}/productos/${encodeURIComponent(sku)}`,
+    { method: 'DELETE' }
+  )
+  if (!res.ok) throw new Error('Error al eliminar producto')
+}
+
+export async function deleteProductosBatch(
+  skus: string[]
+): Promise<{ message: string }> {
+  const res = await fetch(`${API_URL}/productos/delete-batch`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ skus }),
+  })
+  if (!res.ok) throw new Error('Error al eliminar productos')
+  return res.json()
+}
+
+export async function cambiarStatusProductos(
+  skus: string[],
+  status: string
+): Promise<{ message: string }> {
+  const res = await fetch(`${API_URL}/productos/status-batch`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ skus, status }),
+  })
+  if (!res.ok) throw new Error('Error al cambiar status')
+  return res.json()
+}
+
+export async function actualizarPuntosInspeccion(
+  sku: string,
+  tipo_control: string,
+  puntos: Record<string, any>[]
+): Promise<{ message: string }> {
+  const res = await fetch(
+    `${API_URL}/productos/${encodeURIComponent(sku)}/puntos-inspeccion`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tipo_control, puntos }),
+    }
+  )
+  if (!res.ok) throw new Error('Error al actualizar puntos de inspección')
+  return res.json()
+}
+
+export async function actualizarBom(
+  sku: string,
+  bom: BomItem[]
+): Promise<{ message: string }> {
+  const res = await fetch(
+    `${API_URL}/productos/${encodeURIComponent(sku)}/bom`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bom }),
+    }
+  )
+  if (!res.ok) throw new Error('Error al actualizar BOM')
+  return res.json()
+}
+
+export async function importarProductosExcel(
+  file: File
+): Promise<{ message: string; count: number }> {
+  const fd = new FormData()
+  fd.append('file', file)
+  const res = await fetch(`${API_URL}/productos/importar`, {
+    method: 'POST',
+    body: fd,
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al importar productos')
+  }
+  return res.json()
+}
+
+export async function importarBomExcel(
+  file: File
+): Promise<{ message: string; count: number }> {
+  const fd = new FormData()
+  fd.append('file', file)
+  const res = await fetch(`${API_URL}/productos/importar-bom`, {
+    method: 'POST',
+    body: fd,
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al importar BOM')
+  }
+  return res.json()
 }
 
 // ==========================================
@@ -82,14 +236,14 @@ export async function getCola(): Promise<ColaItem[]> {
 }
 
 export async function agregarACola(
-  item:  ColaItemCreate,
+  item: ColaItemCreate,
   token: string
 ): Promise<ColaItem> {
   const res = await fetch(`${API_URL}/etiquetas/cola/`, {
-    method:  'POST',
+    method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization:  `Bearer ${token}`,
+      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(item),
   })
@@ -116,7 +270,7 @@ export async function limpiarCola(): Promise<void> {
 
 export async function generarPDF(token: string): Promise<Blob> {
   const res = await fetch(`${API_URL}/etiquetas/generar/`, {
-    method:  'POST',
+    method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -129,25 +283,25 @@ export async function generarPDF(token: string): Promise<Blob> {
 // PLAN DE PRODUCCIÓN
 // ==========================================
 export async function getPlanProduccion(): Promise<PlanItem[]> {
-  const res = await fetch(`${API_URL}/plan/`);
-  if (!res.ok) throw new Error('Error cargando plan de producción');
-  return res.json();
+  const res = await fetch(`${API_URL}/plan/`)
+  if (!res.ok) throw new Error('Error cargando plan de producción')
+  return res.json()
 }
 
 export async function importarPlanExcel(
   file: File
 ): Promise<{
-  message:           string
+  message: string
   partes_importadas: number
   etiquetas_en_cola: number
-  errores:           string[]
+  errores: string[]
 }> {
   const formData = new FormData()
   formData.append('file', file)
 
   const res = await fetch(`${API_URL}/plan/importar-excel`, {
     method: 'POST',
-    body:   formData
+    body: formData,
   })
 
   if (!res.ok) {
@@ -158,9 +312,10 @@ export async function importarPlanExcel(
 }
 
 export async function eliminarDelPlan(numero_parte: string): Promise<void> {
-  const res = await fetch(`${API_URL}/plan/${encodeURIComponent(numero_parte)}`, {
-    method: 'DELETE'
-  })
+  const res = await fetch(
+    `${API_URL}/plan/${encodeURIComponent(numero_parte)}`,
+    { method: 'DELETE' }
+  )
   if (!res.ok) throw new Error('Error eliminando del plan')
 }
 
@@ -192,7 +347,9 @@ export async function getSaludMaquinas(): Promise<any> {
 }
 
 export async function getAnomalias(limite: number = 10): Promise<Anomalia[]> {
-  const res = await fetch(`${API_URL}/produccion/anomalias/?limite=${limite}`)
+  const res = await fetch(
+    `${API_URL}/produccion/anomalias/?limite=${limite}`
+  )
   if (!res.ok) throw new Error('Error cargando anomalías')
   return res.json()
 }
@@ -205,9 +362,9 @@ export async function login(
   password: string
 ): Promise<Token> {
   const res = await fetch(`${API_URL}/api/auth/login`, {
-    method:  'POST',
+    method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify({ username, password }),
+    body: JSON.stringify({ username, password }),
   })
   if (!res.ok) {
     const error = await res.json()
@@ -237,13 +394,13 @@ export async function getUsuarios(token: string): Promise<Usuario[]> {
 
 export async function createUsuario(
   token: string,
-  data:  UsuarioCreate
+  data: UsuarioCreate
 ): Promise<Usuario> {
   const res = await fetch(`${API_URL}/api/auth/usuarios`, {
-    method:  'POST',
+    method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization:  `Bearer ${token}`,
+      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(data),
   })
@@ -255,15 +412,15 @@ export async function createUsuario(
 }
 
 export async function updateUsuario(
-  token:  string,
-  id:     number,
-  data:   UsuarioUpdate
+  token: string,
+  id: number,
+  data: UsuarioUpdate
 ): Promise<Usuario> {
   const res = await fetch(`${API_URL}/api/auth/usuarios/${id}`, {
-    method:  'PUT',
+    method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
-      Authorization:  `Bearer ${token}`,
+      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(data),
   })
@@ -276,10 +433,10 @@ export async function updateUsuario(
 
 export async function deleteUsuario(
   token: string,
-  id:    number
+  id: number
 ): Promise<void> {
   const res = await fetch(`${API_URL}/api/auth/usuarios/${id}`, {
-    method:  'DELETE',
+    method: 'DELETE',
     headers: { Authorization: `Bearer ${token}` },
   })
   if (!res.ok) throw new Error('Error eliminando usuario')
@@ -287,10 +444,10 @@ export async function deleteUsuario(
 
 export async function toggleUsuario(
   token: string,
-  id:    number
+  id: number
 ): Promise<{ activo: boolean; username: string }> {
   const res = await fetch(`${API_URL}/api/auth/usuarios/${id}/toggle`, {
-    method:  'PATCH',
+    method: 'PATCH',
     headers: { Authorization: `Bearer ${token}` },
   })
   if (!res.ok) throw new Error('Error cambiando estado del usuario')

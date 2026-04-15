@@ -6,6 +6,7 @@ from app.models.plan_produccion import PlanProduccion
 from app.models.anomalia import Anomalia
 from app.models.registro_paro import RegistroParo
 from app.models.usuario import Usuario
+from app.models.producto import Producto
 
 __all__ = [
     "Parte",

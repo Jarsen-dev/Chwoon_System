@@ -99,6 +99,10 @@ const nextConfig: NextConfig = {
         // Partes
         { source: '/partes',                        destination: `${BACKEND}/partes/` },
         { source: '/partes/:path*',                 destination: `${BACKEND}/partes/:path*` },
+
+        // Productos
+        { source: '/productos',                     destination: `${BACKEND}/productos/` },
+        { source: '/productos/:path*',              destination: `${BACKEND}/productos/:path*` },
       ],
 
       fallback: [],
