@@ -13,6 +13,11 @@ import {
   ProductoCreate,
   ProductoUpdate,
   BomItem,
+  FinanzasDashboard,
+  OrdenCompra,
+  OrdenVenta,
+  Devolucion,
+  PlanVentasSemana,
 } from '@/types'
 
 const API_URL = ''
@@ -451,5 +456,368 @@ export async function toggleUsuario(
     headers: { Authorization: `Bearer ${token}` },
   })
   if (!res.ok) throw new Error('Error cambiando estado del usuario')
+  return res.json()
+}
+
+// ==========================================
+// FINANZAS — Dashboard
+// ==========================================
+export async function getFinanzasDashboard(token: string): Promise<FinanzasDashboard> {
+  const res = await fetch(`${API_URL}/finanzas/dashboard`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener dashboard de finanzas')
+  return res.json()
+}
+
+// ==========================================
+// FINANZAS — Órdenes de Compra
+// ==========================================
+export async function getOrdenesCompra(token: string, status?: string): Promise<OrdenCompra[]> {
+  const params = status ? `?status=${status}` : ''
+  const res = await fetch(`${API_URL}/finanzas/compras${params}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener órdenes de compra')
+  return res.json()
+}
+
+export async function getOrdenCompra(token: string, ocId: string): Promise<OrdenCompra> {
+  const res = await fetch(`${API_URL}/finanzas/compras/${ocId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener orden de compra')
+  return res.json()
+}
+
+export async function crearOrdenCompra(token: string, data: {
+  id_proveedor: string
+  nombre_proveedor: string
+  items: { sku_producto: string; nombre_producto: string; cantidad_requerida: number; precio_unitario: number; moneda?: string }[]
+  notas?: string
+}): Promise<{ message: string; oc_id: string; id: number }> {
+  const res = await fetch(`${API_URL}/finanzas/compras`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al crear orden de compra')
+  }
+  return res.json()
+}
+
+export async function actualizarOrdenCompra(token: string, ocId: string, data: any): Promise<{ message: string }> {
+  const res = await fetch(`${API_URL}/finanzas/compras/${ocId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al actualizar orden de compra')
+  }
+  return res.json()
+}
+
+export async function eliminarOrdenCompra(token: string, ocId: string): Promise<{ message: string }> {
+  const res = await fetch(`${API_URL}/finanzas/compras/${ocId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al eliminar orden de compra')
+  }
+  return res.json()
+}
+
+export async function registrarRecepcion(token: string, data: {
+  oc_id: string
+  sku_producto: string
+  cantidad_recibida: number
+  notas?: string
+}): Promise<{ message: string; recepcion_id: string; nuevo_status_oc: string }> {
+  const res = await fetch(`${API_URL}/finanzas/compras/recepcion`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al registrar recepción')
+  }
+  return res.json()
+}
+
+export async function registrarRecepcionLote(token: string, data: {
+  oc_id: string
+  sku_producto: string
+  cantidad_recibida: number
+  notas?: string
+}[]): Promise<{ message: string; recepciones: string[]; nuevo_status_oc: string }> {
+  const res = await fetch(`${API_URL}/finanzas/compras/recepcion-lote`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al registrar recepciones')
+  }
+  return res.json()
+}
+
+export async function getRecepciones(token: string): Promise<any[]> {
+  const res = await fetch(`${API_URL}/finanzas/recepciones`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener recepciones')
+  return res.json()
+}
+
+export async function descargarPdfOrdenCompra(token: string, ocId: string): Promise<void> {
+  const res = await fetch(`${API_URL}/finanzas/compras/${ocId}/pdf`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al generar PDF')
+  }
+  const blob = await res.blob()
+  const url = window.URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${ocId}.pdf`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  window.URL.revokeObjectURL(url)
+}
+
+export async function descargarEtiquetaLote(token: string, ocId: string, sku: string): Promise<void> {
+  const res = await fetch(`${API_URL}/finanzas/compras/${ocId}/etiqueta-lote/${encodeURIComponent(sku)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al generar etiqueta de lote')
+  }
+  const blob = await res.blob()
+  const url = window.URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `ETIQUETA_LOTE_${ocId}_${sku}.pdf`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  window.URL.revokeObjectURL(url)
+}
+
+export async function descargarPdfDetalleOC(token: string, ocId: string): Promise<void> {
+  const res = await fetch(`${API_URL}/finanzas/compras/${ocId}/pdf-detalle`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al generar PDF detalle')
+  }
+  const blob = await res.blob()
+  const url = window.URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${ocId}_detalle.pdf`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  window.URL.revokeObjectURL(url)
+}
+
+// ==========================================
+// FINANZAS — Órdenes de Venta
+// ==========================================
+export async function getOrdenesVenta(token: string, estado?: string): Promise<OrdenVenta[]> {
+  const params = estado ? `?estado=${estado}` : ''
+  const res = await fetch(`${API_URL}/finanzas/ventas${params}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener órdenes de venta')
+  return res.json()
+}
+
+export async function getOrdenVenta(token: string, ovId: string): Promise<OrdenVenta> {
+  const res = await fetch(`${API_URL}/finanzas/ventas/${ovId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener orden de venta')
+  return res.json()
+}
+
+export async function crearOrdenVenta(token: string, data: {
+  cliente_id: string
+  nombre_cliente?: string
+  items: { sku_producto: string; nombre_producto?: string; cantidad: number; precio_unitario?: number; moneda?: string }[]
+  notas?: string
+}): Promise<{ message: string; ov_id: string; id: number }> {
+  const res = await fetch(`${API_URL}/finanzas/ventas`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al crear orden de venta')
+  }
+  return res.json()
+}
+
+export async function actualizarOrdenVenta(token: string, ovId: string, data: any): Promise<{ message: string }> {
+  const res = await fetch(`${API_URL}/finanzas/ventas/${ovId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al actualizar orden de venta')
+  }
+  return res.json()
+}
+
+export async function enviarOrdenVenta(token: string, ovId: string): Promise<{ message: string; envio_id: string }> {
+  const res = await fetch(`${API_URL}/finanzas/ventas/${ovId}/enviar`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al enviar orden de venta')
+  }
+  return res.json()
+}
+
+// ==========================================
+// FINANZAS — Devoluciones
+// ==========================================
+export async function getDevoluciones(token: string, estado?: string): Promise<Devolucion[]> {
+  const params = estado ? `?estado=${estado}` : ''
+  const res = await fetch(`${API_URL}/finanzas/devoluciones${params}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener devoluciones')
+  return res.json()
+}
+
+export async function crearDevolucion(token: string, data: {
+  ov_id: string
+  sku_producto: string
+  nombre_producto?: string
+  cantidad_devuelta: number
+  motivo: string
+  lote_produccion_origen?: string
+}): Promise<{ message: string; devolucion_id: string }> {
+  const res = await fetch(`${API_URL}/finanzas/devoluciones`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al registrar devolución')
+  }
+  return res.json()
+}
+
+export async function procesarDisposicion(token: string, devolucionId: string, data: {
+  cantidad_scrap: number
+  cantidad_retrabajo: number
+}): Promise<{ message: string; disposicion: string }> {
+  const res = await fetch(`${API_URL}/finanzas/devoluciones/${devolucionId}/disposicion`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al procesar disposición')
+  }
+  return res.json()
+}
+
+// ==========================================
+// FINANZAS — Plan de Ventas
+// ==========================================
+export async function getPlanesVentas(token: string): Promise<PlanVentasSemana[]> {
+  const res = await fetch(`${API_URL}/finanzas/plan-ventas`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener planes de ventas')
+  return res.json()
+}
+
+export async function getPlanVentas(token: string, identificadorSemana: string): Promise<PlanVentasSemana> {
+  const res = await fetch(`${API_URL}/finanzas/plan-ventas/${identificadorSemana}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener plan de ventas')
+  return res.json()
+}
+
+export async function importarPlanVentas(token: string, fechaInicioSemana: string, file: File): Promise<{ message: string; total_skus: number }> {
+  const formData = new FormData()
+  formData.append('file', file)
+  const res = await fetch(`${API_URL}/finanzas/plan-ventas/importar?fecha_inicio_semana=${fechaInicioSemana}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al importar plan de ventas')
+  }
+  return res.json()
+}
+
+export async function autorizarVentasMasivo(token: string, data: {
+  identificador_semana: string
+  ventas: { sku: string; dia: string; cantidad: number }[]
+}): Promise<{ resultados: string[] }> {
+  const res = await fetch(`${API_URL}/finanzas/plan-ventas/autorizar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al autorizar ventas')
+  }
+  return res.json()
+}
+
+// ==========================================
+// FINANZAS — Limpieza (solo admin)
+// ==========================================
+export async function limpiarComprasCompletadas(token: string): Promise<{ message: string }> {
+  const res = await fetch(`${API_URL}/finanzas/limpiar/compras-completadas`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al limpiar')
+  }
+  return res.json()
+}
+
+export async function limpiarDevolucionesFinalizadas(token: string, dias: number = 90): Promise<{ message: string }> {
+  const res = await fetch(`${API_URL}/finanzas/limpiar/devoluciones-finalizadas?dias=${dias}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al limpiar')
+  }
   return res.json()
 }

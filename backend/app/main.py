@@ -14,6 +14,7 @@ from app.core.security          import get_password_hash
 from app.services.turno_service import iniciar_scheduler
 from app.routers import admin as admin_router
 from app.routers import productos as productos_router
+from app.routers import finanzas as finanzas_router
 
 logging.basicConfig(
     level  = logging.INFO,
@@ -93,6 +94,7 @@ app.include_router(inventario.router)
 app.include_router(secado.router)
 app.include_router(admin_router.router)
 app.include_router(productos_router.router)
+app.include_router(finanzas_router.router)
 
 
 @app.get("/")

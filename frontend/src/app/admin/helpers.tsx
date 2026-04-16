@@ -1,18 +1,20 @@
 import { RolUsuario } from '@/types'
 
 // ── Constantes ──────────────────────────────────────────────────────
-export const ROLES: RolUsuario[] = ['admin', 'supervisor', 'operador']
+export const ROLES: RolUsuario[] = ['admin', 'supervisor', 'operador', 'finanzas']
 
 export const ROL_BADGE: Record<RolUsuario, string> = {
   admin:      'bg-red-900/50   text-red-300   border border-red-700',
   supervisor: 'bg-blue-900/50  text-blue-300  border border-blue-700',
   operador:   'bg-green-900/50 text-green-300 border border-green-700',
+  finanzas:   'bg-emerald-900/50 text-emerald-300 border border-emerald-700',
 }
 
 export const ROL_ICON: Record<RolUsuario, string> = {
   admin:      '👑',
   supervisor: '🔵',
   operador:   '🟢',
+  finanzas:   '💰',
 }
 
 export const TABS = [
@@ -58,6 +60,10 @@ export function getTablaIcon(nombre: string): string {
     registros_secado: '🌡️', cola_impresion: '🖨️',
     contador_carritos: '🔢', anomalias: '⚠️',
     registros_paros: '🛑', historial_turnos: '📊',
+    ordenes_compra: '🛒', ordenes_compra_items: '📦',
+    recepciones_compra: '📥', ordenes_venta: '💵',
+    ordenes_venta_items: '🏷️', envios_venta: '🚚',
+    devoluciones: '🔄', planes_venta: '📅',
   }
   return map[nombre] || '📄'
 }

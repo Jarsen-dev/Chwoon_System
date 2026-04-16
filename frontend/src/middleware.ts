@@ -4,6 +4,7 @@ import type { NextRequest } from 'next/server'
 // Rutas y quién puede acceder
 const RUTAS_PROTEGIDAS: Record<string, string[]> = {
   '/admin':      ['admin'],
+  '/finanzas':   ['admin', 'finanzas'],
   '/produccion': ['admin', 'supervisor', 'operador'],
   '/inventario': ['admin', 'supervisor'],
   '/partes':     ['admin', 'supervisor', 'operador'],
@@ -41,6 +42,7 @@ export function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     '/admin/:path*',
+    '/finanzas/:path*',
     '/produccion/:path*',
     '/inventario/:path*',
     '/partes/:path*',

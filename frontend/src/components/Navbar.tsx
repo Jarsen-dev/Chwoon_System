@@ -7,10 +7,15 @@ export default function Navbar() {
   const { token, rol, username, logout } = useAuth()
   const pathname = usePathname()
 
-  // No mostrar navbar en login ni unauthorized
-  if (pathname === '/login' || pathname === '/unauthorized' || pathname.startsWith('/admin')) {
-  return null
-}
+  // No mostrar navbar en login, unauthorized, admin ni finanzas (fullscreen)
+  if (
+    pathname === '/login' ||
+    pathname === '/unauthorized' ||
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/finanzas')
+  ) {
+    return null
+  }
 
   // No mostrar si no hay sesión
   if (!token) return null
@@ -32,7 +37,7 @@ export default function Navbar() {
             🏠 Dashboard
           </a>
 
-          {/* Todos los roles */}
+          {/* Todos los roles de producción */}
           {['admin', 'supervisor', 'operador'].includes(rol ?? '') && (
             <>
               <a href="/partes"
@@ -52,12 +57,18 @@ export default function Navbar() {
 
           {/* Solo admin y supervisor */}
           {['admin', 'supervisor'].includes(rol ?? '') && (
-            <>
-              <a href="/inventario"
-                className="hover:text-blue-300 transition">
-                📦 Inventario
-              </a>
-            </>
+            <a href="/inventario"
+              className="hover:text-blue-300 transition">
+              📦 Inventario
+            </a>
+          )}
+
+          {/* Finanzas — admin y finanzas */}
+          {['admin', 'finanzas'].includes(rol ?? '') && (
+            <a href="/finanzas"
+              className="hover:text-emerald-300 transition font-semibold text-emerald-400">
+              💰 Finanzas
+            </a>
           )}
 
           {/* Solo admin */}
@@ -76,6 +87,7 @@ export default function Navbar() {
             {rol === 'admin'      && '👑'}
             {rol === 'supervisor' && '🔵'}
             {rol === 'operador'   && '🟢'}
+            {rol === 'finanzas'   && '💰'}
             {' '}{username}
           </span>
 

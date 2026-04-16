@@ -44,7 +44,11 @@ export default function AdminPage() {
         <div className="flex items-center gap-3">
           <button onClick={() => router.push('/')}
             className="text-sm bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded-lg transition-colors">
-            🏠 Inicio
+            🏭 Producción
+          </button>
+          <button onClick={() => router.push('/finanzas')}
+            className="text-sm bg-emerald-700 hover:bg-emerald-600 text-emerald-100 px-3 py-1.5 rounded-lg transition-colors">
+            💰 Finanzas
           </button>
           <span className="text-gray-400 text-sm">{ROL_ICON[rol as RolUsuario]} {username}</span>
           <button onClick={logout}

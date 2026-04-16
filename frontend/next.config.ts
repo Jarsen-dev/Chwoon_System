@@ -8,7 +8,6 @@ const nextConfig: NextConfig = {
 
     return {
       // ── beforeFiles: se evalúan ANTES del filesystem de Next.js ───
-      // Necesario para rutas que colisionan con páginas existentes
       beforeFiles: [
         // PDF de producción (colisiona con /produccion/page.tsx)
         {
@@ -103,6 +102,15 @@ const nextConfig: NextConfig = {
         // Productos
         { source: '/productos',                     destination: `${BACKEND}/productos/` },
         { source: '/productos/:path*',              destination: `${BACKEND}/productos/:path*` },
+
+        // ── FINANZAS ──────────────────────────────────────────────────
+        { source: '/finanzas/compras/:id/etiqueta-lote/:sku', destination: `${BACKEND}/finanzas/compras/:id/etiqueta-lote/:sku` },
+        { source: '/finanzas/compras/:id/pdf-detalle',        destination: `${BACKEND}/finanzas/compras/:id/pdf-detalle` },
+        { source: '/finanzas/compras/:id/pdf-detalle/',       destination: `${BACKEND}/finanzas/compras/:id/pdf-detalle/` },
+        { source: '/finanzas/compras/:id/pdf',                destination: `${BACKEND}/finanzas/compras/:id/pdf` },
+        { source: '/finanzas/compras/:id/pdf/',               destination: `${BACKEND}/finanzas/compras/:id/pdf/` },
+        { source: '/finanzas',                                destination: `${BACKEND}/finanzas/` },
+        { source: '/finanzas/:path*',                         destination: `${BACKEND}/finanzas/:path*` },
       ],
 
       fallback: [],

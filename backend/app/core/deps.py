@@ -57,3 +57,15 @@ async def get_supervisor_or_admin(
             detail="Se requiere rol supervisor o administrador"
         )
     return current_user
+
+# ── NUEVO: Finanzas ──────────────────────────────────────────────────
+async def get_current_finanzas(
+    current_user: Usuario = Depends(get_current_user)
+) -> Usuario:
+    """Permite acceso solo a usuarios con rol admin o finanzas."""
+    if current_user.rol not in [RolUsuario.admin, RolUsuario.finanzas]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Se requiere rol administrador o finanzas"
+        )
+    return current_user

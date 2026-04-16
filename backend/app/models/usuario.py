@@ -7,6 +7,7 @@ class RolUsuario(str, enum.Enum):
     admin = "admin"
     supervisor = "supervisor"
     operador = "operador"
+    finanzas = "finanzas"
 
 class Usuario(Base):
     __tablename__ = "usuarios"

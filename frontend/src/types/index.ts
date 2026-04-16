@@ -180,7 +180,7 @@ export interface RegistroParo {
 // ==========================================
 // AUTH
 // ==========================================
-export type RolUsuario = 'admin' | 'supervisor' | 'operador'
+export type RolUsuario = 'admin' | 'supervisor' | 'operador' | 'finanzas'
 
 export interface LoginRequest {
   username: string
@@ -215,4 +215,152 @@ export interface UsuarioUpdate {
   rol?:      RolUsuario
   activo?:   boolean
   password?: string
+}
+
+// ==========================================
+// FINANZAS — Órdenes de Compra
+// ==========================================
+export interface OrdenCompraItem {
+  id?:                number
+  sku_producto:       string
+  nombre_producto:    string
+  cantidad_requerida: number
+  cantidad_recibida:  number
+  precio_unitario:    number
+  moneda:             string
+}
+
+export interface RecepcionCompra {
+  id:                number
+  recepcion_id:      string
+  oc_id:             string
+  sku_producto:      string
+  cantidad_recibida: number
+  fecha_recepcion:   string
+  recibido_por?:     string
+  notas?:            string
+}
+
+export interface OrdenCompra {
+  id:                  number
+  oc_id:               string
+  id_proveedor:        string
+  nombre_proveedor:    string
+  status:              string
+  fecha_creacion:      string
+  fecha_actualizacion?: string
+  notas?:              string
+  creado_por?:         string
+  items:               OrdenCompraItem[]
+  recepciones?:        RecepcionCompra[]
+}
+
+// ==========================================
+// FINANZAS — Órdenes de Venta
+// ==========================================
+export interface OrdenVentaItem {
+  id?:              number
+  sku_producto:     string
+  nombre_producto?: string
+  cantidad:         number
+  cantidad_enviada: number
+  precio_unitario:  number
+  moneda:           string
+}
+
+export interface EnvioVenta {
+  id:              number
+  envio_id:        string
+  ov_id:           string
+  fecha_envio:     string
+  autorizado_por?: string
+  items_enviados:  { sku_producto: string; cantidad: number }[]
+  notas?:          string
+}
+
+export interface OrdenVenta {
+  id:                  number
+  ov_id:               string
+  cliente_id:          string
+  nombre_cliente?:     string
+  estado:              string
+  fecha_creacion:      string
+  fecha_actualizacion?: string
+  notas?:              string
+  creado_por?:         string
+  total_items:         number
+  valor_total:         number
+  items:               OrdenVentaItem[]
+  envios?:             EnvioVenta[]
+}
+
+// ==========================================
+// FINANZAS — Devoluciones
+// ==========================================
+export interface Devolucion {
+  id:                     number
+  devolucion_id:          string
+  ov_id:                  string
+  sku_producto:           string
+  nombre_producto?:       string
+  cantidad_devuelta:      number
+  motivo:                 string
+  lote_produccion_origen?: string
+  fecha_devolucion:       string
+  estado_inspeccion:      string
+  disposicion_final?:     string
+  cantidad_scrap:         number
+  cantidad_retrabajo:     number
+  procesado_por?:         string
+  creado_por?:            string
+}
+
+// ==========================================
+// FINANZAS — Plan de Ventas
+// ==========================================
+export interface PlanVentasDia {
+  plan:          number
+  status:        string
+  ov_generada?:  string | null
+}
+
+export interface PlanVentasItem {
+  sku:           string
+  descripcion?:  string
+  stock_actual?: number
+  dias: {
+    LUNES:     PlanVentasDia
+    MARTES:    PlanVentasDia
+    MIERCOLES: PlanVentasDia
+    JUEVES:    PlanVentasDia
+    VIERNES:   PlanVentasDia
+  }
+}
+
+export interface PlanVentasSemana {
+  id:                    number
+  identificador_semana:  string
+  fecha_inicio_semana:   string
+  fecha_importacion:     string
+  items:                 PlanVentasItem[]
+  importado_por?:        string
+  total_skus?:           number
+}
+
+// ==========================================
+// FINANZAS — Dashboard
+// ==========================================
+export interface FinanzasDashboard {
+  total_oc:                number
+  oc_pendientes:           number
+  oc_completadas:          number
+  total_ov:                number
+  ov_pendientes:           number
+  ov_enviadas:             number
+  ov_stock_insuficiente:   number
+  total_devoluciones:      number
+  devoluciones_pendientes: number
+  valor_compras_mes:       number
+  valor_ventas_mes:        number
+  planes_venta_activos:    number
 }

@@ -7,6 +7,10 @@ from app.models.anomalia import Anomalia
 from app.models.registro_paro import RegistroParo
 from app.models.usuario import Usuario
 from app.models.producto import Producto
+from app.models.orden_compra import OrdenCompra, OrdenCompraItem, RecepcionCompra
+from app.models.orden_venta import OrdenVenta, OrdenVentaItem, EnvioVenta
+from app.models.devolucion import Devolucion
+from app.models.plan_ventas import PlanVentas
 
 __all__ = [
     "Parte",
@@ -16,5 +20,13 @@ __all__ = [
     "PlanProduccion",
     "Anomalia",
     "RegistroParo",
-    "Usuario"
+    "Usuario",
+    "OrdenCompra",
+    "OrdenCompraItem",
+    "RecepcionCompra",
+    "OrdenVenta",
+    "OrdenVentaItem",
+    "EnvioVenta",
+    "Devolucion",
+    "PlanVentas"
 ]
