@@ -48,7 +48,7 @@ export default function AdminPage() {
           </button>
           <button onClick={() => router.push('/finanzas')}
             className="text-sm bg-emerald-700 hover:bg-emerald-600 text-emerald-100 px-3 py-1.5 rounded-lg transition-colors">
-            💰 Finanzas
+            💰 Compras
           </button>
           <span className="text-gray-400 text-sm">{ROL_ICON[rol as RolUsuario]} {username}</span>
           <button onClick={logout}

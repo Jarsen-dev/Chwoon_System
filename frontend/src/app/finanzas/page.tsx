@@ -20,10 +20,11 @@ const TABS = [
 
 export default function FinanzasPage() {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const { token, rol, username, logout } = useAuth();
+  const { token, rol, username, logout, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
+    if (loading) return;
     if (!token) {
       router.push('/login');
       return;
@@ -31,7 +32,16 @@ export default function FinanzasPage() {
     if (rol && !['admin', 'finanzas'].includes(rol)) {
       router.push('/unauthorized');
     }
-  }, [token, rol, router]);
+  }, [token, rol, router, loading]);
+
+  // Mostrar spinner mientras rehidrata auth
+  if (loading) {
+    return (
+      <div className="fixed inset-0 bg-gray-950 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-400" />
+      </div>
+    );
+  }
 
   if (!token || (rol && !['admin', 'finanzas'].includes(rol))) {
     return null;

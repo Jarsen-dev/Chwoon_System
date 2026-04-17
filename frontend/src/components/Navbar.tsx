@@ -67,7 +67,7 @@ export default function Navbar() {
           {['admin', 'finanzas'].includes(rol ?? '') && (
             <a href="/finanzas"
               className="hover:text-emerald-300 transition font-semibold text-emerald-400">
-              💰 Finanzas
+              💰 Compras
             </a>
           )}
 

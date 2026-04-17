@@ -75,7 +75,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setRol(data.rol as RolUsuario)
 
     // Redirigir según rol
-    router.push(data.rol === 'admin' ? '/admin' : '/produccion')
+    if (data.rol === 'admin') {
+      router.push('/admin')
+    } else if (data.rol === 'finanzas') {
+      router.push('/finanzas')
+    } else {
+      router.push('/produccion')
+    }
   }
 
   // ── Logout ─────────────────────────────────────────────────────────
