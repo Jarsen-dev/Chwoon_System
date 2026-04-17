@@ -416,58 +416,85 @@ async def generar_pdf_detalle_oc(
     )
     recepciones = recepciones_result.scalars().all()
 
+    # ── Helper: calcular Lote ID ──────────
+    def calcular_lote_id(sku: str) -> str:
+        recs_sku = [r for r in recepciones if r.sku_producto == sku]
+        if not recs_sku:
+            return "—"
+        recs_sku.sort(key=lambda r: r.fecha_recepcion, reverse=True)
+        fecha = recs_sku[0].fecha_recepcion.strftime("%Y%m%d")
+        return f"{fecha}-{sku[-4:].upper()}-{len(recs_sku)}"
+
     buffer = io.BytesIO()
     c = pdf_canvas.Canvas(buffer, pagesize=letter)
     width, height = letter
 
+    margin = 0.6 * inch  # Margen izquierdo unificado para todo
+    right_margin = width - margin
+
     # --- Logo ---
     logo_path = os.path.join("static", "Logo.png")
     if os.path.exists(logo_path):
-        c.drawImage(logo_path, inch, height - 1.5 * inch, width=1.5 * inch,
+        c.drawImage(logo_path, margin, height - 1.5 * inch, width=1.5 * inch,
                      height=0.75 * inch, preserveAspectRatio=True, mask="auto")
 
     # --- Encabezado ---
     c.setFont("Helvetica-Bold", 18)
-    c.drawString(inch, height - 2.25 * inch, f"Orden de Compra: {oc_id}")
+    c.drawString(margin, height - 2.25 * inch, f"Orden de Compra: {oc_id}")
 
     c.setFont("Helvetica", 12)
     y = height - 2.6 * inch
     fecha_str = orden.fecha_creacion.strftime("%Y-%m-%d %H:%M") if orden.fecha_creacion else "N/A"
-    c.drawString(inch, y, f"Fecha de Creación: {fecha_str}")
+    c.drawString(margin, y, f"Fecha de Creación: {fecha_str}")
     y -= 0.25 * inch
-    c.drawString(inch, y, f"Proveedor: {orden.nombre_proveedor}")
+    c.drawString(margin, y, f"Proveedor: {orden.nombre_proveedor}")
     y -= 0.25 * inch
-    c.drawString(inch, y, f"Estado: {orden.status}")
+    c.drawString(margin, y, f"Estado: {orden.status}")
     y -= 0.25 * inch
-    c.drawString(inch, y, f"Creado por: {orden.creado_por or 'N/A'}")
+    c.drawString(margin, y, f"Creado por: {orden.creado_por or 'N/A'}")
 
-    # --- Tabla de Productos ---
+    if orden.notas:
+        y -= 0.25 * inch
+        c.drawString(margin, y, f"Notas: {orden.notas}")
+
+    # --- Tabla de Productos (con columna Lote) ---
     y -= 0.6 * inch
     c.setFont("Helvetica-Bold", 14)
-    c.drawString(inch, y, "Productos")
+    c.drawString(margin, y, "Productos")
     y -= 0.35 * inch
 
-    col_x = [inch, inch + 1.2 * inch, inch + 3.0 * inch, inch + 4.0 * inch,
-              inch + 5.0 * inch, inch + 6.0 * inch]
-    headers = ["SKU", "Nombre", "Requerida", "Recibida", "Precio Unit.", "Progreso"]
+    table_width = right_margin - margin
+    col_x = [
+        margin,                              # SKU
+        margin + table_width * 0.12,         # Nombre
+        margin + table_width * 0.32,         # Requerida
+        margin + table_width * 0.44,         # Recibida
+        margin + table_width * 0.55,         # Precio Unit.
+        margin + table_width * 0.68,         # Progreso
+        margin + table_width * 0.78,         # Lote
+    ]
+    headers = ["SKU", "Nombre", "Requerida", "Recibida", "Precio Unit.", "Progreso", "Lote"]
     c.setFont("Helvetica-Bold", 9)
     for i, h in enumerate(headers):
         c.drawString(col_x[i], y, h)
     y -= 0.15 * inch
     c.setStrokeColorRGB(0.6, 0.6, 0.6)
-    c.line(inch, y, width - inch, y)
-    y -= 0.2 * inch
+    c.line(margin, y, right_margin, y)
+    y -= 0.22 * inch
 
     c.setFont("Helvetica", 9)
     for item in items:
         pct = (item.cantidad_recibida / item.cantidad_requerida * 100) if item.cantidad_requerida > 0 else 0
-        c.drawString(col_x[0], y, str(item.sku_producto))
-        c.drawString(col_x[1], y, str(item.nombre_producto)[:20])
+        lote_id = calcular_lote_id(item.sku_producto)
+
+        c.drawString(col_x[0], y, str(item.sku_producto)[:12])
+        c.drawString(col_x[1], y, str(item.nombre_producto)[:22])
         c.drawString(col_x[2], y, str(item.cantidad_requerida))
         c.drawString(col_x[3], y, str(item.cantidad_recibida))
         c.drawString(col_x[4], y, f"${item.precio_unitario:,.2f}")
         c.drawString(col_x[5], y, f"{pct:.0f}%")
-        y -= 0.22 * inch
+        c.drawString(col_x[6], y, lote_id)
+        y -= 0.24 * inch
         if y < inch:
             c.showPage()
             c.setFont("Helvetica", 9)
@@ -477,10 +504,10 @@ async def generar_pdf_detalle_oc(
     valor_total = sum(i.cantidad_requerida * i.precio_unitario for i in items)
     y -= 0.15 * inch
     c.setStrokeColorRGB(0.4, 0.4, 0.4)
-    c.line(inch, y, width - inch, y)
+    c.line(margin, y, right_margin, y)
     y -= 0.3 * inch
     c.setFont("Helvetica-Bold", 11)
-    c.drawString(inch, y, f"Valor Total: ${valor_total:,.2f} MXN")
+    c.drawString(margin, y, f"Valor Total: ${valor_total:,.2f} MXN")
 
     # --- Historial de Recepciones ---
     if recepciones:
@@ -490,7 +517,7 @@ async def generar_pdf_detalle_oc(
             y = height - inch
 
         c.setFont("Helvetica-Bold", 14)
-        c.drawString(inch, y, "Historial de Recepciones")
+        c.drawString(margin, y, "Historial de Recepciones")
         y -= 0.35 * inch
 
         c.setFont("Helvetica", 9)
@@ -502,18 +529,18 @@ async def generar_pdf_detalle_oc(
 
             fecha_rec = rec.fecha_recepcion.strftime("%Y-%m-%d %H:%M") if rec.fecha_recepcion else "N/A"
             c.setFont("Helvetica-Bold", 9)
-            c.drawString(inch, y, rec.recepcion_id)
+            c.drawString(margin, y, rec.recepcion_id)
             c.setFont("Helvetica", 8)
-            c.drawString(width - 2.5 * inch, y, fecha_rec)
+            c.drawString(right_margin - 1.5 * inch, y, fecha_rec)
             y -= 0.18 * inch
 
-            c.drawString(inch + 0.15 * inch, y,
+            c.drawString(margin + 0.15 * inch, y,
                           f"{rec.sku_producto} — Cantidad: {rec.cantidad_recibida} — {rec.recibido_por or 'N/A'}")
             y -= 0.18 * inch
 
             if rec.notas:
                 c.setFont("Helvetica-Oblique", 8)
-                c.drawString(inch + 0.15 * inch, y, f"Nota: {rec.notas}")
+                c.drawString(margin + 0.15 * inch, y, f"Nota: {rec.notas}")
                 y -= 0.18 * inch
                 c.setFont("Helvetica", 9)
 
@@ -590,28 +617,50 @@ async def generar_etiqueta_lote(
     lote_id = f"{fecha_lote}-{sku_suffix}-{rec_count}"
 
     # --- Generar PDF etiqueta (A6) ---
-    from reportlab.lib.pagesizes import A6
-    page_w, page_h = A6
+    page_w = 4.1 * inch
+    page_h = 2.9 * inch
 
     buffer = io.BytesIO()
-    c = pdf_canvas.Canvas(buffer, pagesize=A6)
+    c = pdf_canvas.Canvas(buffer, pagesize=(page_w, page_h))
 
-    margin = 0.3 * inch
+    margin = 0.25 * inch
+    qr_size = 0.95 * inch
+    qr_col_x = page_w - margin - qr_size  # Columna derecha para QRs
 
     # --- Título ---
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(margin, page_h - margin - 0.15 * inch, "ETIQUETA DE LOTE (IQC)")
+    c.setFont("Helvetica-Bold", 13)
+    c.drawString(margin, page_h - margin - 0.13 * inch, "ETIQUETA DE LOTE (IQC)")
+
+    # --- QR LOTE (derecha arriba) ---
+    qr_lote_buf = io.BytesIO()
+    qrcode.make(lote_id).save(qr_lote_buf, format="PNG")
+    qr_lote_buf.seek(0)
+    qr_lote_y = page_h - margin - 0.05 * inch - qr_size
+    c.drawImage(ImageReader(qr_lote_buf), qr_col_x, qr_lote_y, width=qr_size, height=qr_size)
+    # Label centrado debajo
+    c.setFont("Helvetica-Bold", 7)
+    c.drawCentredString(qr_col_x + qr_size / 2, qr_lote_y - 0.11 * inch, "LOTE ID")
+
+    # --- QR SKU (derecha abajo, justo debajo del QR LOTE) ---
+    qr_gap = 0.18 * inch  # espacio entre QR LOTE label y QR SKU
+    qr_sku_y = qr_lote_y - 0.11 * inch - qr_gap - qr_size
+    qr_sku_buf = io.BytesIO()
+    qrcode.make(sku).save(qr_sku_buf, format="PNG")
+    qr_sku_buf.seek(0)
+    c.drawImage(ImageReader(qr_sku_buf), qr_col_x, qr_sku_y, width=qr_size, height=qr_size)
+    # Label centrado debajo
+    c.setFont("Helvetica-Bold", 7)
+    c.drawCentredString(qr_col_x + qr_size / 2, qr_sku_y - 0.11 * inch, "SKU")
 
     # --- Datos a la izquierda ---
-    c.setFont("Helvetica-Bold", 9)
-    y = page_h - margin - 0.55 * inch
     label_x = margin
-    value_x = margin + 0.95 * inch
-    line_h = 0.22 * inch
+    value_x = margin + 0.9 * inch
+    y = page_h - margin - 0.5 * inch
+    line_h = 0.2 * inch
 
     data_lines = [
         ("SKU:", sku),
-        ("Producto:", item.nombre_producto[:30]),
+        ("Producto:", item.nombre_producto[:28]),
         ("Cantidad:", str(item.cantidad_recibida)),
         ("Fecha Recibo:", fecha_recibo_display),
         ("OC Origen:", oc_id),
@@ -619,39 +668,11 @@ async def generar_etiqueta_lote(
     ]
 
     for label, value in data_lines:
-        c.setFont("Helvetica-Bold", 9)
+        c.setFont("Helvetica-Bold", 8)
         c.drawString(label_x, y, label)
-        c.setFont("Helvetica", 9)
+        c.setFont("Helvetica", 8)
         c.drawString(value_x, y, value)
         y -= line_h
-
-    # --- QRs en la parte inferior (reducir gap) ---
-    big_qr_size = 1.3 * inch
-    qr_y_bottom = margin + 0.15 * inch  # Más pegado al fondo
-
-    # Espacio entre texto y QRs reducido
-    # Los QRs se colocan justo debajo del último texto con poco gap
-
-    # QR LOTE (izquierda)
-    qr_lote_buf = io.BytesIO()
-    qrcode.make(lote_id).save(qr_lote_buf, format="PNG")
-    qr_lote_buf.seek(0)
-    lote_qr_x = margin + 0.1 * inch
-    c.drawImage(ImageReader(qr_lote_buf), lote_qr_x, qr_y_bottom, width=big_qr_size, height=big_qr_size)
-
-    # Label LOTE ID centrado debajo
-    c.setFont("Helvetica-Bold", 8)
-    c.drawCentredString(lote_qr_x + big_qr_size / 2, qr_y_bottom - 0.13 * inch, "LOTE ID")
-
-    # QR SKU (derecha)
-    qr_sku_buf = io.BytesIO()
-    qrcode.make(sku).save(qr_sku_buf, format="PNG")
-    qr_sku_buf.seek(0)
-    sku_qr_x = page_w - margin - big_qr_size - 0.1 * inch
-    c.drawImage(ImageReader(qr_sku_buf), sku_qr_x, qr_y_bottom, width=big_qr_size, height=big_qr_size)
-
-    # Label SKU centrado debajo
-    c.drawCentredString(sku_qr_x + big_qr_size / 2, qr_y_bottom - 0.13 * inch, "SKU")
 
     c.save()
     buffer.seek(0)

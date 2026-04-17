@@ -645,7 +645,7 @@ export default function ComprasTab({ token }: Props) {
       {/* ══════ Modal: Detalle con LOTE y Etiqueta IQC ══════ */}
       {showDetalleModal && ordenDetalle && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 rounded-2xl border border-gray-700 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-gray-900 rounded-2xl border border-gray-700 w-full max-w-5xl max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-800 flex items-center justify-between">
               <h3 className="text-lg font-bold">📋 Detalle: <span className="text-emerald-400">{ordenDetalle.oc_id}</span></h3>
               <button onClick={() => setShowDetalleModal(false)} className="text-gray-400 hover:text-white text-xl">✕</button>
@@ -697,13 +697,13 @@ export default function ComprasTab({ token }: Props) {
                         const loteId = getLoteInfo(ordenDetalle.recepciones, item.sku_producto)
                         return (
                           <tr key={idx}>
-                            <td className="px-4 py-2 font-mono text-emerald-400">{item.sku_producto}</td>
-                            <td className="px-4 py-2">{item.nombre_producto}</td>
+                            <td className="px-4 py-2 font-mono text-emerald-400 whitespace-nowrap">{item.sku_producto}</td>
+                            <td className="px-4 py-2 whitespace-nowrap">{item.nombre_producto}</td>
                             <td className="px-4 py-2 text-right">{item.cantidad_requerida}</td>
                             <td className="px-4 py-2 text-right">{item.cantidad_recibida}</td>
-                            <td className="px-4 py-2 text-right">{formatCurrency(item.precio_unitario)}</td>
+                            <td className="px-4 py-2 text-right whitespace-nowrap">{formatCurrency(item.precio_unitario)}</td>
                             <td className="px-4 py-2 text-right"><span className={`font-medium ${pctColor}`}>{pct.toFixed(0)}%</span></td>
-                            <td className="px-4 py-2 font-mono text-xs text-orange-400">{loteId || '—'}</td>
+                            <td className="px-4 py-2 font-mono text-xs text-orange-400 whitespace-nowrap">{loteId || '—'}</td>
                             <td className="px-4 py-2 text-center">
                               {loteId ? (
                                 <button
