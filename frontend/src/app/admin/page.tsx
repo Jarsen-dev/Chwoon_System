@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { TABS, ROL_ICON } from './helpers'
 import { RolUsuario } from '@/types'
+import Link from 'next/link'
 
 import DashboardTab from './DashboardTab'
 import UsuariosTab  from './UsuariosTab'
@@ -24,8 +25,8 @@ export default function AdminPage() {
 
   if (loading) {
     return (
-      <div className="fixed inset-0 bg-gray-900 flex items-center justify-center">
-        <div className="text-white text-xl animate-pulse">⏳ Cargando...</div>
+      <div className="fixed inset-0 bg-gray-950 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400" />
       </div>
     )
   }
@@ -33,56 +34,75 @@ export default function AdminPage() {
   if (!token || rol !== 'admin') return null
 
   return (
-    <div className="fixed inset-0 bg-gray-900 text-white flex flex-col overflow-hidden">
+    <div className="fixed inset-0 bg-gray-950 text-white flex flex-col">
 
-      {/* ═══ NAVBAR ═══ */}
-      <nav className="bg-gray-800 border-b border-gray-700 px-6 py-3 flex items-center justify-between shrink-0">
+      {/* ═══ HEADER ═══ */}
+      <header className="bg-gray-900 border-b border-gray-800 px-6 py-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           <img src="/Logo.png" alt="Logo" className="h-10 w-auto" />
-          <h1 className="text-lg font-bold">Panel de Administración</h1>
+          <h1 className="text-xl font-bold">Panel de Administración</h1>
         </div>
+
         <div className="flex items-center gap-3">
-          <button onClick={() => router.push('/')}
-            className="text-sm bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded-lg transition-colors">
+          <Link
+            href="/"
+            className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+          >
             🏭 Producción
-          </button>
-          <button onClick={() => router.push('/finanzas')}
-            className="text-sm bg-emerald-700 hover:bg-emerald-600 text-emerald-100 px-3 py-1.5 rounded-lg transition-colors">
+          </Link>
+          <Link
+            href="/finanzas"
+            className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+          >
             💰 Compras
-          </button>
-          <span className="text-gray-400 text-sm">{ROL_ICON[rol as RolUsuario]} {username}</span>
-          <button onClick={logout}
-            className="text-sm bg-red-900/50 hover:bg-red-800 text-red-300 px-3 py-1.5 rounded-lg transition-colors">
+          </Link>
+          <Link
+            href="/calidad"
+            className="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+          >
+            🔬 Calidad
+          </Link>
+
+          <span className="text-sm font-medium text-yellow-400">
+            {ROL_ICON[rol as RolUsuario]} {username}
+          </span>
+
+          <button
+            onClick={logout}
+            className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+          >
             🚪 Salir
           </button>
         </div>
-      </nav>
+      </header>
 
-      {/* ═══ PESTAÑAS ═══ */}
-      <div className="flex bg-gray-800/50 border-b border-gray-700 overflow-x-auto shrink-0">
-        {TABS.map(tab => (
-          <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-            className={`px-6 py-3 font-semibold whitespace-nowrap transition-colors text-sm ${
-              activeTab === tab.id
-                ? 'text-blue-400 border-b-2 border-blue-400 bg-gray-700/30'
-                : 'text-gray-400 hover:text-gray-200 hover:bg-gray-700/20'
-            }`}>
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* ═══ CONTENIDO ═══ */}
-      <div className="flex-1 overflow-y-auto p-6">
-        <div className="max-w-6xl mx-auto">
-          {activeTab === 'dashboard' && <DashboardTab  token={token} />}
-          {activeTab === 'usuarios'  && <UsuariosTab   token={token} />}
-          {activeTab === 'logs'      && <LogsTab       token={token} />}
-          {activeTab === 'database'  && <DatabaseTab   token={token} />}
-          {activeTab === 'sistema'   && <SistemaTab    token={token} />}
+      {/* ═══ TABS ═══ */}
+      <div className="bg-gray-900 border-b border-gray-800 px-6 shrink-0">
+        <div className="flex gap-1 overflow-x-auto">
+          {TABS.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-4 py-3 text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
+                activeTab === tab.id
+                  ? 'bg-gray-950 text-blue-400 border-b-2 border-blue-400'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-800'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
       </div>
 
+      {/* ═══ CONTENT ═══ */}
+      <main className="flex-1 overflow-y-auto p-6">
+        {activeTab === 'dashboard' && <DashboardTab token={token} />}
+        {activeTab === 'usuarios'  && <UsuariosTab  token={token} />}
+        {activeTab === 'logs'      && <LogsTab      token={token} />}
+        {activeTab === 'database'  && <DatabaseTab  token={token} />}
+        {activeTab === 'sistema'   && <SistemaTab   token={token} />}
+      </main>
     </div>
   )
 }

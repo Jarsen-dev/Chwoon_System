@@ -1,13 +1,13 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { useRouter }        from 'next/navigation'
 import { useAuth }           from '@/context/AuthContext'
 import { importarPlanExcel, eliminarDelPlan, agregarACola } from '@/lib/api'
 
 interface Props {
-  planes:    any[]
-  onRefresh: () => void
+  planes:       any[]
+  onRefresh:    () => void
+  onGoToTab?:   (tab: string) => void    // ← NUEVO
 }
 
 type ModalInfo = {
@@ -22,8 +22,7 @@ type ConfirmModal = {
   onConfirm: () => void
 } | null
 
-export default function PlanTab({ planes, onRefresh }: Props) {
-  const router    = useRouter()
+export default function PlanTab({ planes, onRefresh, onGoToTab }: Props) {
   const { token } = useAuth()
 
   const [isImporting, setIsImporting]           = useState(false)
@@ -67,7 +66,7 @@ export default function PlanTab({ planes, onRefresh }: Props) {
   }
 
   // ==========================================
-  // IMPRIMIR → agregar a cola + redirigir
+  // IMPRIMIR → agregar a cola + ir a tab etiquetas
   // ==========================================
   const handleImprimir = async (plan: any) => {
     if (!token) {
@@ -101,14 +100,17 @@ export default function PlanTab({ planes, onRefresh }: Props) {
         turno:              plan.turno_objetivo,
       }, token)
 
-      // Redirigir a etiquetas
-      router.push('/etiquetas')
+      // Navegar a la tab de etiquetas
+      if (onGoToTab) {
+        onGoToTab('etiquetas')
+      }
     } catch (error: any) {
       setModalInfo({
         title:   '❌ Error al agregar a cola',
         message: error.message || 'No se pudo añadir a la cola de impresión.',
         type:    'error'
       })
+    } finally {
       setIsPrinting(null)
     }
   }
@@ -395,7 +397,7 @@ export default function PlanTab({ planes, onRefresh }: Props) {
                     <td className="p-3 text-center">
                       <div className="flex items-center justify-center gap-2">
 
-                        {/* Imprimir → agrega a cola + redirige */}
+                        {/* Imprimir → agrega a cola + cambia tab */}
                         <button
                           onClick={() => handleImprimir(p)}
                           disabled={estaImprimiendo || carritos <= 0}

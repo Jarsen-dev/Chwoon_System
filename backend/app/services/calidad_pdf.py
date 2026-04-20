@@ -8,7 +8,12 @@ from reportlab.lib.units import inch
 from reportlab.lib.utils import ImageReader
 
 
-LOGO_PATH = os.path.join(os.path.dirname(__file__), "..", "static", "Logo.png")
+# ── Ruta robusta al logo ──────────────────────────────────────────────
+_CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+_APP_DIR = os.path.dirname(_CURRENT_DIR)
+_PROJECT_DIR = os.path.dirname(_APP_DIR)
+
+LOGO_PATH = os.path.join(_PROJECT_DIR, "static", "Logo.png")
 
 
 def generar_pdf_inspeccion(data: dict) -> io.BytesIO:
@@ -22,19 +27,19 @@ def generar_pdf_inspeccion(data: dict) -> io.BytesIO:
     lote_id = data.get("lote_id", "N/A")
     sku = data.get("sku_producto", "N/A")
 
-    # Logo
+    # ── Logo arriba a la izquierda ────────────────────────────────────
     if os.path.exists(LOGO_PATH):
-        c.drawImage(LOGO_PATH, inch, h - 1.25 * inch,
-                     width=2 * inch, height=1 * inch,
+        c.drawImage(LOGO_PATH, 0.75 * inch, h - 1.5 * inch,
+                     width=1.5 * inch, height=1.2 * inch,
                      preserveAspectRatio=True, mask="auto")
 
-    # Título
+    # ── Título centrado, debajo del logo ──────────────────────────────
     c.setFont("Helvetica-Bold", 18)
-    c.drawCentredString(w / 2, h - 1.5 * inch,
+    c.drawCentredString(w / 2, h - 2 * inch,
                         f"Reporte de Inspección de Calidad ({tipo})")
 
-    # Info producto / origen
-    y = h - 2.25 * inch
+    # ── Info producto / origen ────────────────────────────────────────
+    y = h - 2.75 * inch
     c.setFont("Helvetica-Bold", 12)
     c.drawString(inch, y, "Información del Producto")
     c.drawString(w / 2, y, "Información de Origen")
@@ -42,7 +47,7 @@ def generar_pdf_inspeccion(data: dict) -> io.BytesIO:
     c.line(inch, y - 0.1 * inch, w - inch, y - 0.1 * inch)
 
     c.setFont("Helvetica", 11)
-    y -= 0.3 * inch
+    y -= 0.35 * inch
     c.drawString(inch, y, f"Lote: {lote_id}")
     origen = data.get("oc_origen") or data.get("op_origen", "N/A")
     c.drawString(w / 2, y, f"Origen (OC/OP): {origen}")
@@ -61,7 +66,7 @@ def generar_pdf_inspeccion(data: dict) -> io.BytesIO:
     c.drawString(inch, y, f"Cantidad: {data.get('cantidad_inspeccionada', 0)}")
     c.drawString(w / 2, y, f"Inspector: {data.get('inspector', 'N/A')}")
 
-    # Resultados
+    # ── Resultados ────────────────────────────────────────────────────
     y -= 0.75 * inch
     c.setFont("Helvetica-Bold", 12)
     c.drawString(inch, y, "Resultados de la Inspección")
@@ -84,7 +89,6 @@ def generar_pdf_inspeccion(data: dict) -> io.BytesIO:
         c.drawString(inch + 0.1 * inch, y, nombre_punto[:40])
         c.drawString(4.5 * inch, y, especificacion[:25])
 
-        # Color por resultado
         if resultado_punto.lower() == "conforme":
             c.setFillColorRGB(0, 0.5, 0)
         else:
@@ -93,35 +97,55 @@ def generar_pdf_inspeccion(data: dict) -> io.BytesIO:
         c.setFillColorRGB(0, 0, 0)
 
         y -= 0.25 * inch
-        if y < 2 * inch:
+        if y < 2.5 * inch:
             c.showPage()
             y = h - inch
             c.setFont("Helvetica", 10)
 
-    # Veredicto final
+    # ── Veredicto final (izquierda) ───────────────────────────────────
     y -= 0.5 * inch
+
+    if y < 2 * inch:
+        c.showPage()
+        y = h - 1.5 * inch
+
     c.setFont("Helvetica-Bold", 16)
     if resultado == "APROBADO":
         c.setFillColorRGB(0, 0.5, 0)
     else:
         c.setFillColorRGB(0.8, 0, 0)
+
     c.drawString(inch, y, f"Veredicto Final: {resultado}")
     c.setFillColorRGB(0, 0, 0)
 
-    # QR con SKU
+    # ── Notas + QR al mismo nivel ─────────────────────────────────────
+    notas = data.get("notas")
+    notas_y = y - 0.5 * inch
+
+    if notas_y < 1.5 * inch:
+        c.showPage()
+        notas_y = h - inch
+
+    # Generar QR
     qr_img = qrcode.make(sku)
     qr_buf = io.BytesIO()
     qr_img.save(qr_buf, format="PNG")
     qr_buf.seek(0)
-    c.drawImage(ImageReader(qr_buf), w - 2 * inch, y - 0.25 * inch,
-                width=1.2 * inch, height=1.2 * inch)
 
-    # Notas
-    notas = data.get("notas")
+    qr_size = 1.3 * inch
+    qr_x = w - inch - qr_size
+    qr_y = notas_y - 0.5 * inch  # QR al nivel de las notas
+
+    c.drawImage(ImageReader(qr_buf), qr_x, qr_y,
+                width=qr_size, height=qr_size)
+
+    # Notas a la izquierda, al mismo nivel que el QR
     if notas:
-        y -= 1.5 * inch
         c.setFont("Helvetica", 9)
-        c.drawString(inch, y, f"Notas: {notas}")
+        c.drawString(inch, qr_y + qr_size / 2, f"Notas: {notas}")
+
+    c.drawImage(ImageReader(qr_buf), qr_x, qr_y,
+                width=qr_size, height=qr_size)
 
     c.save()
     buf.seek(0)
@@ -134,22 +158,22 @@ def generar_pdf_scrap(data: dict, items: list) -> io.BytesIO:
     c = canvas.Canvas(buf, pagesize=letter)
     w, h = letter
 
-    # Logo
+    # ── Logo arriba a la izquierda ────────────────────────────────────
     if os.path.exists(LOGO_PATH):
-        c.drawImage(LOGO_PATH, w - 2 * inch, h - 1.25 * inch,
-                     width=1.5 * inch, height=1 * inch,
+        c.drawImage(LOGO_PATH, 0.75 * inch, h - 1.5 * inch,
+                     width=1.5 * inch, height=1.2 * inch,
                      preserveAspectRatio=True, mask="auto")
 
-    # Encabezado
+    # Encabezado a la derecha del logo
     c.setFont("Helvetica-Bold", 16)
-    c.drawString(inch, h - inch, "Reporte de Scrap")
+    c.drawString(3 * inch, h - inch, "Reporte de Scrap")
 
     c.setFont("Helvetica", 11)
-    c.drawString(inch, h - 1.3 * inch,
+    c.drawString(3 * inch, h - 1.3 * inch,
                  f"Fecha: {data.get('fecha', datetime.now().strftime('%Y-%m-%d'))}")
-    c.drawString(inch, h - 1.5 * inch,
+    c.drawString(3 * inch, h - 1.5 * inch,
                  f"Filtro SKU: {data.get('sku_filtro', 'Todos')}")
-    c.drawString(inch, h - 1.7 * inch,
+    c.drawString(3 * inch, h - 1.7 * inch,
                  f"Total registros: {len(items)}")
 
     # Tabla

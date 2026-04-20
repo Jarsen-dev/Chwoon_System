@@ -5,23 +5,23 @@ import { useAuth } from '@/context/AuthContext'
 import { getInventario, getCola, agregarACola, generarPDF, eliminarDeCola, limpiarCola } from '@/lib/api'
 import { InventarioItem, ColaItem } from '@/types'
 
-export default function EtiquetasPage() {
+export default function EtiquetasTab() {
   const { token, username } = useAuth()
 
-  const [inventario, setInventario]     = useState<InventarioItem[]>([])
-  const [cola, setCola]                 = useState<ColaItem[]>([])
-  const [loading, setLoading]           = useState(true)
+  const [inventario, setInventario] = useState<InventarioItem[]>([])
+  const [cola, setCola] = useState<ColaItem[]>([])
+  const [loading, setLoading] = useState(true)
   const [isGenerating, setIsGenerating] = useState(false)
 
   const [selectedCodigo, setSelectedCodigo] = useState<string>('')
-  const [cantidad, setCantidad]             = useState<string>('1')
-  const [turno, setTurno]                   = useState<'Día' | 'Noche'>('Día')
-  const [searchParte, setSearchParte]       = useState('')
+  const [cantidad, setCantidad] = useState<string>('1')
+  const [turno, setTurno] = useState<'Día' | 'Noche'>('Día')
+  const [searchParte, setSearchParte] = useState('')
 
   const [modalInfo, setModalInfo] = useState<{
-    title:   string
+    title: string
     message: string
-    type:    'success' | 'error' | 'info'
+    type: 'success' | 'error' | 'info'
   } | null>(null)
   const [isClearModalOpen, setIsClearModalOpen] = useState(false)
 
@@ -30,9 +30,9 @@ export default function EtiquetasPage() {
   const inventarioFiltrado = inventario.filter(item => {
     const term = searchParte.toLowerCase()
     return (
-      item.codigo.toLowerCase().includes(term)      ||
+      item.codigo.toLowerCase().includes(term) ||
       item.descripcion.toLowerCase().includes(term) ||
-      item.linea_lg.toLowerCase().includes(term)    ||
+      item.linea_lg.toLowerCase().includes(term) ||
       item.linea.toLowerCase().includes(term)
     )
   })
@@ -154,7 +154,7 @@ export default function EtiquetasPage() {
   )
 
   return (
-    <div className="p-4 max-w-full mx-auto relative">
+    <div className="relative">
 
       {/* MODAL NOTIFICACIÓN */}
       {modalInfo && (
@@ -386,7 +386,7 @@ export default function EtiquetasPage() {
                         <td className="p-3 text-center">
                           {item.user ? (
                             <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-800">
-                              {item.user}  {/* ✅ Muestra el usuario real */}
+                              {item.user}
                             </span>
                           ) : (
                             <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-400 italic">

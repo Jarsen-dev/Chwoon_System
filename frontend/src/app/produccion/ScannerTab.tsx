@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useRef, useEffect } from 'react'
-import { RegistroConMeta } from './page'
+import { RegistroConMeta } from './helpers'
 import { getFaltanStyle }  from './helpers'
 
 interface Props {

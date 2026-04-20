@@ -1,14 +1,14 @@
 import { RolUsuario } from '@/types'
 
 // ── Constantes ──────────────────────────────────────────────────────
-export const ROLES: RolUsuario[] = ['admin', 'supervisor', 'operador', 'finanzas']
+export const ROLES: RolUsuario[] = ['admin', 'supervisor', 'operador', 'finanzas', 'calidad']
 
 export const ROL_BADGE: Record<RolUsuario, string> = {
   admin:      'bg-red-900/50   text-red-300   border border-red-700',
   supervisor: 'bg-blue-900/50  text-blue-300  border border-blue-700',
   operador:   'bg-green-900/50 text-green-300 border border-green-700',
   finanzas:   'bg-emerald-900/50 text-emerald-300 border border-emerald-700',
-  calidad:   'bg-cyan-900/50 text-cyan-300 border border-cyan-700',
+  calidad:    'bg-cyan-900/50 text-cyan-300 border border-cyan-700',
 }
 
 export const ROL_ICON: Record<RolUsuario, string> = {
@@ -16,7 +16,7 @@ export const ROL_ICON: Record<RolUsuario, string> = {
   supervisor: '🔵',
   operador:   '🟢',
   finanzas:   '💰',
-  calidad:   '🔬',
+  calidad:    '🔬',
 }
 
 export const TABS = [
@@ -66,6 +66,7 @@ export function getTablaIcon(nombre: string): string {
     recepciones_compra: '📥', ordenes_venta: '💵',
     ordenes_venta_items: '🏷️', envios_venta: '🚚',
     devoluciones: '🔄', planes_venta: '📅',
+    inspecciones: '🔬', registros_scrap: '🗑️',
   }
   return map[nombre] || '📄'
 }
@@ -83,20 +84,21 @@ export function StatCard({ icon, value, label, badge, badgeColor = 'gray', borde
     emerald: 'text-emerald-400 bg-emerald-900/30',
     orange:  'text-orange-400 bg-orange-900/30',
     red:     'text-red-400 bg-red-900/30',
+    cyan:    'text-cyan-400 bg-cyan-900/30',
   }
 
   return (
-    <div className={`bg-gray-800 rounded-xl border ${borderColor} p-5`}>
-      <div className="flex items-center justify-between mb-2">
+    <div className={`bg-gray-900 rounded-xl border ${borderColor} p-5 flex flex-col gap-2`}>
+      <div className="flex items-center justify-between">
         <span className="text-2xl">{icon}</span>
         {badge && (
-          <span className={`text-xs px-2 py-0.5 rounded-full ${badgeColors[badgeColor]}`}>
+          <span className={`text-xs font-medium px-2 py-1 rounded-full ${badgeColors[badgeColor] || badgeColors.gray}`}>
             {badge}
           </span>
         )}
       </div>
       <p className={`text-3xl font-bold ${valueColor}`}>{value}</p>
-      <p className="text-xs text-gray-400 mt-1">{label}</p>
+      <p className="text-sm text-gray-400">{label}</p>
     </div>
   )
 }
@@ -107,7 +109,7 @@ export function DbActionCard({ icon, title, description, count, buttonLabel, but
   loading: boolean; onClick: () => void; danger?: boolean
 }) {
   return (
-    <div className={`bg-gray-800 rounded-xl border p-5 ${danger ? 'border-red-800/50' : 'border-gray-700'}`}>
+    <div className={`bg-gray-900 rounded-xl border p-5 ${danger ? 'border-red-800/50' : 'border-gray-700'}`}>
       <div className="flex items-start gap-3">
         <span className="text-2xl mt-0.5">{icon}</span>
         <div className="flex-1">

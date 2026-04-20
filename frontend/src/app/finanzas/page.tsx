@@ -36,7 +36,6 @@ export default function FinanzasPage() {
     }
   }, [token, rol, router, loading]);
 
-  // Mostrar spinner mientras rehidrata auth
   if (loading) {
     return (
       <div className="fixed inset-0 bg-gray-950 flex items-center justify-center">
@@ -73,12 +72,20 @@ export default function FinanzasPage() {
           </Link>
 
           {rol === 'admin' && (
-            <Link
-              href="/admin"
-              className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-            >
-              👑 Admin
-            </Link>
+            <>
+              <Link
+                href="/calidad"
+                className="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              >
+                🔬 Calidad
+              </Link>
+              <Link
+                href="/admin"
+                className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              >
+                👑 Admin
+              </Link>
+            </>
           )}
 
           <span className={`text-sm font-medium ${badge.color}`}>

@@ -2,17 +2,26 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 const RUTAS_PROTEGIDAS: Record<string, string[]> = {
-  '/admin':      ['admin'],
-  '/finanzas':   ['admin', 'finanzas'],
-  '/calidad':    ['admin', 'calidad'],
-  '/produccion': ['admin', 'supervisor', 'operador'],
-  '/inventario': ['admin', 'supervisor'],
-  '/partes':     ['admin', 'supervisor', 'operador'],
-  '/etiquetas':  ['admin', 'supervisor', 'operador'],
+  '/admin':    ['admin'],
+  '/finanzas': ['admin', 'finanzas'],
+  '/calidad':  ['admin', 'calidad'],
 }
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+
+  // La ruta / está protegida pero permite todos los roles de producción
+  if (pathname === '/') {
+    const token = request.cookies.get('token')?.value
+    if (!token) {
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
+    const rol = request.cookies.get('rol')?.value
+    if (!rol || !['admin', 'supervisor', 'operador', 'calidad'].includes(rol)) {
+      return NextResponse.redirect(new URL('/unauthorized', request.url))
+    }
+    return NextResponse.next()
+  }
 
   const rutaProtegida = Object.keys(RUTAS_PROTEGIDAS).find(ruta =>
     pathname.startsWith(ruta)
@@ -37,12 +46,9 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    '/',
     '/admin/:path*',
     '/finanzas/:path*',
     '/calidad/:path*',
-    '/produccion/:path*',
-    '/inventario/:path*',
-    '/partes/:path*',
-    '/etiquetas/:path*',
   ],
 }

@@ -1,3 +1,5 @@
+import { RegistroProduccion } from '@/types'
+
 export function getTipoBadge(tipo: string): string {
   switch (tipo) {
     case 'FRAUDE':        return 'bg-red-100    text-red-800    border border-red-300'
@@ -28,4 +30,10 @@ export function getFaltanStyle(faltan: number | string): string {
   if (faltan === 0)     return 'text-emerald-600 font-bold'
   if (typeof faltan === 'number' && faltan > 0) return 'text-orange-500 font-semibold'
   return 'text-gray-600'
+}
+
+// ── Tipo compartido entre page.tsx y ScannerTab ──────────────────
+export interface RegistroConMeta extends RegistroProduccion {
+  meta_plan?: number | string
+  faltan?:    number | string
 }

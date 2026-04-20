@@ -91,6 +91,55 @@ async def importar_excel(
     contents = await file.read()
     df = pd.read_excel(io.BytesIO(contents))
 
+    # --- NORMALIZAR COLUMNAS ---
+    df.columns = (
+        df.columns
+        .str.strip()
+        .str.lower()
+        .str.replace(' ', '_')
+        .str.replace('á', 'a')
+        .str.replace('é', 'e')
+        .str.replace('í', 'i')
+        .str.replace('ó', 'o')
+        .str.replace('ú', 'u')
+        .str.replace('ñ', 'n')
+        .str.replace('°', '')
+        .str.replace('#', '')
+        .str.replace('.', '')
+    )
+
+    # Mapeo de variantes comunes → nombre esperado
+    column_map = {
+        'n_parte': 'codigo',
+        'no_parte': 'codigo',
+        'numero_parte': 'codigo',
+        'num_parte': 'codigo',
+        'parte': 'codigo',
+        'part_number': 'codigo',
+        'n__parte': 'codigo',
+        'no__parte': 'codigo',
+        'description': 'descripcion',
+        'maquina': 'linea',
+        'line': 'linea',
+        'type': 'tipo',
+        'qty': 'qtu',
+        'quantity': 'qtu',
+        'piezas_por_carrito': 'qtu',
+        'lg': 'linea_lg',
+        'ayuda_visual_(link)': 'ayuda_visual',
+        'ayuda_visual_link': 'ayuda_visual',
+        'link': 'ayuda_visual',
+    }
+
+    df.rename(columns={k: v for k, v in column_map.items() if k in df.columns}, inplace=True)
+
+    # Validar columna obligatoria
+    if 'codigo' not in df.columns:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Columna 'codigo' no encontrada. Columnas detectadas: {list(df.columns)}"
+        )
+
     # Columnas esperadas
     columnas = ['codigo', 'descripcion', 'linea', 'tipo', 'qtu', 'linea_lg', 'ayuda_visual']
 
@@ -99,6 +148,9 @@ async def importar_excel(
 
     for _, row in df.iterrows():
         codigo = str(row['codigo']).strip()
+        if not codigo or codigo == 'nan':
+            continue
+
         result = await db.execute(
             select(InventarioPlanta).where(InventarioPlanta.codigo == codigo)
         )
@@ -107,10 +159,17 @@ async def importar_excel(
         if existing:
             for col in columnas:
                 if col != 'codigo' and col in df.columns:
-                    setattr(existing, col, row[col])
+                    val = row[col]
+                    if pd.isna(val):
+                        val = None
+                    setattr(existing, col, val)
             registros_actualizados += 1
         else:
-            data = {col: row[col] for col in columnas if col in df.columns}
+            data = {}
+            for col in columnas:
+                if col in df.columns:
+                    val = row[col]
+                    data[col] = None if pd.isna(val) else val
             item = InventarioPlanta(**data)
             db.add(item)
             registros_creados += 1

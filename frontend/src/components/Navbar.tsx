@@ -7,12 +7,17 @@ export default function Navbar() {
   const { token, rol, username, logout } = useAuth()
   const pathname = usePathname()
 
+  // Ocultar en todas las páginas fullscreen (ahora incluye /)
   if (
+    pathname === '/' ||
     pathname === '/login' ||
     pathname === '/unauthorized' ||
     pathname.startsWith('/admin') ||
     pathname.startsWith('/finanzas') ||
-    pathname.startsWith('/calidad')
+    pathname.startsWith('/calidad') ||
+    pathname.startsWith('/produccion') ||
+    pathname.startsWith('/partes') ||
+    pathname.startsWith('/etiquetas')
   ) {
     return null
   }
@@ -28,33 +33,7 @@ export default function Navbar() {
         </div>
 
         <div className="flex gap-4 items-center">
-          <a href="/" className="hover:text-blue-300 transition">
-            🏠 Dashboard
-          </a>
-
-          {['admin', 'supervisor', 'operador'].includes(rol ?? '') && (
-            <>
-              <a href="/partes" className="hover:text-blue-300 transition">⚙️ Partes</a>
-              <a href="/etiquetas" className="hover:text-blue-300 transition">🖨️ Etiquetas</a>
-              <a href="/produccion" className="hover:text-blue-300 transition">🔍 Producción</a>
-            </>
-          )}
-
-          {['admin', 'supervisor'].includes(rol ?? '') && (
-            <a href="/inventario" className="hover:text-blue-300 transition">📦 Inventario</a>
-          )}
-
-          {['admin', 'finanzas'].includes(rol ?? '') && (
-            <a href="/finanzas" className="hover:text-emerald-300 transition font-semibold text-emerald-400">
-              💰 Compras
-            </a>
-          )}
-
-          {['admin', 'calidad'].includes(rol ?? '') && (
-            <a href="/calidad" className="hover:text-cyan-300 transition font-semibold text-cyan-400">
-              🔬 Calidad
-            </a>
-          )}
+          <a href="/" className="hover:text-blue-300 transition">🏠 Inicio</a>
 
           {rol === 'admin' && (
             <a href="/admin" className="hover:text-yellow-300 transition font-semibold">

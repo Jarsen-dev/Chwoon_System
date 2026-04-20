@@ -1,721 +1,510 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useAuth } from '@/context/AuthContext'
-import { getRegistros, getPlanProduccion, getInventario } from '@/lib/api'
+import { useEffect, useState, useRef } from 'react'
+import { useAuth }            from '@/context/AuthContext'
+import { useRouter }          from 'next/navigation'
+import { RegistroProduccion } from '@/types'
+import Link                   from 'next/link'
+import {
+  getRegistros,
+  getProyeccion,
+  getSaludMaquinas,
+  getPlanProduccion,
+} from '@/lib/api'
 
-// ==========================================
-// TIPOS
-// ==========================================
-interface MetricaCard {
-  label: string
-  value: string | number
-  sub: string
-  icon: string
-  color: string
-  border: string
+import { RegistroConMeta } from './produccion/helpers'
+
+import HomeDashboardTab from './produccion/HomeDashboardTab'
+import ScannerTab       from './produccion/ScannerTab'
+import DashboardTab     from './produccion/DashboardTab'
+import PlanTab          from './produccion/PlanTab'
+import PredictionTab    from './produccion/PredictionTab'
+import AnomaliesTab     from './produccion/AnomaliesTab'
+import CuartoSecadoTab  from './produccion/CuartoSecadoTab'
+import PartesTab        from './produccion/PartesTab'
+import ProductosTab     from './produccion/ProductosTab'
+import EtiquetasTab     from './produccion/EtiquetasTab'
+
+// ── Tipos ─────────────────────────────────────────────────────────
+
+interface Anomalia {
+  id: number; fecha: string; hora: string
+  numero_parte: string; motivo: string; tipo: string
 }
 
-interface ProduccionPorParte {
-  numero_parte: string
-  descripcion: string
-  total: number
-  meta: number
-  porcentaje: number
+// ── Helpers ───────────────────────────────────────────────────────
+const API_URL = process.env.NEXT_PUBLIC_API_URL || ''
+
+function getTurnoActual(): string {
+  const m = new Date().getHours() * 60 + new Date().getMinutes()
+  return m >= 450 && m < 1170 ? 'DIA' : 'NOCHE'
 }
 
-interface AlertaReciente {
-  id: number
-  fecha: string
-  hora: string
-  numero_parte: string
-  motivo: string
-  tipo: string
-}
-
-interface ReporteTurno {
-  fecha: string
-  turno: string
-  escaneos: number
-  piezas: number
-  partes_unicas: number
-  maquinas: number
-  primer_escaneo: string
-  ultimo_escaneo: string
-  secado_total: number
-  secado_salidos: number
-}
-
-// ==========================================
-// HELPERS
-// ==========================================
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-
-function obtenerTurno(): 'DÍA' | 'NOCHE' {
-  const h = new Date().getHours()
-  return h >= 7 && h < 19 ? 'DÍA' : 'NOCHE'
-}
-
-function formatearFecha(): string {
-  return new Date().toLocaleDateString('es-MX', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  })
-}
-
-function formatearFechaCorta(fecha: string): string {
-  try {
-    const [y, m, d] = fecha.split('-')
-    return `${d}/${m}/${y}`
-  } catch { return fecha }
-}
-
-function calcularPorcentaje(producido: number, meta: number): number {
-  if (!meta || meta === 0) return 0
-  return Math.min(100, Math.round((producido / meta) * 100))
-}
-
-function getBarColor(pct: number): string {
-  if (pct >= 90) return 'bg-emerald-500'
-  if (pct >= 60) return 'bg-blue-500'
-  if (pct >= 30) return 'bg-yellow-500'
-  return 'bg-red-500'
-}
-
-function getTipoBadge(tipo: string): string {
-  switch (tipo) {
-    case 'FRAUDE':        return 'bg-red-100    text-red-800    border-red-300'
-    case 'MANTENIMIENTO': return 'bg-orange-100 text-orange-800 border-orange-300'
-    case 'LENTITUD_PLAN': return 'bg-yellow-100 text-yellow-800 border-yellow-300'
-    default:              return 'bg-gray-100   text-gray-700   border-gray-300'
+function getFechaTurno(): string {
+  const now = new Date()
+  const m   = now.getHours() * 60 + now.getMinutes()
+  if (m < 450) {
+    const y = new Date(now)
+    y.setDate(y.getDate() - 1)
+    return y.toISOString().split('T')[0]
   }
+  return now.toISOString().split('T')[0]
 }
 
-// ==========================================
-// COMPONENTE: TARJETA DE MÉTRICA
-// ==========================================
-function MetricCard({ label, value, sub, icon, color, border }: MetricaCard) {
-  return (
-    <div className={`bg-white rounded-lg border-l-4 ${border} shadow-sm p-5 flex items-center gap-4`}>
-      <div className={`w-12 h-12 rounded-lg ${color} flex items-center justify-center text-2xl flex-shrink-0`}>
-        {icon}
-      </div>
-      <div>
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest">{label}</p>
-        <p className="text-3xl font-bold text-slate-800 leading-tight">{value}</p>
-        <p className="text-xs text-gray-400 mt-0.5">{sub}</p>
-      </div>
-    </div>
-  )
+// ── Tabs config ──────────────────────────────────────────────────
+const ALL_TABS = [
+  { id: 'home',          label: '🏠 Inicio',         roles: ['admin','supervisor','operador','calidad'] },
+  { id: 'captura',       label: '📷 Captura',        roles: ['admin','supervisor','operador','calidad'] },
+  { id: 'dashboard',     label: '📊 Dashboard',      roles: ['admin','supervisor','operador','calidad'] },
+  { id: 'partes',        label: '⚙️ Partes',         roles: ['admin','supervisor','operador'] },
+  { id: 'productos',     label: '📦 Productos',      roles: ['admin','supervisor','operador'] },
+  { id: 'etiquetas',     label: '🖨️ Etiquetas',      roles: ['admin','supervisor','operador'] },
+  { id: 'plan',          label: '📋 Plan Prod.',     roles: ['admin','supervisor'] },
+  { id: 'prediccion',    label: '🤖 Predicción IA',  roles: ['admin','supervisor'] },
+  { id: 'anomalias',     label: '🚨 Anomalías',      roles: ['admin','supervisor'] },
+  { id: 'cuarto_secado', label: '🌡️ Cuarto Secado',  roles: ['admin','supervisor','operador'] },
+]
+
+const ROL_BADGE: Record<string, { icon: string; color: string }> = {
+  admin:      { icon: '👑', color: 'text-yellow-400' },
+  supervisor: { icon: '🔵', color: 'text-blue-400'   },
+  operador:   { icon: '🟢', color: 'text-green-400'  },
+  calidad:    { icon: '🔬', color: 'text-cyan-400'   },
+  finanzas:   { icon: '💰', color: 'text-emerald-400' },
 }
 
-// ==========================================
-// PÁGINA PRINCIPAL
-// ==========================================
-export default function DashboardPage() {
-  const { token, rol } = useAuth()
+// ══════════════════════════════════════════════════════════════════
+export default function ProduccionPage() {
+  const { token, rol, username, logout, loading } = useAuth()
+  const router = useRouter()
 
-  const [loading, setLoading]                       = useState(true)
-  const [produccionPorParte, setProduccionPorParte] = useState<ProduccionPorParte[]>([])
-  const [alertasRecientes, setAlertasRecientes]     = useState<AlertaReciente[]>([])
-  const [planData, setPlanData]                     = useState<any[]>([])
-  const [totalPiezas, setTotalPiezas]               = useState(0)
-  const [maquinasActivas, setMaquinasActivas]       = useState(0)
-  const [totalAlertas, setTotalAlertas]             = useState(0)
-  const [porcentajePlan, setPorcentajePlan]         = useState(0)
-  const [ultimaActualizacion, setUltimaActualizacion] = useState('')
+  // ── UI ──────────────────────────────────────────────────────────
+  const [activeTab, setActiveTab] = useState('home')
+  const [wsStatus, setWsStatus]   = useState<'conectado'|'desconectado'|'conectando'>('desconectado')
 
-  // Reportes por turno
-  const [reportes, setReportes]             = useState<ReporteTurno[]>([])
-  const [loadingReportes, setLoadingReportes] = useState(false)
-  const [showReportes, setShowReportes]       = useState(false)
-  const [descargandoExcel, setDescargandoExcel] = useState<string | null>(null)
+  // ── Scanner state ──────────────────────────────────────────────
+  const [registros,  setRegistros]  = useState<RegistroConMeta[]>([])
+  const [inputValue, setInputValue] = useState('')
+  const [alertas, setAlertas]       = useState<{tipo:string;motivo:string;id:number}[]>([])
 
-  const turno     = obtenerTurno()
-  const fechaHoy  = new Date().toISOString().split('T')[0]
+  // ── Datos ──────────────────────────────────────────────────────
+  const [planes,        setPlanes]        = useState<any[]>([])
+  const [proyecciones,  setProyecciones]  = useState<any[]>([])
+  const [saludMaquinas, setSaludMaquinas] = useState<any[]>([])
+  const [anomalias,     setAnomalias]     = useState<Anomalia[]>([])
 
+  // ── Turno ──────────────────────────────────────────────────────
+  const [turnoActual, setTurnoActual] = useState(getTurnoActual)
+  const [fechaTurno,  setFechaTurno]  = useState(getFechaTurno)
+
+  // ── Dashboard prod ─────────────────────────────────────────────
+  const [dashPorParte,    setDashPorParte]    = useState<
+    { numero_parte: string; total: number; meta: number; porcentaje: number }[]
+  >([])
+  const [dashTotalPiezas, setDashTotalPiezas] = useState(0)
+  const [dashLoadedTab,   setDashLoadedTab]   = useState(false)
+
+  // ── Refs ───────────────────────────────────────────────────────
+  const ws            = useRef<WebSocket|null>(null)
+  const inputRef      = useRef<HTMLInputElement>(null)
+  const planMap       = useRef<Record<string,number>>({})
+  const scanTimer     = useRef<ReturnType<typeof setTimeout>|null>(null)
+  const inputValueRef = useRef('')
+  const tokenRef      = useRef<string|null>(null)
+  const [scannerKey, setScannerKey] = useState(0)
+
+  // ── Auth guard ─────────────────────────────────────────────────
   useEffect(() => {
-    cargarDatos()
-    const interval = setInterval(cargarDatos, 30_000)
-    return () => clearInterval(interval)
+    if (loading) return
+    if (!token) {
+      router.push('/login')
+      return
+    }
+    if (rol && !['admin','supervisor','operador','calidad'].includes(rol)) {
+      router.push('/unauthorized')
+    }
+  }, [token, rol, loading, router])
+
+  // ── Sync tokenRef ──────────────────────────────────────────────
+  useEffect(() => { tokenRef.current = token ?? null }, [token])
+
+  // ── Turno label update ─────────────────────────────────────────
+  useEffect(() => {
+    const i = setInterval(() => {
+      setTurnoActual(getTurnoActual())
+      setFechaTurno(getFechaTurno())
+    }, 60_000)
+    return () => clearInterval(i)
   }, [])
 
-  const cargarDatos = async () => {
-    try {
-      const [registros, plan, anomalias] = await Promise.all([
-        getRegistros(fechaHoy),
-        getPlanProduccion(),
-        fetch(`${API_URL}/produccion/anomalias/?limite=10`).then(r => r.json()).catch(() => [])
-      ])
+  // ── WS + carga inicial ─────────────────────────────────────────
+  useEffect(() => {
+    if (token === undefined) return
+    cargarHistorial()
+    cargarPlanInicial()
+    if (ws.current) { ws.current.onclose = null; ws.current.close(); ws.current = null }
+    conectarWebSocket()
+    return () => { if (ws.current) { ws.current.onclose = null; ws.current.close(); ws.current = null } }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token])
 
-      const totalPzs = registros.reduce((acc: number, r: any) => acc + (r.qty_bolsa || 0), 0)
-      setTotalPiezas(totalPzs)
+  // ── Tab change reactions ───────────────────────────────────────
+  useEffect(() => {
+    if (activeTab === 'plan')                          cargarPlan()
+    if (activeTab === 'prediccion')                    cargarIA()
+    if (activeTab === 'anomalias')                     cargarAnomalias()
+    if (activeTab === 'dashboard' && !dashLoadedTab)   cargarDashboard()
+    if (activeTab === 'captura') {
+      setScannerKey(p => p + 1)
+      setTimeout(() => inputRef.current?.focus(), 50)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab])
 
-      const maqSet = new Set(registros.map((r: any) => r.maquina).filter(Boolean))
-      setMaquinasActivas(maqSet.size)
+  // ── Focus input ────────────────────────────────────────────────
+  useEffect(() => {
+    const i = setInterval(() => {
+      if (activeTab !== 'captura') return
+      const enFiltros = (inputRef as any)._enFiltros?.() ?? false
+      if (enFiltros) return
+      const tag = document.activeElement?.tagName ?? ''
+      if (['INPUT','SELECT','TEXTAREA'].includes(tag) && document.activeElement !== inputRef.current) return
+      if (document.activeElement !== inputRef.current) inputRef.current?.focus()
+    }, 1_000)
+    return () => clearInterval(i)
+  }, [activeTab])
 
-      const alertasHoy = Array.isArray(anomalias)
-        ? anomalias.filter((a: any) => a.fecha === fechaHoy)
-        : []
-      setTotalAlertas(alertasHoy.length)
-      setAlertasRecientes(alertasHoy.slice(0, 6))
+  // ── WebSocket ──────────────────────────────────────────────────
+  const conectarWebSocket = () => {
+    setWsStatus('conectando')
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000'
+    const tkn   = tokenRef.current
+    const wsUri = tkn ? `${wsUrl}/produccion/ws/scanner?token=${tkn}` : `${wsUrl}/produccion/ws/scanner`
+    const socket = new WebSocket(wsUri)
+    ws.current   = socket
 
-      const acumulado: Record<string, number> = {}
-      registros.forEach((r: any) => {
-        if (!acumulado[r.numero_parte] || r.total_acumulado > acumulado[r.numero_parte]) {
-          acumulado[r.numero_parte] = r.total_acumulado
+    socket.onopen  = () => { if (ws.current === socket) setWsStatus('conectado') }
+    socket.onerror = () => { if (ws.current === socket) setWsStatus('desconectado') }
+    socket.onclose = () => {
+      if (ws.current !== socket) return
+      setWsStatus('desconectado')
+      setTimeout(() => { if (ws.current === socket || ws.current === null) conectarWebSocket() }, 3_000)
+    }
+
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data)
+      if (data.type === 'scan_complete') {
+        const reg  = data.registro
+        const meta = planMap.current[reg.numero_parte]
+        const nuevoRegistro: RegistroConMeta = {
+          ...reg,
+          descripcion: reg.descripcion ?? '',
+          usuario:     reg.usuario?.trim() ? reg.usuario : '—',
+          meta_plan:   meta ?? 'N/A',
+          faltan:      meta != null ? Math.max(0, meta - reg.total_acumulado) : 'N/A',
         }
-      })
+        setRegistros(prev => [nuevoRegistro, ...prev])
+        actualizarDashEnTiempoReal(reg, meta)
+        if (data.alertas?.length > 0) {
+          data.alertas.forEach((a: any) => agregarAlerta({ tipo: a.tipo, motivo: a.motivo }))
+        }
+      } else if (data.type === 'error') {
+        agregarAlerta({ tipo: 'ERROR', motivo: data.message })
+      }
+    }
+  }
 
-      const planMap: Record<string, { meta: number, desc: string }> = {}
-      plan.forEach((p: any) => {
-        planMap[p.numero_parte] = { meta: p.meta_piezas, desc: p.descripcion || '' }
-      })
+  // ── Dashboard en tiempo real ───────────────────────────────────
+  const actualizarDashEnTiempoReal = (reg: any, meta?: number) => {
+    setDashPorParte(prev => {
+      const metaVal = meta ?? reg.meta_plan ?? 0
+      const existe  = prev.find(p => p.numero_parte === reg.numero_parte)
+      let nueva: typeof prev
+      if (existe) {
+        nueva = prev.map(p =>
+          p.numero_parte === reg.numero_parte
+            ? { ...p, total: reg.total_acumulado, porcentaje: p.meta > 0 ? Math.min(100, Math.round((reg.total_acumulado / p.meta) * 100)) : 0 }
+            : p
+        )
+      } else {
+        nueva = [...prev, {
+          numero_parte: reg.numero_parte, total: reg.total_acumulado,
+          meta: metaVal, porcentaje: metaVal > 0 ? Math.min(100, Math.round((reg.total_acumulado / metaVal) * 100)) : 0,
+        }]
+      }
+      return nueva.sort((a, b) => b.total - a.total)
+    })
+    setDashTotalPiezas(prev => prev + (reg.qty_bolsa || 0))
+  }
 
-      const porParteArr: ProduccionPorParte[] = Object.entries(acumulado)
+  // ── Input handlers ─────────────────────────────────────────────
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const valor = e.target.value.toUpperCase()
+    inputValueRef.current = valor
+    setInputValue(valor)
+    if (scanTimer.current) clearTimeout(scanTimer.current)
+    if (valor.trim()) scanTimer.current = setTimeout(enviarCodigo, 600)
+  }
+
+  const enviarCodigo = () => {
+    const codigo = inputValueRef.current.trim()
+    if (!codigo) return
+    const codigoFinal = codigo.includes('°') ? codigo.split('°')[0].trim() : codigo
+    if (ws.current?.readyState === WebSocket.OPEN) {
+      ws.current.send(codigoFinal)
+    } else {
+      agregarAlerta({ tipo: 'ERROR', motivo: 'Sin conexión al servidor. Reconectando...' })
+    }
+    inputValueRef.current = ''
+    setInputValue('')
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      if (scanTimer.current) clearTimeout(scanTimer.current)
+      enviarCodigo()
+    }
+  }
+
+  // ── Carga de datos ─────────────────────────────────────────────
+  const cargarPlanInicial = async () => {
+    try {
+      const data = await getPlanProduccion()
+      const map: Record<string,number> = {}
+      data.forEach((p: any) => { map[p.numero_parte] = p.meta_piezas })
+      planMap.current = map
+    } catch (e) { console.error('Error plan inicial', e) }
+  }
+
+  const cargarHistorial = async () => {
+    try {
+      await cargarPlanInicial()
+      const turno = getTurnoActual()
+      const fecha = getFechaTurno()
+      const data  = await getRegistros(fecha, turno)
+      setRegistros(
+        data.map((reg: any) => {
+          const meta = planMap.current[reg.numero_parte]
+          return {
+            ...reg,
+            descripcion: reg.descripcion ?? '',
+            usuario:     reg.usuario?.trim() ? reg.usuario : '—',
+            meta_plan:   meta ?? 'N/A',
+            faltan:      meta != null ? Math.max(0, meta - reg.total_acumulado) : 'N/A',
+          }
+        })
+      )
+    } catch (e) { console.error('Error historial', e) }
+  }
+
+  const cargarPlan = async () => {
+    try {
+      const data = await getPlanProduccion()
+      setPlanes(data)
+      const map: Record<string,number> = {}
+      data.forEach((p: any) => { map[p.numero_parte] = p.meta_piezas })
+      planMap.current = map
+    } catch (e) { console.error('Error plan', e) }
+  }
+
+  const cargarIA = async () => {
+    try {
+      const turno = getTurnoActual()
+      const [proyData, saludData] = await Promise.all([
+        getProyeccion(turno),
+        getSaludMaquinas(),
+      ])
+      setProyecciones(proyData.proyecciones || [])
+      setSaludMaquinas(saludData || [])
+    } catch (e) { console.error('Error IA', e) }
+  }
+
+  const cargarAnomalias = async () => {
+    try {
+      const res  = await fetch(`${API_URL}/produccion/anomalias/?limite=100`)
+      const data = await res.json()
+      setAnomalias(data)
+    } catch (e) { console.error('Error anomalías', e) }
+  }
+
+  const cargarDashboard = async () => {
+    try {
+      const turno = getTurnoActual()
+      const fecha = getFechaTurno()
+      const [regs, plan] = await Promise.all([
+        getRegistros(fecha, turno),
+        getPlanProduccion(),
+      ])
+      const acumulado: Record<string,number> = {}
+      regs.forEach((r: any) => {
+        if (!acumulado[r.numero_parte] || r.total_acumulado > acumulado[r.numero_parte])
+          acumulado[r.numero_parte] = r.total_acumulado
+      })
+      const planMapLocal: Record<string,number> = {}
+      plan.forEach((p: any) => { planMapLocal[p.numero_parte] = p.meta_piezas })
+      const porParte = Object.entries(acumulado)
         .map(([parte, total]) => ({
-          numero_parte: parte,
-          descripcion:  planMap[parte]?.desc || '',
-          total,
-          meta:         planMap[parte]?.meta || 0,
-          porcentaje:   calcularPorcentaje(total, planMap[parte]?.meta || 0)
+          numero_parte: parte, total,
+          meta: planMapLocal[parte] || 0,
+          porcentaje: planMapLocal[parte] ? Math.min(100, Math.round((total / planMapLocal[parte]) * 100)) : 0,
         }))
         .sort((a, b) => b.total - a.total)
-
-      setProduccionPorParte(porParteArr)
-
-      if (plan.length > 0) {
-        const completadas = porParteArr.filter(p => p.porcentaje >= 100).length
-        setPorcentajePlan(Math.round((completadas / plan.length) * 100))
-      }
-
-      setPlanData(
-        plan.map((p: any) => ({
-          ...p,
-          producido:  acumulado[p.numero_parte] || 0,
-          porcentaje: calcularPorcentaje(acumulado[p.numero_parte] || 0, p.meta_piezas)
-        }))
-      )
-
-      setUltimaActualizacion(new Date().toLocaleTimeString('es-MX'))
-    } catch (error) {
-      console.error('Error cargando dashboard:', error)
-    } finally {
-      setLoading(false)
-    }
+      setDashPorParte(porParte)
+      setDashTotalPiezas(regs.reduce((acc: number, r: any) => acc + (r.qty_bolsa || 0), 0))
+      setDashLoadedTab(true)
+    } catch (e) { console.error('Error dashboard', e) }
   }
 
-  // ── Cargar reportes por turno ─────────────────────────────────────
-  const cargarReportes = async () => {
-    if (!token) return
-    try {
-      setLoadingReportes(true)
-      const res = await fetch('/api/admin/reportes-turnos?limite=30', {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (res.ok) {
-        setReportes(await res.json())
-        setShowReportes(true)
-      }
-    } catch (e) {
-      console.error('Error cargando reportes:', e)
-    } finally {
-      setLoadingReportes(false)
-    }
+  const agregarAlerta = (alerta: Omit<{tipo:string;motivo:string;id:number}, 'id'>) => {
+    const id = Date.now()
+    setAlertas(prev => [{ ...alerta, id }, ...prev])
+    setTimeout(() => { setAlertas(prev => prev.filter(a => a.id !== id)) }, 15_000)
   }
 
-  // ── Descargar Excel de un turno específico ────────────────────────
-  const descargarExcelTurno = async (fecha: string, turno: string) => {
-    const key = `${fecha}_${turno}`
-    setDescargandoExcel(key)
-    try {
-      const url = `/produccion/registros/excel?fecha=${fecha}&turno=${turno}&t=${Date.now()}`
-      const response = await fetch(url, { method: 'GET' })
+  // ── Computed ───────────────────────────────────────────────────
+  const tabs = ALL_TABS.filter(t => t.roles.includes(rol ?? ''))
+  const badge = ROL_BADGE[rol || ''] || { icon: '👤', color: 'text-gray-400' }
 
-      const contentType = response.headers.get('content-type') ?? ''
-      if (!response.ok || !contentType.includes('spreadsheetml')) {
-        console.error('Error descargando Excel')
-        return
-      }
-
-      const blob    = await response.blob()
-      const blobUrl = window.URL.createObjectURL(blob)
-      const link    = document.createElement('a')
-      link.href     = blobUrl
-      link.download = `produccion_${fecha}_${turno}.xlsx`
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      window.URL.revokeObjectURL(blobUrl)
-    } catch (e) {
-      console.error('Error:', e)
-    } finally {
-      setDescargandoExcel(null)
-    }
+  const wsStatusConfig = {
+    conectado:    { label: 'Conectado',    dot: 'bg-green-400',  badge: 'bg-green-900/40  text-green-300  border-green-700'  },
+    desconectado: { label: 'Desconectado', dot: 'bg-red-400',    badge: 'bg-red-900/40    text-red-300    border-red-700'    },
+    conectando:   { label: 'Conectando…',  dot: 'bg-yellow-400', badge: 'bg-yellow-900/40 text-yellow-300 border-yellow-700' },
   }
+  const ws_cfg = wsStatusConfig[wsStatus]
 
-  // ── Tarjetas ──
-  const metricas: MetricaCard[] = [
-    {
-      label: 'Total Piezas Hoy', value: totalPiezas.toLocaleString(),
-      sub: `Turno ${turno}`, icon: '📦', color: 'bg-blue-50', border: 'border-blue-500',
-    },
-    {
-      label: 'Máquinas Activas', value: maquinasActivas,
-      sub: 'Con producción hoy', icon: '⚙️', color: 'bg-emerald-50', border: 'border-emerald-500',
-    },
-    {
-      label: 'Alertas Detectadas', value: totalAlertas,
-      sub: 'Hoy por IA', icon: '🚨',
-      color: totalAlertas > 0 ? 'bg-red-50' : 'bg-gray-50',
-      border: totalAlertas > 0 ? 'border-red-500' : 'border-gray-300',
-    },
-    {
-      label: 'Plan Completado', value: `${porcentajePlan}%`,
-      sub: `${planData.filter(p => p.porcentaje >= 100).length} de ${planData.length} partes`,
-      icon: '📋',
-      color: porcentajePlan >= 80 ? 'bg-emerald-50' : 'bg-yellow-50',
-      border: porcentajePlan >= 80 ? 'border-emerald-500' : 'border-yellow-500',
-    },
-  ]
-
-  const esAdmin = rol === 'admin' || rol === 'supervisor'
-
-  if (loading) return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-      <div className="text-center">
-        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-gray-500 font-medium">Cargando dashboard...</p>
+  // ── Loading / guard ────────────────────────────────────────────
+  if (loading) {
+    return (
+      <div className="fixed inset-0 bg-white flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
       </div>
-    </div>
-  )
+    )
+  }
 
+  if (!token || (rol && !['admin','supervisor','operador','calidad'].includes(rol))) {
+    return null
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // RENDER
+  // ══════════════════════════════════════════════════════════════
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
+    <div className="fixed inset-0 bg-white text-gray-900 flex flex-col">
 
-      {/* ═══════════════════════════════════════════════════════════ */}
-      {/* HEADER                                                     */}
-      {/* ═══════════════════════════════════════════════════════════ */}
-      <div className="bg-slate-900 rounded-xl px-6 py-5 mb-6 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-lg">
-        <div>
-          <div className="flex items-center gap-3 mb-1">
-            <div className="w-2 h-8 bg-blue-500 rounded-full" />
-            <h1 className="text-2xl font-bold text-white tracking-tight">
-              Panel de Control de Producción
-            </h1>
-          </div>
-          <p className="text-slate-400 text-sm ml-5 capitalize">{formatearFecha()}</p>
+      {/* ═══ HEADER ═══ */}
+      <header className="bg-gray-900 border-b border-gray-800 px-6 py-3 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-3">
+          <img src="/Logo.png" alt="Logo" className="h-10 w-auto" />
+          <h1 className="text-xl font-bold text-white">Panel de Producción</h1>
         </div>
 
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className={`flex items-center gap-2 px-4 py-2 rounded-lg border font-semibold text-sm ${
-            turno === 'DÍA'
+        <div className="flex items-center gap-3">
+          {/* WS Status */}
+          <div className={`flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-full border ${ws_cfg.badge}`}>
+            <span className={`w-2 h-2 rounded-full animate-pulse ${ws_cfg.dot}`} />
+            {ws_cfg.label}
+          </div>
+
+          {/* Turno */}
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold border ${
+            turnoActual === 'DIA'
               ? 'bg-yellow-500/10 border-yellow-500/40 text-yellow-400'
               : 'bg-indigo-500/10 border-indigo-500/40 text-indigo-400'
           }`}>
-            <span>{turno === 'DÍA' ? '☀️' : '🌙'}</span>
-            <span>TURNO {turno}</span>
+            <span>{turnoActual === 'DIA' ? '☀️' : '🌙'}</span>
+            <span>{turnoActual}</span>
           </div>
 
-          <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 text-sm">
-            <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-            <span>Actualizado: {ultimaActualizacion}</span>
-          </div>
+          {/* Nav links */}
+          {['admin', 'finanzas'].includes(rol || '') && (
+            <Link href="/finanzas" className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors">
+              💰 Compras
+            </Link>
+          )}
 
-          <button onClick={cargarDatos}
-            className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition flex items-center gap-2">
-            🔄 Refrescar
+          {['admin', 'calidad'].includes(rol || '') && (
+            <Link href="/calidad" className="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors">
+              🔬 Calidad
+            </Link>
+          )}
+
+          {rol === 'admin' && (
+            <Link href="/admin" className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors">
+              👑 Admin
+            </Link>
+          )}
+
+          <span className={`text-sm font-medium ${badge.color}`}>
+            {badge.icon} {username}
+          </span>
+
+          <button
+            onClick={logout}
+            className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
+          >
+            🚪 Salir
           </button>
+        </div>
+      </header>
 
-          {/* Botón reportes — solo admin/supervisor */}
-          {esAdmin && (
+      {/* ═══ TABS ═══ */}
+      <div className="bg-gray-900 border-b border-gray-800 px-6 shrink-0">
+        <div className="flex gap-1 overflow-x-auto">
+          {tabs.map(tab => (
             <button
-              onClick={() => showReportes ? setShowReportes(false) : cargarReportes()}
-              disabled={loadingReportes}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 ${
-                showReportes
-                  ? 'bg-purple-600 hover:bg-purple-700 text-white'
-                  : 'bg-slate-700 hover:bg-slate-600 text-slate-200'
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-4 py-3 text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
+                activeTab === tab.id
+                  ? 'bg-white text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-800'
               }`}
             >
-              {loadingReportes ? (
-                <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Cargando...</>
-              ) : showReportes ? '✖ Cerrar Reportes' : '📈 Reportes por Turno'}
+              {tab.label}
             </button>
-          )}
+          ))}
         </div>
       </div>
 
-      {/* ═══════════════════════════════════════════════════════════ */}
-      {/* REPORTES POR TURNO (colapsable)                            */}
-      {/* ═══════════════════════════════════════════════════════════ */}
-      {showReportes && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6 animate-in fade-in duration-300">
-          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-purple-50 to-white">
-            <div>
-              <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                📈 Reportes por Turno
-              </h2>
-              <p className="text-xs text-gray-400 mt-0.5">
-                Historial de producción — últimos {reportes.length} turnos
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <button onClick={cargarReportes} disabled={loadingReportes}
-                className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-lg transition-colors">
-                {loadingReportes ? '⏳' : '🔄'} Actualizar
-              </button>
-              <button onClick={() => setShowReportes(false)}
-                className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-lg transition-colors">
-                ✖ Cerrar
-              </button>
-            </div>
-          </div>
-
-          {reportes.length === 0 ? (
-            <div className="p-12 text-center">
-              <span className="text-4xl block mb-2">📊</span>
-              <p className="text-gray-400">No hay datos de turnos anteriores.</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-gray-100">
-                    <th className="p-3 text-left font-semibold text-slate-600">Fecha</th>
-                    <th className="p-3 text-center font-semibold text-slate-600">Turno</th>
-                    <th className="p-3 text-center font-semibold text-slate-600">Escaneos</th>
-                    <th className="p-3 text-center font-semibold text-slate-600">Piezas</th>
-                    <th className="p-3 text-center font-semibold text-slate-600">Partes</th>
-                    <th className="p-3 text-center font-semibold text-slate-600">Máquinas</th>
-                    <th className="p-3 text-center font-semibold text-slate-600">Primer Escaneo</th>
-                    <th className="p-3 text-center font-semibold text-slate-600">Último Escaneo</th>
-                    <th className="p-3 text-center font-semibold text-slate-600">Secado</th>
-                    <th className="p-3 text-center font-semibold text-slate-600">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {reportes.map((r, idx) => {
-                    const esHoy = r.fecha === fechaHoy
-                    const key = `${r.fecha}_${r.turno}`
-                    return (
-                      <tr key={idx}
-                        className={`border-b border-gray-50 transition ${
-                          esHoy ? 'bg-blue-50/50' : 'hover:bg-gray-50'
-                        }`}>
-
-                        {/* Fecha */}
-                        <td className="p-3">
-                          <div className="flex items-center gap-2">
-                            {esHoy && <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />}
-                            <span className={`font-mono text-sm ${esHoy ? 'font-bold text-blue-700' : 'text-slate-700'}`}>
-                              {formatearFechaCorta(r.fecha)}
-                            </span>
-                            {esHoy && <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded font-medium">Hoy</span>}
-                          </div>
-                        </td>
-
-                        {/* Turno */}
-                        <td className="p-3 text-center">
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                            r.turno === 'DIA'
-                              ? 'bg-yellow-100 text-yellow-800 border border-yellow-200'
-                              : 'bg-indigo-100 text-indigo-800 border border-indigo-200'
-                          }`}>
-                            {r.turno === 'DIA' ? '☀️' : '🌙'} {r.turno}
-                          </span>
-                        </td>
-
-                        {/* Escaneos */}
-                        <td className="p-3 text-center">
-                          <span className="font-bold text-slate-700">{r.escaneos.toLocaleString()}</span>
-                        </td>
-
-                        {/* Piezas */}
-                        <td className="p-3 text-center">
-                          <span className="font-bold text-blue-700 text-base">{r.piezas.toLocaleString()}</span>
-                        </td>
-
-                        {/* Partes */}
-                        <td className="p-3 text-center">
-                          <span className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full text-xs font-semibold">
-                            {r.partes_unicas}
-                          </span>
-                        </td>
-
-                        {/* Máquinas */}
-                        <td className="p-3 text-center">
-                          <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full text-xs font-semibold">
-                            {r.maquinas}
-                          </span>
-                        </td>
-
-                        {/* Primer escaneo */}
-                        <td className="p-3 text-center font-mono text-xs text-gray-500">
-                          {r.primer_escaneo || '—'}
-                        </td>
-
-                        {/* Último escaneo */}
-                        <td className="p-3 text-center font-mono text-xs text-gray-500">
-                          {r.ultimo_escaneo || '—'}
-                        </td>
-
-                        {/* Secado */}
-                        <td className="p-3 text-center">
-                          {r.secado_total > 0 ? (
-                            <span className="text-xs text-orange-600 font-semibold">
-                              🌡️ {r.secado_salidos}/{r.secado_total}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-gray-300">—</span>
-                          )}
-                        </td>
-
-                        {/* Acciones */}
-                        <td className="p-3 text-center">
-                          <button
-                            onClick={() => descargarExcelTurno(r.fecha, r.turno)}
-                            disabled={descargandoExcel === key}
-                            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-sm ${
-                              descargandoExcel === key
-                                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                : 'bg-green-600 hover:bg-green-700 text-white'
-                            }`}
-                            title={`Descargar Excel ${r.fecha} ${r.turno}`}
-                          >
-                            {descargandoExcel === key ? (
-                              <><span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> ...</>
-                            ) : (
-                              <>📥 Excel</>
-                            )}
-                          </button>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* Resumen al pie */}
-          {reportes.length > 0 && (
-            <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
-              <span>
-                Total: <strong className="text-gray-700">{reportes.reduce((a, r) => a + r.piezas, 0).toLocaleString()}</strong> piezas
-                en <strong className="text-gray-700">{reportes.length}</strong> turnos
-              </span>
-              <span>
-                Promedio: <strong className="text-gray-700">{Math.round(reportes.reduce((a, r) => a + r.piezas, 0) / reportes.length).toLocaleString()}</strong> piezas/turno
-              </span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ═══════════════════════════════════════════════════════════ */}
-      {/* TARJETAS DE MÉTRICAS                                       */}
-      {/* ═══════════════════════════════════════════════════════════ */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-        {metricas.map((m, i) => (
-          <MetricCard key={i} {...m} />
-        ))}
-      </div>
-
-      {/* ═══════════════════════════════════════════════════════════ */}
-      {/* FILA CENTRAL: GRÁFICA + ALERTAS                           */}
-      {/* ═══════════════════════════════════════════════════════════ */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">
-
-        {/* ── Producción por parte (2/3) ── */}
-        <div className="xl:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-bold text-slate-800">📊 Producción por Número de Parte</h2>
-              <p className="text-xs text-gray-400 mt-0.5">Acumulado del turno actual</p>
-            </div>
-            <span className="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full font-semibold">
-              {produccionPorParte.length} partes
-            </span>
-          </div>
-
-          <div className="p-5 space-y-3 max-h-80 overflow-y-auto">
-            {produccionPorParte.length === 0 ? (
-              <div className="py-12 text-center">
-                <span className="text-4xl block mb-2">📦</span>
-                <p className="text-gray-400">Sin producción registrada hoy.</p>
-              </div>
-            ) : (
-              produccionPorParte.map((item, idx) => (
-                <div key={idx}>
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-xs font-bold text-gray-400 w-5 text-right flex-shrink-0">{idx + 1}</span>
-                      <div className="min-w-0">
-                        <span className="font-mono font-bold text-slate-800 text-sm">{item.numero_parte}</span>
-                        {item.descripcion && (
-                          <span className="text-gray-400 text-xs ml-2 truncate hidden sm:inline">{item.descripcion}</span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 flex-shrink-0 ml-4">
-                      <span className="text-slate-700 font-bold text-sm">{item.total.toLocaleString()}</span>
-                      {item.meta > 0 && (
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                          item.porcentaje >= 100 ? 'bg-emerald-100 text-emerald-700'
-                          : item.porcentaje >= 60 ? 'bg-blue-100 text-blue-700'
-                          : 'bg-yellow-100 text-yellow-700'
-                        }`}>{item.porcentaje}%</span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-400 w-5 flex-shrink-0" />
-                    <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
-                      <div className={`h-2 rounded-full transition-all duration-500 ${getBarColor(item.porcentaje)}`}
-                        style={{ width: `${item.meta > 0 ? item.porcentaje : 100}%` }} />
-                    </div>
-                    {item.meta > 0 && (
-                      <span className="text-xs text-gray-400 w-16 text-right flex-shrink-0">/ {item.meta.toLocaleString()}</span>
-                    )}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* ── Alertas recientes (1/3) ── */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-bold text-slate-800">🚨 Alertas IA</h2>
-              <p className="text-xs text-gray-400 mt-0.5">Detecciones de hoy</p>
-            </div>
-            {totalAlertas > 0 && (
-              <span className="text-xs bg-red-50 text-red-700 border border-red-200 px-2.5 py-1 rounded-full font-bold">
-                {totalAlertas} alerta{totalAlertas !== 1 ? 's' : ''}
-              </span>
-            )}
-          </div>
-
-          <div className="p-4 space-y-2 max-h-80 overflow-y-auto">
-            {alertasRecientes.length === 0 ? (
-              <div className="py-12 text-center">
-                <span className="text-4xl block mb-2">✅</span>
-                <p className="text-gray-400 text-sm">Sin alertas detectadas hoy.</p>
-              </div>
-            ) : (
-              alertasRecientes.map((alerta, idx) => (
-                <div key={idx} className="p-3 rounded-lg border bg-gray-50 hover:bg-gray-100 transition">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${getTipoBadge(alerta.tipo)}`}>
-                      {alerta.tipo}
-                    </span>
-                    <span className="text-xs text-gray-400 font-mono ml-auto">{alerta.hora}</span>
-                  </div>
-                  <p className="text-xs font-semibold text-slate-700 font-mono">{alerta.numero_parte}</p>
-                  <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{alerta.motivo}</p>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* ═══════════════════════════════════════════════════════════ */}
-      {/* TABLA DE ESTADO DEL PLAN                                   */}
-      {/* ═══════════════════════════════════════════════════════════ */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-          <div>
-            <h2 className="text-base font-bold text-slate-800">📋 Estado del Plan de Producción</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Avance por número de parte</p>
-          </div>
-          {planData.length > 0 && (
-            <span className="text-xs bg-slate-100 text-slate-600 border border-slate-200 px-2.5 py-1 rounded-full font-semibold">
-              {planData.length} parte{planData.length !== 1 ? 's' : ''} en plan
-            </span>
-          )}
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-slate-50 border-b border-gray-100">
-                <th className="p-3 text-left font-semibold text-slate-600">#</th>
-                <th className="p-3 text-left font-semibold text-slate-600">N° Parte</th>
-                <th className="p-3 text-center font-semibold text-slate-600">Turno</th>
-                <th className="p-3 text-center font-semibold text-slate-600">Meta</th>
-                <th className="p-3 text-center font-semibold text-slate-600">Producido</th>
-                <th className="p-3 text-center font-semibold text-slate-600">Faltan</th>
-                <th className="p-3 text-left font-semibold text-slate-600 min-w-[160px]">Progreso</th>
-                <th className="p-3 text-center font-semibold text-slate-600">Estado</th>
-              </tr>
-            </thead>
-            <tbody>
-              {planData.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="p-12 text-center">
-                    <span className="text-4xl block mb-2">📋</span>
-                    <p className="text-gray-400">No hay plan de producción activo.</p>
-                  </td>
-                </tr>
-              ) : (
-                planData.map((p, idx) => {
-                  const faltan = Math.max(0, p.meta_piezas - p.producido)
-                  return (
-                    <tr key={idx} className="border-b border-gray-50 hover:bg-gray-50 transition">
-                      <td className="p-3 text-gray-400 text-xs font-medium">{idx + 1}</td>
-                      <td className="p-3">
-                        <span className="font-mono font-bold text-slate-800 text-sm">{p.numero_parte}</span>
-                      </td>
-                      <td className="p-3 text-center">
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                          p.turno_objetivo === 'Día' ? 'bg-yellow-100 text-yellow-800' : 'bg-indigo-100 text-indigo-800'
-                        }`}>{p.turno_objetivo}</span>
-                      </td>
-                      <td className="p-3 text-center font-semibold text-slate-700">{p.meta_piezas.toLocaleString()}</td>
-                      <td className="p-3 text-center font-bold text-blue-700">{p.producido.toLocaleString()}</td>
-                      <td className={`p-3 text-center font-semibold ${faltan === 0 ? 'text-emerald-600' : 'text-orange-500'}`}>
-                        {faltan === 0 ? '—' : faltan.toLocaleString()}
-                      </td>
-                      <td className="p-3">
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
-                            <div className={`h-2 rounded-full transition-all duration-500 ${getBarColor(p.porcentaje)}`}
-                              style={{ width: `${p.porcentaje}%` }} />
-                          </div>
-                          <span className="text-xs font-bold text-gray-500 w-9 text-right">{p.porcentaje}%</span>
-                        </div>
-                      </td>
-                      <td className="p-3 text-center">
-                        {p.porcentaje >= 100 ? (
-                          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">✅ Completo</span>
-                        ) : p.producido > 0 ? (
-                          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 border border-blue-200">🔄 En Proceso</span>
-                        ) : (
-                          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-600 border border-gray-200">⏸️ En Cola</span>
-                        )}
-                      </td>
-                    </tr>
-                  )
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* ═══════════════════════════════════════════════════════════ */}
-      {/* FOOTER                                                     */}
-      {/* ═══════════════════════════════════════════════════════════ */}
-      <div className="mt-6 text-center text-xs text-gray-400">
-        Sistema de Control de Producción — Datos en tiempo real · Auto-refresco cada 30 seg
-      </div>
-
+      {/* ═══ CONTENT ═══ */}
+      <main className="flex-1 overflow-y-auto p-6 bg-gray-50">
+        {activeTab === 'home' && (
+          <HomeDashboardTab token={token} rol={rol} />
+        )}
+        {activeTab === 'captura' && (
+          <ScannerTab
+            key={scannerKey}
+            registros={registros}
+            alertas={alertas}
+            inputValue={inputValue}
+            inputRef={inputRef}
+            setAlertas={setAlertas}
+            handleInputChange={handleInputChange}
+            handleKeyDown={handleKeyDown}
+          />
+        )}
+        {activeTab === 'dashboard' && (
+          <DashboardTab
+            dashPorParte={dashPorParte}
+            dashTotalPiezas={dashTotalPiezas}
+            cargarDashboard={cargarDashboard}
+          />
+        )}
+        {activeTab === 'partes' && <PartesTab />}
+        {activeTab === 'productos' && <ProductosTab />}
+        {activeTab === 'etiquetas' && <EtiquetasTab />}
+        {activeTab === 'plan' && (
+          <PlanTab planes={planes} onRefresh={cargarPlan} onGoToTab={setActiveTab} />
+        )}
+        {activeTab === 'prediccion' && (
+          <PredictionTab proyecciones={proyecciones} saludMaquinas={saludMaquinas} />
+        )}
+        {activeTab === 'anomalias' && (
+          <AnomaliesTab anomalias={anomalias} cargarAnomalias={cargarAnomalias} />
+        )}
+        {activeTab === 'cuarto_secado' && <CuartoSecadoTab />}
+      </main>
     </div>
   )
 }

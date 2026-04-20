@@ -29,7 +29,7 @@ def require_calidad_role(user: Usuario):
 
 
 def ahora_local():
-    return datetime.now(TZ_LOCAL)
+    return datetime.now(TZ_LOCAL).replace(tzinfo=None)
 
 
 def generar_inspeccion_id(tipo: str) -> str:
