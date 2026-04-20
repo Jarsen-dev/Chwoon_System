@@ -3,11 +3,14 @@ from datetime import datetime
 import enum
 from app.database import Base
 
+
 class RolUsuario(str, enum.Enum):
     admin = "admin"
     supervisor = "supervisor"
     operador = "operador"
     finanzas = "finanzas"
+    calidad = "calidad"
+
 
 class Usuario(Base):
     __tablename__ = "usuarios"

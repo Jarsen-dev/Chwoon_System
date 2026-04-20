@@ -18,6 +18,10 @@ import {
   OrdenVenta,
   Devolucion,
   PlanVentasSemana,
+  CalidadDashboard,
+  InspeccionCalidad,
+  RegistroScrapItem,
+  ProductoPuntosInspeccion,
 } from '@/types'
 
 const API_URL = ''
@@ -820,4 +824,170 @@ export async function limpiarDevolucionesFinalizadas(token: string, dias: number
     throw new Error(err.detail || 'Error al limpiar')
   }
   return res.json()
+}
+
+export async function getInfoLote(token: string, loteId: string): Promise<any> {
+  const res = await fetch(`${API_URL}/finanzas/lote/${encodeURIComponent(loteId)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Lote no encontrado')
+  }
+  return res.json()
+}
+
+// ==========================================
+// CALIDAD — Dashboard
+// ==========================================
+export async function getCalidadDashboard(token: string): Promise<CalidadDashboard> {
+  const res = await fetch(`${API_URL}/calidad/dashboard`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener dashboard de calidad')
+  return res.json()
+}
+
+// ==========================================
+// CALIDAD — Inspecciones
+// ==========================================
+export async function getInspecciones(
+  token: string,
+  params?: { tipo?: string; resultado?: string; fecha_desde?: string; fecha_hasta?: string; limite?: number }
+): Promise<InspeccionCalidad[]> {
+  const searchParams = new URLSearchParams()
+  if (params?.tipo) searchParams.append('tipo', params.tipo)
+  if (params?.resultado) searchParams.append('resultado', params.resultado)
+  if (params?.fecha_desde) searchParams.append('fecha_desde', params.fecha_desde)
+  if (params?.fecha_hasta) searchParams.append('fecha_hasta', params.fecha_hasta)
+  if (params?.limite) searchParams.append('limite', params.limite.toString())
+  const qs = searchParams.toString()
+  const res = await fetch(`${API_URL}/calidad/inspecciones${qs ? `?${qs}` : ''}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener inspecciones')
+  return res.json()
+}
+
+export async function getInspeccion(token: string, inspeccionId: string): Promise<InspeccionCalidad> {
+  const res = await fetch(`${API_URL}/calidad/inspecciones/${inspeccionId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener inspección')
+  return res.json()
+}
+
+export async function registrarInspeccion(token: string, data: {
+  lote_id?: string
+  sku_producto: string
+  nombre_producto?: string
+  tipo_inspeccion: string
+  resultado_final: string
+  resultados_puntos: { punto: string; especificacion?: string; resultado: string }[]
+  oc_origen?: string
+  op_origen?: string
+  cantidad_inspeccionada?: number
+  notas?: string
+}): Promise<{ message: string; inspeccion_id: string; resultado: string }> {
+  const res = await fetch(`${API_URL}/calidad/inspecciones`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al registrar inspección')
+  }
+  return res.json()
+}
+
+export async function descargarPdfInspeccion(token: string, inspeccionId: string): Promise<void> {
+  const res = await fetch(`${API_URL}/calidad/inspecciones/${inspeccionId}/pdf`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al generar PDF de inspección')
+  const blob = await res.blob()
+  const url = window.URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `inspeccion_${inspeccionId}.pdf`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  window.URL.revokeObjectURL(url)
+}
+
+// ==========================================
+// CALIDAD — Puntos de inspección
+// ==========================================
+export async function getPuntosInspeccion(token: string, sku: string): Promise<ProductoPuntosInspeccion> {
+  const res = await fetch(`${API_URL}/calidad/puntos-inspeccion/${encodeURIComponent(sku)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al obtener puntos de inspección')
+  }
+  return res.json()
+}
+
+// ==========================================
+// CALIDAD — Scrap
+// ==========================================
+export async function getScrap(
+  token: string,
+  params?: { fecha?: string; sku?: string; origen?: string; limite?: number }
+): Promise<RegistroScrapItem[]> {
+  const searchParams = new URLSearchParams()
+  if (params?.fecha) searchParams.append('fecha', params.fecha)
+  if (params?.sku) searchParams.append('sku', params.sku)
+  if (params?.origen) searchParams.append('origen', params.origen)
+  if (params?.limite) searchParams.append('limite', params.limite.toString())
+  const qs = searchParams.toString()
+  const res = await fetch(`${API_URL}/calidad/scrap${qs ? `?${qs}` : ''}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener scrap')
+  return res.json()
+}
+
+export async function registrarScrap(token: string, data: {
+  sku_producto: string
+  nombre_producto?: string
+  lote_id?: string
+  cantidad: number
+  motivo?: string
+  origen: string
+  referencia?: string
+}): Promise<{ message: string; scrap_id: string }> {
+  const res = await fetch(`${API_URL}/calidad/scrap`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al registrar scrap')
+  }
+  return res.json()
+}
+
+export async function descargarPdfScrap(token: string, fecha?: string, sku?: string): Promise<void> {
+  const params = new URLSearchParams()
+  if (fecha) params.append('fecha', fecha)
+  if (sku) params.append('sku', sku)
+  const qs = params.toString()
+  const res = await fetch(`${API_URL}/calidad/scrap/pdf${qs ? `?${qs}` : ''}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al generar PDF de scrap')
+  const blob = await res.blob()
+  const url = window.URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `reporte_scrap.pdf`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  window.URL.revokeObjectURL(url)
 }

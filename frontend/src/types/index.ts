@@ -180,7 +180,7 @@ export interface RegistroParo {
 // ==========================================
 // AUTH
 // ==========================================
-export type RolUsuario = 'admin' | 'supervisor' | 'operador' | 'finanzas'
+export type RolUsuario = 'admin' | 'supervisor' | 'operador' | 'finanzas' | 'calidad'
 
 export interface LoginRequest {
   username: string
@@ -363,4 +363,82 @@ export interface FinanzasDashboard {
   valor_compras_mes:       number
   valor_ventas_mes:        number
   planes_venta_activos:    number
+}
+
+// ==========================================
+// CALIDAD — Inspecciones
+// ==========================================
+export interface PuntoResultado {
+  punto: string
+  especificacion?: string
+  resultado: string  // "Conforme" | "No Conforme"
+}
+
+export interface InspeccionCalidad {
+  id: number
+  inspeccion_id: string
+  lote_id?: string
+  sku_producto?: string
+  nombre_producto?: string
+  tipo_inspeccion: string
+  fecha?: string
+  inspector: string
+  resultado_final: string
+  resultados_puntos: PuntoResultado[]
+  oc_origen?: string
+  op_origen?: string
+  cantidad_inspeccionada: number
+  notas?: string
+  created_at?: string
+}
+
+// ==========================================
+// CALIDAD — Scrap
+// ==========================================
+export interface RegistroScrapItem {
+  id: number
+  scrap_id: string
+  fecha?: string
+  sku_producto: string
+  nombre_producto?: string
+  lote_id?: string
+  cantidad: number
+  motivo?: string
+  origen: string
+  referencia?: string
+  registrado_por?: string
+}
+
+// ==========================================
+// CALIDAD — Dashboard
+// ==========================================
+export interface CalidadDashboard {
+  total_inspecciones: number
+  inspecciones_hoy: number
+  iqc_total: number
+  iqc_aprobadas: number
+  iqc_rechazadas: number
+  lqc_total: number
+  lqc_aprobadas: number
+  lqc_rechazadas: number
+  oqc_total: number
+  oqc_aprobadas: number
+  oqc_rechazadas: number
+  dev_total: number
+  scrap_hoy: number
+  scrap_mes: number
+  tasa_aprobacion: number
+}
+
+// ==========================================
+// CALIDAD — Puntos de inspección (desde producto)
+// ==========================================
+export interface ProductoPuntosInspeccion {
+  sku: string
+  nombre: string
+  tipo: string
+  controles_calidad: string[]
+  puntos_inspeccion_iqc: Record<string, any>[]
+  puntos_inspeccion_lqc: Record<string, any>[]
+  puntos_inspeccion_oqc: Record<string, any>[]
 }

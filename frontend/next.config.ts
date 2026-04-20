@@ -111,6 +111,14 @@ const nextConfig: NextConfig = {
         { source: '/finanzas/compras/:id/pdf/',               destination: `${BACKEND}/finanzas/compras/:id/pdf/` },
         { source: '/finanzas',                                destination: `${BACKEND}/finanzas/` },
         { source: '/finanzas/:path*',                         destination: `${BACKEND}/finanzas/:path*` },
+
+        // ── CALIDAD ───────────────────────────────────────────────────
+        { source: '/calidad/inspecciones/:id/pdf',  destination: `${BACKEND}/calidad/inspecciones/:id/pdf` },
+        { source: '/calidad/inspecciones/:id/pdf/', destination: `${BACKEND}/calidad/inspecciones/:id/pdf/` },
+        { source: '/calidad/scrap/pdf',             destination: `${BACKEND}/calidad/scrap/pdf` },
+        { source: '/calidad/scrap/pdf/',            destination: `${BACKEND}/calidad/scrap/pdf/` },
+        { source: '/calidad',                       destination: `${BACKEND}/calidad/` },
+        { source: '/calidad/:path*',                destination: `${BACKEND}/calidad/:path*` },
       ],
 
       fallback: [],

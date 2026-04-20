@@ -5,22 +5,24 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 import DashboardTab from './DashboardTab';
-import ComprasTab from './ComprasTab';
-import VentasTab from './VentasTab';
+import IQCTab from './IQCTab';
+import LQCTab from './LQCTab';
+import OQCTab from './OQCTab';
 import DevolucionesTab from './DevolucionesTab';
-import PlanVentasTab from './PlanVentasTab';
-import ScannerIQCTab from './ScannerIQCTab';
+import HistorialTab from './HistorialTab';
+import ScrapTab from './ScrapTab';
 
 const TABS = [
-  { id: 'dashboard', label: '📊 Dashboard', icon: '📊' },
-  { id: 'compras', label: '🛒 Compras', icon: '🛒' },
-  { id: 'ventas', label: '💵 Ventas', icon: '💵' },
-  { id: 'plan-ventas', label: '📋 Plan Ventas', icon: '📋' },
-  { id: 'devoluciones', label: '🔄 Devoluciones', icon: '🔄' },
-  { id: 'scanner-iqc', label: '🔍 Scanner IQC', icon: '🔍' },
+  { id: 'dashboard',    label: '📊 Dashboard' },
+  { id: 'iqc',          label: '🔍 IQC' },
+  { id: 'lqc',          label: '🏭 LQC' },
+  { id: 'oqc',          label: '📦 OQC' },
+  { id: 'devoluciones', label: '🔄 Devoluciones' },
+  { id: 'historial',    label: '📋 Historial' },
+  { id: 'scrap',        label: '🗑️ Scrap' },
 ];
 
-export default function FinanzasPage() {
+export default function CalidadPage() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const { token, rol, username, logout, loading } = useAuth();
   const router = useRouter();
@@ -31,27 +33,26 @@ export default function FinanzasPage() {
       router.push('/login');
       return;
     }
-    if (rol && !['admin', 'finanzas'].includes(rol)) {
+    if (rol && !['admin', 'calidad'].includes(rol)) {
       router.push('/unauthorized');
     }
   }, [token, rol, router, loading]);
 
-  // Mostrar spinner mientras rehidrata auth
   if (loading) {
     return (
       <div className="fixed inset-0 bg-gray-950 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-400" />
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400" />
       </div>
     );
   }
 
-  if (!token || (rol && !['admin', 'finanzas'].includes(rol))) {
+  if (!token || (rol && !['admin', 'calidad'].includes(rol))) {
     return null;
   }
 
   const rolBadge: Record<string, { icon: string; color: string }> = {
-    admin: { icon: '👑', color: 'text-yellow-400' },
-    finanzas: { icon: '💰', color: 'text-emerald-400' },
+    admin:   { icon: '👑', color: 'text-yellow-400' },
+    calidad: { icon: '🔬', color: 'text-cyan-400' },
   };
   const badge = rolBadge[rol || ''] || { icon: '👤', color: 'text-gray-400' };
 
@@ -61,7 +62,7 @@ export default function FinanzasPage() {
       <header className="bg-gray-900 border-b border-gray-800 px-6 py-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           <img src="/Logo.png" alt="Logo" className="h-10 w-auto" />
-          <h1 className="text-xl font-bold">Panel de Compras y Ventas</h1>
+          <h1 className="text-xl font-bold">Panel de Calidad</h1>
         </div>
 
         <div className="flex items-center gap-3">
@@ -71,6 +72,15 @@ export default function FinanzasPage() {
           >
             🏭 Producción
           </Link>
+
+          {['admin', 'finanzas'].includes(rol || '') && (
+            <Link
+              href="/finanzas"
+              className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            >
+              💰 Compras
+            </Link>
+          )}
 
           {rol === 'admin' && (
             <Link
@@ -96,14 +106,14 @@ export default function FinanzasPage() {
 
       {/* Tabs */}
       <div className="bg-gray-900 border-b border-gray-800 px-6 shrink-0">
-        <div className="flex gap-1">
+        <div className="flex gap-1 overflow-x-auto">
           {TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-3 text-sm font-medium rounded-t-lg transition-colors ${
+              className={`px-4 py-3 text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
                 activeTab === tab.id
-                  ? 'bg-gray-950 text-emerald-400 border-b-2 border-emerald-400'
+                  ? 'bg-gray-950 text-cyan-400 border-b-2 border-cyan-400'
                   : 'text-gray-400 hover:text-white hover:bg-gray-800'
               }`}
             >
@@ -115,12 +125,13 @@ export default function FinanzasPage() {
 
       {/* Content */}
       <main className="flex-1 overflow-y-auto p-6">
-        {activeTab === 'dashboard' && <DashboardTab token={token} />}
-        {activeTab === 'compras' && <ComprasTab token={token} />}
-        {activeTab === 'ventas' && <VentasTab token={token} />}
-        {activeTab === 'plan-ventas' && <PlanVentasTab token={token} />}
+        {activeTab === 'dashboard'    && <DashboardTab token={token} />}
+        {activeTab === 'iqc'          && <IQCTab token={token} />}
+        {activeTab === 'lqc'          && <LQCTab token={token} />}
+        {activeTab === 'oqc'          && <OQCTab token={token} />}
         {activeTab === 'devoluciones' && <DevolucionesTab token={token} />}
-        {activeTab === 'scanner-iqc' && <ScannerIQCTab token={token} />}
+        {activeTab === 'historial'    && <HistorialTab token={token} />}
+        {activeTab === 'scrap'        && <ScrapTab token={token} />}
       </main>
     </div>
   );

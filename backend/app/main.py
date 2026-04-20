@@ -15,15 +15,15 @@ from app.services.turno_service import iniciar_scheduler
 from app.routers import admin as admin_router
 from app.routers import productos as productos_router
 from app.routers import finanzas as finanzas_router
+from app.routers import calidad as calidad_router
 
 logging.basicConfig(
-    level  = logging.INFO,
-    format = "%(asctime)s │ %(levelname)s │ %(name)s │ %(message)s",
+    level=logging.INFO,
+    format="%(asctime)s │ %(levelname)s │ %(name)s │ %(message)s",
 )
 logger = logging.getLogger(__name__)
 
 
-# ── Admin inicial ─────────────────────────────────────────────────────
 async def crear_admin_inicial() -> None:
     async with AsyncSessionLocal() as db:
         result = await db.execute(
@@ -31,20 +31,18 @@ async def crear_admin_inicial() -> None:
         )
         if not result.scalar_one_or_none():
             db.add(Usuario(
-                username        = "admin",
-                email           = "admin@planta.com",
-                hashed_password = get_password_hash("admin123"),
-                rol             = RolUsuario.admin,
-                activo          = True,
+                username="admin",
+                email="admin@planta.com",
+                hashed_password=get_password_hash("admin123"),
+                rol=RolUsuario.admin,
+                activo=True,
             ))
             await db.commit()
             logger.info("✅ Usuario admin creado: admin / admin123")
 
 
-# ── Lifespan ──────────────────────────────────────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # ── Startup ───────────────────────────────────────────────────────
     logger.info("🔧 Inicializando base de datos...")
     await init_db()
 
@@ -57,34 +55,31 @@ async def lifespan(app: FastAPI):
     logger.info("🚀 Backend listo")
     yield
 
-    # ── Shutdown ──────────────────────────────────────────────────────
     logger.info("🛑 Deteniendo scheduler...")
     scheduler.shutdown(wait=False)
     logger.info("👋 Backend detenido")
 
 
-# ── FastAPI app ───────────────────────────────────────────────────────
 app = FastAPI(
-    title            = "Sistema de Producción",
-    description      = "API para control de planta y generación de etiquetas",
-    version          = "1.0.0",
-    lifespan         = lifespan,
-    redirect_slashes = False,
+    title="Sistema de Producción",
+    description="API para control de planta y generación de etiquetas",
+    version="1.0.0",
+    lifespan=lifespan,
+    redirect_slashes=False,
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins = os.getenv(
+    allow_origins=os.getenv(
         "ALLOWED_ORIGINS",
         "http://localhost:3000,http://localhost:5050",
     ).split(","),
-    allow_credentials = True,
-    allow_methods     = ["*"],
-    allow_headers     = ["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-# ── Routers ───────────────────────────────────────────────────────────
-app.include_router(auth.router,       prefix="/api")
+app.include_router(auth.router,            prefix="/api")
 app.include_router(partes.router)
 app.include_router(etiquetas.router)
 app.include_router(produccion.router)
@@ -95,6 +90,7 @@ app.include_router(secado.router)
 app.include_router(admin_router.router)
 app.include_router(productos_router.router)
 app.include_router(finanzas_router.router)
+app.include_router(calidad_router.router)
 
 
 @app.get("/")

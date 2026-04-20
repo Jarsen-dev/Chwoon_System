@@ -1508,3 +1508,97 @@ async def limpiar_devoluciones_finalizadas(
     )
     await db.commit()
     return {"message": f"{result.rowcount} devoluciones finalizadas eliminadas (>{dias} días)"}
+
+
+@router.get("/lote/{lote_id}")
+@router.get("/lote/{lote_id}/")
+async def obtener_info_lote(
+    lote_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """
+    Busca info de lote por Lote ID (formato: YYYYMMDD-XXXX-N).
+    Extrae el SKU suffix y fecha para encontrar las recepciones correspondientes.
+    """
+    require_finanzas_role(current_user)
+
+    # Parsear el lote_id: YYYYMMDD-XXXX-N
+    partes = lote_id.split("-")
+    if len(partes) != 3:
+        raise HTTPException(status_code=400, detail="Formato de Lote ID inválido. Esperado: YYYYMMDD-XXXX-N")
+
+    fecha_str, sku_suffix, rec_count_str = partes
+
+    # Buscar recepciones donde el SKU termina con ese suffix
+    result = await db.execute(
+        select(RecepcionCompra).where(
+            RecepcionCompra.sku_producto.ilike(f"%{sku_suffix}")
+        ).order_by(RecepcionCompra.fecha_recepcion.desc())
+    )
+    recepciones = result.scalars().all()
+
+    if not recepciones:
+        raise HTTPException(status_code=404, detail=f"No se encontraron recepciones para el lote {lote_id}")
+
+    # Filtrar por fecha (las recepciones cuya fecha coincide con YYYYMMDD)
+    recepciones_filtradas = [
+        r for r in recepciones
+        if r.fecha_recepcion and r.fecha_recepcion.strftime("%Y%m%d") == fecha_str
+    ]
+
+    # Si no hay coincidencia exacta por fecha, usar todas las del suffix
+    recs_finales = recepciones_filtradas if recepciones_filtradas else recepciones
+
+    if not recs_finales:
+        raise HTTPException(status_code=404, detail=f"No se encontraron recepciones para el lote {lote_id}")
+
+    # Tomar la primera recepción para obtener datos de la OC
+    rec_principal = recs_finales[0]
+    sku_completo = rec_principal.sku_producto
+    oc_id = rec_principal.oc_id
+
+    # Buscar la orden de compra
+    oc_result = await db.execute(select(OrdenCompra).where(OrdenCompra.oc_id == oc_id))
+    orden = oc_result.scalar_one_or_none()
+
+    # Buscar el item de la OC para obtener nombre y precio
+    item = None
+    if orden:
+        item_result = await db.execute(
+            select(OrdenCompraItem).where(
+                and_(
+                    OrdenCompraItem.orden_compra_id == orden.id,
+                    OrdenCompraItem.sku_producto == sku_completo,
+                )
+            )
+        )
+        item = item_result.scalar_one_or_none()
+
+    # Calcular cantidad total recibida en este lote
+    cantidad_total = sum(r.cantidad_recibida for r in recs_finales if r.sku_producto == sku_completo)
+
+    return {
+        "lote_id": lote_id,
+        "sku_producto": sku_completo,
+        "nombre_producto": item.nombre_producto if item else None,
+        "oc_id": oc_id,
+        "nombre_proveedor": orden.nombre_proveedor if orden else None,
+        "cantidad_total_recibida": cantidad_total,
+        "cantidad_requerida": item.cantidad_requerida if item else None,
+        "precio_unitario": item.precio_unitario if item else None,
+        "moneda": item.moneda if item else "MXN",
+        "status_oc": orden.status if orden else None,
+        "total_recepciones": len(recs_finales),
+        "recepciones": [
+            {
+                "recepcion_id": r.recepcion_id,
+                "cantidad_recibida": r.cantidad_recibida,
+                "fecha_recepcion": r.fecha_recepcion.isoformat() if r.fecha_recepcion else None,
+                "recibido_por": r.recibido_por,
+                "notas": r.notas,
+            }
+            for r in recs_finales
+            if r.sku_producto == sku_completo
+        ],
+    }

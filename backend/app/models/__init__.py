@@ -11,6 +11,8 @@ from app.models.orden_compra import OrdenCompra, OrdenCompraItem, RecepcionCompr
 from app.models.orden_venta import OrdenVenta, OrdenVentaItem, EnvioVenta
 from app.models.devolucion import Devolucion
 from app.models.plan_ventas import PlanVentas
+from app.models.inspeccion import Inspeccion
+from app.models.registro_scrap import RegistroScrap
 
 __all__ = [
     "Parte",
@@ -21,6 +23,7 @@ __all__ = [
     "Anomalia",
     "RegistroParo",
     "Usuario",
+    "Producto",
     "OrdenCompra",
     "OrdenCompraItem",
     "RecepcionCompra",
@@ -28,5 +31,7 @@ __all__ = [
     "OrdenVentaItem",
     "EnvioVenta",
     "Devolucion",
-    "PlanVentas"
+    "PlanVentas",
+    "Inspeccion",
+    "RegistroScrap",
 ]
