@@ -7,9 +7,7 @@ const nextConfig: NextConfig = {
     const BACKEND = 'http://backend:8000'
 
     return {
-      // ── beforeFiles: se evalúan ANTES del filesystem de Next.js ───
       beforeFiles: [
-        // PDF de producción (colisiona con /produccion/page.tsx)
         {
           source:      '/produccion/registros/pdf',
           destination: `${BACKEND}/produccion/registros/pdf`,
@@ -18,8 +16,6 @@ const nextConfig: NextConfig = {
           source:      '/produccion/registros/pdf/',
           destination: `${BACKEND}/produccion/registros/pdf/`,
         },
-
-        // Excel de secado
         {
           source:      '/secado/registros/excel',
           destination: `${BACKEND}/secado/registros/excel`,
@@ -28,8 +24,6 @@ const nextConfig: NextConfig = {
           source:      '/secado/registros/excel/',
           destination: `${BACKEND}/secado/registros/excel/`,
         },
-
-        // Registros de secado
         {
           source:      '/secado/registros',
           destination: `${BACKEND}/secado/registros/`,
@@ -38,8 +32,6 @@ const nextConfig: NextConfig = {
           source:      '/secado/registros/',
           destination: `${BACKEND}/secado/registros/`,
         },
-
-        // Escanear secado
         {
           source:      '/secado/escanear',
           destination: `${BACKEND}/secado/escanear/`,
@@ -50,7 +42,6 @@ const nextConfig: NextConfig = {
         },
       ],
 
-      // ── afterFiles: se evalúan DESPUÉS del filesystem ─────────────
       afterFiles: [
         // Auth
         { source: '/api/:path*',                    destination: `${BACKEND}/api/:path*` },
@@ -87,7 +78,7 @@ const nextConfig: NextConfig = {
         { source: '/produccion/ws/:path*',          destination: `${BACKEND}/produccion/ws/:path*` },
         { source: '/produccion/:path*',             destination: `${BACKEND}/produccion/:path*` },
 
-        // Secado — resto dinámico
+        // Secado
         { source: '/secado',                        destination: `${BACKEND}/secado/` },
         { source: '/secado/:path*',                 destination: `${BACKEND}/secado/:path*` },
 
@@ -119,6 +110,10 @@ const nextConfig: NextConfig = {
         { source: '/calidad/scrap/pdf/',            destination: `${BACKEND}/calidad/scrap/pdf/` },
         { source: '/calidad',                       destination: `${BACKEND}/calidad/` },
         { source: '/calidad/:path*',                destination: `${BACKEND}/calidad/:path*` },
+
+        // ── ALMACÉN ──────────────────────────────────────────────────
+        { source: '/almacen',                       destination: `${BACKEND}/almacen/` },
+        { source: '/almacen/:path*',                destination: `${BACKEND}/almacen/:path*` },
       ],
 
       fallback: [],

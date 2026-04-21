@@ -82,3 +82,15 @@ async def get_current_calidad(
             detail="Se requiere rol administrador o calidad",
         )
     return current_user
+
+
+async def get_current_almacen(
+    current_user: Usuario = Depends(get_current_user),
+) -> Usuario:
+    """Permite acceso solo a usuarios con rol admin o almacen."""
+    if current_user.rol not in [RolUsuario.admin, RolUsuario.almacen]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Se requiere rol administrador o almacén",
+        )
+    return current_user

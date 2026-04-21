@@ -5,6 +5,7 @@ const RUTAS_PROTEGIDAS: Record<string, string[]> = {
   '/admin':    ['admin'],
   '/finanzas': ['admin', 'finanzas'],
   '/calidad':  ['admin', 'calidad'],
+  '/almacen':  ['admin', 'almacen'],
 }
 
 export function middleware(request: NextRequest) {
@@ -50,5 +51,6 @@ export const config = {
     '/admin/:path*',
     '/finanzas/:path*',
     '/calidad/:path*',
+    '/almacen/:path*',
   ],
 }

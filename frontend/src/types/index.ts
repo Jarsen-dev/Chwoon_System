@@ -180,7 +180,7 @@ export interface RegistroParo {
 // ==========================================
 // AUTH
 // ==========================================
-export type RolUsuario = 'admin' | 'supervisor' | 'operador' | 'finanzas' | 'calidad'
+export type RolUsuario = 'admin' | 'supervisor' | 'operador' | 'finanzas' | 'calidad' | 'almacen'
 
 export interface LoginRequest {
   username: string
@@ -441,4 +441,152 @@ export interface ProductoPuntosInspeccion {
   puntos_inspeccion_iqc: Record<string, any>[]
   puntos_inspeccion_lqc: Record<string, any>[]
   puntos_inspeccion_oqc: Record<string, any>[]
+}
+
+// ==========================================
+// ALMACÉN — Ubicaciones
+// ==========================================
+export interface UbicacionAlmacen {
+  id: number
+  nombre: string
+  parent_id?: number | null
+}
+
+// ==========================================
+// ALMACÉN — Lotes de Inventario
+// ==========================================
+export interface LoteInventario {
+  id: number
+  lote_id: string
+  sku_producto: string
+  cantidad_actual: number
+  cantidad_inicial: number
+  ubicacion_id?: number | null
+  nombre_ubicacion?: string
+  nombre_producto?: string
+  tipo_producto?: string
+  clase_producto?: string
+  fecha_recepcion?: string
+  oc_origen?: string
+  op_origen?: string
+  ov_origen?: string
+  estado_calidad: string
+  carrito_id?: string
+  lote_produccion_origen?: string
+  motivo_devolucion?: string
+}
+
+// ==========================================
+// ALMACÉN — Movimientos de Lote
+// ==========================================
+export interface MovimientoLote {
+  id: number
+  lote_id: string
+  fecha?: string
+  tipo: string
+  cantidad: number
+  detalles: Record<string, any>
+}
+
+// ==========================================
+// ALMACÉN — Inventario Consolidado
+// ==========================================
+export interface InventarioConsolidado {
+  sku: string
+  nombre?: string
+  tipo?: string
+  clase_producto?: string
+  stock_total: number
+  stock_por_ubicacion_agregado: Record<string, number>
+  stock_por_ubicacion_detalle: Record<string, number>
+  en_compra: number
+  en_produccion: number
+}
+
+// ==========================================
+// ALMACÉN — Embarques
+// ==========================================
+export interface EmbarqueItem {
+  lote_id: string
+  sku: string
+  cantidad: number
+}
+
+export interface EmbarqueAlmacen {
+  id: number
+  numero_embarque: string
+  ov_id: string
+  cliente_id?: string
+  fecha_creacion?: string
+  status: string
+  items: EmbarqueItem[]
+  camion?: string
+  chofer?: string
+  departure?: string
+  sku?: string
+  nombre_producto?: string
+  creado_por?: string
+}
+
+// ==========================================
+// ALMACÉN — Traslados a Producción
+// ==========================================
+export interface TrasladoProduccionItem {
+  sku_componente: string
+  cantidad_requerida: number
+  cantidad_movida: number
+}
+
+export interface TrasladoProduccion {
+  id: number
+  id_traslado: string
+  op_id_origen: string
+  linea_produccion_destino?: string
+  fecha_creacion?: string
+  status: string
+  items: TrasladoProduccionItem[]
+  historial: any[]
+  creado_por?: string
+}
+
+// ==========================================
+// ALMACÉN — Reporte Embarques
+// ==========================================
+export interface ReporteEmbarqueItem {
+  item_id: string
+  sku: string
+  cantidad_solicitada: number
+  cantidad_enviada: number
+  diferencia: number
+  porcentaje_en_transito: string
+  total_embarcado_dia: number
+  embarques_por_hora: Record<string, number>
+}
+
+// ==========================================
+// ALMACÉN — Dashboard
+// ==========================================
+export interface AlmacenDashboard {
+  total_lotes: number
+  lotes_sin_ubicacion: number
+  total_ubicaciones: number
+  total_embarques: number
+  embarques_surtidos: number
+  embarques_en_transito: number
+  embarques_entregados: number
+  traslados_pendientes: number
+  traslados_en_proceso: number
+  traslados_completados: number
+  stock_total_items: number
+  lotes_eps: number
+}
+
+// ==========================================
+// ALMACÉN — Trazabilidad
+// ==========================================
+export interface TrazabilidadLote {
+  info_lote?: Record<string, any>
+  movimientos?: Record<string, any>[]
+  origen?: Record<string, any>
+  error?: string
 }

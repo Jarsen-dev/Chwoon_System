@@ -80,6 +80,12 @@ export default function FinanzasPage() {
                 🔬 Calidad
               </Link>
               <Link
+                href="/almacen"
+                className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              >
+                📦 Almacén
+              </Link>
+              <Link
                 href="/admin"
                 className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
               >

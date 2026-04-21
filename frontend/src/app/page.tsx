@@ -430,6 +430,12 @@ export default function ProduccionPage() {
           )}
 
           {rol === 'admin' && (
+            <Link href="/almacen" className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors">
+              📦 Almacén
+            </Link>
+          )}
+
+          {rol === 'admin' && (
             <Link href="/admin" className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors">
               👑 Admin
             </Link>

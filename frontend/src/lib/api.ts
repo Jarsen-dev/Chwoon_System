@@ -22,6 +22,15 @@ import {
   InspeccionCalidad,
   RegistroScrapItem,
   ProductoPuntosInspeccion,
+  AlmacenDashboard,
+  UbicacionAlmacen,
+  LoteInventario,
+  MovimientoLote as MovimientoLoteType,
+  InventarioConsolidado,
+  EmbarqueAlmacen,
+  TrasladoProduccion,
+  ReporteEmbarqueItem,
+  TrazabilidadLote,
 } from '@/types'
 
 const API_URL = ''
@@ -990,4 +999,417 @@ export async function descargarPdfScrap(token: string, fecha?: string, sku?: str
   a.click()
   document.body.removeChild(a)
   window.URL.revokeObjectURL(url)
+}
+
+// ==========================================
+// ALMACÉN — Dashboard
+// ==========================================
+export async function getAlmacenDashboard(token: string): Promise<AlmacenDashboard> {
+  const res = await fetch(`${API_URL}/almacen/dashboard`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener dashboard de almacén')
+  return res.json()
+}
+
+// ==========================================
+// ALMACÉN — Ubicaciones
+// ==========================================
+export async function getUbicaciones(token: string): Promise<UbicacionAlmacen[]> {
+  const res = await fetch(`${API_URL}/almacen/ubicaciones`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener ubicaciones')
+  return res.json()
+}
+
+export async function crearUbicacion(token: string, data: { nombre: string; parent_id?: number | null }): Promise<UbicacionAlmacen> {
+  const res = await fetch(`${API_URL}/almacen/ubicaciones`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al crear ubicación')
+  }
+  return res.json()
+}
+
+export async function actualizarUbicacion(token: string, id: number, nombre: string): Promise<UbicacionAlmacen> {
+  const res = await fetch(`${API_URL}/almacen/ubicaciones/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ nombre }),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al actualizar ubicación')
+  }
+  return res.json()
+}
+
+export async function eliminarUbicacion(token: string, id: number): Promise<{ message: string }> {
+  const res = await fetch(`${API_URL}/almacen/ubicaciones/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al eliminar ubicación')
+  }
+  return res.json()
+}
+
+export async function importarUbicaciones(token: string, file: File): Promise<{ message: string }> {
+  const fd = new FormData()
+  fd.append('file', file)
+  const res = await fetch(`${API_URL}/almacen/ubicaciones/importar`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: fd,
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al importar ubicaciones')
+  }
+  return res.json()
+}
+
+// ==========================================
+// ALMACÉN — Inventario de Lotes
+// ==========================================
+export async function getLotesInventario(
+  token: string,
+  params?: { estado?: string; sku?: string; ubicacion_id?: number }
+): Promise<LoteInventario[]> {
+  const sp = new URLSearchParams()
+  if (params?.estado) sp.append('estado', params.estado)
+  if (params?.sku) sp.append('sku', params.sku)
+  if (params?.ubicacion_id) sp.append('ubicacion_id', params.ubicacion_id.toString())
+  const qs = sp.toString()
+  const res = await fetch(`${API_URL}/almacen/inventario${qs ? `?${qs}` : ''}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener inventario')
+  return res.json()
+}
+
+export async function getInventarioConsolidado(token: string): Promise<InventarioConsolidado[]> {
+  const res = await fetch(`${API_URL}/almacen/inventario/consolidado`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener inventario consolidado')
+  return res.json()
+}
+
+export async function getLotesAprobadosSinUbicacion(token: string): Promise<LoteInventario[]> {
+  const res = await fetch(`${API_URL}/almacen/inventario/aprobados-sin-ubicacion`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener lotes aprobados')
+  return res.json()
+}
+
+export async function getHistorialLote(token: string, loteId: string): Promise<MovimientoLoteType[]> {
+  const res = await fetch(`${API_URL}/almacen/inventario/${encodeURIComponent(loteId)}/historial`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener historial del lote')
+  return res.json()
+}
+
+export async function transferirLotes(token: string, transferencias: {
+  lote_id: string; sku_producto: string; destino_id: number; destino_nombre: string
+}[]): Promise<{ message: string; traslado_id: string }> {
+  const res = await fetch(`${API_URL}/almacen/inventario/transferir`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ transferencias }),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al transferir lotes')
+  }
+  return res.json()
+}
+
+export async function ajustarLote(token: string, loteId: string, data: {
+  nueva_cantidad: number; motivo: string; responsable: string
+}): Promise<{ message: string }> {
+  const res = await fetch(`${API_URL}/almacen/inventario/${encodeURIComponent(loteId)}/ajustar`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al ajustar lote')
+  }
+  return res.json()
+}
+
+export async function scrapInventario(token: string, loteId: string, data: {
+  cantidad_scrap: number; motivo: string; responsable: string
+}): Promise<{ message: string }> {
+  const res = await fetch(`${API_URL}/almacen/inventario/${encodeURIComponent(loteId)}/scrap`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al registrar scrap')
+  }
+  return res.json()
+}
+
+export async function transferirEntreUbicaciones(token: string, data: {
+  sku: string; nombre_producto: string; cantidad: number; origen_nombre: string; destino_nombre: string
+}): Promise<{ message: string; nuevo_lote_id: string }> {
+  const res = await fetch(`${API_URL}/almacen/inventario/transferir-entre-ubicaciones`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al transferir entre ubicaciones')
+  }
+  return res.json()
+}
+
+export async function consumirFifo(token: string, data: {
+  sku: string; cantidad: number; detalles?: Record<string, any>; ubicacion_priorizada?: string
+}): Promise<{ message: string; plan: any[] }> {
+  const res = await fetch(`${API_URL}/almacen/inventario/consumir-fifo`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al consumir FIFO')
+  }
+  return res.json()
+}
+
+// ==========================================
+// ALMACÉN — Embarques
+// ==========================================
+export async function getEmbarques(token: string, status?: string): Promise<EmbarqueAlmacen[]> {
+  const params = status ? `?status=${status}` : ''
+  const res = await fetch(`${API_URL}/almacen/embarques${params}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener embarques')
+  return res.json()
+}
+
+export async function crearEmbarque(token: string, data: {
+  ov_id: string; items: { lote_id: string; sku: string; cantidad: number }[]
+}): Promise<{ message: string; numero_embarque: string }> {
+  const res = await fetch(`${API_URL}/almacen/embarques`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al crear embarque')
+  }
+  return res.json()
+}
+
+export async function registrarSalidaEmbarque(token: string, numero: string, data: {
+  camion: string; chofer: string; departure: string
+}): Promise<{ message: string }> {
+  const res = await fetch(`${API_URL}/almacen/embarques/${numero}/salida`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al registrar salida')
+  }
+  return res.json()
+}
+
+export async function confirmarEntregaEmbarque(token: string, numero: string): Promise<{ message: string }> {
+  const res = await fetch(`${API_URL}/almacen/embarques/${numero}/confirmar-entrega`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al confirmar entrega')
+  }
+  return res.json()
+}
+
+// ==========================================
+// ALMACÉN — Traslados a Producción
+// ==========================================
+export async function getTrasladosProduccion(token: string, status?: string): Promise<TrasladoProduccion[]> {
+  const params = status ? `?status=${status}` : ''
+  const res = await fetch(`${API_URL}/almacen/traslados-produccion${params}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener traslados')
+  return res.json()
+}
+
+export async function getHistorialTrasladosProduccion(token: string): Promise<TrasladoProduccion[]> {
+  const res = await fetch(`${API_URL}/almacen/traslados-produccion/historial`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener historial de traslados')
+  return res.json()
+}
+
+export async function crearTrasladoProduccion(token: string, data: {
+  op_id: string; plan_de_consumo: { sku: string; cantidad: number }[]; linea_produccion?: string
+}): Promise<{ message: string; id_traslado: string }> {
+  const res = await fetch(`${API_URL}/almacen/traslados-produccion`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al crear traslado')
+  }
+  return res.json()
+}
+
+export async function ejecutarMovimientoParcial(token: string, trasladoId: string, data: {
+  movimientos: { sku: string; cantidad_a_mover: number }[]; autorizador: string
+}): Promise<{ message: string; nuevo_status: string }> {
+  const res = await fetch(`${API_URL}/almacen/traslados-produccion/${trasladoId}/ejecutar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al ejecutar movimiento')
+  }
+  return res.json()
+}
+
+// ==========================================
+// ALMACÉN — EPS
+// ==========================================
+export async function getUbicacionesEPS(token: string): Promise<UbicacionAlmacen[]> {
+  const res = await fetch(`${API_URL}/almacen/eps/ubicaciones`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener ubicaciones EPS')
+  return res.json()
+}
+
+export async function getInventarioEPS(token: string): Promise<LoteInventario[]> {
+  const res = await fetch(`${API_URL}/almacen/eps/inventario`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener inventario EPS')
+  return res.json()
+}
+
+export async function ingresarCarritoEPS(token: string, data: {
+  op_id: string; carrito_id: string; ubicacion_id: number; ubicacion_nombre: string
+}): Promise<{ message: string; traslado_id: string }> {
+  const res = await fetch(`${API_URL}/almacen/eps/ingresar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al ingresar carrito')
+  }
+  return res.json()
+}
+
+export async function getHistorialMovimientosEPS(token: string): Promise<any[]> {
+  const res = await fetch(`${API_URL}/almacen/eps/historial-movimientos`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener historial EPS')
+  return res.json()
+}
+
+// ==========================================
+// ALMACÉN — Trazabilidad
+// ==========================================
+export async function getTrazabilidad(token: string, loteId: string): Promise<TrazabilidadLote> {
+  const res = await fetch(`${API_URL}/almacen/trazabilidad/${encodeURIComponent(loteId)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener trazabilidad')
+  return res.json()
+}
+
+// ==========================================
+// ALMACÉN — Reporte Embarques
+// ==========================================
+export async function getReporteEmbarques(token: string, fecha: string, clase?: string): Promise<ReporteEmbarqueItem[]> {
+  const sp = new URLSearchParams({ fecha })
+  if (clase) sp.append('clase', clase)
+  const res = await fetch(`${API_URL}/almacen/reporte-embarques?${sp.toString()}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener reporte de embarques')
+  return res.json()
+}
+
+// ==========================================
+// ALMACÉN — Historial de Traslados IQC
+// ==========================================
+export async function getHistorialTraslados(token: string): Promise<any[]> {
+  const res = await fetch(`${API_URL}/almacen/traslados-historial`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener historial de traslados')
+  return res.json()
+}
+
+// ==========================================
+// ALMACÉN — Limpieza (solo admin)
+// ==========================================
+export async function limpiarEmbarquesEntregados(token: string, dias: number = 90): Promise<{ message: string }> {
+  const res = await fetch(`${API_URL}/almacen/limpiar/embarques-entregados?dias=${dias}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al limpiar')
+  }
+  return res.json()
+}
+
+export async function limpiarTrasladosCompletados(token: string, dias: number = 90): Promise<{ message: string }> {
+  const res = await fetch(`${API_URL}/almacen/limpiar/traslados-completados?dias=${dias}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al limpiar')
+  }
+  return res.json()
+}
+
+export async function limpiarMovimientosAntiguos(token: string, dias: number = 180): Promise<{ message: string }> {
+  const res = await fetch(`${API_URL}/almacen/limpiar/movimientos-antiguos?dias=${dias}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al limpiar')
+  }
+  return res.json()
 }

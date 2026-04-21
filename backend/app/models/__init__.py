@@ -13,6 +13,10 @@ from app.models.devolucion import Devolucion
 from app.models.plan_ventas import PlanVentas
 from app.models.inspeccion import Inspeccion
 from app.models.registro_scrap import RegistroScrap
+from app.models.ubicacion import Ubicacion
+from app.models.lote_inventario import LoteInventario, MovimientoLote
+from app.models.embarque import Embarque
+from app.models.orden_traslado import OrdenTraslado, OrdenTrasladoProduccion
 
 __all__ = [
     "Parte",
@@ -34,4 +38,10 @@ __all__ = [
     "PlanVentas",
     "Inspeccion",
     "RegistroScrap",
+    "Ubicacion",
+    "LoteInventario",
+    "MovimientoLote",
+    "Embarque",
+    "OrdenTraslado",
+    "OrdenTrasladoProduccion",
 ]
