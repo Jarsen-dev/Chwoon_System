@@ -280,7 +280,7 @@ export default function EtiquetasTab() {
                 return item ? (
                   <div className="mt-2 p-2 bg-blue-50 rounded text-xs text-blue-700 border border-blue-100">
                     <span className="font-semibold">Línea:</span> {item.linea} &nbsp;|&nbsp;
-                    <span className="font-semibold">QTU:</span> {item.qtu} &nbsp;|&nbsp;
+                    <span className="font-semibold">QTY:</span> {item.qtu} &nbsp;|&nbsp;
                     <span className="font-semibold">Cliente:</span> {item.linea_lg}
                   </div>
                 ) : null

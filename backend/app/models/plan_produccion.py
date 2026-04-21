@@ -6,7 +6,7 @@ class PlanProduccion(Base):
     __tablename__ = "planes_produccion"
     
     id = Column(Integer, primary_key=True)
-    numero_parte = Column(String(50), ForeignKey("partes.numero_parte"), unique=True)
+    numero_parte = Column(String, ForeignKey('inventario_planta.codigo'))
     meta_piezas = Column(Integer)
     turno_objetivo = Column(String(10))
     estado = Column(String(20), default="pendiente")

@@ -222,9 +222,10 @@ export default function PartesTab() {
     setIsImporting(true)
     try {
       const result = await importarExcelInventario(file)
+      const total = (result.creados || 0) + (result.actualizados || 0)
       setModalInfo({
         title: '¡Importación Exitosa!',
-        message: `Se importaron/actualizaron ${result.count} partes correctamente.`,
+        message: `Se importaron ${result.creados || 0} y actualizaron ${result.actualizados || 0} partes (${total} total).`,
         type: 'success',
       })
       loadInventario()

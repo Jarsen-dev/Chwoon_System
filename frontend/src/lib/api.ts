@@ -69,7 +69,7 @@ export async function deleteInventario(codigo: string): Promise<void> {
 
 export async function importarExcelInventario(
   file: File
-): Promise<{ message: string; count: number }> {
+): Promise<{ message: string; creados: number; actualizados: number; errores?: string[] }> {
   const formData = new FormData()
   formData.append('file', file)
 

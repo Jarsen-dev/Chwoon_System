@@ -91,9 +91,13 @@ async def importar_excel(
     contents = await file.read()
     df = pd.read_excel(io.BytesIO(contents))
 
-    # --- NORMALIZAR COLUMNAS ---
+    # Eliminar columnas duplicadas
+    df = df.loc[:, ~df.columns.duplicated()]
+
+    # Normalizar nombres de columnas
     df.columns = (
         df.columns
+        .astype(str)
         .str.strip()
         .str.lower()
         .str.replace(' ', '_')
@@ -108,7 +112,8 @@ async def importar_excel(
         .str.replace('.', '')
     )
 
-    # Mapeo de variantes comunes → nombre esperado
+    # Mapeo de variantes
+        # Mapeo de variantes
     column_map = {
         'n_parte': 'codigo',
         'no_parte': 'codigo',
@@ -120,7 +125,6 @@ async def importar_excel(
         'no__parte': 'codigo',
         'description': 'descripcion',
         'maquina': 'linea',
-        'line': 'linea',
         'type': 'tipo',
         'qty': 'qtu',
         'quantity': 'qtu',
@@ -131,52 +135,88 @@ async def importar_excel(
         'link': 'ayuda_visual',
     }
 
+    # Si existe 'maquina' Y 'line', entonces line = tipo (no linea)
+    if 'maquina' in df.columns and 'line' in df.columns:
+        column_map['line'] = 'tipo'
+    elif 'line' in df.columns:
+        column_map['line'] = 'linea'
+
     df.rename(columns={k: v for k, v in column_map.items() if k in df.columns}, inplace=True)
 
-    # Validar columna obligatoria
+    # Eliminar duplicados post-rename
+    df = df.loc[:, ~df.columns.duplicated()]
+
+    # Log columnas para debug
+    print(f"COLUMNAS DETECTADAS: {list(df.columns)}")
+
     if 'codigo' not in df.columns:
         raise HTTPException(
             status_code=400,
             detail=f"Columna 'codigo' no encontrada. Columnas detectadas: {list(df.columns)}"
         )
 
-    # Columnas esperadas
     columnas = ['codigo', 'descripcion', 'linea', 'tipo', 'qtu', 'linea_lg', 'ayuda_visual']
+
+    def safe_val(val, col):
+        """Extrae valor seguro, maneja Series, NaN, None"""
+        if isinstance(val, pd.Series):
+            val = val.iloc[0]
+        if val is None:
+            return '' if col != 'qtu' else 0
+        try:
+            if pd.isna(val):
+                return '' if col != 'qtu' else 0
+        except (ValueError, TypeError):
+            pass
+        if col == 'qtu':
+            try:
+                return int(float(val))
+            except (ValueError, TypeError):
+                return 0
+        return str(val).strip()
 
     registros_creados = 0
     registros_actualizados = 0
+    errores = []
 
-    for _, row in df.iterrows():
-        codigo = str(row['codigo']).strip()
-        if not codigo or codigo == 'nan':
+    for idx, row in df.iterrows():
+        try:
+            codigo = safe_val(row.get('codigo', None), 'codigo')
+            if not codigo or codigo == 'nan' or codigo == 'None':
+                continue
+
+            result = await db.execute(
+                select(InventarioPlanta).where(InventarioPlanta.codigo == codigo)
+            )
+            existing = result.scalar_one_or_none()
+
+            if existing:
+                for col in columnas:
+                    if col != 'codigo':
+                        val = row.get(col, None) if col in df.columns else None
+                        setattr(existing, col, safe_val(val, col))
+                registros_actualizados += 1
+            else:
+                data = {}
+                for col in columnas:
+                    if col in df.columns:
+                        data[col] = safe_val(row.get(col, None), col)
+                    else:
+                        data[col] = '' if col != 'qtu' else 0
+                item = InventarioPlanta(**data)
+                db.add(item)
+                registros_creados += 1
+
+        except Exception as e:
+            errores.append(f"Fila {idx + 2}: {str(e)}")
             continue
 
-        result = await db.execute(
-            select(InventarioPlanta).where(InventarioPlanta.codigo == codigo)
-        )
-        existing = result.scalar_one_or_none()
-
-        if existing:
-            for col in columnas:
-                if col != 'codigo' and col in df.columns:
-                    val = row[col]
-                    if pd.isna(val):
-                        val = None
-                    setattr(existing, col, val)
-            registros_actualizados += 1
-        else:
-            data = {}
-            for col in columnas:
-                if col in df.columns:
-                    val = row[col]
-                    data[col] = None if pd.isna(val) else val
-            item = InventarioPlanta(**data)
-            db.add(item)
-            registros_creados += 1
-
     await db.commit()
-    return {
+    resultado = {
         "message": "Importación exitosa",
         "creados": registros_creados,
         "actualizados": registros_actualizados
     }
+    if errores:
+        resultado["errores"] = errores[:10]
+    return resultado
