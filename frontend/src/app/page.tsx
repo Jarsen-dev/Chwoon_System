@@ -14,16 +14,19 @@ import {
 
 import { RegistroConMeta } from './produccion/helpers'
 
-import HomeDashboardTab from './produccion/HomeDashboardTab'
-import ScannerTab       from './produccion/ScannerTab'
-import DashboardTab     from './produccion/DashboardTab'
-import PlanTab          from './produccion/PlanTab'
-import PredictionTab    from './produccion/PredictionTab'
-import AnomaliesTab     from './produccion/AnomaliesTab'
-import CuartoSecadoTab  from './produccion/CuartoSecadoTab'
-import PartesTab        from './produccion/PartesTab'
-import ProductosTab     from './produccion/ProductosTab'
-import EtiquetasTab     from './produccion/EtiquetasTab'
+import HomeDashboardTab    from './produccion/HomeDashboardTab'
+import ScannerTab          from './produccion/ScannerTab'
+import DashboardTab        from './produccion/DashboardTab'
+import PlanTab             from './produccion/PlanTab'
+import PredictionTab       from './produccion/PredictionTab'
+import AnomaliesTab        from './produccion/AnomaliesTab'
+import CuartoSecadoTab     from './produccion/CuartoSecadoTab'
+import ProductosTab        from './produccion/ProductosTab'
+import EtiquetasTab        from './produccion/EtiquetasTab'
+import OrdenesProduccionTab from './produccion/OrdenesProduccionTab'
+import PreExpansionTab     from './produccion/PreExpansionTab'
+import InyeccionTab        from './produccion/InyeccionTab'
+import EnsambleTab         from './produccion/EnsambleTab'
 
 // ── Tipos ─────────────────────────────────────────────────────────
 
@@ -53,17 +56,22 @@ function getFechaTurno(): string {
 
 // ── Tabs config ──────────────────────────────────────────────────
 const ALL_TABS = [
-  { id: 'home',          label: '🏠 Inicio',         roles: ['admin','supervisor','operador','calidad'] },
-  { id: 'captura',       label: '📷 Captura',        roles: ['admin','supervisor','operador','calidad'] },
-  { id: 'dashboard',     label: '📊 Dashboard',      roles: ['admin','supervisor','operador','calidad'] },
-  { id: 'partes',        label: '⚙️ Partes',         roles: ['admin','supervisor','operador'] },
-  { id: 'productos',     label: '📦 Productos',      roles: ['admin','supervisor','operador'] },
-  { id: 'etiquetas',     label: '🖨️ Etiquetas',      roles: ['admin','supervisor','operador'] },
-  { id: 'plan',          label: '📋 Plan Prod.',     roles: ['admin','supervisor'] },
-  { id: 'prediccion',    label: '🤖 Predicción IA',  roles: ['admin','supervisor'] },
-  { id: 'anomalias',     label: '🚨 Anomalías',      roles: ['admin','supervisor'] },
-  { id: 'cuarto_secado', label: '🌡️ Cuarto Secado',  roles: ['admin','supervisor','operador'] },
+  { id: 'home',              label: '🏠 Inicio',           roles: ['admin','supervisor','operador','calidad'] },
+  { id: 'captura',           label: '📷 Captura',          roles: ['admin','supervisor','operador','calidad'] },
+  { id: 'dashboard',         label: '📊 Dashboard',        roles: ['admin','supervisor','operador','calidad'] },
+  { id: 'ordenes',           label: '📋 Órdenes Prod.',    roles: ['admin','supervisor','operador'] },
+  { id: 'pre_expansion',     label: '🔥 Pre-Expansión',    roles: ['admin','supervisor','operador'] },
+  { id: 'inyeccion',         label: '💉 Inyección',        roles: ['admin','supervisor','operador'] },
+  { id: 'ensamble',          label: '🔧 Ensamble',         roles: ['admin','supervisor','operador'] },
+  { id: 'productos',         label: '📦 Productos',        roles: ['admin','supervisor','operador'] },
+  { id: 'etiquetas',         label: '🖨️ Etiquetas',        roles: ['admin','supervisor','operador'] },
+  { id: 'plan',              label: '📋 Plan Prod.',       roles: ['admin','supervisor'] },
+  { id: 'prediccion',        label: '🤖 Predicción IA',    roles: ['admin','supervisor'] },
+  { id: 'anomalias',         label: '🚨 Anomalías',        roles: ['admin','supervisor'] },
+  { id: 'cuarto_secado',     label: '🌡️ Cuarto Secado',    roles: ['admin','supervisor','operador'] },
 ]
+
+const DEFAULT_PINNED = ['home', 'captura', 'dashboard', 'productos', 'etiquetas']
 
 const ROL_BADGE: Record<string, { icon: string; color: string }> = {
   admin:      { icon: '👑', color: 'text-yellow-400' },
@@ -71,6 +79,28 @@ const ROL_BADGE: Record<string, { icon: string; color: string }> = {
   operador:   { icon: '🟢', color: 'text-green-400'  },
   calidad:    { icon: '🔬', color: 'text-cyan-400'   },
   finanzas:   { icon: '💰', color: 'text-emerald-400' },
+}
+
+// ── Pinned tabs persistence ──────────────────────────────────────
+function getPinnedKey(user: string) {
+  return `pinnedTabs_${user}`
+}
+
+function loadPinnedTabs(user: string): string[] {
+  if (typeof window === 'undefined') return DEFAULT_PINNED
+  try {
+    const stored = localStorage.getItem(getPinnedKey(user))
+    if (stored) {
+      const parsed = JSON.parse(stored)
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed
+    }
+  } catch {}
+  return DEFAULT_PINNED
+}
+
+function savePinnedTabs(user: string, pinned: string[]) {
+  if (typeof window === 'undefined') return
+  localStorage.setItem(getPinnedKey(user), JSON.stringify(pinned))
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -81,6 +111,9 @@ export default function ProduccionPage() {
   // ── UI ──────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState('home')
   const [wsStatus, setWsStatus]   = useState<'conectado'|'desconectado'|'conectando'>('desconectado')
+  const [menuOpen, setMenuOpen]   = useState(false)
+  const [pinnedTabs, setPinnedTabs] = useState<string[]>(DEFAULT_PINNED)
+  const menuRef = useRef<HTMLDivElement>(null)
 
   // ── Scanner state ──────────────────────────────────────────────
   const [registros,  setRegistros]  = useState<RegistroConMeta[]>([])
@@ -112,6 +145,26 @@ export default function ProduccionPage() {
   const inputValueRef = useRef('')
   const tokenRef      = useRef<string|null>(null)
   const [scannerKey, setScannerKey] = useState(0)
+
+  // ── Load pinned tabs per user ──────────────────────────────────
+  useEffect(() => {
+    if (username) {
+      setPinnedTabs(loadPinnedTabs(username))
+    }
+  }, [username])
+
+  // ── Close menu on outside click ────────────────────────────────
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false)
+      }
+    }
+    if (menuOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [menuOpen])
 
   // ── Auth guard ─────────────────────────────────────────────────
   useEffect(() => {
@@ -173,6 +226,23 @@ export default function ProduccionPage() {
     }, 1_000)
     return () => clearInterval(i)
   }, [activeTab])
+
+  // ── Pin/Unpin handler ──────────────────────────────────────────
+  const togglePin = (tabId: string) => {
+    setPinnedTabs(prev => {
+      const next = prev.includes(tabId)
+        ? prev.filter(id => id !== tabId)
+        : [...prev, tabId]
+      if (username) savePinnedTabs(username, next)
+      return next
+    })
+  }
+
+  // ── Select tab from menu ───────────────────────────────────────
+  const selectTabFromMenu = (tabId: string) => {
+    setActiveTab(tabId)
+    setMenuOpen(false)
+  }
 
   // ── WebSocket ──────────────────────────────────────────────────
   const conectarWebSocket = () => {
@@ -366,6 +436,9 @@ export default function ProduccionPage() {
   const tabs = ALL_TABS.filter(t => t.roles.includes(rol ?? ''))
   const badge = ROL_BADGE[rol || ''] || { icon: '👤', color: 'text-gray-400' }
 
+  // Pinned tabs filtered by role access
+  const pinnedVisibleTabs = tabs.filter(t => pinnedTabs.includes(t.id))
+
   const wsStatusConfig = {
     conectado:    { label: 'Conectado',    dot: 'bg-green-400',  badge: 'bg-green-900/40  text-green-300  border-green-700'  },
     desconectado: { label: 'Desconectado', dot: 'bg-red-400',    badge: 'bg-red-900/40    text-red-300    border-red-700'    },
@@ -418,9 +491,14 @@ export default function ProduccionPage() {
 
           {/* Nav links */}
           {['admin', 'finanzas'].includes(rol || '') && (
-            <Link href="/finanzas" className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors">
-              💰 Compras
-            </Link>
+            <>
+              <Link href="/compras" className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors">
+                🛒 Compras
+              </Link>
+              <Link href="/ventas" className="bg-violet-600 hover:bg-violet-700 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors">
+                💵 Ventas
+              </Link>
+            </>
           )}
 
           {['admin', 'calidad'].includes(rol || '') && (
@@ -454,22 +532,133 @@ export default function ProduccionPage() {
         </div>
       </header>
 
-      {/* ═══ TABS ═══ */}
-      <div className="bg-gray-900 border-b border-gray-800 px-6 shrink-0">
-        <div className="flex gap-1 overflow-x-auto">
-          {tabs.map(tab => (
+      {/* ═══ TABS BAR (Hamburger + Pinned Shortcuts) ═══ */}
+      <div className="bg-gray-900 border-b border-gray-800 px-4 shrink-0">
+        <div className="flex items-center gap-1">
+
+          {/* ── Hamburger Button + Dropdown ── */}
+          <div className="relative" ref={menuRef}>
             <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-3 text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
-                activeTab === tab.id
-                  ? 'bg-white text-blue-600 border-b-2 border-blue-600'
+              onClick={() => setMenuOpen(prev => !prev)}
+              className={`flex items-center justify-center w-10 h-10 rounded-lg transition-colors ${
+                menuOpen
+                  ? 'bg-blue-600 text-white'
                   : 'text-gray-400 hover:text-white hover:bg-gray-800'
               }`}
+              title="Menú de módulos"
             >
-              {tab.label}
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                {menuOpen ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                )}
+              </svg>
             </button>
-          ))}
+
+            {/* ── Dropdown Menu (3 columns) ── */}
+            {menuOpen && (
+              <div className="absolute top-full left-0 mt-2 z-50 bg-gray-800 border border-gray-700 rounded-xl shadow-2xl p-4 min-w-[480px]">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-3 pb-3 border-b border-gray-700">
+                  <span className="text-sm font-semibold text-gray-300">📂 Módulos</span>
+                </div>
+
+                {/* 3-column grid */}
+                <div className="grid grid-cols-3 gap-1">
+                  {tabs.map(tab => {
+                    const isPinned = pinnedTabs.includes(tab.id)
+                    const isActive = activeTab === tab.id
+                    return (
+                      <div
+                        key={tab.id}
+                        className={`flex items-center gap-2 px-3 py-2.5 rounded-lg cursor-pointer transition-all group ${
+                          isActive
+                            ? 'bg-blue-600/20 border border-blue-500/40'
+                            : 'hover:bg-gray-700/60 border border-transparent'
+                        }`}
+                      >
+                        {/* Tab button */}
+                        <button
+                          onClick={() => selectTabFromMenu(tab.id)}
+                          className={`flex-1 text-left text-sm font-medium truncate transition-colors ${
+                            isActive
+                              ? 'text-blue-300'
+                              : 'text-gray-300 group-hover:text-white'
+                          }`}
+                          title={tab.label}
+                        >
+                          {tab.label}
+                        </button>
+
+                        {/* Pin toggle */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            togglePin(tab.id)
+                          }}
+                          className={`flex-shrink-0 w-6 h-6 flex items-center justify-center rounded transition-all ${
+                            isPinned
+                              ? 'text-blue-400 hover:text-blue-300 bg-blue-500/20'
+                              : 'text-gray-600 hover:text-gray-400 hover:bg-gray-700'
+                          }`}
+                          title={isPinned ? 'Quitar de acceso rápido' : 'Añadir a acceso rápido'}
+                        >
+                          <svg
+                            className={`w-3.5 h-3.5 transition-transform ${isPinned ? 'rotate-0' : 'rotate-45'}`}
+                            fill={isPinned ? 'currentColor' : 'none'}
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            strokeWidth={2}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M16 3l-4 4-4-1-3 3 4 4-2 6 6-2 4 4 3-3-1-4 4-4z"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* Footer hint */}
+                <div className="mt-3 pt-3 border-t border-gray-700 flex items-center gap-2 text-xs text-gray-500">
+                  <svg className="w-3.5 h-3.5 text-blue-400" fill="currentColor" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16 3l-4 4-4-1-3 3 4 4-2 6 6-2 4 4 3-3-1-4 4-4z" />
+                  </svg>
+                  <span>Haz clic en el pin para fijar o quitar accesos rápidos</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ── Divider ── */}
+          <div className="w-px h-8 bg-gray-700 mx-1" />
+
+          {/* ── Pinned Shortcut Tabs ── */}
+          <div className="flex gap-1 overflow-x-auto flex-1 py-1">
+            {pinnedVisibleTabs.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-4 py-2.5 text-sm font-medium rounded-lg transition-all whitespace-nowrap ${
+                  activeTab === tab.id
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+
+            {pinnedVisibleTabs.length === 0 && (
+              <span className="text-gray-600 text-sm italic flex items-center px-3">
+                Abre el menú ☰ para fijar accesos rápidos
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -497,9 +686,12 @@ export default function ProduccionPage() {
             cargarDashboard={cargarDashboard}
           />
         )}
-        {activeTab === 'partes' && <PartesTab />}
-        {activeTab === 'productos' && <ProductosTab />}
-        {activeTab === 'etiquetas' && <EtiquetasTab />}
+        {activeTab === 'ordenes'        && <OrdenesProduccionTab />}
+        {activeTab === 'pre_expansion'  && <PreExpansionTab />}
+        {activeTab === 'inyeccion'      && <InyeccionTab />}
+        {activeTab === 'ensamble'       && <EnsambleTab />}
+        {activeTab === 'productos'      && <ProductosTab />}
+        {activeTab === 'etiquetas'      && <EtiquetasTab />}
         {activeTab === 'plan' && (
           <PlanTab planes={planes} onRefresh={cargarPlan} onGoToTab={setActiveTab} />
         )}

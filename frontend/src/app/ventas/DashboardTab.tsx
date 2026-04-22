@@ -13,8 +13,8 @@ function StatCard({
   label,
   value,
   badge,
-  badgeColor = 'text-emerald-400',
-  borderColor = 'border-emerald-500/30',
+  badgeColor = 'text-violet-400',
+  borderColor = 'border-violet-500/30',
   valueColor = 'text-white',
 }: {
   icon: string;
@@ -69,7 +69,7 @@ export default function DashboardTab({ token }: Props) {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-400" />
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-violet-400" />
       </div>
     );
   }
@@ -92,57 +92,20 @@ export default function DashboardTab({ token }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Dashboard</h2>
+          <h2 className="text-2xl font-bold">Dashboard de Ventas</h2>
           <p className="text-gray-400 text-sm">
-            Resumen financiero — {new Date().toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            Resumen de ventas — {new Date().toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </p>
         </div>
         <button
           onClick={fetchData}
-          className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+          className="bg-violet-600 hover:bg-violet-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
         >
           🔄 Actualizar
         </button>
       </div>
 
-      {/* Fila 1: Compras */}
-      <div>
-        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">🛒 Compras</h3>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <StatCard
-            icon="📦"
-            label="Total Órdenes de Compra"
-            value={data.total_oc}
-            badge={`${data.oc_pendientes} pendientes`}
-            badgeColor="text-yellow-400"
-            borderColor="border-blue-500/30"
-          />
-          <StatCard
-            icon="✅"
-            label="OC Completadas"
-            value={data.oc_completadas}
-            borderColor="border-green-500/30"
-            valueColor="text-green-400"
-          />
-          <StatCard
-            icon="⏳"
-            label="OC Pendientes/Parciales"
-            value={data.oc_pendientes}
-            borderColor="border-yellow-500/30"
-            valueColor="text-yellow-400"
-          />
-          <StatCard
-            icon="💰"
-            label="Valor Compras (Mes)"
-            value={formatCurrency(data.valor_compras_mes)}
-            badge="Mes actual"
-            borderColor="border-purple-500/30"
-            valueColor="text-purple-400"
-          />
-        </div>
-      </div>
-
-      {/* Fila 2: Ventas */}
+      {/* Ventas */}
       <div>
         <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">💵 Ventas</h3>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -152,7 +115,7 @@ export default function DashboardTab({ token }: Props) {
             value={data.total_ov}
             badge={`${data.ov_pendientes} pendientes`}
             badgeColor="text-orange-400"
-            borderColor="border-emerald-500/30"
+            borderColor="border-violet-500/30"
           />
           <StatCard
             icon="🚚"
@@ -173,13 +136,13 @@ export default function DashboardTab({ token }: Props) {
             label="Valor Ventas (Mes)"
             value={formatCurrency(data.valor_ventas_mes)}
             badge="Mes actual"
-            borderColor="border-emerald-500/30"
-            valueColor="text-emerald-400"
+            borderColor="border-violet-500/30"
+            valueColor="text-violet-400"
           />
         </div>
       </div>
 
-      {/* Fila 3: Devoluciones y Plan */}
+      {/* Devoluciones y Plan */}
       <div>
         <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">🔄 Devoluciones & Plan</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

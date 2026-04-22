@@ -17,6 +17,7 @@ from app.models.ubicacion import Ubicacion
 from app.models.lote_inventario import LoteInventario, MovimientoLote
 from app.models.embarque import Embarque
 from app.models.orden_traslado import OrdenTraslado, OrdenTrasladoProduccion
+from app.models.orden_produccion import OrdenProduccion
 
 __all__ = [
     "Parte",
@@ -44,4 +45,5 @@ __all__ = [
     "Embarque",
     "OrdenTraslado",
     "OrdenTrasladoProduccion",
+    "OrdenProduccion",
 ]

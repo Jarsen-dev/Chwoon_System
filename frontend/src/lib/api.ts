@@ -31,6 +31,8 @@ import {
   TrasladoProduccion,
   ReporteEmbarqueItem,
   TrazabilidadLote,
+  OrdenProduccion as OrdenProduccionType,
+  OrdenUnificada,
 } from '@/types'
 
 const API_URL = ''
@@ -1410,6 +1412,227 @@ export async function limpiarMovimientosAntiguos(token: string, dias: number = 1
   if (!res.ok) {
     const err = await res.json()
     throw new Error(err.detail || 'Error al limpiar')
+  }
+  return res.json()
+}
+
+// ==========================================
+// ÓRDENES DE PRODUCCIÓN
+// ==========================================
+export async function getOrdenesProduccion(
+  token: string,
+  params?: { clase?: string; status?: string; activas?: boolean; limite?: number }
+): Promise<OrdenProduccionType[]> {
+  const sp = new URLSearchParams()
+  if (params?.clase) sp.append('clase', params.clase)
+  if (params?.status) sp.append('status', params.status)
+  if (params?.activas !== undefined) sp.append('activas', params.activas.toString())
+  if (params?.limite) sp.append('limite', params.limite.toString())
+  const qs = sp.toString()
+  const res = await fetch(`${API_URL}/ordenes-produccion${qs ? `?${qs}` : ''}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener órdenes de producción')
+  return res.json()
+}
+
+export async function getOrdenesUnificadas(
+  token: string,
+  activas: boolean = true
+): Promise<OrdenUnificada[]> {
+  const res = await fetch(`${API_URL}/ordenes-produccion/unificadas?activas=${activas}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener órdenes unificadas')
+  return res.json()
+}
+
+export async function getOrdenProduccion(token: string, opId: string): Promise<OrdenProduccionType> {
+  const res = await fetch(`${API_URL}/ordenes-produccion/${encodeURIComponent(opId)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener orden de producción')
+  return res.json()
+}
+
+// Pre-Expansión
+export async function iniciarPreExpansion(token: string, data: {
+  sku_producto_resina: string; sku_materia_prima: string
+  cantidad_a_producir: number; cantidad_usada: number
+  operador: string; ubicacion_destino?: string
+}): Promise<{ message: string; op_id: string }> {
+  const res = await fetch(`${API_URL}/ordenes-produccion/pre-expansion/iniciar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al iniciar pre-expansión')
+  }
+  return res.json()
+}
+
+export async function registrarProduccionParcial(token: string, opId: string, data: {
+  cantidad_parcial_producida: number
+}): Promise<{ message: string; op_id: string; cantidad_total_producida: number; cantidad_total_consumida: number }> {
+  const res = await fetch(`${API_URL}/ordenes-produccion/pre-expansion/${encodeURIComponent(opId)}/produccion-parcial`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al registrar producción parcial')
+  }
+  return res.json()
+}
+
+export async function finalizarPreExpansion(token: string, opId: string, data?: {
+  ubicacion_destino_final?: string
+}): Promise<{ message: string; op_id: string; lote_inventario_generado?: string }> {
+  const res = await fetch(`${API_URL}/ordenes-produccion/pre-expansion/${encodeURIComponent(opId)}/finalizar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data || {}),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al finalizar pre-expansión')
+  }
+  return res.json()
+}
+
+// Inyección
+export async function iniciarInyeccion(token: string, data: {
+  sku_producto: string; cantidad_a_producir: number
+  cantidad_carrito?: number; operador: string; linea_produccion?: string
+}): Promise<{ message: string; op_id: string; status: string }> {
+  const res = await fetch(`${API_URL}/ordenes-produccion/inyeccion/iniciar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al iniciar inyección')
+  }
+  return res.json()
+}
+
+export async function registrarPiezaInyeccion(token: string, opId: string, data?: {
+  cantidad?: number; entrada_scanner?: string
+}): Promise<{ message: string; cantidad_producida: number; carrito_completado: boolean; numero_carrito: number }> {
+  const res = await fetch(`${API_URL}/ordenes-produccion/inyeccion/${encodeURIComponent(opId)}/pieza`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data || {}),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al registrar pieza')
+  }
+  return res.json()
+}
+
+export async function finalizarInyeccion(token: string, opId: string, data?: {
+  scrap_data?: any[]
+}): Promise<{ message: string; op_id: string; lote_inventario_generado?: string }> {
+  const res = await fetch(`${API_URL}/ordenes-produccion/inyeccion/${encodeURIComponent(opId)}/finalizar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data || {}),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al finalizar inyección')
+  }
+  return res.json()
+}
+
+// Ensamble (ASSY)
+export async function iniciarAssy(token: string, data: {
+  sku_producto: string; cantidad_a_producir: number
+  cantidad_carrito?: number; operador: string; linea_produccion?: string
+  uph_esperado?: number; metodo_conteo?: string
+}): Promise<{ message: string; op_id: string; status: string; componentes_faltantes?: any[] }> {
+  const res = await fetch(`${API_URL}/ordenes-produccion/assy/iniciar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al iniciar ensamble')
+  }
+  return res.json()
+}
+
+export async function registrarPiezaAssy(token: string, opId: string, data?: {
+  cantidad?: number; entrada_scanner?: string
+}): Promise<{ message: string; cantidad_producida: number; carrito_completado: boolean; numero_carrito: number }> {
+  const res = await fetch(`${API_URL}/ordenes-produccion/assy/${encodeURIComponent(opId)}/pieza`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data || {}),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al registrar pieza')
+  }
+  return res.json()
+}
+
+export async function finalizarAssy(token: string, opId: string, data?: {
+  scrap_data?: any[]
+}): Promise<{ message: string; op_id: string; lote_inventario_generado?: string }> {
+  const res = await fetch(`${API_URL}/ordenes-produccion/assy/${encodeURIComponent(opId)}/finalizar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data || {}),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al finalizar ensamble')
+  }
+  return res.json()
+}
+
+// Surtir material pendiente (cualquier clase)
+export async function surtirMaterialPendiente(token: string, opId: string): Promise<{ message: string; op_id: string; status: string }> {
+  const res = await fetch(`${API_URL}/ordenes-produccion/${encodeURIComponent(opId)}/surtir-material`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al surtir material')
+  }
+  return res.json()
+}
+
+// Paros
+export async function iniciarParoOP(token: string, opId: string, motivo: string): Promise<{ message: string; paro_id: string }> {
+  const res = await fetch(`${API_URL}/ordenes-produccion/${encodeURIComponent(opId)}/paro/iniciar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ motivo }),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al iniciar paro')
+  }
+  return res.json()
+}
+
+export async function finalizarParoOP(token: string, opId: string): Promise<{ message: string; duracion_segundos: number }> {
+  const res = await fetch(`${API_URL}/ordenes-produccion/${encodeURIComponent(opId)}/paro/finalizar`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al finalizar paro')
   }
   return res.json()
 }

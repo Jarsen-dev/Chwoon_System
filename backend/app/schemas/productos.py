@@ -20,6 +20,7 @@ class ProductoBase(BaseModel):
     cliente_asociado: Optional[str] = ""
     linea_produccion: Optional[str] = ""
     ubicacion: Optional[str] = ""
+    linea_lg: Optional[str] = ""
     status: Optional[str] = "Activo"
     controles_calidad: Optional[List[str]] = []
     puntos_inspeccion_iqc: Optional[List[Dict[str, Any]]] = []
@@ -45,6 +46,7 @@ class ProductoUpdate(BaseModel):
     cliente_asociado: Optional[str] = None
     linea_produccion: Optional[str] = None
     ubicacion: Optional[str] = None
+    linea_lg: Optional[str] = None
     status: Optional[str] = None
     controles_calidad: Optional[List[str]] = None
     puntos_inspeccion_iqc: Optional[List[Dict[str, Any]]] = None

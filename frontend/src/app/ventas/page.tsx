@@ -5,22 +5,18 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 import DashboardTab from './DashboardTab';
-import ComprasTab from './ComprasTab';
 import VentasTab from './VentasTab';
-import DevolucionesTab from './DevolucionesTab';
 import PlanVentasTab from './PlanVentasTab';
-import ScannerIQCTab from './ScannerIQCTab';
+import DevolucionesTab from './DevolucionesTab';
 
 const TABS = [
   { id: 'dashboard', label: '📊 Dashboard', icon: '📊' },
-  { id: 'compras', label: '🛒 Compras', icon: '🛒' },
   { id: 'ventas', label: '💵 Ventas', icon: '💵' },
   { id: 'plan-ventas', label: '📋 Plan Ventas', icon: '📋' },
   { id: 'devoluciones', label: '🔄 Devoluciones', icon: '🔄' },
-  { id: 'scanner-iqc', label: '🔍 Scanner IQC', icon: '🔍' },
 ];
 
-export default function FinanzasPage() {
+export default function VentasPage() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const { token, rol, username, logout, loading } = useAuth();
   const router = useRouter();
@@ -39,7 +35,7 @@ export default function FinanzasPage() {
   if (loading) {
     return (
       <div className="fixed inset-0 bg-gray-950 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-400" />
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-violet-400" />
       </div>
     );
   }
@@ -60,7 +56,7 @@ export default function FinanzasPage() {
       <header className="bg-gray-900 border-b border-gray-800 px-6 py-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           <img src="/Logo.png" alt="Logo" className="h-10 w-auto" />
-          <h1 className="text-xl font-bold">Panel de Compras y Ventas</h1>
+          <h1 className="text-xl font-bold">Panel de Ventas</h1>
         </div>
 
         <div className="flex items-center gap-3">
@@ -70,6 +66,15 @@ export default function FinanzasPage() {
           >
             🏭 Producción
           </Link>
+
+          {['admin', 'finanzas'].includes(rol || '') && (
+            <Link
+              href="/compras"
+              className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            >
+              🛒 Compras
+            </Link>
+          )}
 
           {rol === 'admin' && (
             <>
@@ -116,7 +121,7 @@ export default function FinanzasPage() {
               onClick={() => setActiveTab(tab.id)}
               className={`px-4 py-3 text-sm font-medium rounded-t-lg transition-colors ${
                 activeTab === tab.id
-                  ? 'bg-gray-950 text-emerald-400 border-b-2 border-emerald-400'
+                  ? 'bg-gray-950 text-violet-400 border-b-2 border-violet-400'
                   : 'text-gray-400 hover:text-white hover:bg-gray-800'
               }`}
             >
@@ -129,11 +134,9 @@ export default function FinanzasPage() {
       {/* Content */}
       <main className="flex-1 overflow-y-auto p-6">
         {activeTab === 'dashboard' && <DashboardTab token={token} />}
-        {activeTab === 'compras' && <ComprasTab token={token} />}
         {activeTab === 'ventas' && <VentasTab token={token} />}
         {activeTab === 'plan-ventas' && <PlanVentasTab token={token} />}
         {activeTab === 'devoluciones' && <DevolucionesTab token={token} />}
-        {activeTab === 'scanner-iqc' && <ScannerIQCTab token={token} />}
       </main>
     </div>
   );

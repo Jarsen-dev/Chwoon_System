@@ -17,6 +17,7 @@ from app.routers import productos as productos_router
 from app.routers import finanzas as finanzas_router
 from app.routers import calidad as calidad_router
 from app.routers import almacen as almacen_router
+from app.routers import ordenes_produccion as ordenes_produccion_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -93,6 +94,7 @@ app.include_router(productos_router.router)
 app.include_router(finanzas_router.router)
 app.include_router(calidad_router.router)
 app.include_router(almacen_router.router)
+app.include_router(ordenes_produccion_router.router)
 
 
 @app.get("/")

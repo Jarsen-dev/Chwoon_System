@@ -3,7 +3,8 @@ import type { NextRequest } from 'next/server'
 
 const RUTAS_PROTEGIDAS: Record<string, string[]> = {
   '/admin':    ['admin'],
-  '/finanzas': ['admin', 'finanzas'],
+  '/compras':  ['admin', 'finanzas'],
+  '/ventas':   ['admin', 'finanzas'],
   '/calidad':  ['admin', 'calidad'],
   '/almacen':  ['admin', 'almacen'],
 }
@@ -49,7 +50,8 @@ export const config = {
   matcher: [
     '/',
     '/admin/:path*',
-    '/finanzas/:path*',
+    '/compras/:path*',
+    '/ventas/:path*',
     '/calidad/:path*',
     '/almacen/:path*',
   ],

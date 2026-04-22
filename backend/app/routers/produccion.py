@@ -13,6 +13,7 @@ from app.models.registro_produccion import RegistroProduccion
 from app.models.plan_produccion     import PlanProduccion
 from app.models.anomalia            import Anomalia
 from app.models.inventario          import InventarioPlanta
+from app.models.producto            import Producto
 from app.models.registro_paro       import RegistroParo
 from app.schemas.produccion import (
     RegistroProduccion     as RegistroSchema,
@@ -422,11 +423,11 @@ async def websocket_scanner(
             payload = decode_token(token)
             if payload:
                 usuario_ws = payload.get("sub") or "desconocido"
-            print(f"✅ WS conectado | usuario: {usuario_ws}")  # ← debug
+            print(f"✅ WS conectado | usuario: {usuario_ws}")
         except Exception as e:
             print(f"Error decodificando token WS: {e}")
     else:
-        print("⚠️  WS conectado SIN token")   # ← debug
+        print("⚠️  WS conectado SIN token")
 
     try:
         while True:
@@ -436,11 +437,11 @@ async def websocket_scanner(
             numero_carrito_qr = None
 
             if '?' in codigo_raw:
-                partes = codigo_raw.split('?')
-                codigo = partes[0].strip().upper()
-                if len(partes) >= 4:
+                partes_qr = codigo_raw.split('?')
+                codigo = partes_qr[0].strip().upper()
+                if len(partes_qr) >= 4:
                     try:
-                        numero_carrito_qr = int(partes[3].strip())
+                        numero_carrito_qr = int(partes_qr[3].strip())
                     except (ValueError, IndexError):
                         numero_carrito_qr = None
             else:
@@ -451,22 +452,38 @@ async def websocket_scanner(
 
             async with AsyncSessionLocal() as db:
 
-                # ── Buscar en inventario ───────────────────────────────
+                # ── Buscar en productos (primero) o inventario (fallback) ──
                 result = await db.execute(
-                    select(InventarioPlanta).where(InventarioPlanta.codigo == codigo)
+                    select(Producto).where(Producto.sku == codigo)
                 )
-                inventario = result.scalar_one_or_none()
+                producto_found = result.scalar_one_or_none()
 
-                if not inventario:
-                    await websocket.send_json({
-                        "type":    "error",
-                        "message": f"Código '{codigo}' no encontrado en inventario",
-                    })
-                    continue
+                if producto_found:
+                    inventario_codigo      = producto_found.sku
+                    inventario_descripcion = producto_found.nombre or producto_found.descripcion or ""
+                    inventario_linea       = producto_found.linea_produccion or "Sin máquina"
+                    inventario_qtu         = producto_found.cantidad_carrito or 1
+                else:
+                    result = await db.execute(
+                        select(InventarioPlanta).where(InventarioPlanta.codigo == codigo)
+                    )
+                    inv_item = result.scalar_one_or_none()
+
+                    if not inv_item:
+                        await websocket.send_json({
+                            "type":    "error",
+                            "message": f"Código '{codigo}' no encontrado",
+                        })
+                        continue
+
+                    inventario_codigo      = inv_item.codigo
+                    inventario_descripcion = inv_item.descripcion or ""
+                    inventario_linea       = inv_item.linea or "Sin máquina"
+                    inventario_qtu         = int(inv_item.qtu or 1)
 
                 # ── Hora y turno LOCAL ────────────────────────────────
                 ahora     = _ahora_local()
-                fecha_str = get_fecha_turno()    # fecha correcta del turno
+                fecha_str = get_fecha_turno()
                 hora_str  = ahora.strftime("%H:%M:%S")
                 turno     = obtener_turno()
 
@@ -490,7 +507,7 @@ async def websocket_scanner(
                         })
                         continue
 
-                qty_bolsa = int(inventario.qtu or 1)
+                qty_bolsa = inventario_qtu
 
                 carrito_numero = (
                     numero_carrito_qr
@@ -506,9 +523,9 @@ async def websocket_scanner(
                     fecha           = fecha_str,
                     hora            = hora_str,
                     turno           = turno,
-                    maquina         = inventario.linea or "Sin máquina",
-                    numero_parte    = inventario.codigo,
-                    descripcion     = inventario.descripcion,
+                    maquina         = inventario_linea,
+                    numero_parte    = inventario_codigo,
+                    descripcion     = inventario_descripcion,
                     carrito_numero  = carrito_numero,
                     qty_bolsa       = qty_bolsa,
                     total_acumulado = total_acumulado,
@@ -547,7 +564,7 @@ async def websocket_scanner(
 
                 manager.ultimo_escaneo[codigo] = ahora
 
-                maquina = inventario.linea or "Sin máquina"
+                maquina = inventario_linea
                 if maquina != "Sin máquina":
                     if maquina in manager.tiempos_maquina:
                         gap = (ahora - manager.tiempos_maquina[maquina]).total_seconds()

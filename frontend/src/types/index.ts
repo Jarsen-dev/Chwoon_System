@@ -43,6 +43,7 @@ export interface ProductoItem {
   cliente_asociado:          string
   linea_produccion:          string
   ubicacion:                 string
+  linea_lg:                  string
   status:                    string
   controles_calidad:         string[]
   puntos_inspeccion_iqc:     Record<string, any>[]
@@ -65,6 +66,7 @@ export interface ProductoCreate {
   cliente_asociado?:          string
   linea_produccion?:          string
   ubicacion?:                 string
+  linea_lg?:                  string
   caracteristicas_inyeccion?: CaracteristicasInyeccion
 }
 
@@ -80,6 +82,7 @@ export interface ProductoUpdate {
   cliente_asociado?:          string
   linea_produccion?:          string
   ubicacion?:                 string
+  linea_lg?:                  string
   status?:                    string
   controles_calidad?:         string[]
   puntos_inspeccion_iqc?:     Record<string, any>[]
@@ -589,4 +592,65 @@ export interface TrazabilidadLote {
   movimientos?: Record<string, any>[]
   origen?: Record<string, any>
   error?: string
+}
+
+// ==========================================
+// ÓRDENES DE PRODUCCIÓN
+// ==========================================
+export interface OrdenProduccion {
+  id: number
+  op_id: string
+  clase_produccion: string  // PRE-EXPANSION | INYECCION | ASSY
+  sku_producto: string
+  nombre_producto: string
+  linea_produccion?: string
+  cantidad_a_producir: number
+  cantidad_producida: number
+  cantidad_carrito: number
+  operador?: string
+  status: string
+  fecha_inicio?: string
+  fecha_fin?: string
+
+  // Pre-Expansión
+  sku_materia_prima?: string
+  cantidad_usada_requerida: number
+  cantidad_total_consumida: number
+  ubicacion_destino?: string
+  lote_inventario_generado?: string
+
+  // Inyección
+  uph_esperado: number
+  metodo_conteo?: string
+
+  // JSON
+  registros_parciales: any[]
+  material_consumido: any[]
+  paros: ParoProduccion[]
+  etiquetas_generadas: any[]
+  scrap_reportado: any[]
+  componentes_consumidos: Record<string, any>
+
+  creado_por?: string
+}
+
+export interface ParoProduccion {
+  id: string
+  motivo: string
+  inicio: string
+  fin?: string
+  duracion_segundos: number
+  status: string  // Activo | Finalizado
+}
+
+export interface OrdenUnificada {
+  id: string
+  tipo: string
+  sku: string
+  nombre: string
+  progreso: string
+  status: string
+  fecha?: string
+  linea?: string
+  operador?: string
 }

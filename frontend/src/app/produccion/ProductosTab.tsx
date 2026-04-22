@@ -34,6 +34,7 @@ const PROVEEDORES = ['SOLARPOL (HYUNDAI)', 'LG', 'CHEONG WOON', 'PLASTIC MANAGEM
 const CLIENTES_ASOCIADOS = ['HANWHA', 'LG ELECTRONICS']
 const ID_PROCESOS = ['ASSY', 'VENTA', 'CORTE']
 const TIPOS_RESINA = ['EPS', 'EPP']
+const LINEAS_LG = ['R1', 'R2', 'BOSCH', 'EPS']
 
 export default function ProductosTab() {
   const [productos, setProductos] = useState<ProductoItem[]>([])
@@ -59,6 +60,7 @@ export default function ProductosTab() {
     cliente_asociado: '',
     linea_produccion: '',
     ubicacion: '',
+    linea_lg: '',
   })
   const [editing, setEditing] = useState<string | null>(null)
   const [showInyeccion, setShowInyeccion] = useState(false)
@@ -192,6 +194,7 @@ export default function ProductosTab() {
                 cliente_asociado: formData.cliente_asociado,
                 linea_produccion: formData.linea_produccion,
                 ubicacion: formData.ubicacion,
+                linea_lg: formData.linea_lg,
             }
         if (showInyeccion) {
             updatePayload.caracteristicas_inyeccion = {
@@ -225,6 +228,7 @@ export default function ProductosTab() {
                 cliente_asociado: formData.cliente_asociado,
                 linea_produccion: formData.linea_produccion,
                 ubicacion: formData.ubicacion,
+                linea_lg: formData.linea_lg,
             }
         if (showInyeccion) {
             createPayload.caracteristicas_inyeccion = {
@@ -266,6 +270,7 @@ export default function ProductosTab() {
       cliente_asociado: item.cliente_asociado,
       linea_produccion: item.linea_produccion,
       ubicacion: item.ubicacion,
+      linea_lg: item.linea_lg || '',
     })
     if (item.caracteristicas_inyeccion && Object.keys(item.caracteristicas_inyeccion).length > 0) {
       setInyeccionData({
@@ -322,6 +327,7 @@ export default function ProductosTab() {
       cliente_asociado: '',
       linea_produccion: '',
       ubicacion: '',
+      linea_lg: '',
     })
     setInyeccionData({
       id_proceso: '',
@@ -938,6 +944,10 @@ export default function ProductosTab() {
                   <p>{detalleModal.ubicacion || '—'}</p>
                 </div>
                 <div>
+                  <span className="font-semibold text-gray-600">Línea LG:</span>
+                  <p>{detalleModal.linea_lg || '—'}</p>
+                </div>
+                <div>
                   <span className="font-semibold text-gray-600">Cantidad/Carrito:</span>
                   <p>{detalleModal.cantidad_carrito}</p>
                 </div>
@@ -1149,6 +1159,19 @@ export default function ProductosTab() {
               onChange={(e) => setFormData({ ...formData, ubicacion: e.target.value })}
               className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-200 focus:outline-none"
             />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Línea LG</label>
+            <select
+              value={formData.linea_lg}
+              onChange={(e) => setFormData({ ...formData, linea_lg: e.target.value })}
+              className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-200 focus:outline-none"
+            >
+              <option value="">-- Seleccionar --</option>
+              {LINEAS_LG.map((l) => (
+                <option key={l} value={l}>{l}</option>
+              ))}
+            </select>
           </div>
           <div className="md:col-span-3">
             <label className="block text-sm font-semibold text-gray-700 mb-1">Descripción</label>
@@ -1420,6 +1443,7 @@ export default function ProductosTab() {
               <th className="p-3 text-left font-semibold text-slate-700">Nombre</th>
               <th className="p-3 text-center font-semibold text-slate-700">Tipo</th>
               <th className="p-3 text-center font-semibold text-slate-700">Clase</th>
+              <th className="p-3 text-center font-semibold text-slate-700">Línea LG</th>
               <th className="p-3 text-center font-semibold text-slate-700">Status</th>
               <th className="p-3 text-center font-semibold text-slate-700">Controles</th>
               <th className="p-3 text-center font-semibold text-slate-700">BOM</th>
@@ -1461,6 +1485,25 @@ export default function ProductosTab() {
                 </td>
                 <td className="p-3 text-center text-xs text-gray-600">
                   {item.clase_producto || '—'}
+                </td>
+                <td className="p-3 text-center">
+                  {item.linea_lg ? (
+                    <span
+                      className={`px-2.5 py-1 rounded-full text-xs font-bold tracking-wide ${
+                        item.linea_lg === 'BOSCH'
+                          ? 'bg-blue-100 text-blue-800'
+                          : item.linea_lg === 'EPS'
+                          ? 'bg-purple-100 text-purple-800'
+                          : item.linea_lg === 'R2'
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}
+                    >
+                      {item.linea_lg}
+                    </span>
+                  ) : (
+                    <span className="text-gray-400 text-xs">—</span>
+                  )}
                 </td>
                 <td className="p-3 text-center">{statusBadge(item.status)}</td>
                 <td className="p-3 text-center">

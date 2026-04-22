@@ -7,17 +7,19 @@ export default function Navbar() {
   const { token, rol, username, logout } = useAuth()
   const pathname = usePathname()
 
-  // Ocultar en todas las páginas fullscreen (ahora incluye /)
+  // Ocultar en todas las páginas fullscreen
   if (
     pathname === '/' ||
     pathname === '/login' ||
     pathname === '/unauthorized' ||
     pathname.startsWith('/admin') ||
-    pathname.startsWith('/finanzas') ||
+    pathname.startsWith('/compras') ||
+    pathname.startsWith('/ventas') ||
     pathname.startsWith('/calidad') ||
     pathname.startsWith('/produccion') ||
     pathname.startsWith('/partes') ||
-    pathname.startsWith('/etiquetas')
+    pathname.startsWith('/etiquetas') ||
+    pathname.startsWith('/almacen')
   ) {
     return null
   }
@@ -49,6 +51,7 @@ export default function Navbar() {
             {rol === 'operador'   && '🟢'}
             {rol === 'finanzas'   && '💰'}
             {rol === 'calidad'    && '🔬'}
+            {rol === 'almacen'    && '📦'}
             {' '}{username}
           </span>
 

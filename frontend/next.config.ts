@@ -59,6 +59,10 @@ const nextConfig: NextConfig = {
         { source: '/inventario',                    destination: `${BACKEND}/inventario/` },
         { source: '/inventario/:path*',             destination: `${BACKEND}/inventario/:path*` },
 
+        // ── ÓRDENES DE PRODUCCIÓN ─────────────────────────────────────
+        { source: '/ordenes-produccion',              destination: `${BACKEND}/ordenes-produccion/` },
+        { source: '/ordenes-produccion/:path*',       destination: `${BACKEND}/ordenes-produccion/:path*` },
+
         // Producción
         { source: '/produccion/registros',          destination: `${BACKEND}/produccion/registros/` },
         { source: '/produccion/registros/',         destination: `${BACKEND}/produccion/registros/` },
@@ -94,7 +98,7 @@ const nextConfig: NextConfig = {
         { source: '/productos',                     destination: `${BACKEND}/productos/` },
         { source: '/productos/:path*',              destination: `${BACKEND}/productos/:path*` },
 
-        // ── FINANZAS ──────────────────────────────────────────────────
+        // ── FINANZAS (backend sigue usando /finanzas/*) ───────────────
         { source: '/finanzas/compras/:id/etiqueta-lote/:sku', destination: `${BACKEND}/finanzas/compras/:id/etiqueta-lote/:sku` },
         { source: '/finanzas/compras/:id/pdf-detalle',        destination: `${BACKEND}/finanzas/compras/:id/pdf-detalle` },
         { source: '/finanzas/compras/:id/pdf-detalle/',       destination: `${BACKEND}/finanzas/compras/:id/pdf-detalle/` },

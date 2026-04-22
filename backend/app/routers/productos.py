@@ -170,7 +170,6 @@ async def importar_productos(file: UploadFile = File(...), db: AsyncSession = De
         df = pd.read_excel(io.BytesIO(contents), dtype=str)
         df = df.where(pd.notnull(df), "")
 
-        # Normalizar nombres de columnas
         df.columns = (
             df.columns
             .str.strip()
@@ -184,12 +183,10 @@ async def importar_productos(file: UploadFile = File(...), db: AsyncSession = De
             .str.replace("ñ", "n", regex=False)
         )
 
-        # Estandarizar datos de texto a mayúsculas
         for col in df.columns:
             if df[col].dtype == "object":
                 df[col] = df[col].str.strip().str.upper()
 
-        # Mapeo de valores sin tilde → con tilde
         CLASE_MAP = {
             "INYECCION": "INYECCIÓN",
             "INYECCIÓN": "INYECCIÓN",
@@ -209,7 +206,6 @@ async def importar_productos(file: UploadFile = File(...), db: AsyncSession = De
             tipo = row.get("tipo") or ""
             controles = asignar_controles(tipo)
 
-            # Mapear clase con normalización de acentos
             clase_raw = (row.get("clase_producto") or row.get("clase") or "").strip()
             clase = CLASE_MAP.get(clase_raw, clase_raw)
 
@@ -220,13 +216,13 @@ async def importar_productos(file: UploadFile = File(...), db: AsyncSession = De
             cliente_asociado = row.get("cliente_asociado") or ""
             linea = row.get("linea_produccion") or row.get("linea") or ""
             ubicacion = row.get("ubicacion") or ""
+            linea_lg = row.get("linea_lg") or ""
 
             try:
                 cant_carrito = int(float(row.get("cantidad_por_carrito") or row.get("cantidad_carrito") or 0))
             except (ValueError, TypeError):
                 cant_carrito = 0
 
-            # Características de inyección
             caract = {}
             if clase in ("INYECCIÓN", "INYECCION"):
                 try:
@@ -271,6 +267,7 @@ async def importar_productos(file: UploadFile = File(...), db: AsyncSession = De
                 existing.cliente_asociado = cliente_asociado
                 existing.linea_produccion = linea
                 existing.ubicacion = ubicacion
+                existing.linea_lg = linea_lg
                 existing.controles_calidad = controles
                 if caract:
                     existing.caracteristicas_inyeccion = caract
@@ -288,6 +285,7 @@ async def importar_productos(file: UploadFile = File(...), db: AsyncSession = De
                     cliente_asociado=cliente_asociado,
                     linea_produccion=linea,
                     ubicacion=ubicacion,
+                    linea_lg=linea_lg,
                     status="Activo",
                     controles_calidad=controles,
                     puntos_inspeccion_iqc=[],
