@@ -10,8 +10,9 @@ from datetime import datetime, timedelta, timezone
 import math
 
 from app.database import AsyncSessionLocal
-from app.models.orden_produccion import OrdenProduccion
+from app.models.orden_compra import OrdenCompra as OCModel, OrdenCompraItem as OCItemModel
 from app.models.lote_inventario import LoteInventario, MovimientoLote
+from app.models.orden_produccion import OrdenProduccion
 from app.models.producto import Producto
 from app.models.ubicacion import Ubicacion
 from app.models.usuario import Usuario
@@ -54,11 +55,15 @@ def _require_prod_role(user: Usuario):
 async def _generar_op_id(db: AsyncSession, sku: str, clase: str) -> str:
     """Genera OP ID con formato: NN+DDMMYY+XXXX"""
     ahora = _ahora_local()
-    inicio_dia = ahora.replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    # ✅ Usar naive datetime para comparar con la DB (que guarda UTC naive)
+    inicio_dia_local = ahora.replace(hour=0, minute=0, second=0, microsecond=0)
+    # Convertir a UTC naive para que sea compatible con fecha_inicio (utcnow)
+    inicio_dia_utc = inicio_dia_local.astimezone(timezone.utc).replace(tzinfo=None)
 
     result = await db.execute(
         select(func.count(OrdenProduccion.id)).where(
-            OrdenProduccion.fecha_inicio >= inicio_dia
+            OrdenProduccion.fecha_inicio >= inicio_dia_utc
         )
     )
     num_hoy = (result.scalar() or 0) + 1
@@ -310,8 +315,56 @@ async def iniciar_pre_expansion(
     # Verificar stock disponible (informativo, no bloquea)
     stock = await _consultar_stock_aprobado(db, data.sku_materia_prima)
     mensaje_stock = ""
+    oc_generada = None
+
     if stock < data.cantidad_usada:
-        mensaje_stock = f" ⚠️ Stock actual de {data.sku_materia_prima}: {stock:.2f}. Se requieren {data.cantidad_usada:.2f}."
+        faltante = data.cantidad_usada - stock
+
+        # ── Auto-generar Orden de Compra ──
+        ahora = _ahora_local()
+        oc_id = f"OC-PROD-{ahora.strftime('%Y%m%d%H%M%S')}"
+
+        # Buscar nombre de la materia prima
+        nombre_mp = data.sku_materia_prima
+        prod_mp = await db.execute(
+            select(Producto).where(Producto.sku == data.sku_materia_prima)
+        )
+        prod_mp_obj = prod_mp.scalar_one_or_none()
+        if prod_mp_obj and prod_mp_obj.nombre:
+            nombre_mp = prod_mp_obj.nombre
+
+        nueva_oc = OCModel(
+            oc_id=oc_id,
+            id_proveedor="POR-ASIGNAR",
+            nombre_proveedor="Por asignar",
+            status="Pendiente Aprobación",
+            origen="PRODUCCION",
+            notas=f"Generada automáticamente desde Pre-Expansión. "
+                  f"Materia prima: {data.sku_materia_prima}. "
+                  f"Stock actual: {stock:.2f} kg, requerido: {data.cantidad_usada:.2f} kg, "
+                  f"faltante: {faltante:.2f} kg. Operador: {data.operador or 'N/A'}.",
+            creado_por=f"SISTEMA (Pre-Expansión - {user.username})",
+        )
+        db.add(nueva_oc)
+        await db.flush()
+
+        item_oc = OCItemModel(
+            orden_compra_id=nueva_oc.id,
+            sku_producto=data.sku_materia_prima,
+            nombre_producto=nombre_mp,
+            cantidad_requerida=faltante,
+            cantidad_recibida=0,
+            precio_unitario=0,
+            moneda="MXN",
+        )
+        db.add(item_oc)
+
+        oc_generada = oc_id
+        mensaje_stock = (
+            f" ⚠️ Stock insuficiente de {data.sku_materia_prima} "
+            f"(disponible: {stock:.2f}, requerido: {data.cantidad_usada:.2f}). "
+            f"Se generó la orden de compra {oc_id} pendiente de aprobación por Compras."
+        )
 
     op_id = await _generar_op_id(db, data.sku_producto_resina, "PRE-EXPANSION")
 
@@ -345,6 +398,7 @@ async def iniciar_pre_expansion(
     return {
         "message": f"Lote de pre-expansión {op_id} iniciado.{mensaje_stock}",
         "op_id": op_id,
+        "oc_generada": oc_generada,
     }
 
 

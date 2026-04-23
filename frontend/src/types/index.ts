@@ -250,10 +250,12 @@ export interface OrdenCompra {
   id_proveedor:        string
   nombre_proveedor:    string
   status:              string
+  origen?:             string
   fecha_creacion:      string
   fecha_actualizacion?: string
   notas?:              string
   creado_por?:         string
+  aprobado_por?:       string
   items:               OrdenCompraItem[]
   recepciones?:        RecepcionCompra[]
 }
@@ -592,6 +594,43 @@ export interface TrazabilidadLote {
   movimientos?: Record<string, any>[]
   origen?: Record<string, any>
   error?: string
+}
+
+// ==========================================
+// ALMACÉN — Recepciones de Compra
+// ==========================================
+export interface OrdenCompraAlmacenItem {
+  id?:                number
+  sku_producto:       string
+  nombre_producto:    string
+  cantidad_requerida: number
+  cantidad_recibida:  number
+}
+
+export interface RecepcionAlmacen {
+  id:                number
+  recepcion_id:      string
+  sku_producto:      string
+  cantidad_recibida: number
+  fecha_recepcion:   string
+  recibido_por?:     string
+  notas?:            string
+}
+
+export interface OrdenCompraAlmacen {
+  id:                   number
+  oc_id:                string
+  id_proveedor:         string
+  nombre_proveedor:     string
+  status:               string
+  origen?:              string
+  fecha_creacion:       string
+  fecha_actualizacion?: string
+  notas?:               string
+  creado_por?:          string
+  aprobado_por?:        string
+  items:                OrdenCompraAlmacenItem[]
+  recepciones?:         RecepcionAlmacen[]
 }
 
 // ==========================================

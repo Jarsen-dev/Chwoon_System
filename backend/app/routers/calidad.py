@@ -10,6 +10,7 @@ from app.models.usuario import Usuario, RolUsuario
 from app.models.inspeccion import Inspeccion, TipoInspeccion, ResultadoInspeccion
 from app.models.registro_scrap import RegistroScrap
 from app.models.producto import Producto
+from app.models.lote_inventario import LoteInventario, MovimientoLote
 from app.schemas.calidad import (
     InspeccionCreate, InspeccionResponse,
     ScrapCreate, ScrapResponse,
@@ -183,14 +184,68 @@ async def registrar_inspeccion(
         notas=data.notas,
     )
     db.add(inspeccion)
+
+    # ── Si es IQC, actualizar o crear lote en inventario ──
+    lote_actualizado = False
+    lote_creado = False
+    if data.tipo_inspeccion == "IQC" and data.lote_id:
+        lote_result = await db.execute(
+            select(LoteInventario).where(LoteInventario.lote_id == data.lote_id)
+        )
+        lote = lote_result.scalar_one_or_none()
+
+        if lote:
+            # Lote existe → actualizar estado
+            lote.estado_calidad = data.resultado_final
+            lote_actualizado = True
+        else:
+            # Lote NO existe (recepción anterior al cambio) → crear
+            nuevo_lote = LoteInventario(
+                lote_id=data.lote_id,
+                sku_producto=data.sku_producto,
+                cantidad_actual=data.cantidad_inspeccionada or 0,
+                cantidad_inicial=data.cantidad_inspeccionada or 0,
+                ubicacion_id=None,
+                fecha_recepcion=ahora_local(),
+                oc_origen=data.oc_origen,
+                estado_calidad=data.resultado_final,
+            )
+            db.add(nuevo_lote)
+            lote_actualizado = True
+            lote_creado = True
+
+        # Registrar movimiento de inspección
+        mov = MovimientoLote(
+            lote_id=data.lote_id,
+            fecha=ahora_local(),
+            tipo="INSPECCION_IQC",
+            cantidad=0,
+            detalles={
+                "inspeccion_id": inspeccion_id,
+                "resultado": data.resultado_final,
+                "inspector": current_user.username,
+                "sku_producto": data.sku_producto,
+                "lote_creado_en_inspeccion": lote_creado,
+            },
+        )
+        db.add(mov)
+
     await db.commit()
     await db.refresh(inspeccion)
 
-    return {
+    response = {
         "message": f"Inspección {data.tipo_inspeccion} registrada",
         "inspeccion_id": inspeccion_id,
         "resultado": data.resultado_final,
     }
+
+    if data.tipo_inspeccion == "IQC":
+        response["lote_actualizado"] = lote_actualizado
+        response["lote_creado"] = lote_creado
+        if lote_actualizado and data.resultado_final == "Aprobado":
+            response["message"] += " — Lote aprobado y disponible para ubicar en almacén"
+
+    return response
 
 
 @router.get("/inspecciones", response_model=list[InspeccionResponse])

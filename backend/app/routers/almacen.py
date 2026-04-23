@@ -5,7 +5,13 @@ from sqlalchemy import select, func, and_, or_, update, delete
 from typing import Optional
 from datetime import datetime, timedelta, timezone, time
 from collections import defaultdict
+from reportlab.pdfgen import canvas as pdf_canvas
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.units import inch
+from reportlab.lib.utils import ImageReader
 import io
+import os
+import qrcode
 import math
 
 from app.core.deps import get_db, get_current_user, get_current_admin
@@ -43,6 +49,10 @@ TZ_LOCAL = timezone(timedelta(hours=-6))
 def ahora_local():
     return datetime.now(TZ_LOCAL)
 
+def ahora_naive():
+    """Retorna datetime local SIN timezone para columnas TIMESTAMP WITHOUT TZ."""
+    return datetime.now(TZ_LOCAL).replace(tzinfo=None)
+
 
 def require_almacen_role(user: Usuario):
     if user.rol not in [RolUsuario.admin, RolUsuario.almacen]:
@@ -52,13 +62,12 @@ def require_almacen_role(user: Usuario):
 async def _registrar_movimiento(db: AsyncSession, lote_id: str, tipo: str, cantidad: float, detalles: dict):
     mov = MovimientoLote(
         lote_id=lote_id,
-        fecha=ahora_local(),
+        fecha=ahora_naive(),
         tipo=tipo.upper(),
         cantidad=cantidad,
         detalles=detalles,
     )
     db.add(mov)
-
 
 async def _get_producto_map(db: AsyncSession) -> dict:
     result = await db.execute(select(Producto))
@@ -1354,6 +1363,533 @@ async def historial_movimientos_eps(
         }
         for m in movimientos
     ]
+
+# ============================================================
+# RECEPCIONES DE COMPRA
+# ============================================================
+from app.models.orden_compra import OrdenCompra, OrdenCompraItem, RecepcionCompra
+from app.schemas.almacen import (
+    RecepcionAlmacenCreate,
+)
+
+
+@router.get("/recepciones/ordenes-compra")
+@router.get("/recepciones/ordenes-compra/")
+async def listar_ordenes_compra_almacen(
+    status: Optional[str] = None,
+    limite: int = Query(100, ge=1, le=500),
+    user: Usuario = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Lista OC para almacén — sin precios ni costos."""
+    require_almacen_role(user)
+
+    query = select(OrdenCompra).order_by(OrdenCompra.fecha_creacion.desc()).limit(limite)
+    if status and status != "Todos":
+        query = query.where(OrdenCompra.status == status)
+
+    result = await db.execute(query)
+    ordenes = result.scalars().unique().all()
+
+    response = []
+    for orden in ordenes:
+        items_result = await db.execute(
+            select(OrdenCompraItem).where(OrdenCompraItem.orden_compra_id == orden.id)
+        )
+        items = items_result.scalars().all()
+
+        response.append({
+            "id": orden.id,
+            "oc_id": orden.oc_id,
+            "id_proveedor": orden.id_proveedor,
+            "nombre_proveedor": orden.nombre_proveedor,
+            "status": orden.status,
+            "origen": orden.origen or "FINANZAS",
+            "fecha_creacion": orden.fecha_creacion.isoformat() if orden.fecha_creacion else None,
+            "fecha_actualizacion": orden.fecha_actualizacion.isoformat() if orden.fecha_actualizacion else None,
+            "notas": orden.notas,
+            "creado_por": orden.creado_por,
+            "aprobado_por": orden.aprobado_por,
+            "items": [
+                {
+                    "id": item.id,
+                    "sku_producto": item.sku_producto,
+                    "nombre_producto": item.nombre_producto,
+                    "cantidad_requerida": item.cantidad_requerida,
+                    "cantidad_recibida": item.cantidad_recibida,
+                }
+                for item in items
+            ],
+        })
+
+    return response
+
+
+@router.get("/recepciones/ordenes-compra/{oc_id}")
+@router.get("/recepciones/ordenes-compra/{oc_id}/")
+async def obtener_orden_compra_almacen(
+    oc_id: str,
+    user: Usuario = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Detalle de OC para almacén — sin precios ni costos."""
+    require_almacen_role(user)
+
+    result = await db.execute(select(OrdenCompra).where(OrdenCompra.oc_id == oc_id))
+    orden = result.scalar_one_or_none()
+    if not orden:
+        raise HTTPException(status_code=404, detail="Orden de compra no encontrada")
+
+    items_result = await db.execute(
+        select(OrdenCompraItem).where(OrdenCompraItem.orden_compra_id == orden.id)
+    )
+    items = items_result.scalars().all()
+
+    recepciones_result = await db.execute(
+        select(RecepcionCompra).where(RecepcionCompra.orden_compra_id == orden.id)
+        .order_by(RecepcionCompra.fecha_recepcion.desc())
+    )
+    recepciones = recepciones_result.scalars().all()
+
+    return {
+        "id": orden.id,
+        "oc_id": orden.oc_id,
+        "id_proveedor": orden.id_proveedor,
+        "nombre_proveedor": orden.nombre_proveedor,
+        "status": orden.status,
+        "origen": orden.origen or "FINANZAS",
+        "fecha_creacion": orden.fecha_creacion.isoformat() if orden.fecha_creacion else None,
+        "notas": orden.notas,
+        "creado_por": orden.creado_por,
+        "aprobado_por": orden.aprobado_por,
+        "items": [
+            {
+                "id": i.id,
+                "sku_producto": i.sku_producto,
+                "nombre_producto": i.nombre_producto,
+                "cantidad_requerida": i.cantidad_requerida,
+                "cantidad_recibida": i.cantidad_recibida,
+            }
+            for i in items
+        ],
+        "recepciones": [
+            {
+                "id": r.id,
+                "recepcion_id": r.recepcion_id,
+                "sku_producto": r.sku_producto,
+                "cantidad_recibida": r.cantidad_recibida,
+                "fecha_recepcion": r.fecha_recepcion.isoformat() if r.fecha_recepcion else None,
+                "recibido_por": r.recibido_por,
+                "notas": r.notas,
+            }
+            for r in recepciones
+        ],
+    }
+
+
+@router.post("/recepciones/recepcion-lote")
+@router.post("/recepciones/recepcion-lote/")
+async def registrar_recepcion_lote_almacen(
+    data: list[RecepcionAlmacenCreate],
+    user: Usuario = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Registra recepciones para múltiples SKUs de una misma OC (desde almacén).
+    Crea LoteInventario con estado 'Pendiente IQC' para cada recepción."""
+    require_almacen_role(user)
+
+    if not data:
+        raise HTTPException(status_code=400, detail="Lista de recepciones vacía")
+
+    oc_ids = set(item.oc_id for item in data)
+    if len(oc_ids) > 1:
+        raise HTTPException(status_code=400, detail="Todas las recepciones deben ser de la misma OC")
+
+    oc_id_str = data[0].oc_id
+
+    result = await db.execute(select(OrdenCompra).where(OrdenCompra.oc_id == oc_id_str))
+    orden = result.scalar_one_or_none()
+    if not orden:
+        raise HTTPException(status_code=404, detail=f"Orden {oc_id_str} no encontrada")
+
+    if orden.status in ("Pendiente Aprobación", "Cancelada"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"No se pueden registrar recepciones. Status actual: {orden.status}"
+        )
+
+    recepciones_creadas = []
+    lotes_creados = []
+
+    for rec_data in data:
+        if rec_data.cantidad_recibida <= 0:
+            continue
+
+        item_result = await db.execute(
+            select(OrdenCompraItem).where(
+                and_(
+                    OrdenCompraItem.orden_compra_id == orden.id,
+                    OrdenCompraItem.sku_producto == rec_data.sku_producto,
+                )
+            )
+        )
+        item = item_result.scalar_one_or_none()
+        if not item:
+            continue
+
+        now = ahora_local()
+        recepcion_id = f"REC-{now.strftime('%Y%m%d%H%M%S')}-{rec_data.sku_producto[-4:]}"
+
+        recepcion = RecepcionCompra(
+            recepcion_id=recepcion_id,
+            orden_compra_id=orden.id,
+            oc_id=oc_id_str,
+            sku_producto=rec_data.sku_producto,
+            cantidad_recibida=rec_data.cantidad_recibida,
+            recibido_por=user.username,
+            notas=rec_data.notas,
+        )
+        db.add(recepcion)
+
+        item.cantidad_recibida = (item.cantidad_recibida or 0) + rec_data.cantidad_recibida
+
+        # ── Crear LoteInventario para esta recepción ──
+        await db.flush()  # Asegurar que RecepcionCompra esté visible para el conteo
+
+        rec_count_result = await db.execute(
+            select(func.count(RecepcionCompra.id)).where(
+                and_(
+                    RecepcionCompra.orden_compra_id == orden.id,
+                    RecepcionCompra.sku_producto == rec_data.sku_producto,
+                )
+            )
+        )
+        rec_count = rec_count_result.scalar() or 0
+
+        fecha_lote = now.strftime("%Y%m%d")
+        sku_suffix = rec_data.sku_producto[-4:].upper()
+        lote_id = f"{fecha_lote}-{sku_suffix}-{rec_count}"
+
+        # Verificar unicidad del lote_id
+        existing_lote_check = await db.execute(
+            select(LoteInventario).where(LoteInventario.lote_id == lote_id)
+        )
+        if existing_lote_check.scalar_one_or_none():
+            # Agregar sufijo de OC para evitar colisión
+            oc_suffix = oc_id_str.replace("OC-", "")[-6:]
+            lote_id = f"{fecha_lote}-{sku_suffix}-{rec_count}-{oc_suffix}"
+
+        now_naive = ahora_naive()
+
+        nuevo_lote = LoteInventario(
+            lote_id=lote_id,
+            sku_producto=rec_data.sku_producto,
+            cantidad_actual=rec_data.cantidad_recibida,
+            cantidad_inicial=rec_data.cantidad_recibida,
+            ubicacion_id=None,
+            fecha_recepcion=now_naive,
+            oc_origen=oc_id_str,
+            estado_calidad="Pendiente IQC",
+        )
+        db.add(nuevo_lote)
+
+        await _registrar_movimiento(db, lote_id, "RECEPCION_COMPRA", rec_data.cantidad_recibida, {
+            "oc_id": oc_id_str,
+            "sku": rec_data.sku_producto,
+            "recepcion_id": recepcion_id,
+            "recibido_por": user.username,
+        })
+
+        recepciones_creadas.append(recepcion_id)
+        lotes_creados.append(lote_id)
+
+    # Verificar status de la OC
+    all_items_result = await db.execute(
+        select(OrdenCompraItem).where(OrdenCompraItem.orden_compra_id == orden.id)
+    )
+    all_items = all_items_result.scalars().all()
+    todos_completos = all(i.cantidad_recibida >= i.cantidad_requerida for i in all_items)
+    alguno_parcial = any(i.cantidad_recibida > 0 for i in all_items)
+
+    if todos_completos:
+        orden.status = "Completada"
+    elif alguno_parcial:
+        orden.status = "Parcial"
+
+    await db.commit()
+    return {
+        "message": f"{len(recepciones_creadas)} recepciones registradas, {len(lotes_creados)} lotes creados",
+        "recepciones": recepciones_creadas,
+        "lotes_creados": lotes_creados,
+        "nuevo_status_oc": orden.status,
+    }
+
+
+@router.get("/recepciones/ordenes-compra/{oc_id}/etiqueta-lote/{sku}")
+@router.get("/recepciones/ordenes-compra/{oc_id}/etiqueta-lote/{sku}/")
+async def generar_etiqueta_lote_almacen(
+    oc_id: str,
+    sku: str,
+    user: Usuario = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Genera PDF de etiqueta de lote IQC desde almacén."""
+    require_almacen_role(user)
+
+    result = await db.execute(select(OrdenCompra).where(OrdenCompra.oc_id == oc_id))
+    orden = result.scalar_one_or_none()
+    if not orden:
+        raise HTTPException(status_code=404, detail="Orden no encontrada")
+
+    item_result = await db.execute(
+        select(OrdenCompraItem).where(
+            and_(
+                OrdenCompraItem.orden_compra_id == orden.id,
+                OrdenCompraItem.sku_producto == sku,
+            )
+        )
+    )
+    item = item_result.scalar_one_or_none()
+    if not item:
+        raise HTTPException(status_code=404, detail=f"SKU {sku} no encontrado en la orden")
+
+    rec_count_result = await db.execute(
+        select(func.count(RecepcionCompra.id)).where(
+            and_(
+                RecepcionCompra.orden_compra_id == orden.id,
+                RecepcionCompra.sku_producto == sku,
+            )
+        )
+    )
+    rec_count = rec_count_result.scalar() or 0
+
+    if rec_count == 0:
+        raise HTTPException(status_code=400, detail="No hay recepciones registradas para este SKU")
+
+    last_rec_result = await db.execute(
+        select(RecepcionCompra).where(
+            and_(
+                RecepcionCompra.orden_compra_id == orden.id,
+                RecepcionCompra.sku_producto == sku,
+            )
+        ).order_by(RecepcionCompra.fecha_recepcion.desc()).limit(1)
+    )
+    last_rec = last_rec_result.scalar_one_or_none()
+    fecha_recibo_display = last_rec.fecha_recepcion.strftime("%Y-%m-%d") if last_rec and last_rec.fecha_recepcion else ahora_local().strftime("%Y-%m-%d")
+    fecha_lote = last_rec.fecha_recepcion.strftime("%Y%m%d") if last_rec and last_rec.fecha_recepcion else ahora_local().strftime("%Y%m%d")
+
+    sku_suffix = sku[-4:].upper()
+    lote_id = f"{fecha_lote}-{sku_suffix}-{rec_count}"
+
+    page_w = 4.1 * inch
+    page_h = 2.9 * inch
+
+    buffer = io.BytesIO()
+    c = pdf_canvas.Canvas(buffer, pagesize=(page_w, page_h))
+
+    margin = 0.25 * inch
+    qr_size = 0.95 * inch
+    qr_col_x = page_w - margin - qr_size
+
+    c.setFont("Helvetica-Bold", 13)
+    c.drawString(margin, page_h - margin - 0.13 * inch, "ETIQUETA DE LOTE (IQC)")
+
+    qr_lote_buf = io.BytesIO()
+    qrcode.make(lote_id).save(qr_lote_buf, format="PNG")
+    qr_lote_buf.seek(0)
+    qr_lote_y = page_h - margin - 0.05 * inch - qr_size
+    c.drawImage(ImageReader(qr_lote_buf), qr_col_x, qr_lote_y, width=qr_size, height=qr_size)
+    c.setFont("Helvetica-Bold", 7)
+    c.drawCentredString(qr_col_x + qr_size / 2, qr_lote_y - 0.11 * inch, "LOTE ID")
+
+    qr_gap = 0.18 * inch
+    qr_sku_y = qr_lote_y - 0.11 * inch - qr_gap - qr_size
+    qr_sku_buf = io.BytesIO()
+    qrcode.make(sku).save(qr_sku_buf, format="PNG")
+    qr_sku_buf.seek(0)
+    c.drawImage(ImageReader(qr_sku_buf), qr_col_x, qr_sku_y, width=qr_size, height=qr_size)
+    c.setFont("Helvetica-Bold", 7)
+    c.drawCentredString(qr_col_x + qr_size / 2, qr_sku_y - 0.11 * inch, "SKU")
+
+    label_x = margin
+    value_x = margin + 0.9 * inch
+    y = page_h - margin - 0.5 * inch
+    line_h = 0.2 * inch
+
+    data_lines = [
+        ("SKU:", sku),
+        ("Producto:", item.nombre_producto[:28]),
+        ("Cantidad:", str(item.cantidad_recibida)),
+        ("Fecha Recibo:", fecha_recibo_display),
+        ("OC Origen:", oc_id),
+        ("Lote ID:", lote_id),
+    ]
+
+    for label, value in data_lines:
+        c.setFont("Helvetica-Bold", 8)
+        c.drawString(label_x, y, label)
+        c.setFont("Helvetica", 8)
+        c.drawString(value_x, y, value)
+        y -= line_h
+
+    c.save()
+    buffer.seek(0)
+
+    filename = f"ETIQUETA_LOTE_{lote_id}.pdf"
+    return StreamingResponse(
+        buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"inline; filename={filename}"},
+    )
+
+
+@router.get("/recepciones/ordenes-compra/{oc_id}/pdf-detalle")
+@router.get("/recepciones/ordenes-compra/{oc_id}/pdf-detalle/")
+async def generar_pdf_detalle_oc_almacen(
+    oc_id: str,
+    user: Usuario = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Genera PDF detalle de OC para almacén — sin precios ni valores."""
+    require_almacen_role(user)
+
+    result = await db.execute(select(OrdenCompra).where(OrdenCompra.oc_id == oc_id))
+    orden = result.scalar_one_or_none()
+    if not orden:
+        raise HTTPException(status_code=404, detail="Orden de compra no encontrada")
+
+    items_result = await db.execute(
+        select(OrdenCompraItem).where(OrdenCompraItem.orden_compra_id == orden.id)
+    )
+    items = items_result.scalars().all()
+
+    recepciones_result = await db.execute(
+        select(RecepcionCompra).where(RecepcionCompra.orden_compra_id == orden.id)
+        .order_by(RecepcionCompra.fecha_recepcion.desc())
+    )
+    recepciones = recepciones_result.scalars().all()
+
+    def calcular_lote_id(sku_param: str) -> str:
+        recs_sku = [r for r in recepciones if r.sku_producto == sku_param]
+        if not recs_sku:
+            return "—"
+        recs_sku.sort(key=lambda r: r.fecha_recepcion, reverse=True)
+        fecha = recs_sku[0].fecha_recepcion.strftime("%Y%m%d")
+        return f"{fecha}-{sku_param[-4:].upper()}-{len(recs_sku)}"
+
+    buffer = io.BytesIO()
+    c = pdf_canvas.Canvas(buffer, pagesize=letter)
+    width, height = letter
+
+    margin = 0.6 * inch
+    right_margin = width - margin
+
+    logo_path = os.path.join("static", "Logo.png")
+    if os.path.exists(logo_path):
+        c.drawImage(logo_path, margin, height - 1.5 * inch, width=1.5 * inch,
+                     height=0.75 * inch, preserveAspectRatio=True, mask="auto")
+
+    c.setFont("Helvetica-Bold", 18)
+    c.drawString(margin, height - 2.25 * inch, f"Recepción: {oc_id}")
+
+    c.setFont("Helvetica", 12)
+    y = height - 2.6 * inch
+    fecha_str = orden.fecha_creacion.strftime("%Y-%m-%d %H:%M") if orden.fecha_creacion else "N/A"
+    c.drawString(margin, y, f"Fecha de Creación: {fecha_str}")
+    y -= 0.25 * inch
+    c.drawString(margin, y, f"Proveedor: {orden.nombre_proveedor}")
+    y -= 0.25 * inch
+    c.drawString(margin, y, f"Estado: {orden.status}")
+    y -= 0.25 * inch
+    c.drawString(margin, y, f"Creado por: {orden.creado_por or 'N/A'}")
+
+    if orden.notas:
+        y -= 0.25 * inch
+        c.drawString(margin, y, f"Notas: {orden.notas}")
+
+    # Tabla de Productos (sin precio, sin valor total)
+    y -= 0.6 * inch
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(margin, y, "Productos")
+    y -= 0.35 * inch
+
+    table_width = right_margin - margin
+    col_x = [
+        margin,
+        margin + table_width * 0.15,
+        margin + table_width * 0.45,
+        margin + table_width * 0.60,
+        margin + table_width * 0.75,
+    ]
+    headers = ["SKU", "Nombre", "Requerida", "Recibida", "Lote"]
+    c.setFont("Helvetica-Bold", 10)
+    for i, h in enumerate(headers):
+        c.drawString(col_x[i], y, h)
+    y -= 0.15 * inch
+    c.setStrokeColorRGB(0.6, 0.6, 0.6)
+    c.line(margin, y, right_margin, y)
+    y -= 0.22 * inch
+
+    c.setFont("Helvetica", 9)
+    for item in items:
+        lote_id_calc = calcular_lote_id(item.sku_producto)
+
+        c.drawString(col_x[0], y, str(item.sku_producto)[:14])
+        c.drawString(col_x[1], y, str(item.nombre_producto)[:28])
+        c.drawString(col_x[2], y, str(item.cantidad_requerida))
+        c.drawString(col_x[3], y, str(item.cantidad_recibida))
+        c.drawString(col_x[4], y, lote_id_calc)
+        y -= 0.24 * inch
+        if y < inch:
+            c.showPage()
+            c.setFont("Helvetica", 9)
+            y = height - inch
+
+    # Historial de Recepciones
+    if recepciones:
+        y -= 0.6 * inch
+        if y < 2 * inch:
+            c.showPage()
+            y = height - inch
+
+        c.setFont("Helvetica-Bold", 14)
+        c.drawString(margin, y, "Historial de Recepciones")
+        y -= 0.35 * inch
+
+        c.setFont("Helvetica", 9)
+        for rec in recepciones:
+            if y < inch:
+                c.showPage()
+                c.setFont("Helvetica", 9)
+                y = height - inch
+
+            fecha_rec = rec.fecha_recepcion.strftime("%Y-%m-%d %H:%M") if rec.fecha_recepcion else "N/A"
+            c.setFont("Helvetica-Bold", 9)
+            c.drawString(margin, y, rec.recepcion_id)
+            c.setFont("Helvetica", 8)
+            c.drawString(right_margin - 1.5 * inch, y, fecha_rec)
+            y -= 0.18 * inch
+
+            c.drawString(margin + 0.15 * inch, y,
+                          f"{rec.sku_producto} — Cantidad: {rec.cantidad_recibida} — {rec.recibido_por or 'N/A'}")
+            y -= 0.18 * inch
+
+            if rec.notas:
+                c.setFont("Helvetica-Oblique", 8)
+                c.drawString(margin + 0.15 * inch, y, f"Nota: {rec.notas}")
+                y -= 0.18 * inch
+                c.setFont("Helvetica", 9)
+
+            y -= 0.12 * inch
+
+    c.save()
+    buffer.seek(0)
+
+    return StreamingResponse(
+        buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"inline; filename={oc_id}_recepcion.pdf"},
+    )
 
 
 # ============================================================

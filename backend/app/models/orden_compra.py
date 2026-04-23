@@ -13,15 +13,15 @@ class OrdenCompra(Base):
     oc_id = Column(String(50), unique=True, nullable=False, index=True)
     id_proveedor = Column(String(100), nullable=False)
     nombre_proveedor = Column(String(200), nullable=False)
-    status = Column(String(50), default="Creada")  # Creada, Parcial, Completada, Cancelada
+    status = Column(String(50), default="Creada")
+    origen = Column(String(50), default="FINANZAS")  # FINANZAS | PRODUCCION
     fecha_creacion = Column(DateTime(timezone=True), default=lambda: datetime.now(TZ_LOCAL))
     fecha_actualizacion = Column(DateTime(timezone=True), onupdate=lambda: datetime.now(TZ_LOCAL))
     notas = Column(Text, nullable=True)
     creado_por = Column(String(100), nullable=True)
+    aprobado_por = Column(String(100), nullable=True)
 
-    # Relación con items
     items = relationship("OrdenCompraItem", back_populates="orden_compra", cascade="all, delete-orphan")
-    # Relación con recepciones
     recepciones = relationship("RecepcionCompra", back_populates="orden_compra", cascade="all, delete-orphan")
 
 

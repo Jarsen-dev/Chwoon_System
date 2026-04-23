@@ -250,3 +250,54 @@ class AlmacenDashboard(BaseModel):
     traslados_completados: int = 0
     stock_total_items: float = 0
     lotes_eps: int = 0
+
+# ==========================================
+# RECEPCIONES DE COMPRA (vista Almacén)
+# ==========================================
+class RecepcionAlmacenCreate(BaseModel):
+    oc_id: str
+    sku_producto: str
+    cantidad_recibida: float
+    notas: Optional[str] = None
+
+
+class OrdenCompraAlmacenItemResponse(BaseModel):
+    id: int
+    sku_producto: str
+    nombre_producto: str
+    cantidad_requerida: float
+    cantidad_recibida: float
+
+    class Config:
+        from_attributes = True
+
+
+class RecepcionAlmacenResponse(BaseModel):
+    id: int
+    recepcion_id: str
+    sku_producto: str
+    cantidad_recibida: float
+    fecha_recepcion: Optional[datetime] = None
+    recibido_por: Optional[str] = None
+    notas: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class OrdenCompraAlmacenResponse(BaseModel):
+    id: int
+    oc_id: str
+    id_proveedor: str
+    nombre_proveedor: str
+    status: str
+    origen: Optional[str] = "FINANZAS"
+    fecha_creacion: Optional[datetime] = None
+    fecha_actualizacion: Optional[datetime] = None
+    notas: Optional[str] = None
+    creado_por: Optional[str] = None
+    items: List[OrdenCompraAlmacenItemResponse] = []
+    recepciones: List[RecepcionAlmacenResponse] = []
+
+    class Config:
+        from_attributes = True

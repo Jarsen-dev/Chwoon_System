@@ -226,3 +226,13 @@ class FinanzasDashboardResponse(BaseModel):
     valor_compras_mes: float = 0
     valor_ventas_mes: float = 0
     planes_venta_activos: int = 0
+
+
+# ========================
+# APROBAR ORDEN DE COMPRA (desde Producción)
+# ========================
+class AprobarOrdenCompraRequest(BaseModel):
+    id_proveedor: Optional[str] = None
+    nombre_proveedor: Optional[str] = None
+    items: Optional[List[OrdenCompraItemCreate]] = None
+    notas: Optional[str] = None

@@ -33,6 +33,7 @@ import {
   TrazabilidadLote,
   OrdenProduccion as OrdenProduccionType,
   OrdenUnificada,
+  OrdenCompraAlmacen,
 } from '@/types'
 
 const API_URL = ''
@@ -519,6 +520,24 @@ export async function crearOrdenCompra(token: string, data: {
   if (!res.ok) {
     const err = await res.json()
     throw new Error(err.detail || 'Error al crear orden de compra')
+  }
+  return res.json()
+}
+
+export async function aprobarOrdenCompra(token: string, ocId: string, data: {
+  id_proveedor?: string
+  nombre_proveedor?: string
+  items?: { sku_producto: string; nombre_producto: string; cantidad_requerida: number; precio_unitario: number; moneda?: string }[]
+  notas?: string
+}): Promise<{ message: string }> {
+  const res = await fetch(`${API_URL}/finanzas/compras/${ocId}/aprobar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al aprobar orden de compra')
   }
   return res.json()
 }
@@ -1015,6 +1034,82 @@ export async function getAlmacenDashboard(token: string): Promise<AlmacenDashboa
 }
 
 // ==========================================
+// ALMACÉN — Recepciones de Compra
+// ==========================================
+export async function getOrdenesCompraAlmacen(token: string, status?: string): Promise<OrdenCompraAlmacen[]> {
+  const params = status ? `?status=${status}` : ''
+  const res = await fetch(`${API_URL}/almacen/recepciones/ordenes-compra${params}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener órdenes de compra')
+  return res.json()
+}
+
+export async function getOrdenCompraAlmacen(token: string, ocId: string): Promise<OrdenCompraAlmacen> {
+  const res = await fetch(`${API_URL}/almacen/recepciones/ordenes-compra/${ocId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener orden de compra')
+  return res.json()
+}
+
+export async function registrarRecepcionLoteAlmacen(token: string, data: {
+  oc_id: string
+  sku_producto: string
+  cantidad_recibida: number
+  notas?: string
+}[]): Promise<{ message: string; recepciones: string[]; nuevo_status_oc: string }> {
+  const res = await fetch(`${API_URL}/almacen/recepciones/recepcion-lote`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al registrar recepciones')
+  }
+  return res.json()
+}
+
+export async function descargarEtiquetaLoteAlmacen(token: string, ocId: string, sku: string): Promise<void> {
+  const res = await fetch(`${API_URL}/almacen/recepciones/ordenes-compra/${ocId}/etiqueta-lote/${encodeURIComponent(sku)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al generar etiqueta de lote')
+  }
+  const blob = await res.blob()
+  const url = window.URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `ETIQUETA_LOTE_${ocId}_${sku}.pdf`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  window.URL.revokeObjectURL(url)
+}
+
+export async function descargarPdfDetalleOCAlmacen(token: string, ocId: string): Promise<void> {
+  const res = await fetch(`${API_URL}/almacen/recepciones/ordenes-compra/${ocId}/pdf-detalle`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al generar PDF detalle')
+  }
+  const blob = await res.blob()
+  const url = window.URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${ocId}_recepcion.pdf`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  window.URL.revokeObjectURL(url)
+}
+
+// ==========================================
 // ALMACÉN — Ubicaciones
 // ==========================================
 export async function getUbicaciones(token: string): Promise<UbicacionAlmacen[]> {
@@ -1457,10 +1552,13 @@ export async function getOrdenProduccion(token: string, opId: string): Promise<O
 
 // Pre-Expansión
 export async function iniciarPreExpansion(token: string, data: {
-  sku_producto_resina: string; sku_materia_prima: string
-  cantidad_a_producir: number; cantidad_usada: number
-  operador: string; ubicacion_destino?: string
-}): Promise<{ message: string; op_id: string }> {
+  sku_producto_resina: string
+  sku_materia_prima: string
+  cantidad_a_producir: number
+  cantidad_usada: number
+  operador: string
+  ubicacion_destino?: string
+}): Promise<{ message: string; op_id: string; oc_generada?: string }> {
   const res = await fetch(`${API_URL}/ordenes-produccion/pre-expansion/iniciar`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },

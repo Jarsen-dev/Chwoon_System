@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { OrdenProduccion as OrdenProduccionType } from '@/types'
 import {
@@ -11,6 +11,13 @@ import {
   getProductos,
 } from '@/lib/api'
 import { ProductoItem } from '@/types'
+
+// Tipo para componentes del BOM
+interface BomComponente {
+  sku_componente: string
+  nombre_componente?: string
+  cantidad: number
+}
 
 export default function PreExpansionTab() {
   const { token, username } = useAuth()
@@ -60,15 +67,46 @@ export default function PreExpansionTab() {
     }
   }, [mensaje])
 
-  // Auto-fill materia prima del BOM
+  // ── Obtener componentes BOM del producto seleccionado ──
+  const bomComponentes: BomComponente[] = useMemo(() => {
+    if (!formSkuResina) return []
+    const prod = productos.find(p => p.sku === formSkuResina)
+    if (!prod || !prod.bom || prod.bom.length === 0) return []
+    return prod.bom.map((comp: any) => ({
+      sku_componente: comp.sku_componente || '',
+      nombre_componente: comp.nombre_componente || comp.sku_componente || '',
+      cantidad: comp.cantidad || 0,
+    }))
+  }, [formSkuResina, productos])
+
+  // ── Cuando cambia el producto, resetear MP ──
   useEffect(() => {
-    if (formSkuResina) {
-      const prod = productos.find(p => p.sku === formSkuResina)
-      if (prod && prod.bom && prod.bom.length > 0) {
-        setFormSkuMP(prod.bom[0].sku_componente)
+    setFormSkuMP('')
+    setFormCantUsada('')
+  }, [formSkuResina])
+
+  // ── Cuando cambia el componente seleccionado, auto-seleccionar si solo hay 1 ──
+  useEffect(() => {
+    if (bomComponentes.length === 1) {
+      setFormSkuMP(bomComponentes[0].sku_componente)
+    }
+  }, [bomComponentes])
+
+  // ── Auto-calcular cantidad de MP a usar ──
+  useEffect(() => {
+    if (!formSkuMP || !formCantProducir) {
+      setFormCantUsada('')
+      return
+    }
+    const comp = bomComponentes.find(c => c.sku_componente === formSkuMP)
+    if (comp && comp.cantidad > 0) {
+      const cantProducir = parseFloat(formCantProducir)
+      if (!isNaN(cantProducir) && cantProducir > 0) {
+        const cantUsada = (cantProducir * comp.cantidad).toFixed(2)
+        setFormCantUsada(cantUsada)
       }
     }
-  }, [formSkuResina, productos])
+  }, [formSkuMP, formCantProducir, bomComponentes])
 
   const handleIniciar = async () => {
     if (!token) return
@@ -85,7 +123,17 @@ export default function PreExpansionTab() {
         operador: username || 'N/A',
         ubicacion_destino: formUbicacion,
       })
-      setMensaje({ tipo: 'ok', texto: res.message })
+
+      // Si se generó una OC, mostrar alerta especial
+      if (res.oc_generada) {
+        setMensaje({
+          tipo: 'ok',
+          texto: `Lote iniciado. ⚠️ Stock insuficiente: se generó la orden de compra ${res.oc_generada} para ${formSkuMP}. Espere aprobación del área de Compras.`,
+        })
+      } else {
+        setMensaje({ tipo: 'ok', texto: res.message })
+      }
+
       setShowForm(false)
       setFormSkuResina(''); setFormSkuMP(''); setFormCantProducir(''); setFormCantUsada('')
       cargar()
@@ -141,16 +189,23 @@ export default function PreExpansionTab() {
 
       {mensaje && (
         <div className={`p-3 rounded-lg text-sm font-medium ${
-          mensaje.tipo === 'ok' ? 'bg-green-50 text-green-700 border border-green-200'
+          mensaje.tipo === 'ok'
+            ? mensaje.texto.includes('orden de compra')
+              ? 'bg-orange-50 text-orange-700 border border-orange-300'
+              : 'bg-green-50 text-green-700 border border-green-200'
             : 'bg-red-50 text-red-700 border border-red-200'
-        }`}>{mensaje.texto}</div>
+        }`}>
+          {mensaje.texto}
+        </div>
       )}
 
-      {/* Formulario Nuevo Lote */}
+      {/* ══════════ Formulario Nuevo Lote ══════════ */}
       {showForm && (
         <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
           <h3 className="font-semibold text-gray-700">Iniciar Lote de Pre-Expansión</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+            {/* 1. Producto Resina */}
             <div>
               <label className="block text-sm font-medium text-gray-600 mb-1">Producto Resina (SKU)</label>
               <select value={formSkuResina} onChange={e => setFormSkuResina(e.target.value)}
@@ -161,28 +216,90 @@ export default function PreExpansionTab() {
                 ))}
               </select>
             </div>
+
+            {/* 2. Materia Prima — SELECT con todos los componentes del BOM */}
             <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">Materia Prima (SKU)</label>
-              <input value={formSkuMP} onChange={e => setFormSkuMP(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                placeholder="Auto-llenado desde BOM" />
+              <label className="block text-sm font-medium text-gray-600 mb-1">
+                Materia Prima (SKU)
+                {bomComponentes.length > 0 && (
+                  <span className="ml-2 text-xs text-gray-400">
+                    {bomComponentes.length} componente{bomComponentes.length > 1 ? 's' : ''} en BOM
+                  </span>
+                )}
+              </label>
+              {bomComponentes.length > 0 ? (
+                <select value={formSkuMP} onChange={e => setFormSkuMP(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                  <option value="">Seleccionar componente...</option>
+                  {bomComponentes.map(comp => (
+                    <option key={comp.sku_componente} value={comp.sku_componente}>
+                      {comp.sku_componente}
+                      {comp.nombre_componente && comp.nombre_componente !== comp.sku_componente
+                        ? ` — ${comp.nombre_componente}` : ''}
+                      {` (${comp.cantidad} kg/kg)`}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input value={formSkuMP} onChange={e => setFormSkuMP(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  placeholder={formSkuResina ? 'Sin BOM — ingresa manualmente' : 'Selecciona un producto primero'} />
+              )}
             </div>
+
+            {/* 3. Cantidad a Producir */}
             <div>
               <label className="block text-sm font-medium text-gray-600 mb-1">Cantidad a Producir (kg)</label>
               <input type="number" value={formCantProducir} onChange={e => setFormCantProducir(e.target.value)}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" min="0" step="0.01" />
             </div>
+
+            {/* 4. Materia Prima a Usar — auto-calculado */}
             <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">Materia Prima a Usar (kg)</label>
+              <label className="block text-sm font-medium text-gray-600 mb-1">
+                Materia Prima a Usar (kg)
+                {formSkuMP && bomComponentes.find(c => c.sku_componente === formSkuMP) && (
+                  <span className="ml-2 text-xs text-orange-500 font-normal">
+                    ✨ auto-calculado ({bomComponentes.find(c => c.sku_componente === formSkuMP)?.cantidad} kg/kg)
+                  </span>
+                )}
+              </label>
               <input type="number" value={formCantUsada} onChange={e => setFormCantUsada(e.target.value)}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" min="0" step="0.01" />
             </div>
+
+            {/* 5. Ubicación Destino */}
             <div>
               <label className="block text-sm font-medium text-gray-600 mb-1">Ubicación Destino</label>
               <input value={formUbicacion} onChange={e => setFormUbicacion(e.target.value)}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
             </div>
           </div>
+
+          {/* Preview BOM completo si hay más de 1 componente */}
+          {bomComponentes.length > 1 && (
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+              <p className="text-xs font-semibold text-orange-700 mb-2">
+                📋 BOM completo del producto ({bomComponentes.length} componentes)
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                {bomComponentes.map(comp => (
+                  <div key={comp.sku_componente}
+                    className={`text-xs px-2 py-1 rounded ${
+                      comp.sku_componente === formSkuMP
+                        ? 'bg-orange-200 text-orange-800 font-semibold'
+                        : 'text-orange-600'
+                    }`}>
+                    {comp.sku_componente === formSkuMP ? '✔ ' : '• '}
+                    {comp.sku_componente} — {comp.cantidad} kg/kg
+                    {comp.nombre_componente && comp.nombre_componente !== comp.sku_componente
+                      ? ` (${comp.nombre_componente})` : ''}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <button onClick={handleIniciar}
             className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg text-sm font-medium">
             🚀 Iniciar Lote
@@ -190,7 +307,7 @@ export default function PreExpansionTab() {
         </div>
       )}
 
-      {/* Lotes Activos */}
+      {/* ══════════ Lotes Activos ══════════ */}
       <div>
         <h3 className="font-semibold text-gray-700 mb-3">🟢 Lotes Activos ({activas.length})</h3>
         {activas.length === 0 ? (
@@ -221,7 +338,6 @@ export default function PreExpansionTab() {
                     </div>
                   </div>
 
-                  {/* Barra progreso */}
                   <div className="flex items-center gap-3">
                     <div className="flex-1 bg-gray-100 rounded-full h-3">
                       <div className="bg-orange-500 h-3 rounded-full transition-all"
@@ -238,7 +354,6 @@ export default function PreExpansionTab() {
                     <span>Parciales: {(op.registros_parciales || []).length}</span>
                   </div>
 
-                  {/* Modal parcial inline */}
                   {parcialOpId === op.op_id && (
                     <div className="mt-3 bg-blue-50 rounded-lg p-3 flex items-end gap-3">
                       <div className="flex-1">
@@ -262,7 +377,7 @@ export default function PreExpansionTab() {
         )}
       </div>
 
-      {/* Lotes Finalizados */}
+      {/* ══════════ Lotes Finalizados ══════════ */}
       {finalizadas.length > 0 && (
         <div>
           <h3 className="font-semibold text-gray-700 mb-3">✅ Finalizados ({finalizadas.length})</h3>

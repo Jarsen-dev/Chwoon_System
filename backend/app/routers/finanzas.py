@@ -27,6 +27,7 @@ from app.schemas.finanzas import (
     DevolucionCreate, DevolucionResponse, DisposicionDevolucionCreate,
     PlanVentasImport, PlanVentasResponse, AutorizarVentasMasivo,
     FinanzasDashboardResponse,
+    AprobarOrdenCompraRequest,
 )
 
 TZ_LOCAL = timezone(timedelta(hours=-6))
@@ -62,7 +63,6 @@ async def get_finanzas_dashboard(
     ahora = ahora_local()
     primer_dia_mes = ahora.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-    # Órdenes de compra
     total_oc = (await db.execute(select(func.count(OrdenCompra.id)))).scalar() or 0
     oc_pendientes = (await db.execute(
         select(func.count(OrdenCompra.id)).where(OrdenCompra.status.in_(["Creada", "Parcial"]))
@@ -71,7 +71,6 @@ async def get_finanzas_dashboard(
         select(func.count(OrdenCompra.id)).where(OrdenCompra.status == "Completada")
     )).scalar() or 0
 
-    # Órdenes de venta
     total_ov = (await db.execute(select(func.count(OrdenVenta.id)))).scalar() or 0
     ov_pendientes = (await db.execute(
         select(func.count(OrdenVenta.id)).where(OrdenVenta.estado == "Pendiente de Envío")
@@ -83,13 +82,11 @@ async def get_finanzas_dashboard(
         select(func.count(OrdenVenta.id)).where(OrdenVenta.estado == "Stock Insuficiente")
     )).scalar() or 0
 
-    # Devoluciones
     total_devoluciones = (await db.execute(select(func.count(Devolucion.id)))).scalar() or 0
     devoluciones_pendientes = (await db.execute(
         select(func.count(Devolucion.id)).where(Devolucion.estado_inspeccion == "Pendiente")
     )).scalar() or 0
 
-    # Valor compras del mes
     valor_compras_result = await db.execute(
         select(func.sum(OrdenCompraItem.cantidad_requerida * OrdenCompraItem.precio_unitario))
         .join(OrdenCompra, OrdenCompraItem.orden_compra_id == OrdenCompra.id)
@@ -97,7 +94,6 @@ async def get_finanzas_dashboard(
     )
     valor_compras_mes = valor_compras_result.scalar() or 0
 
-    # Valor ventas del mes
     valor_ventas_result = await db.execute(
         select(func.sum(OrdenVentaItem.cantidad * OrdenVentaItem.precio_unitario))
         .join(OrdenVenta, OrdenVentaItem.orden_venta_id == OrdenVenta.id)
@@ -105,7 +101,6 @@ async def get_finanzas_dashboard(
     )
     valor_ventas_mes = valor_ventas_result.scalar() or 0
 
-    # Planes de venta activos
     planes_activos = (await db.execute(select(func.count(PlanVentas.id)))).scalar() or 0
 
     return FinanzasDashboardResponse(
@@ -144,7 +139,6 @@ async def listar_ordenes_compra(
     result = await db.execute(query)
     ordenes = result.scalars().unique().all()
 
-    # Cargar items manualmente para cada orden
     response = []
     for orden in ordenes:
         items_result = await db.execute(
@@ -158,10 +152,12 @@ async def listar_ordenes_compra(
             "id_proveedor": orden.id_proveedor,
             "nombre_proveedor": orden.nombre_proveedor,
             "status": orden.status,
+            "origen": orden.origen or "FINANZAS",
             "fecha_creacion": orden.fecha_creacion.isoformat() if orden.fecha_creacion else None,
             "fecha_actualizacion": orden.fecha_actualizacion.isoformat() if orden.fecha_actualizacion else None,
             "notas": orden.notas,
             "creado_por": orden.creado_por,
+            "aprobado_por": orden.aprobado_por,
             "items": [
                 {
                     "id": item.id,
@@ -196,6 +192,7 @@ async def crear_orden_compra(
         id_proveedor=data.id_proveedor,
         nombre_proveedor=data.nombre_proveedor,
         status="Creada",
+        origen="FINANZAS",
         notas=data.notas,
         creado_por=current_user.username,
     )
@@ -215,8 +212,60 @@ async def crear_orden_compra(
         db.add(item)
 
     await db.commit()
-    await db.refresh(orden)
-    return {"message": f"Orden de compra {oc_id} creada exitosamente", "oc_id": oc_id, "id": orden.id}
+    return {"message": f"Orden de compra {oc_id} creada", "oc_id": oc_id, "id": orden.id}
+
+
+@router.post("/compras/{oc_id}/aprobar")
+@router.post("/compras/{oc_id}/aprobar/")
+async def aprobar_orden_compra(
+    oc_id: str,
+    data: AprobarOrdenCompraRequest = None,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Aprueba una OC generada desde Producción: aplica ediciones y cambia status a 'Creada'."""
+    require_finanzas_role(current_user)
+
+    result = await db.execute(select(OrdenCompra).where(OrdenCompra.oc_id == oc_id))
+    orden = result.scalar_one_or_none()
+    if not orden:
+        raise HTTPException(status_code=404, detail="Orden de compra no encontrada")
+
+    if orden.status != "Pendiente Aprobación":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Solo se pueden aprobar órdenes en 'Pendiente Aprobación'. Status actual: {orden.status}"
+        )
+
+    if data:
+        if data.id_proveedor is not None:
+            orden.id_proveedor = data.id_proveedor
+        if data.nombre_proveedor is not None:
+            orden.nombre_proveedor = data.nombre_proveedor
+        if data.notas is not None:
+            orden.notas = data.notas
+
+        if data.items is not None:
+            await db.execute(
+                delete(OrdenCompraItem).where(OrdenCompraItem.orden_compra_id == orden.id)
+            )
+            for item_data in data.items:
+                item = OrdenCompraItem(
+                    orden_compra_id=orden.id,
+                    sku_producto=item_data.sku_producto,
+                    nombre_producto=item_data.nombre_producto,
+                    cantidad_requerida=item_data.cantidad_requerida,
+                    cantidad_recibida=0,
+                    precio_unitario=item_data.precio_unitario,
+                    moneda=item_data.moneda,
+                )
+                db.add(item)
+
+    orden.status = "Creada"
+    orden.aprobado_por = current_user.username
+    await db.commit()
+
+    return {"message": f"Orden {oc_id} aprobada exitosamente. Status: Creada"}
 
 
 @router.get("/compras/{oc_id}")
@@ -250,9 +299,11 @@ async def obtener_orden_compra(
         "id_proveedor": orden.id_proveedor,
         "nombre_proveedor": orden.nombre_proveedor,
         "status": orden.status,
+        "origen": orden.origen or "FINANZAS",
         "fecha_creacion": orden.fecha_creacion.isoformat() if orden.fecha_creacion else None,
         "notas": orden.notas,
         "creado_por": orden.creado_por,
+        "aprobado_por": orden.aprobado_por,
         "items": [
             {
                 "id": i.id,
@@ -279,6 +330,7 @@ async def obtener_orden_compra(
         ],
     }
 
+
 @router.get("/compras/{oc_id}/pdf")
 @router.get("/compras/{oc_id}/pdf/")
 async def generar_pdf_orden_compra(
@@ -286,7 +338,7 @@ async def generar_pdf_orden_compra(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    """Genera PDF estilo original: Logo, QR, info básica, productos, valor total. Sin notas."""
+    """Genera PDF estilo original: Logo, QR, info básica, productos, valor total."""
     require_finanzas_role(current_user)
 
     result = await db.execute(select(OrdenCompra).where(OrdenCompra.oc_id == oc_id))
@@ -303,7 +355,6 @@ async def generar_pdf_orden_compra(
     c = pdf_canvas.Canvas(buffer, pagesize=letter)
     width, height = letter
 
-    # --- Logo ---
     logo_path = os.path.join("static", "Logo.png")
     if os.path.exists(logo_path):
         c.drawImage(
@@ -312,7 +363,6 @@ async def generar_pdf_orden_compra(
             preserveAspectRatio=True, mask="auto",
         )
 
-    # --- QR ---
     qr_img = qrcode.make(oc_id)
     qr_buffer = io.BytesIO()
     qr_img.save(qr_buffer, format="PNG")
@@ -323,7 +373,6 @@ async def generar_pdf_orden_compra(
         width=1.2 * inch, height=1.2 * inch,
     )
 
-    # --- Encabezado ---
     c.setFont("Helvetica-Bold", 18)
     c.drawString(inch, height - 2.25 * inch, f"Orden de Compra: {oc_id}")
 
@@ -336,7 +385,6 @@ async def generar_pdf_orden_compra(
     y -= 0.25 * inch
     c.drawString(inch, y, f"Estado: {orden.status}")
 
-    # --- Items ---
     y -= 0.7 * inch
     c.setFont("Helvetica-Bold", 14)
     c.drawString(inch, y, "Productos Solicitados")
@@ -368,7 +416,6 @@ async def generar_pdf_orden_compra(
             y = height - 1.5 * inch
             c.setFont("Helvetica", 11)
 
-    # --- Total ---
     valor_total = sum(i.cantidad_requerida * i.precio_unitario for i in items)
     y -= 0.2 * inch
     c.setStrokeColorRGB(0.3, 0.3, 0.3)
@@ -386,303 +433,6 @@ async def generar_pdf_orden_compra(
         headers={"Content-Disposition": f"inline; filename={oc_id}.pdf"},
     )
 
-
-# ========================
-# PDF DETALLE COMPLETO DE OC (sin QR, con recepciones)
-# ========================
-@router.get("/compras/{oc_id}/pdf-detalle")
-@router.get("/compras/{oc_id}/pdf-detalle/")
-async def generar_pdf_detalle_oc(
-    oc_id: str,
-    db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user),
-):
-    """Genera PDF con toda la info del detalle: proveedor, status, productos con progreso, recepciones."""
-    require_finanzas_role(current_user)
-
-    result = await db.execute(select(OrdenCompra).where(OrdenCompra.oc_id == oc_id))
-    orden = result.scalar_one_or_none()
-    if not orden:
-        raise HTTPException(status_code=404, detail="Orden de compra no encontrada")
-
-    items_result = await db.execute(
-        select(OrdenCompraItem).where(OrdenCompraItem.orden_compra_id == orden.id)
-    )
-    items = items_result.scalars().all()
-
-    recepciones_result = await db.execute(
-        select(RecepcionCompra).where(RecepcionCompra.orden_compra_id == orden.id)
-        .order_by(RecepcionCompra.fecha_recepcion.desc())
-    )
-    recepciones = recepciones_result.scalars().all()
-
-    # ── Helper: calcular Lote ID ──────────
-    def calcular_lote_id(sku: str) -> str:
-        recs_sku = [r for r in recepciones if r.sku_producto == sku]
-        if not recs_sku:
-            return "—"
-        recs_sku.sort(key=lambda r: r.fecha_recepcion, reverse=True)
-        fecha = recs_sku[0].fecha_recepcion.strftime("%Y%m%d")
-        return f"{fecha}-{sku[-4:].upper()}-{len(recs_sku)}"
-
-    buffer = io.BytesIO()
-    c = pdf_canvas.Canvas(buffer, pagesize=letter)
-    width, height = letter
-
-    margin = 0.6 * inch  # Margen izquierdo unificado para todo
-    right_margin = width - margin
-
-    # --- Logo ---
-    logo_path = os.path.join("static", "Logo.png")
-    if os.path.exists(logo_path):
-        c.drawImage(logo_path, margin, height - 1.5 * inch, width=1.5 * inch,
-                     height=0.75 * inch, preserveAspectRatio=True, mask="auto")
-
-    # --- Encabezado ---
-    c.setFont("Helvetica-Bold", 18)
-    c.drawString(margin, height - 2.25 * inch, f"Orden de Compra: {oc_id}")
-
-    c.setFont("Helvetica", 12)
-    y = height - 2.6 * inch
-    fecha_str = orden.fecha_creacion.strftime("%Y-%m-%d %H:%M") if orden.fecha_creacion else "N/A"
-    c.drawString(margin, y, f"Fecha de Creación: {fecha_str}")
-    y -= 0.25 * inch
-    c.drawString(margin, y, f"Proveedor: {orden.nombre_proveedor}")
-    y -= 0.25 * inch
-    c.drawString(margin, y, f"Estado: {orden.status}")
-    y -= 0.25 * inch
-    c.drawString(margin, y, f"Creado por: {orden.creado_por or 'N/A'}")
-
-    if orden.notas:
-        y -= 0.25 * inch
-        c.drawString(margin, y, f"Notas: {orden.notas}")
-
-    # --- Tabla de Productos (con columna Lote) ---
-    y -= 0.6 * inch
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(margin, y, "Productos")
-    y -= 0.35 * inch
-
-    table_width = right_margin - margin
-    col_x = [
-        margin,                              # SKU
-        margin + table_width * 0.12,         # Nombre
-        margin + table_width * 0.32,         # Requerida
-        margin + table_width * 0.44,         # Recibida
-        margin + table_width * 0.55,         # Precio Unit.
-        margin + table_width * 0.68,         # Progreso
-        margin + table_width * 0.78,         # Lote
-    ]
-    headers = ["SKU", "Nombre", "Requerida", "Recibida", "Precio Unit.", "Progreso", "Lote"]
-    c.setFont("Helvetica-Bold", 9)
-    for i, h in enumerate(headers):
-        c.drawString(col_x[i], y, h)
-    y -= 0.15 * inch
-    c.setStrokeColorRGB(0.6, 0.6, 0.6)
-    c.line(margin, y, right_margin, y)
-    y -= 0.22 * inch
-
-    c.setFont("Helvetica", 9)
-    for item in items:
-        pct = (item.cantidad_recibida / item.cantidad_requerida * 100) if item.cantidad_requerida > 0 else 0
-        lote_id = calcular_lote_id(item.sku_producto)
-
-        c.drawString(col_x[0], y, str(item.sku_producto)[:12])
-        c.drawString(col_x[1], y, str(item.nombre_producto)[:22])
-        c.drawString(col_x[2], y, str(item.cantidad_requerida))
-        c.drawString(col_x[3], y, str(item.cantidad_recibida))
-        c.drawString(col_x[4], y, f"${item.precio_unitario:,.2f}")
-        c.drawString(col_x[5], y, f"{pct:.0f}%")
-        c.drawString(col_x[6], y, lote_id)
-        y -= 0.24 * inch
-        if y < inch:
-            c.showPage()
-            c.setFont("Helvetica", 9)
-            y = height - inch
-
-    # --- Valor Total ---
-    valor_total = sum(i.cantidad_requerida * i.precio_unitario for i in items)
-    y -= 0.15 * inch
-    c.setStrokeColorRGB(0.4, 0.4, 0.4)
-    c.line(margin, y, right_margin, y)
-    y -= 0.3 * inch
-    c.setFont("Helvetica-Bold", 11)
-    c.drawString(margin, y, f"Valor Total: ${valor_total:,.2f} MXN")
-
-    # --- Historial de Recepciones ---
-    if recepciones:
-        y -= 0.6 * inch
-        if y < 2 * inch:
-            c.showPage()
-            y = height - inch
-
-        c.setFont("Helvetica-Bold", 14)
-        c.drawString(margin, y, "Historial de Recepciones")
-        y -= 0.35 * inch
-
-        c.setFont("Helvetica", 9)
-        for rec in recepciones:
-            if y < inch:
-                c.showPage()
-                c.setFont("Helvetica", 9)
-                y = height - inch
-
-            fecha_rec = rec.fecha_recepcion.strftime("%Y-%m-%d %H:%M") if rec.fecha_recepcion else "N/A"
-            c.setFont("Helvetica-Bold", 9)
-            c.drawString(margin, y, rec.recepcion_id)
-            c.setFont("Helvetica", 8)
-            c.drawString(right_margin - 1.5 * inch, y, fecha_rec)
-            y -= 0.18 * inch
-
-            c.drawString(margin + 0.15 * inch, y,
-                          f"{rec.sku_producto} — Cantidad: {rec.cantidad_recibida} — {rec.recibido_por or 'N/A'}")
-            y -= 0.18 * inch
-
-            if rec.notas:
-                c.setFont("Helvetica-Oblique", 8)
-                c.drawString(margin + 0.15 * inch, y, f"Nota: {rec.notas}")
-                y -= 0.18 * inch
-                c.setFont("Helvetica", 9)
-
-            y -= 0.12 * inch
-
-    c.save()
-    buffer.seek(0)
-
-    return StreamingResponse(
-        buffer,
-        media_type="application/pdf",
-        headers={"Content-Disposition": f"inline; filename={oc_id}_detalle.pdf"},
-    )
-
-
-# ========================
-# ETIQUETA LOTE IQC — Sin QR superior, sin bordes, fecha sin guiones en lote
-# ========================
-@router.get("/compras/{oc_id}/etiqueta-lote/{sku}")
-@router.get("/compras/{oc_id}/etiqueta-lote/{sku}/")
-async def generar_etiqueta_lote(
-    oc_id: str,
-    sku: str,
-    db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user),
-):
-    """Genera PDF de etiqueta de lote IQC. Lote = FechaYYYYMMDD-Ultimos4SKU-NumRecepciones"""
-    require_finanzas_role(current_user)
-
-    result = await db.execute(select(OrdenCompra).where(OrdenCompra.oc_id == oc_id))
-    orden = result.scalar_one_or_none()
-    if not orden:
-        raise HTTPException(status_code=404, detail="Orden no encontrada")
-
-    item_result = await db.execute(
-        select(OrdenCompraItem).where(
-            and_(
-                OrdenCompraItem.orden_compra_id == orden.id,
-                OrdenCompraItem.sku_producto == sku,
-            )
-        )
-    )
-    item = item_result.scalar_one_or_none()
-    if not item:
-        raise HTTPException(status_code=404, detail=f"SKU {sku} no encontrado en la orden")
-
-    rec_count_result = await db.execute(
-        select(func.count(RecepcionCompra.id)).where(
-            and_(
-                RecepcionCompra.orden_compra_id == orden.id,
-                RecepcionCompra.sku_producto == sku,
-            )
-        )
-    )
-    rec_count = rec_count_result.scalar() or 0
-
-    if rec_count == 0:
-        raise HTTPException(status_code=400, detail="No hay recepciones registradas para este SKU")
-
-    last_rec_result = await db.execute(
-        select(RecepcionCompra).where(
-            and_(
-                RecepcionCompra.orden_compra_id == orden.id,
-                RecepcionCompra.sku_producto == sku,
-            )
-        ).order_by(RecepcionCompra.fecha_recepcion.desc()).limit(1)
-    )
-    last_rec = last_rec_result.scalar_one_or_none()
-    fecha_recibo_display = last_rec.fecha_recepcion.strftime("%Y-%m-%d") if last_rec and last_rec.fecha_recepcion else ahora_local().strftime("%Y-%m-%d")
-    # Fecha sin guiones para el lote
-    fecha_lote = last_rec.fecha_recepcion.strftime("%Y%m%d") if last_rec and last_rec.fecha_recepcion else ahora_local().strftime("%Y%m%d")
-
-    sku_suffix = sku[-4:].upper()
-    lote_id = f"{fecha_lote}-{sku_suffix}-{rec_count}"
-
-    # --- Generar PDF etiqueta (A6) ---
-    page_w = 4.1 * inch
-    page_h = 2.9 * inch
-
-    buffer = io.BytesIO()
-    c = pdf_canvas.Canvas(buffer, pagesize=(page_w, page_h))
-
-    margin = 0.25 * inch
-    qr_size = 0.95 * inch
-    qr_col_x = page_w - margin - qr_size  # Columna derecha para QRs
-
-    # --- Título ---
-    c.setFont("Helvetica-Bold", 13)
-    c.drawString(margin, page_h - margin - 0.13 * inch, "ETIQUETA DE LOTE (IQC)")
-
-    # --- QR LOTE (derecha arriba) ---
-    qr_lote_buf = io.BytesIO()
-    qrcode.make(lote_id).save(qr_lote_buf, format="PNG")
-    qr_lote_buf.seek(0)
-    qr_lote_y = page_h - margin - 0.05 * inch - qr_size
-    c.drawImage(ImageReader(qr_lote_buf), qr_col_x, qr_lote_y, width=qr_size, height=qr_size)
-    # Label centrado debajo
-    c.setFont("Helvetica-Bold", 7)
-    c.drawCentredString(qr_col_x + qr_size / 2, qr_lote_y - 0.11 * inch, "LOTE ID")
-
-    # --- QR SKU (derecha abajo, justo debajo del QR LOTE) ---
-    qr_gap = 0.18 * inch  # espacio entre QR LOTE label y QR SKU
-    qr_sku_y = qr_lote_y - 0.11 * inch - qr_gap - qr_size
-    qr_sku_buf = io.BytesIO()
-    qrcode.make(sku).save(qr_sku_buf, format="PNG")
-    qr_sku_buf.seek(0)
-    c.drawImage(ImageReader(qr_sku_buf), qr_col_x, qr_sku_y, width=qr_size, height=qr_size)
-    # Label centrado debajo
-    c.setFont("Helvetica-Bold", 7)
-    c.drawCentredString(qr_col_x + qr_size / 2, qr_sku_y - 0.11 * inch, "SKU")
-
-    # --- Datos a la izquierda ---
-    label_x = margin
-    value_x = margin + 0.9 * inch
-    y = page_h - margin - 0.5 * inch
-    line_h = 0.2 * inch
-
-    data_lines = [
-        ("SKU:", sku),
-        ("Producto:", item.nombre_producto[:28]),
-        ("Cantidad:", str(item.cantidad_recibida)),
-        ("Fecha Recibo:", fecha_recibo_display),
-        ("OC Origen:", oc_id),
-        ("Lote ID:", lote_id),
-    ]
-
-    for label, value in data_lines:
-        c.setFont("Helvetica-Bold", 8)
-        c.drawString(label_x, y, label)
-        c.setFont("Helvetica", 8)
-        c.drawString(value_x, y, value)
-        y -= line_h
-
-    c.save()
-    buffer.seek(0)
-
-    filename = f"ETIQUETA_LOTE_{lote_id}.pdf"
-    return StreamingResponse(
-        buffer,
-        media_type="application/pdf",
-        headers={"Content-Disposition": f"inline; filename={filename}"},
-    )
 
 @router.put("/compras/{oc_id}")
 @router.put("/compras/{oc_id}/")
@@ -707,7 +457,6 @@ async def actualizar_orden_compra(
         orden.notas = data.notas
 
     if data.items is not None:
-        # Eliminar items existentes y recrear
         await db.execute(
             delete(OrdenCompraItem).where(OrdenCompraItem.orden_compra_id == orden.id)
         )
@@ -741,7 +490,6 @@ async def eliminar_orden_compra(
     if not orden:
         raise HTTPException(status_code=404, detail="Orden de compra no encontrada")
 
-    # Verificar que no tiene recepciones
     rec_count = (await db.execute(
         select(func.count(RecepcionCompra.id)).where(RecepcionCompra.orden_compra_id == orden.id)
     )).scalar() or 0
@@ -756,157 +504,6 @@ async def eliminar_orden_compra(
     await db.commit()
     return {"message": f"Orden {oc_id} eliminada"}
 
-
-# ========================
-# RECEPCIONES DE COMPRA
-# ========================
-@router.post("/compras/recepcion")
-@router.post("/compras/recepcion/")
-async def registrar_recepcion(
-    data: RecepcionCompraCreate,
-    db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user),
-):
-    require_finanzas_role(current_user)
-
-    # Buscar la orden
-    result = await db.execute(select(OrdenCompra).where(OrdenCompra.oc_id == data.oc_id))
-    orden = result.scalar_one_or_none()
-    if not orden:
-        raise HTTPException(status_code=404, detail=f"Orden {data.oc_id} no encontrada")
-
-    # Buscar el item de la orden
-    item_result = await db.execute(
-        select(OrdenCompraItem).where(
-            and_(
-                OrdenCompraItem.orden_compra_id == orden.id,
-                OrdenCompraItem.sku_producto == data.sku_producto,
-            )
-        )
-    )
-    item = item_result.scalar_one_or_none()
-    if not item:
-        raise HTTPException(status_code=404, detail=f"SKU {data.sku_producto} no encontrado en la orden")
-
-    # Crear recepción
-    ahora = ahora_local()
-    recepcion_id = f"REC-{ahora.strftime('%Y%m%d%H%M%S')}"
-
-    recepcion = RecepcionCompra(
-        recepcion_id=recepcion_id,
-        orden_compra_id=orden.id,
-        oc_id=data.oc_id,
-        sku_producto=data.sku_producto,
-        cantidad_recibida=data.cantidad_recibida,
-        recibido_por=current_user.username,
-        notas=data.notas,
-    )
-    db.add(recepcion)
-
-    # Actualizar cantidad recibida del item
-    item.cantidad_recibida = (item.cantidad_recibida or 0) + data.cantidad_recibida
-
-    # Verificar si toda la OC está completada
-    all_items_result = await db.execute(
-        select(OrdenCompraItem).where(OrdenCompraItem.orden_compra_id == orden.id)
-    )
-    all_items = all_items_result.scalars().all()
-    todos_completos = all(i.cantidad_recibida >= i.cantidad_requerida for i in all_items)
-    alguno_parcial = any(i.cantidad_recibida > 0 for i in all_items)
-
-    if todos_completos:
-        orden.status = "Completada"
-    elif alguno_parcial:
-        orden.status = "Parcial"
-
-    await db.commit()
-    return {
-        "message": f"Recepción {recepcion_id} registrada",
-        "recepcion_id": recepcion_id,
-        "nuevo_status_oc": orden.status,
-    }
-
-@router.post("/compras/recepcion-lote")
-@router.post("/compras/recepcion-lote/")
-async def registrar_recepcion_lote(
-    data: list[RecepcionCompraCreate],
-    db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user),
-):
-    """Registra recepciones para múltiples SKUs de una misma OC en una sola llamada."""
-    require_finanzas_role(current_user)
-
-    if not data:
-        raise HTTPException(status_code=400, detail="Lista de recepciones vacía")
-
-    # Validar que todas las recepciones son de la misma OC
-    oc_ids = set(item.oc_id for item in data)
-    if len(oc_ids) > 1:
-        raise HTTPException(status_code=400, detail="Todas las recepciones deben ser de la misma OC")
-
-    oc_id_str = data[0].oc_id
-
-    # Buscar la orden
-    result = await db.execute(select(OrdenCompra).where(OrdenCompra.oc_id == oc_id_str))
-    orden = result.scalar_one_or_none()
-    if not orden:
-        raise HTTPException(status_code=404, detail=f"Orden {oc_id_str} no encontrada")
-
-    recepciones_creadas = []
-
-    for rec_data in data:
-        if rec_data.cantidad_recibida <= 0:
-            continue
-
-        # Buscar el item
-        item_result = await db.execute(
-            select(OrdenCompraItem).where(
-                and_(
-                    OrdenCompraItem.orden_compra_id == orden.id,
-                    OrdenCompraItem.sku_producto == rec_data.sku_producto,
-                )
-            )
-        )
-        item = item_result.scalar_one_or_none()
-        if not item:
-            continue
-
-        ahora = ahora_local()
-        recepcion_id = f"REC-{ahora.strftime('%Y%m%d%H%M%S')}-{rec_data.sku_producto[-4:]}"
-
-        recepcion = RecepcionCompra(
-            recepcion_id=recepcion_id,
-            orden_compra_id=orden.id,
-            oc_id=oc_id_str,
-            sku_producto=rec_data.sku_producto,
-            cantidad_recibida=rec_data.cantidad_recibida,
-            recibido_por=current_user.username,
-            notas=rec_data.notas,
-        )
-        db.add(recepcion)
-
-        item.cantidad_recibida = (item.cantidad_recibida or 0) + rec_data.cantidad_recibida
-        recepciones_creadas.append(recepcion_id)
-
-    # Verificar status de la OC
-    all_items_result = await db.execute(
-        select(OrdenCompraItem).where(OrdenCompraItem.orden_compra_id == orden.id)
-    )
-    all_items = all_items_result.scalars().all()
-    todos_completos = all(i.cantidad_recibida >= i.cantidad_requerida for i in all_items)
-    alguno_parcial = any(i.cantidad_recibida > 0 for i in all_items)
-
-    if todos_completos:
-        orden.status = "Completada"
-    elif alguno_parcial:
-        orden.status = "Parcial"
-
-    await db.commit()
-    return {
-        "message": f"{len(recepciones_creadas)} recepciones registradas",
-        "recepciones": recepciones_creadas,
-        "nuevo_status_oc": orden.status,
-    }
 
 @router.get("/recepciones")
 @router.get("/recepciones/")
@@ -1378,14 +975,12 @@ async def importar_plan_ventas(
             },
         })
 
-    # Buscar si ya existe
     result = await db.execute(
         select(PlanVentas).where(PlanVentas.identificador_semana == identificador_semana)
     )
     plan_existente = result.scalar_one_or_none()
 
     if plan_existente:
-        # Merge: actualizar items existentes, agregar nuevos
         items_map_existente = {i["sku"]: i for i in (plan_existente.items or [])}
         for new_item in items:
             if new_item["sku"] in items_map_existente:
@@ -1433,7 +1028,6 @@ async def autorizar_ventas_masivo(
         ahora = ahora_local()
         ov_id = f"OV-{ahora.strftime('%Y%m%d%H%M%S')}-{venta.sku[-4:]}"
 
-        # Crear la OV
         orden = OrdenVenta(
             ov_id=ov_id,
             cliente_id="PLAN_VENTAS",
@@ -1451,7 +1045,6 @@ async def autorizar_ventas_masivo(
         )
         db.add(item_ov)
 
-        # Actualizar el plan
         if venta.sku in items_map:
             dias = items_map[venta.sku].get("dias", {})
             if venta.dia in dias:
@@ -1517,20 +1110,15 @@ async def obtener_info_lote(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    """
-    Busca info de lote por Lote ID (formato: YYYYMMDD-XXXX-N).
-    Extrae el SKU suffix y fecha para encontrar las recepciones correspondientes.
-    """
+    """Busca info de lote por Lote ID (formato: YYYYMMDD-XXXX-N)."""
     require_finanzas_role(current_user)
 
-    # Parsear el lote_id: YYYYMMDD-XXXX-N
     partes = lote_id.split("-")
     if len(partes) != 3:
         raise HTTPException(status_code=400, detail="Formato de Lote ID inválido. Esperado: YYYYMMDD-XXXX-N")
 
     fecha_str, sku_suffix, rec_count_str = partes
 
-    # Buscar recepciones donde el SKU termina con ese suffix
     result = await db.execute(
         select(RecepcionCompra).where(
             RecepcionCompra.sku_producto.ilike(f"%{sku_suffix}")
@@ -1541,28 +1129,23 @@ async def obtener_info_lote(
     if not recepciones:
         raise HTTPException(status_code=404, detail=f"No se encontraron recepciones para el lote {lote_id}")
 
-    # Filtrar por fecha (las recepciones cuya fecha coincide con YYYYMMDD)
     recepciones_filtradas = [
         r for r in recepciones
         if r.fecha_recepcion and r.fecha_recepcion.strftime("%Y%m%d") == fecha_str
     ]
 
-    # Si no hay coincidencia exacta por fecha, usar todas las del suffix
     recs_finales = recepciones_filtradas if recepciones_filtradas else recepciones
 
     if not recs_finales:
         raise HTTPException(status_code=404, detail=f"No se encontraron recepciones para el lote {lote_id}")
 
-    # Tomar la primera recepción para obtener datos de la OC
     rec_principal = recs_finales[0]
     sku_completo = rec_principal.sku_producto
     oc_id = rec_principal.oc_id
 
-    # Buscar la orden de compra
     oc_result = await db.execute(select(OrdenCompra).where(OrdenCompra.oc_id == oc_id))
     orden = oc_result.scalar_one_or_none()
 
-    # Buscar el item de la OC para obtener nombre y precio
     item = None
     if orden:
         item_result = await db.execute(
@@ -1575,7 +1158,6 @@ async def obtener_info_lote(
         )
         item = item_result.scalar_one_or_none()
 
-    # Calcular cantidad total recibida en este lote
     cantidad_total = sum(r.cantidad_recibida for r in recs_finales if r.sku_producto == sku_completo)
 
     return {

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 import DashboardTab from './DashboardTab';
+import RecepcionesTab from './RecepcionesTab';
 import InventarioTab from './InventarioTab';
 import UbicacionesTab from './UbicacionesTab';
 import EmbarquesTab from './EmbarquesTab';
@@ -15,6 +16,7 @@ import ReporteEmbarquesTab from './ReporteEmbarquesTab';
 
 const TABS = [
   { id: 'dashboard',    label: '📊 Dashboard' },
+  { id: 'recepciones',  label: '📥 Recepciones' },
   { id: 'inventario',   label: '📦 Inventario' },
   { id: 'ubicaciones',  label: '📍 Ubicaciones' },
   { id: 'embarques',    label: '🚚 Embarques' },
@@ -145,6 +147,7 @@ export default function AlmacenPage() {
       {/* Content */}
       <main className="flex-1 overflow-y-auto p-6">
         {activeTab === 'dashboard'    && <DashboardTab token={token} />}
+        {activeTab === 'recepciones'  && <RecepcionesTab token={token} />}
         {activeTab === 'inventario'   && <InventarioTab token={token} />}
         {activeTab === 'ubicaciones'  && <UbicacionesTab token={token} />}
         {activeTab === 'embarques'    && <EmbarquesTab token={token} />}

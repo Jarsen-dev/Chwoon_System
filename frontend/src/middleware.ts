@@ -9,8 +9,30 @@ const RUTAS_PROTEGIDAS: Record<string, string[]> = {
   '/almacen':  ['admin', 'almacen'],
 }
 
+// Prefijos de rutas API que NUNCA deben ser interceptados por el middleware
+const API_PREFIXES = [
+  '/api/',
+  '/finanzas/',
+  '/calidad/',
+  '/almacen/dashboard',
+  '/almacen/recepciones',
+  '/almacen/ubicaciones',
+  '/almacen/inventario',
+  '/almacen/embarques',
+  '/almacen/traslados',
+  '/almacen/eps',
+  '/almacen/trazabilidad',
+  '/almacen/reporte',
+  '/almacen/limpiar',
+]
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+
+  // Dejar pasar todas las llamadas API al backend (rewrites)
+  if (API_PREFIXES.some(prefix => pathname.startsWith(prefix))) {
+    return NextResponse.next()
+  }
 
   // La ruta / está protegida pero permite todos los roles de producción
   if (pathname === '/') {
@@ -54,5 +76,6 @@ export const config = {
     '/ventas/:path*',
     '/calidad/:path*',
     '/almacen/:path*',
+    '/finanzas/:path*',
   ],
 }
