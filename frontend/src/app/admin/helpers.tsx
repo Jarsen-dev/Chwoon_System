@@ -10,15 +10,17 @@ export const ROL_BADGE: Record<RolUsuario, string> = {
   finanzas:   'bg-emerald-900/50 text-emerald-300 border border-emerald-700',
   calidad:    'bg-cyan-900/50 text-cyan-300 border border-cyan-700',
   almacen:    'bg-orange-900/50 text-orange-300 border border-orange-700',
+  logistica:  'bg-teal-900/50 text-teal-300 border border-teal-700',
 }
 
-export const ROL_ICON: Record<RolUsuario, string> = {
+export const ROL_ICON: Record<string, string> = {
   admin:      '👑',
   supervisor: '🔵',
   operador:   '🟢',
   finanzas:   '💰',
   calidad:    '🔬',
   almacen:    '📦',
+  logistica:  '🚛',
 }
 
 export const TABS = [

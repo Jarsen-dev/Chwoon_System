@@ -91,6 +91,12 @@ export default function VentasPage() {
                 📦 Almacén
               </Link>
               <Link
+                href="/logistica"
+                className="bg-teal-600 hover:bg-teal-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              >
+                🚛 Logística
+              </Link>
+              <Link
                 href="/admin"
                 className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
               >

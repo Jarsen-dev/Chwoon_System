@@ -94,3 +94,15 @@ async def get_current_almacen(
             detail="Se requiere rol administrador o almacén",
         )
     return current_user
+
+
+async def get_current_logistica(
+    current_user: Usuario = Depends(get_current_user),
+) -> Usuario:
+    """Permite acceso solo a usuarios con rol admin o logistica."""
+    if current_user.rol not in [RolUsuario.admin, RolUsuario.logistica]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Se requiere rol administrador o logística",
+        )
+    return current_user

@@ -126,42 +126,6 @@ class InventarioConsolidadoResponse(BaseModel):
 
 
 # ==========================================
-# EMBARQUES
-# ==========================================
-class EmbarqueItemRequest(BaseModel):
-    lote_id: str
-    sku: str
-    cantidad: float
-
-class CrearEmbarqueRequest(BaseModel):
-    ov_id: str
-    items: List[EmbarqueItemRequest]
-
-class SalidaEmbarqueRequest(BaseModel):
-    camion: str
-    chofer: str
-    departure: str
-
-class EmbarqueResponse(BaseModel):
-    id: int
-    numero_embarque: str
-    ov_id: str
-    cliente_id: Optional[str] = None
-    fecha_creacion: Optional[datetime] = None
-    status: str
-    items: list = []
-    camion: Optional[str] = None
-    chofer: Optional[str] = None
-    departure: Optional[str] = None
-    sku: Optional[str] = None
-    nombre_producto: Optional[str] = None
-    creado_por: Optional[str] = None
-
-    class Config:
-        from_attributes = True
-
-
-# ==========================================
 # TRASLADOS A PRODUCCIÓN
 # ==========================================
 class TrasladoProduccionItemRequest(BaseModel):
@@ -221,20 +185,6 @@ class TrazabilidadResponse(BaseModel):
 
 
 # ==========================================
-# REPORTE EMBARQUES
-# ==========================================
-class ReporteEmbarqueItem(BaseModel):
-    item_id: str
-    sku: str
-    cantidad_solicitada: float
-    cantidad_enviada: float
-    diferencia: float
-    porcentaje_en_transito: str
-    total_embarcado_dia: float
-    embarques_por_hora: dict = {}
-
-
-# ==========================================
 # DASHBOARD
 # ==========================================
 class AlmacenDashboard(BaseModel):
@@ -250,6 +200,7 @@ class AlmacenDashboard(BaseModel):
     traslados_completados: int = 0
     stock_total_items: float = 0
     lotes_eps: int = 0
+
 
 # ==========================================
 # RECEPCIONES DE COMPRA (vista Almacén)

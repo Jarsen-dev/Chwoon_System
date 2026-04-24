@@ -28,7 +28,7 @@ export default function ReporteEmbarquesTab({ token }: Props) {
     }
   };
 
-  const horas = Array.from({ length: 13 }, (_, i) => i + 7); // 7 a 19
+  const horas = Array.from({ length: 13 }, (_, i) => i + 7);
 
   return (
     <div className="space-y-4">
@@ -63,7 +63,7 @@ export default function ReporteEmbarquesTab({ token }: Props) {
         <button
           onClick={cargar}
           disabled={loading}
-          className="bg-orange-600 hover:bg-orange-700 disabled:opacity-50 px-6 py-2 rounded-lg text-sm font-medium transition-colors"
+          className="bg-teal-600 hover:bg-teal-700 disabled:opacity-50 px-6 py-2 rounded-lg text-sm font-medium transition-colors"
         >
           {loading ? '⏳ Cargando...' : '📊 Generar Reporte'}
         </button>
@@ -95,7 +95,7 @@ export default function ReporteEmbarquesTab({ token }: Props) {
               <tbody className="divide-y divide-gray-800">
                 {reporte.map((item) => (
                   <tr key={item.item_id} className="hover:bg-gray-800/50">
-                    <td className="p-3 font-mono text-orange-400 text-xs sticky left-0 bg-gray-900">{item.sku}</td>
+                    <td className="p-3 font-mono text-teal-400 text-xs sticky left-0 bg-gray-900">{item.sku}</td>
                     <td className="p-3 text-right">{item.cantidad_solicitada}</td>
                     <td className="p-3 text-right text-green-400">{item.cantidad_enviada}</td>
                     <td className="p-3 text-right">
@@ -119,7 +119,7 @@ export default function ReporteEmbarquesTab({ token }: Props) {
                       return (
                         <td key={h} className="p-2 text-center text-xs">
                           {val > 0 ? (
-                            <span className="bg-orange-500/30 text-orange-400 px-1.5 py-0.5 rounded">{val}</span>
+                            <span className="bg-teal-500/30 text-teal-400 px-1.5 py-0.5 rounded">{val}</span>
                           ) : (
                             <span className="text-gray-700">-</span>
                           )}
@@ -148,7 +148,7 @@ export default function ReporteEmbarquesTab({ token }: Props) {
               </span>
             </span>
             <span className="text-gray-400">
-              Embarcado Hoy: <span className="text-orange-400 font-bold">
+              Embarcado Hoy: <span className="text-teal-400 font-bold">
                 {reporte.reduce((s, r) => s + r.total_embarcado_dia, 0).toLocaleString('es-MX')}
               </span>
             </span>

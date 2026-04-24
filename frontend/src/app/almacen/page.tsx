@@ -8,22 +8,18 @@ import DashboardTab from './DashboardTab';
 import RecepcionesTab from './RecepcionesTab';
 import InventarioTab from './InventarioTab';
 import UbicacionesTab from './UbicacionesTab';
-import EmbarquesTab from './EmbarquesTab';
 import TrasladosTab from './TrasladosTab';
 import EPSTab from './EPSTab';
 import TrazabilidadTab from './TrazabilidadTab';
-import ReporteEmbarquesTab from './ReporteEmbarquesTab';
 
 const TABS = [
   { id: 'dashboard',    label: '📊 Dashboard' },
   { id: 'recepciones',  label: '📥 Recepciones' },
   { id: 'inventario',   label: '📦 Inventario' },
   { id: 'ubicaciones',  label: '📍 Ubicaciones' },
-  { id: 'embarques',    label: '🚚 Embarques' },
   { id: 'traslados',    label: '🔄 Traslados' },
   { id: 'eps',          label: '🏭 Almacén EPS' },
   { id: 'trazabilidad', label: '🔍 Trazabilidad' },
-  { id: 'reporte',      label: '📋 Reporte' },
 ];
 
 export default function AlmacenPage() {
@@ -103,6 +99,15 @@ export default function AlmacenPage() {
             </Link>
           )}
 
+          {['admin', 'logistica'].includes(rol || '') && (
+            <Link
+              href="/logistica"
+              className="bg-teal-600 hover:bg-teal-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            >
+              🚛 Logística
+            </Link>
+          )}
+
           {rol === 'admin' && (
             <Link
               href="/admin"
@@ -150,11 +155,9 @@ export default function AlmacenPage() {
         {activeTab === 'recepciones'  && <RecepcionesTab token={token} />}
         {activeTab === 'inventario'   && <InventarioTab token={token} />}
         {activeTab === 'ubicaciones'  && <UbicacionesTab token={token} />}
-        {activeTab === 'embarques'    && <EmbarquesTab token={token} />}
         {activeTab === 'traslados'    && <TrasladosTab token={token} />}
         {activeTab === 'eps'          && <EPSTab token={token} />}
         {activeTab === 'trazabilidad' && <TrazabilidadTab token={token} />}
-        {activeTab === 'reporte'      && <ReporteEmbarquesTab token={token} />}
       </main>
     </div>
   );

@@ -74,6 +74,12 @@ export default function AdminPage() {
           >
             📦 Almacén
           </Link>
+          <Link
+            href="/logistica"
+            className="bg-teal-600 hover:bg-teal-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+          >
+            🚛 Logística
+          </Link>
 
           <span className="text-sm font-medium text-yellow-400">
             {ROL_ICON[rol as RolUsuario]} {username}

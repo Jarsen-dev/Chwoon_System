@@ -79,6 +79,7 @@ const ROL_BADGE: Record<string, { icon: string; color: string }> = {
   operador:   { icon: '🟢', color: 'text-green-400'  },
   calidad:    { icon: '🔬', color: 'text-cyan-400'   },
   finanzas:   { icon: '💰', color: 'text-emerald-400' },
+  logistica:  { icon: '🚛', color: 'text-teal-400'   },
 }
 
 // ── Pinned tabs persistence ──────────────────────────────────────
@@ -508,9 +509,14 @@ export default function ProduccionPage() {
           )}
 
           {rol === 'admin' && (
-            <Link href="/almacen" className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors">
-              📦 Almacén
-            </Link>
+            <>
+              <Link href="/almacen" className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors">
+                📦 Almacén
+              </Link>
+              <Link href="/logistica" className="bg-teal-600 hover:bg-teal-700 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors">
+                🚛 Logística
+              </Link>
+            </>
           )}
 
           {rol === 'admin' && (

@@ -2,13 +2,14 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import { useAuth } from '@/context/AuthContext'
-import { OrdenProduccion as OrdenProduccionType } from '@/types'
+import { OrdenProduccion as OrdenProduccionType, UbicacionAlmacen } from '@/types'
 import {
   getOrdenesProduccion,
   iniciarPreExpansion,
   registrarProduccionParcial,
   finalizarPreExpansion,
   getProductos,
+  getUbicaciones,
 } from '@/lib/api'
 import { ProductoItem } from '@/types'
 
@@ -26,13 +27,14 @@ export default function PreExpansionTab() {
   const [showForm, setShowForm] = useState(false)
   const [mensaje, setMensaje] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null)
   const [productos, setProductos] = useState<ProductoItem[]>([])
+  const [ubicacionesSilos, setUbicacionesSilos] = useState<UbicacionAlmacen[]>([])
 
   // Form state
   const [formSkuResina, setFormSkuResina] = useState('')
   const [formSkuMP, setFormSkuMP] = useState('')
   const [formCantProducir, setFormCantProducir] = useState('')
   const [formCantUsada, setFormCantUsada] = useState('')
-  const [formUbicacion, setFormUbicacion] = useState('PISO')
+  const [formUbicacion, setFormUbicacion] = useState('')
 
   // Parcial
   const [parcialOpId, setParcialOpId] = useState<string | null>(null)
@@ -58,7 +60,29 @@ export default function PreExpansionTab() {
     } catch { }
   }
 
-  useEffect(() => { cargar(); cargarProductos() }, [token])
+  const cargarUbicacionesSilos = async () => {
+    if (!token) return
+    try {
+      const todas = await getUbicaciones(token)
+      // Encontrar la ubicación padre "SILOS"
+      const silosPadre = todas.find(u => u.nombre.toUpperCase() === 'SILOS')
+      if (silosPadre) {
+        // Filtrar hijas directas de SILOS
+        const hijas = todas.filter(u => u.parent_id === silosPadre.id)
+        setUbicacionesSilos(hijas)
+        // Pre-seleccionar la primera si hay opciones
+        if (hijas.length > 0 && !formUbicacion) {
+          setFormUbicacion(hijas[0].nombre)
+        }
+      }
+    } catch { }
+  }
+
+  useEffect(() => {
+    cargar()
+    cargarProductos()
+    cargarUbicacionesSilos()
+  }, [token])
 
   useEffect(() => {
     if (mensaje) {
@@ -114,6 +138,10 @@ export default function PreExpansionTab() {
       setMensaje({ tipo: 'error', texto: 'Completa todos los campos' })
       return
     }
+    if (!formUbicacion) {
+      setMensaje({ tipo: 'error', texto: 'Selecciona una ubicación destino (silo)' })
+      return
+    }
     try {
       const res = await iniciarPreExpansion(token, {
         sku_producto_resina: formSkuResina,
@@ -136,6 +164,12 @@ export default function PreExpansionTab() {
 
       setShowForm(false)
       setFormSkuResina(''); setFormSkuMP(''); setFormCantProducir(''); setFormCantUsada('')
+      // Resetear ubicación a la primera opción disponible
+      if (ubicacionesSilos.length > 0) {
+        setFormUbicacion(ubicacionesSilos[0].nombre)
+      } else {
+        setFormUbicacion('')
+      }
       cargar()
     } catch (e: any) {
       setMensaje({ tipo: 'error', texto: e.message })
@@ -268,11 +302,29 @@ export default function PreExpansionTab() {
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" min="0" step="0.01" />
             </div>
 
-            {/* 5. Ubicación Destino */}
+            {/* 5. Ubicación Destino — SELECT con ubicaciones SILOS */}
             <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">Ubicación Destino</label>
-              <input value={formUbicacion} onChange={e => setFormUbicacion(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+              <label className="block text-sm font-medium text-gray-600 mb-1">
+                Ubicación Destino
+                {ubicacionesSilos.length > 0 && (
+                  <span className="ml-2 text-xs text-gray-400">
+                    {ubicacionesSilos.length} silo{ubicacionesSilos.length > 1 ? 's' : ''} disponible{ubicacionesSilos.length > 1 ? 's' : ''}
+                  </span>
+                )}
+              </label>
+              {ubicacionesSilos.length > 0 ? (
+                <select value={formUbicacion} onChange={e => setFormUbicacion(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                  <option value="">Seleccionar silo...</option>
+                  {ubicacionesSilos.map(ub => (
+                    <option key={ub.id} value={ub.nombre}>{ub.nombre}</option>
+                  ))}
+                </select>
+              ) : (
+                <div className="w-full border border-red-300 bg-red-50 rounded-lg px-3 py-2 text-sm text-red-600">
+                  ⚠️ No se encontraron ubicaciones bajo &quot;SILOS&quot;. Crea sub-ubicaciones en Almacén → Ubicaciones.
+                </div>
+              )}
             </div>
           </div>
 
@@ -301,7 +353,8 @@ export default function PreExpansionTab() {
           )}
 
           <button onClick={handleIniciar}
-            className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg text-sm font-medium">
+            disabled={ubicacionesSilos.length === 0}
+            className="bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg text-sm font-medium">
             🚀 Iniciar Lote
           </button>
         </div>
@@ -325,6 +378,11 @@ export default function PreExpansionTab() {
                       <span className="font-mono font-bold text-blue-600">{op.op_id}</span>
                       <span className="ml-3 text-sm text-gray-500">{op.sku_producto}</span>
                       <span className="ml-2 text-xs text-gray-400">→ MP: {op.sku_materia_prima}</span>
+                      {op.ubicacion_destino && (
+                        <span className="ml-2 text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">
+                          📍 {op.ubicacion_destino}
+                        </span>
+                      )}
                     </div>
                     <div className="flex gap-2">
                       <button onClick={() => { setParcialOpId(op.op_id); setParcialCantidad('') }}
@@ -348,7 +406,7 @@ export default function PreExpansionTab() {
                     </span>
                   </div>
 
-                  <div className="mt-2 text-xs text-gray-500 flex gap-4">
+                  <div className="mt-2 text-xs text-gray-500 flex gap-4 flex-wrap">
                     <span>MP Consumida: {op.cantidad_total_consumida.toFixed(2)} / {op.cantidad_usada_requerida.toFixed(2)} kg</span>
                     <span>Operador: {op.operador || '—'}</span>
                     <span>Parciales: {(op.registros_parciales || []).length}</span>
@@ -389,6 +447,7 @@ export default function PreExpansionTab() {
                   <th className="px-4 py-2 text-left text-gray-600">SKU Resina</th>
                   <th className="px-4 py-2 text-right text-gray-600">Producido</th>
                   <th className="px-4 py-2 text-right text-gray-600">MP Consumida</th>
+                  <th className="px-4 py-2 text-left text-gray-600">Ubicación</th>
                   <th className="px-4 py-2 text-left text-gray-600">Lote Inventario</th>
                   <th className="px-4 py-2 text-left text-gray-600">Fecha</th>
                 </tr>
@@ -400,6 +459,11 @@ export default function PreExpansionTab() {
                     <td className="px-4 py-2">{op.sku_producto}</td>
                     <td className="px-4 py-2 text-right font-medium">{op.cantidad_producida.toFixed(2)} kg</td>
                     <td className="px-4 py-2 text-right">{op.cantidad_total_consumida.toFixed(2)} kg</td>
+                    <td className="px-4 py-2 text-xs">
+                      {op.ubicacion_destino ? (
+                        <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">{op.ubicacion_destino}</span>
+                      ) : '—'}
+                    </td>
                     <td className="px-4 py-2 font-mono text-xs">{op.lote_inventario_generado || '—'}</td>
                     <td className="px-4 py-2 text-xs text-gray-500">
                       {op.fecha_fin ? new Date(op.fecha_fin).toLocaleString('es-MX') : '—'}

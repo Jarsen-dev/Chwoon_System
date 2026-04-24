@@ -5,24 +5,16 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 import DashboardTab from './DashboardTab';
-import IQCTab from './IQCTab';
-import LQCTab from './LQCTab';
-import OQCTab from './OQCTab';
-import DevolucionesTab from './DevolucionesTab';
-import HistorialTab from './HistorialTab';
-import ScrapTab from './ScrapTab';
+import EmbarquesTab from './EmbarquesTab';
+import ReporteEmbarquesTab from './ReporteEmbarquesTab';
 
 const TABS = [
-  { id: 'dashboard',    label: '📊 Dashboard' },
-  { id: 'iqc',          label: '🔍 IQC' },
-  { id: 'lqc',          label: '🏭 LQC' },
-  { id: 'oqc',          label: '📦 OQC' },
-  { id: 'devoluciones', label: '🔄 Devoluciones' },
-  { id: 'historial',    label: '📋 Historial' },
-  { id: 'scrap',        label: '🗑️ Scrap' },
+  { id: 'dashboard', label: '📊 Dashboard' },
+  { id: 'embarques', label: '🚚 Embarques' },
+  { id: 'reporte',   label: '📋 Reporte' },
 ];
 
-export default function CalidadPage() {
+export default function LogisticaPage() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const { token, rol, username, logout, loading } = useAuth();
   const router = useRouter();
@@ -33,7 +25,7 @@ export default function CalidadPage() {
       router.push('/login');
       return;
     }
-    if (rol && !['admin', 'calidad'].includes(rol)) {
+    if (rol && !['admin', 'logistica'].includes(rol)) {
       router.push('/unauthorized');
     }
   }, [token, rol, router, loading]);
@@ -41,18 +33,18 @@ export default function CalidadPage() {
   if (loading) {
     return (
       <div className="fixed inset-0 bg-gray-950 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400" />
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-400" />
       </div>
     );
   }
 
-  if (!token || (rol && !['admin', 'calidad'].includes(rol))) {
+  if (!token || (rol && !['admin', 'logistica'].includes(rol))) {
     return null;
   }
 
   const rolBadge: Record<string, { icon: string; color: string }> = {
-    admin:   { icon: '👑', color: 'text-yellow-400' },
-    calidad: { icon: '🔬', color: 'text-cyan-400' },
+    admin:     { icon: '👑', color: 'text-yellow-400' },
+    logistica: { icon: '🚛', color: 'text-teal-400' },
   };
   const badge = rolBadge[rol || ''] || { icon: '👤', color: 'text-gray-400' };
 
@@ -62,16 +54,18 @@ export default function CalidadPage() {
       <header className="bg-gray-900 border-b border-gray-800 px-6 py-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           <img src="/Logo.png" alt="Logo" className="h-10 w-auto" />
-          <h1 className="text-xl font-bold">Panel de Calidad</h1>
+          <h1 className="text-xl font-bold">Panel de Logística</h1>
         </div>
 
         <div className="flex items-center gap-3">
-          <Link
-            href="/"
-            className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-          >
-            🏭 Producción
-          </Link>
+          {['admin', 'supervisor', 'operador', 'calidad'].includes(rol || '') && (
+            <Link
+              href="/"
+              className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            >
+              🏭 Producción
+            </Link>
+          )}
 
           {['admin', 'finanzas'].includes(rol || '') && (
             <>
@@ -90,27 +84,31 @@ export default function CalidadPage() {
             </>
           )}
 
+          {['admin', 'calidad'].includes(rol || '') && (
+            <Link
+              href="/calidad"
+              className="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            >
+              🔬 Calidad
+            </Link>
+          )}
+
+          {['admin', 'almacen'].includes(rol || '') && (
+            <Link
+              href="/almacen"
+              className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            >
+              📦 Almacén
+            </Link>
+          )}
+
           {rol === 'admin' && (
-            <>
-              <Link
-                href="/almacen"
-                className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-              >
-                📦 Almacén
-              </Link>
-              <Link
-                href="/logistica"
-                className="bg-teal-600 hover:bg-teal-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-              >
-                🚛 Logística
-              </Link>
-              <Link
-                href="/admin"
-                className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-              >
-                👑 Admin
-              </Link>
-            </>
+            <Link
+              href="/admin"
+              className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            >
+              👑 Admin
+            </Link>
           )}
 
           <span className={`text-sm font-medium ${badge.color}`}>
@@ -135,7 +133,7 @@ export default function CalidadPage() {
               onClick={() => setActiveTab(tab.id)}
               className={`px-4 py-3 text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
                 activeTab === tab.id
-                  ? 'bg-gray-950 text-cyan-400 border-b-2 border-cyan-400'
+                  ? 'bg-gray-950 text-teal-400 border-b-2 border-teal-400'
                   : 'text-gray-400 hover:text-white hover:bg-gray-800'
               }`}
             >
@@ -147,13 +145,9 @@ export default function CalidadPage() {
 
       {/* Content */}
       <main className="flex-1 overflow-y-auto p-6">
-        {activeTab === 'dashboard'    && <DashboardTab token={token} />}
-        {activeTab === 'iqc'          && <IQCTab token={token} />}
-        {activeTab === 'lqc'          && <LQCTab token={token} />}
-        {activeTab === 'oqc'          && <OQCTab token={token} />}
-        {activeTab === 'devoluciones' && <DevolucionesTab token={token} />}
-        {activeTab === 'historial'    && <HistorialTab token={token} />}
-        {activeTab === 'scrap'        && <ScrapTab token={token} />}
+        {activeTab === 'dashboard' && <DashboardTab token={token} />}
+        {activeTab === 'embarques' && <EmbarquesTab token={token} />}
+        {activeTab === 'reporte'   && <ReporteEmbarquesTab token={token} />}
       </main>
     </div>
   );

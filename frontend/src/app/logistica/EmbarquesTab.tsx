@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getEmbarques, crearEmbarque, registrarSalidaEmbarque, confirmarEntregaEmbarque } from '@/lib/api';
+import { getEmbarques, registrarSalidaEmbarque, confirmarEntregaEmbarque } from '@/lib/api';
 import { EmbarqueAlmacen } from '@/types';
 
 interface Props {
@@ -92,7 +92,7 @@ export default function EmbarquesTab({ token }: Props) {
 
       {loading ? (
         <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-400" />
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-teal-400" />
         </div>
       ) : (
         <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
@@ -113,7 +113,7 @@ export default function EmbarquesTab({ token }: Props) {
               <tbody className="divide-y divide-gray-800">
                 {embarques.map((emb) => (
                   <tr key={emb.id} className="hover:bg-gray-800/50">
-                    <td className="p-3 font-mono text-orange-400 text-xs">{emb.numero_embarque}</td>
+                    <td className="p-3 font-mono text-teal-400 text-xs">{emb.numero_embarque}</td>
                     <td className="p-3">{emb.ov_id}</td>
                     <td className="p-3 text-gray-300">{emb.cliente_id || '-'}</td>
                     <td className="p-3">
@@ -179,7 +179,7 @@ export default function EmbarquesTab({ token }: Props) {
               </div>
               <div className="flex gap-3 pt-2">
                 <button onClick={handleSalida} disabled={!salidaForm.camion || !salidaForm.chofer || !salidaForm.departure}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 px-4 py-2 rounded-lg text-sm font-medium">Registrar Salida</button>
+                  className="flex-1 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 px-4 py-2 rounded-lg text-sm font-medium">Registrar Salida</button>
                 <button onClick={() => setModalSalida(null)}
                   className="flex-1 bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm font-medium">Cancelar</button>
               </div>

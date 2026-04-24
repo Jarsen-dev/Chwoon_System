@@ -68,11 +68,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data.rol === 'admin') {
       router.push('/admin')
     } else if (data.rol === 'finanzas') {
-      router.push('/finanzas')
+      router.push('/compras')
     } else if (data.rol === 'calidad') {
       router.push('/calidad')
+    } else if (data.rol === 'almacen') {
+      router.push('/almacen')
+    } else if (data.rol === 'logistica') {
+      router.push('/logistica')
     } else {
-      router.push('/produccion')
+      router.push('/')
     }
   }
 

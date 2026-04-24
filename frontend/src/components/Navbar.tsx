@@ -19,7 +19,8 @@ export default function Navbar() {
     pathname.startsWith('/produccion') ||
     pathname.startsWith('/partes') ||
     pathname.startsWith('/etiquetas') ||
-    pathname.startsWith('/almacen')
+    pathname.startsWith('/almacen') ||
+    pathname.startsWith('/logistica')
   ) {
     return null
   }
@@ -52,6 +53,7 @@ export default function Navbar() {
             {rol === 'finanzas'   && '💰'}
             {rol === 'calidad'    && '🔬'}
             {rol === 'almacen'    && '📦'}
+            {rol === 'logistica'  && '🚛'}
             {' '}{username}
           </span>
 

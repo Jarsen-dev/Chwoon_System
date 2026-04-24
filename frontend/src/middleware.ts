@@ -2,11 +2,12 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 const RUTAS_PROTEGIDAS: Record<string, string[]> = {
-  '/admin':    ['admin'],
-  '/compras':  ['admin', 'finanzas'],
-  '/ventas':   ['admin', 'finanzas'],
-  '/calidad':  ['admin', 'calidad'],
-  '/almacen':  ['admin', 'almacen'],
+  '/admin':     ['admin'],
+  '/compras':   ['admin', 'finanzas'],
+  '/ventas':    ['admin', 'finanzas'],
+  '/calidad':   ['admin', 'calidad'],
+  '/almacen':   ['admin', 'almacen'],
+  '/logistica': ['admin', 'logistica'],
 }
 
 // Prefijos de rutas API que NUNCA deben ser interceptados por el middleware
@@ -24,6 +25,10 @@ const API_PREFIXES = [
   '/almacen/trazabilidad',
   '/almacen/reporte',
   '/almacen/limpiar',
+  '/logistica/dashboard',
+  '/logistica/embarques',
+  '/logistica/reporte',
+  '/logistica/limpiar',
 ]
 
 export function middleware(request: NextRequest) {
@@ -76,6 +81,7 @@ export const config = {
     '/ventas/:path*',
     '/calidad/:path*',
     '/almacen/:path*',
+    '/logistica/:path*',
     '/finanzas/:path*',
   ],
 }

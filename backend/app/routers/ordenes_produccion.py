@@ -189,29 +189,45 @@ async def _crear_lote_produccion(
     sku: str,
     cantidad: float,
     op_origen: str,
+    ubicacion_nombre: str = None,
 ) -> str:
-    """Crea un lote de producto terminado en inventario."""
+    """Crea un lote de producto terminado en inventario con ubicación opcional."""
     ahora = _ahora_local()
     sufijo = sku[-4:] if len(sku) >= 4 else sku
     lote_id = f"PROD-{ahora.strftime('%d%m%y%H%M%S')}-{sufijo}"
+
+    # Resolver ubicacion_id por nombre
+    ubicacion_id = None
+    if ubicacion_nombre:
+        res = await db.execute(
+            select(Ubicacion).where(Ubicacion.nombre == ubicacion_nombre)
+        )
+        ub = res.scalar_one_or_none()
+        if ub:
+            ubicacion_id = ub.id
 
     lote = LoteInventario(
         lote_id=lote_id,
         sku_producto=sku,
         cantidad_actual=cantidad,
         cantidad_inicial=cantidad,
+        ubicacion_id=ubicacion_id,
         fecha_recepcion=datetime.utcnow(),
         op_origen=op_origen,
         estado_calidad="Aprobado",
     )
     db.add(lote)
 
+    detalles = {"op_origen": op_origen, "sku": sku}
+    if ubicacion_nombre:
+        detalles["ubicacion_destino"] = ubicacion_nombre
+
     db.add(MovimientoLote(
         lote_id=lote_id,
         fecha=datetime.utcnow(),
         tipo="PRODUCCION",
         cantidad=cantidad,
-        detalles={"op_origen": op_origen, "sku": sku},
+        detalles=detalles,
     ))
 
     return lote_id
@@ -494,10 +510,22 @@ async def finalizar_pre_expansion(
     if not destino:
         raise HTTPException(status_code=400, detail="No se especificó ubicación de destino")
 
+    # Validar que la ubicación existe
+    res_ub = await db.execute(
+        select(Ubicacion).where(Ubicacion.nombre == destino)
+    )
+    ubicacion = res_ub.scalar_one_or_none()
+    if not ubicacion:
+        raise HTTPException(
+            status_code=400,
+            detail=f"La ubicación '{destino}' no existe en el sistema. Verifique en Almacén → Ubicaciones."
+        )
+
     lote_inv_id = None
     if op.cantidad_producida > 0:
         lote_inv_id = await _crear_lote_produccion(
-            db, op.sku_producto, op.cantidad_producida, op_id
+            db, op.sku_producto, op.cantidad_producida, op_id,
+            ubicacion_nombre=destino,
         )
 
     op.status = "Finalizado"
@@ -508,7 +536,7 @@ async def finalizar_pre_expansion(
     await db.commit()
 
     return {
-        "message": f"Lote {op_id} finalizado",
+        "message": f"Lote {op_id} finalizado. Material ubicado en {destino}.",
         "op_id": op_id,
         "lote_inventario_generado": lote_inv_id,
     }

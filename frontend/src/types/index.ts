@@ -183,7 +183,7 @@ export interface RegistroParo {
 // ==========================================
 // AUTH
 // ==========================================
-export type RolUsuario = 'admin' | 'supervisor' | 'operador' | 'finanzas' | 'calidad' | 'almacen'
+export type RolUsuario = 'admin' | 'supervisor' | 'operador' | 'finanzas' | 'calidad' | 'almacen' | 'logistica'
 
 export interface LoginRequest {
   username: string
@@ -692,4 +692,16 @@ export interface OrdenUnificada {
   fecha?: string
   linea?: string
   operador?: string
+}
+
+// ==========================================
+// LOGÍSTICA — Dashboard
+// ==========================================
+export interface LogisticaDashboard {
+  total_embarques: number
+  embarques_surtidos: number
+  embarques_en_transito: number
+  embarques_entregados: number
+  embarques_hoy: number
+  entregas_hoy: number
 }

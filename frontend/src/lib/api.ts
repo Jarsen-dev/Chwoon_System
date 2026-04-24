@@ -34,6 +34,7 @@ import {
   OrdenProduccion as OrdenProduccionType,
   OrdenUnificada,
   OrdenCompraAlmacen,
+  LogisticaDashboard,
 } from '@/types'
 
 const API_URL = ''
@@ -1292,60 +1293,6 @@ export async function consumirFifo(token: string, data: {
 }
 
 // ==========================================
-// ALMACÉN — Embarques
-// ==========================================
-export async function getEmbarques(token: string, status?: string): Promise<EmbarqueAlmacen[]> {
-  const params = status ? `?status=${status}` : ''
-  const res = await fetch(`${API_URL}/almacen/embarques${params}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  if (!res.ok) throw new Error('Error al obtener embarques')
-  return res.json()
-}
-
-export async function crearEmbarque(token: string, data: {
-  ov_id: string; items: { lote_id: string; sku: string; cantidad: number }[]
-}): Promise<{ message: string; numero_embarque: string }> {
-  const res = await fetch(`${API_URL}/almacen/embarques`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify(data),
-  })
-  if (!res.ok) {
-    const err = await res.json()
-    throw new Error(err.detail || 'Error al crear embarque')
-  }
-  return res.json()
-}
-
-export async function registrarSalidaEmbarque(token: string, numero: string, data: {
-  camion: string; chofer: string; departure: string
-}): Promise<{ message: string }> {
-  const res = await fetch(`${API_URL}/almacen/embarques/${numero}/salida`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify(data),
-  })
-  if (!res.ok) {
-    const err = await res.json()
-    throw new Error(err.detail || 'Error al registrar salida')
-  }
-  return res.json()
-}
-
-export async function confirmarEntregaEmbarque(token: string, numero: string): Promise<{ message: string }> {
-  const res = await fetch(`${API_URL}/almacen/embarques/${numero}/confirmar-entrega`, {
-    method: 'PUT',
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  if (!res.ok) {
-    const err = await res.json()
-    throw new Error(err.detail || 'Error al confirmar entrega')
-  }
-  return res.json()
-}
-
-// ==========================================
 // ALMACÉN — Traslados a Producción
 // ==========================================
 export async function getTrasladosProduccion(token: string, status?: string): Promise<TrasladoProduccion[]> {
@@ -1449,19 +1396,6 @@ export async function getTrazabilidad(token: string, loteId: string): Promise<Tr
 }
 
 // ==========================================
-// ALMACÉN — Reporte Embarques
-// ==========================================
-export async function getReporteEmbarques(token: string, fecha: string, clase?: string): Promise<ReporteEmbarqueItem[]> {
-  const sp = new URLSearchParams({ fecha })
-  if (clase) sp.append('clase', clase)
-  const res = await fetch(`${API_URL}/almacen/reporte-embarques?${sp.toString()}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  if (!res.ok) throw new Error('Error al obtener reporte de embarques')
-  return res.json()
-}
-
-// ==========================================
 // ALMACÉN — Historial de Traslados IQC
 // ==========================================
 export async function getHistorialTraslados(token: string): Promise<any[]> {
@@ -1475,18 +1409,6 @@ export async function getHistorialTraslados(token: string): Promise<any[]> {
 // ==========================================
 // ALMACÉN — Limpieza (solo admin)
 // ==========================================
-export async function limpiarEmbarquesEntregados(token: string, dias: number = 90): Promise<{ message: string }> {
-  const res = await fetch(`${API_URL}/almacen/limpiar/embarques-entregados?dias=${dias}`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  if (!res.ok) {
-    const err = await res.json()
-    throw new Error(err.detail || 'Error al limpiar')
-  }
-  return res.json()
-}
-
 export async function limpiarTrasladosCompletados(token: string, dias: number = 90): Promise<{ message: string }> {
   const res = await fetch(`${API_URL}/almacen/limpiar/traslados-completados?dias=${dias}`, {
     method: 'POST',
@@ -1508,6 +1430,96 @@ export async function limpiarMovimientosAntiguos(token: string, dias: number = 1
     const err = await res.json()
     throw new Error(err.detail || 'Error al limpiar')
   }
+  return res.json()
+}
+
+// ==========================================
+// LOGÍSTICA — Dashboard
+// ==========================================
+export async function getLogisticaDashboard(token: string): Promise<LogisticaDashboard> {
+  const res = await fetch(`${API_URL}/logistica/dashboard`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener dashboard de logística')
+  return res.json()
+}
+
+// ==========================================
+// LOGÍSTICA — Embarques
+// ==========================================
+export async function getEmbarques(token: string, status?: string): Promise<EmbarqueAlmacen[]> {
+  const params = status ? `?status=${status}` : ''
+  const res = await fetch(`${API_URL}/logistica/embarques${params}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener embarques')
+  return res.json()
+}
+
+export async function crearEmbarque(token: string, data: {
+  ov_id: string; items: { lote_id: string; sku: string; cantidad: number }[]
+}): Promise<{ message: string; numero_embarque: string }> {
+  const res = await fetch(`${API_URL}/logistica/embarques`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al crear embarque')
+  }
+  return res.json()
+}
+
+export async function registrarSalidaEmbarque(token: string, numero: string, data: {
+  camion: string; chofer: string; departure: string
+}): Promise<{ message: string }> {
+  const res = await fetch(`${API_URL}/logistica/embarques/${numero}/salida`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al registrar salida')
+  }
+  return res.json()
+}
+
+export async function confirmarEntregaEmbarque(token: string, numero: string): Promise<{ message: string }> {
+  const res = await fetch(`${API_URL}/logistica/embarques/${numero}/confirmar-entrega`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al confirmar entrega')
+  }
+  return res.json()
+}
+
+// ==========================================
+// LOGÍSTICA — Reporte Embarques
+// ==========================================
+export async function getReporteEmbarques(token: string, fecha: string, clase?: string): Promise<ReporteEmbarqueItem[]> {
+  const sp = new URLSearchParams({ fecha })
+  if (clase) sp.append('clase', clase)
+  const res = await fetch(`${API_URL}/logistica/reporte-embarques?${sp.toString()}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener reporte de embarques')
+  return res.json()
+}
+
+// ==========================================
+// LOGÍSTICA — Limpieza (admin)
+// ==========================================
+export async function limpiarEmbarquesEntregados(token: string, dias: number = 30): Promise<{ message: string; eliminados: number }> {
+  const res = await fetch(`${API_URL}/logistica/limpiar/embarques-entregados?dias=${dias}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al limpiar embarques')
   return res.json()
 }
 
