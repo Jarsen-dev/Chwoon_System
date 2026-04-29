@@ -4,7 +4,7 @@ from datetime import datetime
 
 
 # ==========================================
-# ORDEN DE PRODUCCIÓN — Base
+# ORDEN DE PRODUCCIÓN — Response
 # ==========================================
 class OrdenProduccionResponse(BaseModel):
     id: int
@@ -27,6 +27,17 @@ class OrdenProduccionResponse(BaseModel):
     cantidad_total_consumida: float = 0
     ubicacion_destino: Optional[str] = None
     lote_inventario_generado: Optional[str] = None
+    
+    # Nuevos Pre-Expansión
+    grado: Optional[str] = None
+    numero_costal: Optional[str] = None
+    hora_inicio_real: Optional[datetime] = None
+    densidad: Optional[float] = None
+    pantalla_peso: Optional[float] = None
+    ciclo_seg: Optional[float] = None
+    counter_tiro: Optional[float] = None
+    hora_finalizacion: Optional[datetime] = None
+    silo_destino: Optional[str] = None
 
     # Inyección
     uph_esperado: float = 0
@@ -52,7 +63,9 @@ class OrdenProduccionResponse(BaseModel):
 class IniciarPreExpansionRequest(BaseModel):
     sku_producto_resina: str
     sku_materia_prima: str
-    cantidad_a_producir: float
+    grado: str
+    numero_costal: Optional[str] = None
+    cantidad_a_producir: float = 0
     cantidad_usada: float
     operador: str
     ubicacion_destino: Optional[str] = "PISO"
@@ -62,8 +75,71 @@ class RegistroParciallPreExpRequest(BaseModel):
     cantidad_parcial_producida: float
 
 
+class RegistroDatosProcesoRequest(BaseModel):
+    """Se envía al registrar el primer parcial"""
+    densidad: float
+    pantalla_peso: float
+    ciclo_seg: float
+
+
 class FinalizarPreExpansionRequest(BaseModel):
     ubicacion_destino_final: Optional[str] = None
+    cantidad_producida: float = 0
+    counter_tiro: Optional[float] = None
+
+
+# ==========================================
+# SUMINISTRO SILO
+# ==========================================
+class CrearSuministroRequest(BaseModel):
+    silo_origen: str
+    aux_destino: str
+    kg_suministrados: float
+    maquinas_inyeccion: list = []
+
+
+class SuministroSiloResponse(BaseModel):
+    id: int
+    suministro_id: str
+    silo_origen: str
+    silo_origen_op_id: Optional[str] = None
+    aux_destino: str
+    sku_resina: Optional[str] = None
+    nombre_resina: Optional[str] = None
+    grado: Optional[str] = None
+    densidad: float = 0
+    kg_suministrados: float = 0
+    kg_restantes: float = 0
+    tiempo_reposo_horas: float = 0
+    maquinas_inyeccion: list = []
+    fecha_suministro: Optional[datetime] = None
+    creado_por: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+# ==========================================
+# ESTADO SILO
+# ==========================================
+class EstadoSiloResponse(BaseModel):
+    nombre_silo: str
+    es_aux: bool = False
+    vacio: bool = True
+    # Datos de la resina almacenada (si no está vacío)
+    sku_resina: Optional[str] = None
+    nombre_resina: Optional[str] = None
+    grado: Optional[str] = None
+    densidad: Optional[float] = None
+    kg_totales: float = 0
+    fecha_entrada: Optional[datetime] = None
+    hora_finalizacion_lote: Optional[datetime] = None
+    op_id_origen: Optional[str] = None
+    tiempo_reposo_segundos: float = 0
+    tiempo_reposo_horas: float = 0
+    # Para AUX — datos del suministro
+    suministro: Optional[SuministroSiloResponse] = None
+    silo_fuente: Optional[str] = None
 
 
 # ==========================================

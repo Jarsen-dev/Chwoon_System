@@ -43,6 +43,21 @@ const nextConfig: NextConfig = {
           destination: `${BACKEND}/secado/escanear/`,
         },
 
+        // ── ÓRDENES DE PRODUCCIÓN — Excel/descargas (beforeFiles) ──
+        { source: '/ordenes-produccion/estado-silos/excel',              destination: `${BACKEND}/ordenes-produccion/estado-silos/excel` },
+        { source: '/ordenes-produccion/estado-silos/excel/',             destination: `${BACKEND}/ordenes-produccion/estado-silos/excel/` },
+        { source: '/ordenes-produccion/reporte-preexpansion/excel',      destination: `${BACKEND}/ordenes-produccion/reporte-preexpansion/excel` },
+        { source: '/ordenes-produccion/reporte-preexpansion/excel/',     destination: `${BACKEND}/ordenes-produccion/reporte-preexpansion/excel/` },
+        { source: '/ordenes-produccion/estado-silos',                    destination: `${BACKEND}/ordenes-produccion/estado-silos` },
+        { source: '/ordenes-produccion/estado-silos/',                   destination: `${BACKEND}/ordenes-produccion/estado-silos/` },
+        { source: '/ordenes-produccion/suministros',                     destination: `${BACKEND}/ordenes-produccion/suministros` },
+        { source: '/ordenes-produccion/suministros/',                    destination: `${BACKEND}/ordenes-produccion/suministros/` },
+        { source: '/ordenes-produccion/unificadas',                      destination: `${BACKEND}/ordenes-produccion/unificadas` },
+        { source: '/ordenes-produccion/unificadas/',                     destination: `${BACKEND}/ordenes-produccion/unificadas/` },
+        { source: '/ordenes-produccion/pre-expansion/:path*',            destination: `${BACKEND}/ordenes-produccion/pre-expansion/:path*` },
+        { source: '/ordenes-produccion/inyeccion/:path*',                destination: `${BACKEND}/ordenes-produccion/inyeccion/:path*` },
+        { source: '/ordenes-produccion/assy/:path*',                     destination: `${BACKEND}/ordenes-produccion/assy/:path*` },
+
         // ── FINANZAS API (beforeFiles para evitar conflicto con app pages) ──
         { source: '/finanzas/compras/:id/etiqueta-lote/:sku', destination: `${BACKEND}/finanzas/compras/:id/etiqueta-lote/:sku` },
         { source: '/finanzas/compras/:id/pdf-detalle',        destination: `${BACKEND}/finanzas/compras/:id/pdf-detalle` },
@@ -101,7 +116,7 @@ const nextConfig: NextConfig = {
         { source: '/calidad/dashboard/',            destination: `${BACKEND}/calidad/dashboard/` },
         { source: '/calidad/limpiar/:path*',        destination: `${BACKEND}/calidad/limpiar/:path*` },
 
-        // ── ALMACÉN API (beforeFiles para evitar conflicto con app/almacen/page.tsx) ──
+        // ── ALMACÉN API (beforeFiles) ──
         { source: '/almacen/recepciones/ordenes-compra/:id/etiqueta-lote/:sku', destination: `${BACKEND}/almacen/recepciones/ordenes-compra/:id/etiqueta-lote/:sku` },
         { source: '/almacen/recepciones/ordenes-compra/:id/pdf-detalle',        destination: `${BACKEND}/almacen/recepciones/ordenes-compra/:id/pdf-detalle` },
         { source: '/almacen/recepciones/ordenes-compra/:id/pdf-detalle/',       destination: `${BACKEND}/almacen/recepciones/ordenes-compra/:id/pdf-detalle/` },
@@ -188,7 +203,7 @@ const nextConfig: NextConfig = {
         { source: '/inventario',                    destination: `${BACKEND}/inventario/` },
         { source: '/inventario/:path*',             destination: `${BACKEND}/inventario/:path*` },
 
-        // ── ÓRDENES DE PRODUCCIÓN ─────────────────────────────────────
+        // ── ÓRDENES DE PRODUCCIÓN (catch-all) ──
         { source: '/ordenes-produccion',              destination: `${BACKEND}/ordenes-produccion/` },
         { source: '/ordenes-produccion/:path*',       destination: `${BACKEND}/ordenes-produccion/:path*` },
 

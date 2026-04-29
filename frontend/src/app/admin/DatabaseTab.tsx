@@ -198,6 +198,63 @@ export default function DatabaseTab({ token }: Props) {
           />
         </div>
       </div>
+      {/* ═══ ACCIONES PRE-EXPANSIÓN ═══ */}
+      <div>
+        <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider mb-1 flex items-center gap-2">
+          🔥 Pre-Expansión — Limpieza de Datos
+        </h3>
+        <p className="text-xs text-gray-500 mb-4">
+          Estas acciones eliminan registros de las sub-tabs del módulo de Pre-Expansión.
+          Son irreversibles.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <DbActionCard
+            icon="🔥"
+            title="Vaciar Órdenes de Producción"
+            description="⚠️ Elimina TODAS las OPs (Pre-Expansión, Inyección, Ensamble) y suministros asociados"
+            count={getCount('ordenes_produccion')}
+            buttonLabel="Vaciar OPs"
+            buttonColor="bg-red-600 hover:bg-red-700"
+            loading={dbActionLoading === 'vaciar-ordenes-produccion'}
+            onClick={() => confirmarAccionDB(
+              'vaciar-ordenes-produccion',
+              '⚠️ Vaciar Órdenes de Producción',
+              '¿ELIMINAR TODAS las órdenes de producción y suministros de silo? Esto afecta Pre-Expansión, Inyección y Ensamble. Acción NO reversible.'
+            )}
+            danger
+          />
+          <DbActionCard
+            icon="🚚"
+            title="Vaciar Suministros de Silo"
+            description="⚠️ Elimina TODOS los registros de suministros SILO → AUX"
+            count={getCount('suministros_silo')}
+            buttonLabel="Vaciar Suministros"
+            buttonColor="bg-red-600 hover:bg-red-700"
+            loading={dbActionLoading === 'vaciar-suministros-silo'}
+            onClick={() => confirmarAccionDB(
+              'vaciar-suministros-silo',
+              '⚠️ Vaciar Suministros de Silo',
+              '¿ELIMINAR TODOS los suministros de silo registrados? El historial de la sub-tab Suministro quedará vacío. Acción NO reversible.'
+            )}
+            danger
+          />
+          <DbActionCard
+            icon="📦"
+            title="Vaciar Lotes de Inventario (Producción)"
+            description="⚠️ Elimina lotes de inventario generados por OPs y sus movimientos"
+            count={getCount('lotes_inventario')}
+            buttonLabel="Vaciar Lotes Prod."
+            buttonColor="bg-red-600 hover:bg-red-700"
+            loading={dbActionLoading === 'vaciar-lotes-inventario-produccion'}
+            onClick={() => confirmarAccionDB(
+              'vaciar-lotes-inventario-produccion',
+              '⚠️ Vaciar Lotes de Inventario de Producción',
+              '¿ELIMINAR todos los lotes de inventario generados por producción y sus movimientos? Solo afecta lotes con origen en OPs. Acción NO reversible.'
+            )}
+            danger
+          />
+        </div>
+      </div>
 
       {/* ═══ MODAL CONFIRMAR ═══ */}
       {confirmAction && (

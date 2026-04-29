@@ -1566,7 +1566,9 @@ export async function getOrdenProduccion(token: string, opId: string): Promise<O
 export async function iniciarPreExpansion(token: string, data: {
   sku_producto_resina: string
   sku_materia_prima: string
-  cantidad_a_producir: number
+  grado: string
+  numero_costal?: string
+  cantidad_a_producir?: number
   cantidad_usada: number
   operador: string
   ubicacion_destino?: string
@@ -1585,7 +1587,7 @@ export async function iniciarPreExpansion(token: string, data: {
 
 export async function registrarProduccionParcial(token: string, opId: string, data: {
   cantidad_parcial_producida: number
-}): Promise<{ message: string; op_id: string; cantidad_total_producida: number; cantidad_total_consumida: number }> {
+}): Promise<{ message: string; op_id: string; cantidad_total_producida: number; cantidad_total_consumida: number; es_primer_parcial: boolean }> {
   const res = await fetch(`${API_URL}/ordenes-produccion/pre-expansion/${encodeURIComponent(opId)}/produccion-parcial`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -1600,6 +1602,8 @@ export async function registrarProduccionParcial(token: string, opId: string, da
 
 export async function finalizarPreExpansion(token: string, opId: string, data?: {
   ubicacion_destino_final?: string
+  cantidad_producida?: number
+  counter_tiro?: number
 }): Promise<{ message: string; op_id: string; lote_inventario_generado?: string }> {
   const res = await fetch(`${API_URL}/ordenes-produccion/pre-expansion/${encodeURIComponent(opId)}/finalizar`, {
     method: 'POST',
@@ -1745,4 +1749,82 @@ export async function finalizarParoOP(token: string, opId: string): Promise<{ me
     throw new Error(err.detail || 'Error al finalizar paro')
   }
   return res.json()
+}
+
+// ══════════════════════════════════════════════════════════════
+// PRE-EXPANSIÓN — Nuevos endpoints
+// ══════════════════════════════════════════════════════════════
+
+export async function registrarDatosProceso(
+  token: string,
+  opId: string,
+  data: { densidad: number; pantalla_peso: number; ciclo_seg: number }
+) {
+  const res = await fetch(`${API_URL}/ordenes-produccion/pre-expansion/${opId}/datos-proceso`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.detail || 'Error al registrar datos de proceso')
+  }
+  return res.json()
+}
+
+export async function getEstadoSilos(token: string) {
+  const res = await fetch(`${API_URL}/ordenes-produccion/estado-silos`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener estado de silos')
+  return res.json()
+}
+
+export async function descargarEstadoSilosExcel(token: string) {
+  const res = await fetch(`${API_URL}/ordenes-produccion/estado-silos/excel`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al descargar Excel de silos')
+  return res.blob()
+}
+
+export async function getSuministros(token: string, limite: number = 100) {
+  const res = await fetch(`${API_URL}/ordenes-produccion/suministros?limite=${limite}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener suministros')
+  return res.json()
+}
+
+export async function crearSuministro(
+  token: string,
+  data: {
+    silo_origen: string
+    aux_destino: string
+    kg_suministrados: number
+    maquinas_inyeccion: string[]
+  }
+) {
+  const res = await fetch(`${API_URL}/ordenes-produccion/suministros`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.detail || 'Error al crear suministro')
+  }
+  return res.json()
+}
+
+export async function descargarReportePreexpansionExcel(token: string, fecha?: string, turno?: string) {
+  const params = new URLSearchParams()
+  if (fecha) params.append('fecha', fecha)
+  if (turno) params.append('turno', turno)
+  const qs = params.toString()
+  const res = await fetch(`${API_URL}/ordenes-produccion/reporte-preexpansion/excel${qs ? `?${qs}` : ''}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al descargar reporte')
+  return res.blob()
 }

@@ -657,6 +657,15 @@ export interface OrdenProduccion {
   cantidad_total_consumida: number
   ubicacion_destino?: string
   lote_inventario_generado?: string
+  grado?: string
+  numero_costal?: string
+  hora_inicio_real?: string
+  densidad?: number
+  pantalla_peso?: number
+  ciclo_seg?: number
+  counter_tiro?: number
+  hora_finalizacion?: string
+  silo_destino?: string
 
   // Inyección
   uph_esperado: number
@@ -692,6 +701,46 @@ export interface OrdenUnificada {
   fecha?: string
   linea?: string
   operador?: string
+}
+
+// ══════════════════════════════════════════════════════════════
+// PRE-EXPANSIÓN — Nuevos tipos
+// ══════════════════════════════════════════════════════════════
+
+export interface SuministroSilo {
+  id: number
+  suministro_id: string
+  silo_origen: string
+  silo_origen_op_id?: string
+  aux_destino: string
+  sku_resina?: string
+  nombre_resina?: string
+  grado?: string
+  densidad: number
+  kg_suministrados: number
+  kg_restantes: number
+  tiempo_reposo_horas: number
+  maquinas_inyeccion: string[]
+  fecha_suministro?: string
+  creado_por?: string
+}
+
+export interface EstadoSilo {
+  nombre_silo: string
+  es_aux: boolean
+  vacio: boolean
+  sku_resina?: string
+  nombre_resina?: string
+  grado?: string
+  densidad?: number
+  kg_totales: number
+  fecha_entrada?: string
+  hora_finalizacion_lote?: string
+  op_id_origen?: string
+  tiempo_reposo_segundos: number
+  tiempo_reposo_horas: number
+  suministro?: SuministroSilo
+  silo_fuente?: string
 }
 
 // ==========================================

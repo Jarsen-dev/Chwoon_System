@@ -6,10 +6,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 
+from app.models import suministro_silo
 from app.database               import init_db, AsyncSessionLocal
 from app.routers                import partes, etiquetas, produccion, importar
 from app.routers                import plan, inventario, auth, secado
 from app.models.usuario         import Usuario, RolUsuario
+from app.models                 import suministro_silo
 from app.core.security          import get_password_hash
 from app.services.turno_service import iniciar_scheduler
 from app.routers import admin as admin_router

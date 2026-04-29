@@ -343,6 +343,9 @@ async def get_system_status(
         ("anomalias",            "anomalias"),
         ("registros_paros",      "registros_paros"),
         ("historial_turnos",     "historial_turnos"),
+        ("suministros_silo",    "suministros_silo"),
+        ("lotes_inventario",     "lotes_inventario"),
+        ("ordenes_produccion",    "ordenes_produccion"),
     ]
 
     for nombre, tabla in tablas:
@@ -560,3 +563,64 @@ async def get_reportes_turnos(
         })
 
     return reportes
+
+# ── POST /api/admin/db/vaciar-ordenes-produccion ──────────────────────
+@router.post("/db/vaciar-ordenes-produccion")
+@router.post("/db/vaciar-ordenes-produccion/")
+async def vaciar_ordenes_produccion(
+    db: AsyncSession = Depends(get_db),
+    _: Usuario = Depends(get_current_admin),
+):
+    """Vacía la tabla de órdenes de producción y sus suministros asociados"""
+    # Primero eliminar suministros (dependen de OPs)
+    r_sum = await db.execute(text("DELETE FROM suministros_silo"))
+    # Luego eliminar las OPs
+    r_ops = await db.execute(text("DELETE FROM ordenes_produccion"))
+    await db.commit()
+    return {
+        "message": "Órdenes de producción y suministros eliminados",
+        "eliminados": r_ops.rowcount + r_sum.rowcount,
+    }
+
+
+# ── POST /api/admin/db/vaciar-suministros-silo ────────────────────────
+@router.post("/db/vaciar-suministros-silo")
+@router.post("/db/vaciar-suministros-silo/")
+async def vaciar_suministros_silo(
+    db: AsyncSession = Depends(get_db),
+    _: Usuario = Depends(get_current_admin),
+):
+    """Vacía únicamente la tabla de suministros de silo"""
+    result = await db.execute(text("DELETE FROM suministros_silo"))
+    await db.commit()
+    return {
+        "message": "Suministros de silo eliminados",
+        "eliminados": result.rowcount,
+    }
+
+
+# ── POST /api/admin/db/vaciar-lotes-inventario-produccion ─────────────
+@router.post("/db/vaciar-lotes-inventario-produccion")
+@router.post("/db/vaciar-lotes-inventario-produccion/")
+async def vaciar_lotes_inventario_produccion(
+    db: AsyncSession = Depends(get_db),
+    _: Usuario = Depends(get_current_admin),
+):
+    """Elimina lotes de inventario generados por producción (op_origen NOT NULL)"""
+    # Primero eliminar movimientos de esos lotes
+    r_mov = await db.execute(text("""
+        DELETE FROM movimientos_lote
+        WHERE lote_id IN (
+            SELECT lote_id FROM lotes_inventario
+            WHERE op_origen IS NOT NULL
+        )
+    """))
+    # Luego eliminar los lotes
+    r_lotes = await db.execute(text("""
+        DELETE FROM lotes_inventario WHERE op_origen IS NOT NULL
+    """))
+    await db.commit()
+    return {
+        "message": "Lotes de inventario de producción y sus movimientos eliminados",
+        "eliminados": r_lotes.rowcount + r_mov.rowcount,
+    }
