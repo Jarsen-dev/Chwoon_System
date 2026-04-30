@@ -4,10 +4,9 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import select
+from sqlalchemy import select, text
 
-from app.models import suministro_silo
-from app.database               import init_db, AsyncSessionLocal
+from app.database               import AsyncSessionLocal, engine
 from app.routers                import partes, etiquetas, produccion, importar
 from app.routers                import plan, inventario, auth, secado
 from app.models.usuario         import Usuario, RolUsuario
@@ -29,27 +28,53 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-async def crear_admin_inicial() -> None:
-    async with AsyncSessionLocal() as db:
-        result = await db.execute(
-            select(Usuario).where(Usuario.username == "admin")
+async def verificar_db_conexion() -> None:
+    """Verifica que la DB esté accesible y muestra la versión de Alembic actual."""
+    try:
+        async with engine.connect() as conn:
+            # Verificar que existe la tabla alembic_version (Alembic configurado)
+            result = await conn.execute(
+                text("SELECT version_num FROM alembic_version LIMIT 1")
+            )
+            version = result.scalar()
+            if version:
+                logger.info(f"📊 Alembic version actual: {version}")
+            else:
+                logger.warning("⚠️  Tabla alembic_version existe pero está vacía")
+    except Exception as e:
+        logger.warning(
+            f"⚠️  No se pudo leer alembic_version: {e}. "
+            "Asegúrate de haber ejecutado 'alembic upgrade head' o 'alembic stamp head'."
         )
-        if not result.scalar_one_or_none():
-            db.add(Usuario(
-                username="admin",
-                email="admin@planta.com",
-                hashed_password=get_password_hash("admin123"),
-                rol=RolUsuario.admin,
-                activo=True,
-            ))
-            await db.commit()
-            logger.info("✅ Usuario admin creado: admin / admin123")
+
+
+async def crear_admin_inicial() -> None:
+    """Crea el usuario admin si no existe (idempotente y seguro)."""
+    try:
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(
+                select(Usuario).where(Usuario.username == "admin")
+            )
+            if not result.scalar_one_or_none():
+                db.add(Usuario(
+                    username="admin",
+                    email="admin@planta.com",
+                    hashed_password=get_password_hash("admin123"),
+                    rol=RolUsuario.admin,
+                    activo=True,
+                ))
+                await db.commit()
+                logger.info("✅ Usuario admin creado: admin / admin123")
+            else:
+                logger.info("👤 Usuario admin ya existe")
+    except Exception as e:
+        logger.error(f"❌ Error al verificar/crear admin: {e}")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("🔧 Inicializando base de datos...")
-    await init_db()
+    logger.info("🔧 Verificando conexión a base de datos...")
+    await verificar_db_conexion()
 
     logger.info("👤 Verificando usuario admin...")
     await crear_admin_inicial()
