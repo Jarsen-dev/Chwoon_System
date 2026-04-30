@@ -1,10 +1,13 @@
 from app.models.parte import Parte
 from app.models.inventario import InventarioPlanta
 from app.models.cola_impresion import ColaImpresion
+from app.models.contador_carrito import ContadorCarrito
 from app.models.registro_produccion import RegistroProduccion
+from app.models.registro_secado import RegistroSecado
 from app.models.plan_produccion import PlanProduccion
 from app.models.anomalia import Anomalia
 from app.models.registro_paro import RegistroParo
+from app.models.historial_turno import HistorialTurno
 from app.models.usuario import Usuario
 from app.models.producto import Producto
 from app.models.orden_compra import OrdenCompra, OrdenCompraItem, RecepcionCompra
@@ -24,10 +27,13 @@ __all__ = [
     "Parte",
     "InventarioPlanta",
     "ColaImpresion",
+    "ContadorCarrito",
     "RegistroProduccion",
+    "RegistroSecado",
     "PlanProduccion",
     "Anomalia",
     "RegistroParo",
+    "HistorialTurno",
     "Usuario",
     "Producto",
     "OrdenCompra",
