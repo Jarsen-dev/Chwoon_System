@@ -1,8 +1,9 @@
 import sqlalchemy
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, text
 from datetime import datetime, timedelta, timezone
+from typing import Optional, Dict, List
 
 from app.database import AsyncSessionLocal
 from app.models.usuario import Usuario
@@ -13,6 +14,8 @@ from app.models.registro_produccion import RegistroProduccion
 from app.models.registro_secado import RegistroSecado
 from app.models.anomalia import Anomalia
 from app.core.deps import get_current_admin
+from app.core.security import get_password_hash
+from app.schemas.auth import UsuarioCreate, UsuarioUpdate, UsuarioResponse
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -624,3 +627,141 @@ async def vaciar_lotes_inventario_produccion(
         "message": "Lotes de inventario de producción y sus movimientos eliminados",
         "eliminados": r_lotes.rowcount + r_mov.rowcount,
     }
+
+# ══════════════════════════════════════════════════════════════════════
+# USUARIOS — CRUD completo con permisos_tabs
+# ══════════════════════════════════════════════════════════════════════
+
+# ── GET /api/admin/usuarios ──────────────────────────────────────────
+@router.get("/usuarios", response_model=list[UsuarioResponse])
+@router.get("/usuarios/", response_model=list[UsuarioResponse])
+async def get_usuarios(
+    db:    AsyncSession = Depends(get_db),
+    _:     Usuario      = Depends(get_current_admin),
+):
+    result = await db.execute(select(Usuario).order_by(Usuario.id))
+    return result.scalars().all()
+
+
+# ── POST /api/admin/usuarios ─────────────────────────────────────────
+@router.post("/usuarios", response_model=UsuarioResponse, status_code=201)
+@router.post("/usuarios/", response_model=UsuarioResponse, status_code=201)
+async def create_usuario(
+    body:  UsuarioCreate,
+    db:    AsyncSession = Depends(get_db),
+    _:     Usuario      = Depends(get_current_admin),
+):
+    # Verificar duplicados
+    existing = await db.execute(
+        select(Usuario).where(
+            (Usuario.username == body.username) | (Usuario.email == body.email)
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username o email ya existe",
+        )
+
+    nuevo = Usuario(
+        username        = body.username,
+        email           = body.email,
+        hashed_password = get_password_hash(body.password),
+        rol             = body.rol,
+        permisos_tabs   = body.permisos_tabs,   # ← puede ser None o dict
+    )
+    db.add(nuevo)
+    await db.commit()
+    await db.refresh(nuevo)
+    return nuevo
+
+
+# ── PUT /api/admin/usuarios/{id} ─────────────────────────────────────
+@router.put("/usuarios/{usuario_id}", response_model=UsuarioResponse)
+@router.put("/usuarios/{usuario_id}/", response_model=UsuarioResponse)
+async def update_usuario(
+    usuario_id: int,
+    body:       UsuarioUpdate,
+    db:         AsyncSession = Depends(get_db),
+    _:          Usuario      = Depends(get_current_admin),
+):
+    result = await db.execute(select(Usuario).where(Usuario.id == usuario_id))
+    user   = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    if body.email    is not None: user.email  = body.email
+    if body.rol      is not None: user.rol    = body.rol
+    if body.activo   is not None: user.activo = body.activo
+    if body.password is not None: user.hashed_password = get_password_hash(body.password)
+
+    # permisos_tabs: permite enviar None explícito para borrar permisos,
+    # o un dict para actualizar. Si el campo no viene en el body se omite.
+    if 'permisos_tabs' in body.model_fields_set:
+        user.permisos_tabs = body.permisos_tabs
+
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+# ── PATCH /api/admin/usuarios/{id}/toggle ───────────────────────────
+@router.patch("/usuarios/{usuario_id}/toggle", response_model=UsuarioResponse)
+@router.patch("/usuarios/{usuario_id}/toggle/", response_model=UsuarioResponse)
+async def toggle_usuario(
+    usuario_id: int,
+    db:         AsyncSession = Depends(get_db),
+    _:          Usuario      = Depends(get_current_admin),
+):
+    result = await db.execute(select(Usuario).where(Usuario.id == usuario_id))
+    user   = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    user.activo = not user.activo
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+# ── DELETE /api/admin/usuarios/{id} ─────────────────────────────────
+@router.delete("/usuarios/{usuario_id}", status_code=204)
+@router.delete("/usuarios/{usuario_id}/", status_code=204)
+async def delete_usuario(
+    usuario_id: int,
+    db:         AsyncSession = Depends(get_db),
+    _:          Usuario      = Depends(get_current_admin),
+):
+    result = await db.execute(select(Usuario).where(Usuario.id == usuario_id))
+    user   = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    await db.delete(user)
+    await db.commit()
+    return None
+
+
+# ── PATCH /api/admin/usuarios/{id}/permisos ─────────────────────────
+# Endpoint dedicado solo para actualizar permisos_tabs sin tocar el resto
+@router.patch("/usuarios/{usuario_id}/permisos", response_model=UsuarioResponse)
+@router.patch("/usuarios/{usuario_id}/permisos/", response_model=UsuarioResponse)
+async def update_permisos_usuario(
+    usuario_id:    int,
+    permisos_tabs: Optional[Dict[str, List[str]]],
+    db:            AsyncSession = Depends(get_db),
+    _:             Usuario      = Depends(get_current_admin),
+):
+    result = await db.execute(select(Usuario).where(Usuario.id == usuario_id))
+    user   = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    user.permisos_tabs = permisos_tabs
+    await db.commit()
+    await db.refresh(user)
+    return user

@@ -4,30 +4,33 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
-import DashboardTab from './DashboardTab';
-import EmbarquesTab from './EmbarquesTab';
+import DashboardTab       from './DashboardTab';
+import EmbarquesTab       from './EmbarquesTab';
 import ReporteEmbarquesTab from './ReporteEmbarquesTab';
 
-const TABS = [
+const ALL_TABS = [
   { id: 'dashboard', label: '📊 Dashboard' },
   { id: 'embarques', label: '🚚 Embarques' },
-  { id: 'reporte',   label: '📋 Reporte' },
+  { id: 'reporte',   label: '📋 Reporte'   },
 ];
 
 export default function LogisticaPage() {
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const { token, rol, username, logout, loading } = useAuth();
+  const [activeTab, setActiveTab] = useState('');
+  const { token, rol, username, logout, loading, tieneAccesoTab } = useAuth();
   const router = useRouter();
+
+  const tabs = ALL_TABS.filter(t => tieneAccesoTab('logistica', t.id));
+
+  useEffect(() => {
+    if (tabs.length > 0 && !activeTab) {
+      setActiveTab(tabs[0].id);
+    }
+  }, [tabs.length]);
 
   useEffect(() => {
     if (loading) return;
-    if (!token) {
-      router.push('/login');
-      return;
-    }
-    if (rol && !['admin', 'logistica'].includes(rol)) {
-      router.push('/unauthorized');
-    }
+    if (!token) { router.push('/login'); return; }
+    if (rol && !['admin', 'logistica'].includes(rol)) router.push('/unauthorized');
   }, [token, rol, router, loading]);
 
   if (loading) {
@@ -38,13 +41,11 @@ export default function LogisticaPage() {
     );
   }
 
-  if (!token || (rol && !['admin', 'logistica'].includes(rol))) {
-    return null;
-  }
+  if (!token || (rol && !['admin', 'logistica'].includes(rol))) return null;
 
   const rolBadge: Record<string, { icon: string; color: string }> = {
     admin:     { icon: '👑', color: 'text-yellow-400' },
-    logistica: { icon: '🚛', color: 'text-teal-400' },
+    logistica: { icon: '🚛', color: 'text-teal-400'   },
   };
   const badge = rolBadge[rol || ''] || { icon: '👤', color: 'text-gray-400' };
 
@@ -56,69 +57,29 @@ export default function LogisticaPage() {
           <img src="/Logo.png" alt="Logo" className="h-10 w-auto" />
           <h1 className="text-xl font-bold">Panel de Logística</h1>
         </div>
-
         <div className="flex items-center gap-3">
           {['admin', 'supervisor', 'operador', 'calidad'].includes(rol || '') && (
-            <Link
-              href="/"
-              className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-            >
+            <Link href="/" className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
               🏭 Producción
             </Link>
           )}
-
           {['admin', 'finanzas'].includes(rol || '') && (
             <>
-              <Link
-                href="/compras"
-                className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-              >
-                🛒 Compras
-              </Link>
-              <Link
-                href="/ventas"
-                className="bg-violet-600 hover:bg-violet-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-              >
-                💵 Ventas
-              </Link>
+              <Link href="/compras" className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">🛒 Compras</Link>
+              <Link href="/ventas"  className="bg-violet-600 hover:bg-violet-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">💵 Ventas</Link>
             </>
           )}
-
           {['admin', 'calidad'].includes(rol || '') && (
-            <Link
-              href="/calidad"
-              className="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-            >
-              🔬 Calidad
-            </Link>
+            <Link href="/calidad" className="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">🔬 Calidad</Link>
           )}
-
           {['admin', 'almacen'].includes(rol || '') && (
-            <Link
-              href="/almacen"
-              className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-            >
-              📦 Almacén
-            </Link>
+            <Link href="/almacen" className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">📦 Almacén</Link>
           )}
-
           {rol === 'admin' && (
-            <Link
-              href="/admin"
-              className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-            >
-              👑 Admin
-            </Link>
+            <Link href="/admin" className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">👑 Admin</Link>
           )}
-
-          <span className={`text-sm font-medium ${badge.color}`}>
-            {badge.icon} {username}
-          </span>
-
-          <button
-            onClick={logout}
-            className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-          >
+          <span className={`text-sm font-medium ${badge.color}`}>{badge.icon} {username}</span>
+          <button onClick={logout} className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
             🚪 Salir
           </button>
         </div>
@@ -127,7 +88,7 @@ export default function LogisticaPage() {
       {/* Tabs */}
       <div className="bg-gray-900 border-b border-gray-800 px-6 shrink-0">
         <div className="flex gap-1 overflow-x-auto">
-          {TABS.map((tab) => (
+          {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
@@ -145,8 +106,8 @@ export default function LogisticaPage() {
 
       {/* Content */}
       <main className="flex-1 overflow-y-auto p-6">
-        {activeTab === 'dashboard' && <DashboardTab token={token} />}
-        {activeTab === 'embarques' && <EmbarquesTab token={token} />}
+        {activeTab === 'dashboard' && <DashboardTab        token={token} />}
+        {activeTab === 'embarques' && <EmbarquesTab        token={token} />}
         {activeTab === 'reporte'   && <ReporteEmbarquesTab token={token} />}
       </main>
     </div>

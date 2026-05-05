@@ -7,25 +7,28 @@ import Link from 'next/link';
 import DashboardTab from './DashboardTab';
 import ComprasTab from './ComprasTab';
 
-const TABS = [
-  { id: 'dashboard', label: '📊 Dashboard', icon: '📊' },
-  { id: 'compras', label: '🛒 Compras', icon: '🛒' },
+const ALL_TABS = [
+  { id: 'dashboard', label: '📊 Dashboard' },
+  { id: 'compras',   label: '🛒 Compras'   },
 ];
 
 export default function ComprasPage() {
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const { token, rol, username, logout, loading } = useAuth();
+  const [activeTab, setActiveTab] = useState('');
+  const { token, rol, username, logout, loading, tieneAccesoTab } = useAuth();
   const router = useRouter();
+
+  const tabs = ALL_TABS.filter(t => tieneAccesoTab('compras', t.id));
+
+  useEffect(() => {
+    if (tabs.length > 0 && !activeTab) {
+      setActiveTab(tabs[0].id);
+    }
+  }, [tabs.length]);
 
   useEffect(() => {
     if (loading) return;
-    if (!token) {
-      router.push('/login');
-      return;
-    }
-    if (rol && !['admin', 'finanzas'].includes(rol)) {
-      router.push('/unauthorized');
-    }
+    if (!token) { router.push('/login'); return; }
+    if (rol && !['admin', 'finanzas', 'compras'].includes(rol)) router.push('/unauthorized');
   }, [token, rol, router, loading]);
 
   if (loading) {
@@ -36,13 +39,12 @@ export default function ComprasPage() {
     );
   }
 
-  if (!token || (rol && !['admin', 'finanzas'].includes(rol))) {
-    return null;
-  }
+  if (!token || (rol && !['admin', 'finanzas', 'compras'].includes(rol))) return null;
 
   const rolBadge: Record<string, { icon: string; color: string }> = {
-    admin: { icon: '👑', color: 'text-yellow-400' },
+    admin:    { icon: '👑', color: 'text-yellow-400' },
     finanzas: { icon: '💰', color: 'text-emerald-400' },
+    compras:  { icon: '🛒', color: 'text-lime-400'   },
   };
   const badge = rolBadge[rol || ''] || { icon: '👤', color: 'text-gray-400' };
 
@@ -54,61 +56,27 @@ export default function ComprasPage() {
           <img src="/Logo.png" alt="Logo" className="h-10 w-auto" />
           <h1 className="text-xl font-bold">Panel de Compras</h1>
         </div>
-
         <div className="flex items-center gap-3">
-          <Link
-            href="/"
-            className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-          >
-            🏭 Producción
-          </Link>
-
+          {['admin'].includes(rol || '') && (
+            <Link href="/" className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+              🏭 Producción
+            </Link>
+          )}
           {['admin', 'finanzas'].includes(rol || '') && (
-            <Link
-              href="/ventas"
-              className="bg-violet-600 hover:bg-violet-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-            >
+            <Link href="/ventas" className="bg-violet-600 hover:bg-violet-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
               💵 Ventas
             </Link>
           )}
-
           {rol === 'admin' && (
             <>
-              <Link
-                href="/calidad"
-                className="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-              >
-                🔬 Calidad
-              </Link>
-              <Link
-                href="/almacen"
-                className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-              >
-                📦 Almacén
-              </Link>
-              <Link
-                href="/logistica"
-                className="bg-teal-600 hover:bg-teal-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-              >
-                🚛 Logística
-              </Link>
-              <Link
-                href="/admin"
-                className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-              >
-                👑 Admin
-              </Link>
+              <Link href="/calidad"   className="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">🔬 Calidad</Link>
+              <Link href="/almacen"   className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">📦 Almacén</Link>
+              <Link href="/logistica" className="bg-teal-600 hover:bg-teal-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">🚛 Logística</Link>
+              <Link href="/admin"     className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">👑 Admin</Link>
             </>
           )}
-
-          <span className={`text-sm font-medium ${badge.color}`}>
-            {badge.icon} {username}
-          </span>
-
-          <button
-            onClick={logout}
-            className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-          >
+          <span className={`text-sm font-medium ${badge.color}`}>{badge.icon} {username}</span>
+          <button onClick={logout} className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
             🚪 Salir
           </button>
         </div>
@@ -117,7 +85,7 @@ export default function ComprasPage() {
       {/* Tabs */}
       <div className="bg-gray-900 border-b border-gray-800 px-6 shrink-0">
         <div className="flex gap-1">
-          {TABS.map((tab) => (
+          {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
@@ -136,7 +104,7 @@ export default function ComprasPage() {
       {/* Content */}
       <main className="flex-1 overflow-y-auto p-6">
         {activeTab === 'dashboard' && <DashboardTab token={token} />}
-        {activeTab === 'compras' && <ComprasTab token={token} />}
+        {activeTab === 'compras'   && <ComprasTab   token={token} />}
       </main>
     </div>
   );

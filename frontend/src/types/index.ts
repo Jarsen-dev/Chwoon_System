@@ -183,7 +183,7 @@ export interface RegistroParo {
 // ==========================================
 // AUTH
 // ==========================================
-export type RolUsuario = 'admin' | 'supervisor' | 'operador' | 'finanzas' | 'calidad' | 'almacen' | 'logistica'
+export type RolUsuario = 'admin' | 'supervisor' | 'operador' | 'finanzas' | 'compras' | 'ventas' | 'calidad' | 'almacen' | 'logistica'
 
 export interface LoginRequest {
   username: string
@@ -198,26 +198,95 @@ export interface Token {
 }
 
 export interface Usuario {
-  id:         number
-  username:   string
-  email:      string
-  rol:        RolUsuario
-  activo:     boolean
-  created_at: string
+  id:            number
+  username:      string
+  email:         string
+  rol:           RolUsuario
+  activo:        boolean
+  created_at:    string
+  permisos_tabs?: Record<string, string[]> | null  // ← NUEVO
 }
 
 export interface UsuarioCreate {
-  username: string
-  email:    string
-  password: string
-  rol:      RolUsuario
+  username:      string
+  email:         string
+  password:      string
+  rol:           RolUsuario
+  permisos_tabs?: Record<string, string[]> | null  // ← NUEVO
 }
 
 export interface UsuarioUpdate {
-  email?:    string
-  rol?:      RolUsuario
-  activo?:   boolean
-  password?: string
+  email?:        string
+  rol?:          RolUsuario
+  activo?:       boolean
+  password?:     string
+  permisos_tabs?: Record<string, string[]> | null  // ← NUEVO
+}
+
+// ← NUEVO: mapa completo de módulo → tabs disponibles por rol
+export const TABS_POR_MODULO: Record<string, { id: string; label: string }[]> = {
+  produccion: [
+    { id: 'home',          label: '🏠 Inicio'         },
+    { id: 'captura',       label: '📷 Captura'         },
+    { id: 'dashboard',     label: '📊 Dashboard'       },
+    { id: 'ordenes',       label: '📋 Órdenes Prod.'   },
+    { id: 'pre_expansion', label: '🔥 Pre-Expansión'   },
+    { id: 'inyeccion',     label: '💉 Inyección'       },
+    { id: 'ensamble',      label: '🔧 Ensamble'        },
+    { id: 'productos',     label: '📦 Productos'       },
+    { id: 'etiquetas',     label: '🖨️ Etiquetas'       },
+    { id: 'plan',          label: '📋 Plan Prod.'      },
+    { id: 'prediccion',    label: '🤖 Predicción IA'   },
+    { id: 'anomalias',     label: '🚨 Anomalías'       },
+    { id: 'cuarto_secado', label: '🌡️ Cuarto Secado'   },
+  ],
+  calidad: [
+    { id: 'dashboard',    label: '📊 Dashboard'   },
+    { id: 'iqc',          label: '🔍 IQC'         },
+    { id: 'lqc',          label: '🏭 LQC'         },
+    { id: 'oqc',          label: '📦 OQC'         },
+    { id: 'devoluciones', label: '🔄 Devoluciones' },
+    { id: 'historial',    label: '📋 Historial'   },
+    { id: 'scrap',        label: '🗑️ Scrap'        },
+  ],
+  almacen: [
+    { id: 'dashboard',    label: '📊 Dashboard'   },
+    { id: 'recepciones',  label: '📥 Recepciones' },
+    { id: 'inventario',   label: '📦 Inventario'  },
+    { id: 'ubicaciones',  label: '📍 Ubicaciones' },
+    { id: 'traslados',    label: '🔄 Traslados'   },
+    { id: 'eps',          label: '🏭 Almacén EPS' },
+    { id: 'trazabilidad', label: '🔍 Trazabilidad'},
+  ],
+  logistica: [
+    { id: 'dashboard', label: '📊 Dashboard' },
+    { id: 'embarques', label: '🚛 Embarques'  },
+    { id: 'reporte',   label: '📈 Reporte'    },
+  ],
+  compras: [
+    { id: 'dashboard', label: '📊 Dashboard' },
+    { id: 'compras',   label: '🛒 Compras'   },
+  ],
+  ventas: [
+    { id: 'dashboard',   label: '📊 Dashboard'   },
+    { id: 'ventas',      label: '💵 Ventas'       },
+    { id: 'devoluciones',label: '🔄 Devoluciones' },
+    { id: 'plan_ventas', label: '📅 Plan Ventas'  },
+    { id: 'scanner_iqc', label: '🔍 Scanner IQC'  },
+  ],
+}
+
+// Módulos que le corresponden a cada rol
+export const MODULOS_POR_ROL: Record<string, string[]> = {
+  admin:      ['produccion', 'calidad', 'almacen', 'logistica', 'compras', 'ventas'],
+  supervisor: ['produccion'],
+  operador:   ['produccion'],
+  calidad:    ['calidad'],
+  almacen:    ['almacen'],
+  logistica:  ['logistica'],
+  compras:    ['compras'],
+  ventas:     ['ventas'],
+  finanzas:   ['compras', 'ventas'],
 }
 
 // ==========================================

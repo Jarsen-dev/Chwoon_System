@@ -477,6 +477,17 @@ export async function toggleUsuario(
 }
 
 // ==========================================
+// ME — usuario actual con permisos_tabs
+// ==========================================
+export async function getMeUsuario(token: string): Promise<Usuario> {
+  const res = await fetch(`${API_URL}/api/auth/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error obteniendo usuario actual')
+  return res.json()
+}
+
+// ==========================================
 // FINANZAS — Dashboard
 // ==========================================
 export async function getFinanzasDashboard(token: string): Promise<FinanzasDashboard> {

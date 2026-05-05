@@ -3,8 +3,8 @@ import type { NextRequest } from 'next/server'
 
 const RUTAS_PROTEGIDAS: Record<string, string[]> = {
   '/admin':     ['admin'],
-  '/compras':   ['admin', 'finanzas'],
-  '/ventas':    ['admin', 'finanzas'],
+  '/compras':   ['admin', 'finanzas', 'compras'],   // ← compras agregado
+  '/ventas':    ['admin', 'finanzas', 'ventas'],     // ← ventas agregado
   '/calidad':   ['admin', 'calidad'],
   '/almacen':   ['admin', 'almacen'],
   '/logistica': ['admin', 'logistica'],

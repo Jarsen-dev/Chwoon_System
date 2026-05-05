@@ -1,16 +1,22 @@
 import { RolUsuario } from '@/types'
 
 // ── Constantes ──────────────────────────────────────────────────────
-export const ROLES: RolUsuario[] = ['admin', 'supervisor', 'operador', 'finanzas', 'calidad', 'almacen']
+export const ROLES: RolUsuario[] = [
+  'admin', 'supervisor', 'operador',
+  'finanzas', 'compras', 'ventas',
+  'calidad', 'almacen', 'logistica',
+]
 
 export const ROL_BADGE: Record<RolUsuario, string> = {
-  admin:      'bg-red-900/50   text-red-300   border border-red-700',
-  supervisor: 'bg-blue-900/50  text-blue-300  border border-blue-700',
-  operador:   'bg-green-900/50 text-green-300 border border-green-700',
+  admin:      'bg-red-900/50    text-red-300    border border-red-700',
+  supervisor: 'bg-blue-900/50   text-blue-300   border border-blue-700',
+  operador:   'bg-green-900/50  text-green-300  border border-green-700',
   finanzas:   'bg-emerald-900/50 text-emerald-300 border border-emerald-700',
-  calidad:    'bg-cyan-900/50 text-cyan-300 border border-cyan-700',
+  compras:    'bg-lime-900/50   text-lime-300   border border-lime-700',
+  ventas:     'bg-violet-900/50 text-violet-300 border border-violet-700',
+  calidad:    'bg-cyan-900/50   text-cyan-300   border border-cyan-700',
   almacen:    'bg-orange-900/50 text-orange-300 border border-orange-700',
-  logistica:  'bg-teal-900/50 text-teal-300 border border-teal-700',
+  logistica:  'bg-teal-900/50   text-teal-300   border border-teal-700',
 }
 
 export const ROL_ICON: Record<string, string> = {
@@ -18,6 +24,8 @@ export const ROL_ICON: Record<string, string> = {
   supervisor: '🔵',
   operador:   '🟢',
   finanzas:   '💰',
+  compras:    '🛒',
+  ventas:     '💵',
   calidad:    '🔬',
   almacen:    '📦',
   logistica:  '🚛',

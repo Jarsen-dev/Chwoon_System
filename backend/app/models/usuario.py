@@ -1,17 +1,19 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum, JSON
 from datetime import datetime
 import enum
 from app.database import Base
 
 
 class RolUsuario(str, enum.Enum):
-    admin = "admin"
+    admin      = "admin"
     supervisor = "supervisor"
-    operador = "operador"
-    finanzas = "finanzas"
-    calidad = "calidad"
-    almacen = "almacen"
-    logistica = "logistica"
+    operador   = "operador"
+    finanzas   = "finanzas"
+    compras    = "compras"
+    ventas     = "ventas"
+    calidad    = "calidad"
+    almacen    = "almacen"
+    logistica  = "logistica"
 
 
 class Usuario(Base):
@@ -24,3 +26,4 @@ class Usuario(Base):
     rol             = Column(Enum(RolUsuario), default=RolUsuario.operador)
     activo          = Column(Boolean, default=True)
     created_at      = Column(DateTime, default=datetime.utcnow)
+    permisos_tabs   = Column(JSON, nullable=True, default=None)

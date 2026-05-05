@@ -43,9 +43,23 @@ def ahora_local():
 
 
 def require_finanzas_role(current_user):
-    """Solo admin y finanzas pueden acceder."""
+    """Admin y finanzas tienen acceso total (compras + ventas)."""
     if current_user.rol not in ("admin", "finanzas"):
         raise HTTPException(status_code=403, detail="Acceso denegado. Se requiere rol admin o finanzas.")
+    return current_user
+
+
+def require_compras_role(current_user):
+    """Admin, finanzas y compras pueden acceder a endpoints de compras."""
+    if current_user.rol not in ("admin", "finanzas", "compras"):
+        raise HTTPException(status_code=403, detail="Acceso denegado. Se requiere rol admin, finanzas o compras.")
+    return current_user
+
+
+def require_ventas_role(current_user):
+    """Admin, finanzas y ventas pueden acceder a endpoints de ventas."""
+    if current_user.rol not in ("admin", "finanzas", "ventas"):
+        raise HTTPException(status_code=403, detail="Acceso denegado. Se requiere rol admin, finanzas o ventas.")
     return current_user
 
 
@@ -58,50 +72,65 @@ async def get_finanzas_dashboard(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    require_finanzas_role(current_user)
+    if current_user.rol not in ("admin", "finanzas", "compras", "ventas"):
+        raise HTTPException(status_code=403, detail="Acceso denegado.")
 
     ahora = ahora_local()
     primer_dia_mes = ahora.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-    total_oc = (await db.execute(select(func.count(OrdenCompra.id)))).scalar() or 0
-    oc_pendientes = (await db.execute(
-        select(func.count(OrdenCompra.id)).where(OrdenCompra.status.in_(["Creada", "Parcial"]))
-    )).scalar() or 0
-    oc_completadas = (await db.execute(
-        select(func.count(OrdenCompra.id)).where(OrdenCompra.status == "Completada")
-    )).scalar() or 0
+    # ── Compras (visible para admin, finanzas, compras) ──────────────
+    total_oc = 0
+    oc_pendientes = 0
+    oc_completadas = 0
+    valor_compras_mes = 0.0
 
-    total_ov = (await db.execute(select(func.count(OrdenVenta.id)))).scalar() or 0
-    ov_pendientes = (await db.execute(
-        select(func.count(OrdenVenta.id)).where(OrdenVenta.estado == "Pendiente de Envío")
-    )).scalar() or 0
-    ov_enviadas = (await db.execute(
-        select(func.count(OrdenVenta.id)).where(OrdenVenta.estado == "Enviado")
-    )).scalar() or 0
-    ov_stock_insuficiente = (await db.execute(
-        select(func.count(OrdenVenta.id)).where(OrdenVenta.estado == "Stock Insuficiente")
-    )).scalar() or 0
+    if current_user.rol in ("admin", "finanzas", "compras"):
+        total_oc = (await db.execute(select(func.count(OrdenCompra.id)))).scalar() or 0
+        oc_pendientes = (await db.execute(
+            select(func.count(OrdenCompra.id)).where(OrdenCompra.status.in_(["Creada", "Parcial"]))
+        )).scalar() or 0
+        oc_completadas = (await db.execute(
+            select(func.count(OrdenCompra.id)).where(OrdenCompra.status == "Completada")
+        )).scalar() or 0
+        valor_compras_result = await db.execute(
+            select(func.sum(OrdenCompraItem.cantidad_requerida * OrdenCompraItem.precio_unitario))
+            .join(OrdenCompra, OrdenCompraItem.orden_compra_id == OrdenCompra.id)
+            .where(OrdenCompra.fecha_creacion >= primer_dia_mes)
+        )
+        valor_compras_mes = valor_compras_result.scalar() or 0
 
-    total_devoluciones = (await db.execute(select(func.count(Devolucion.id)))).scalar() or 0
-    devoluciones_pendientes = (await db.execute(
-        select(func.count(Devolucion.id)).where(Devolucion.estado_inspeccion == "Pendiente")
-    )).scalar() or 0
+    # ── Ventas (visible para admin, finanzas, ventas) ─────────────────
+    total_ov = 0
+    ov_pendientes = 0
+    ov_enviadas = 0
+    ov_stock_insuficiente = 0
+    total_devoluciones = 0
+    devoluciones_pendientes = 0
+    valor_ventas_mes = 0.0
+    planes_activos = 0
 
-    valor_compras_result = await db.execute(
-        select(func.sum(OrdenCompraItem.cantidad_requerida * OrdenCompraItem.precio_unitario))
-        .join(OrdenCompra, OrdenCompraItem.orden_compra_id == OrdenCompra.id)
-        .where(OrdenCompra.fecha_creacion >= primer_dia_mes)
-    )
-    valor_compras_mes = valor_compras_result.scalar() or 0
-
-    valor_ventas_result = await db.execute(
-        select(func.sum(OrdenVentaItem.cantidad * OrdenVentaItem.precio_unitario))
-        .join(OrdenVenta, OrdenVentaItem.orden_venta_id == OrdenVenta.id)
-        .where(OrdenVenta.fecha_creacion >= primer_dia_mes)
-    )
-    valor_ventas_mes = valor_ventas_result.scalar() or 0
-
-    planes_activos = (await db.execute(select(func.count(PlanVentas.id)))).scalar() or 0
+    if current_user.rol in ("admin", "finanzas", "ventas"):
+        total_ov = (await db.execute(select(func.count(OrdenVenta.id)))).scalar() or 0
+        ov_pendientes = (await db.execute(
+            select(func.count(OrdenVenta.id)).where(OrdenVenta.estado == "Pendiente de Envío")
+        )).scalar() or 0
+        ov_enviadas = (await db.execute(
+            select(func.count(OrdenVenta.id)).where(OrdenVenta.estado == "Enviado")
+        )).scalar() or 0
+        ov_stock_insuficiente = (await db.execute(
+            select(func.count(OrdenVenta.id)).where(OrdenVenta.estado == "Stock Insuficiente")
+        )).scalar() or 0
+        total_devoluciones = (await db.execute(select(func.count(Devolucion.id)))).scalar() or 0
+        devoluciones_pendientes = (await db.execute(
+            select(func.count(Devolucion.id)).where(Devolucion.estado_inspeccion == "Pendiente")
+        )).scalar() or 0
+        valor_ventas_result = await db.execute(
+            select(func.sum(OrdenVentaItem.cantidad * OrdenVentaItem.precio_unitario))
+            .join(OrdenVenta, OrdenVentaItem.orden_venta_id == OrdenVenta.id)
+            .where(OrdenVenta.fecha_creacion >= primer_dia_mes)
+        )
+        valor_ventas_mes = valor_ventas_result.scalar() or 0
+        planes_activos = (await db.execute(select(func.count(PlanVentas.id)))).scalar() or 0
 
     return FinanzasDashboardResponse(
         total_oc=total_oc,
@@ -130,7 +159,7 @@ async def listar_ordenes_compra(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    require_finanzas_role(current_user)
+    require_compras_role(current_user)
 
     query = select(OrdenCompra).order_by(OrdenCompra.fecha_creacion.desc()).limit(limite)
     if status:
@@ -182,7 +211,7 @@ async def crear_orden_compra(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    require_finanzas_role(current_user)
+    require_compras_role(current_user)
 
     ahora = ahora_local()
     oc_id = f"OC-{ahora.strftime('%Y%m%d%H%M%S')}"
@@ -223,8 +252,7 @@ async def aprobar_orden_compra(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    """Aprueba una OC generada desde Producción: aplica ediciones y cambia status a 'Creada'."""
-    require_finanzas_role(current_user)
+    require_compras_role(current_user) 
 
     result = await db.execute(select(OrdenCompra).where(OrdenCompra.oc_id == oc_id))
     orden = result.scalar_one_or_none()
@@ -275,7 +303,7 @@ async def obtener_orden_compra(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    require_finanzas_role(current_user)
+    require_compras_role(current_user)
 
     result = await db.execute(select(OrdenCompra).where(OrdenCompra.oc_id == oc_id))
     orden = result.scalar_one_or_none()
@@ -338,8 +366,7 @@ async def generar_pdf_orden_compra(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    """Genera PDF estilo original: Logo, QR, info básica, productos, valor total."""
-    require_finanzas_role(current_user)
+    require_compras_role(current_user)
 
     result = await db.execute(select(OrdenCompra).where(OrdenCompra.oc_id == oc_id))
     orden = result.scalar_one_or_none()
@@ -442,7 +469,7 @@ async def actualizar_orden_compra(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    require_finanzas_role(current_user)
+    require_compras_role(current_user)
 
     result = await db.execute(select(OrdenCompra).where(OrdenCompra.oc_id == oc_id))
     orden = result.scalar_one_or_none()
@@ -483,7 +510,7 @@ async def eliminar_orden_compra(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    require_finanzas_role(current_user)
+    require_compras_role(current_user)
 
     result = await db.execute(select(OrdenCompra).where(OrdenCompra.oc_id == oc_id))
     orden = result.scalar_one_or_none()
@@ -512,7 +539,7 @@ async def listar_recepciones(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    require_finanzas_role(current_user)
+    require_compras_role(current_user)
 
     result = await db.execute(
         select(RecepcionCompra).order_by(RecepcionCompra.fecha_recepcion.desc()).limit(limite)
@@ -533,6 +560,87 @@ async def listar_recepciones(
         for r in recepciones
     ]
 
+@router.get("/lote/{lote_id}")
+@router.get("/lote/{lote_id}/")
+async def obtener_info_lote(
+    lote_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    require_compras_role(current_user)
+
+    partes = lote_id.split("-")
+    if len(partes) != 3:
+        raise HTTPException(status_code=400, detail="Formato de Lote ID inválido. Esperado: YYYYMMDD-XXXX-N")
+
+    fecha_str, sku_suffix, rec_count_str = partes
+
+    result = await db.execute(
+        select(RecepcionCompra).where(
+            RecepcionCompra.sku_producto.ilike(f"%{sku_suffix}")
+        ).order_by(RecepcionCompra.fecha_recepcion.desc())
+    )
+    recepciones = result.scalars().all()
+
+    if not recepciones:
+        raise HTTPException(status_code=404, detail=f"No se encontraron recepciones para el lote {lote_id}")
+
+    recepciones_filtradas = [
+        r for r in recepciones
+        if r.fecha_recepcion and r.fecha_recepcion.strftime("%Y%m%d") == fecha_str
+    ]
+
+    recs_finales = recepciones_filtradas if recepciones_filtradas else recepciones
+
+    if not recs_finales:
+        raise HTTPException(status_code=404, detail=f"No se encontraron recepciones para el lote {lote_id}")
+
+    rec_principal = recs_finales[0]
+    sku_completo = rec_principal.sku_producto
+    oc_id = rec_principal.oc_id
+
+    oc_result = await db.execute(select(OrdenCompra).where(OrdenCompra.oc_id == oc_id))
+    orden = oc_result.scalar_one_or_none()
+
+    item = None
+    if orden:
+        item_result = await db.execute(
+            select(OrdenCompraItem).where(
+                and_(
+                    OrdenCompraItem.orden_compra_id == orden.id,
+                    OrdenCompraItem.sku_producto == sku_completo,
+                )
+            )
+        )
+        item = item_result.scalar_one_or_none()
+
+    cantidad_total = sum(r.cantidad_recibida for r in recs_finales if r.sku_producto == sku_completo)
+
+    return {
+        "lote_id": lote_id,
+        "sku_producto": sku_completo,
+        "nombre_producto": item.nombre_producto if item else None,
+        "oc_id": oc_id,
+        "nombre_proveedor": orden.nombre_proveedor if orden else None,
+        "cantidad_total_recibida": cantidad_total,
+        "cantidad_requerida": item.cantidad_requerida if item else None,
+        "precio_unitario": item.precio_unitario if item else None,
+        "moneda": item.moneda if item else "MXN",
+        "status_oc": orden.status if orden else None,
+        "total_recepciones": len(recs_finales),
+        "recepciones": [
+            {
+                "recepcion_id": r.recepcion_id,
+                "cantidad_recibida": r.cantidad_recibida,
+                "fecha_recepcion": r.fecha_recepcion.isoformat() if r.fecha_recepcion else None,
+                "recibido_por": r.recibido_por,
+                "notas": r.notas,
+            }
+            for r in recs_finales
+            if r.sku_producto == sku_completo
+        ],
+    }
+
 
 # ========================
 # ÓRDENES DE VENTA — CRUD
@@ -545,7 +653,7 @@ async def listar_ordenes_venta(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    require_finanzas_role(current_user)
+    require_ventas_role(current_user)
 
     query = select(OrdenVenta).order_by(OrdenVenta.fecha_creacion.desc()).limit(limite)
     if estado and estado != "Todos":
@@ -600,7 +708,7 @@ async def crear_orden_venta(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    require_finanzas_role(current_user)
+    require_ventas_role(current_user)
 
     ahora = ahora_local()
     ov_id = f"OV-{ahora.strftime('%Y%m%d%H%M%S')}"
@@ -639,7 +747,7 @@ async def obtener_orden_venta(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    require_finanzas_role(current_user)
+    require_ventas_role(current_user)
 
     result = await db.execute(select(OrdenVenta).where(OrdenVenta.ov_id == ov_id))
     orden = result.scalar_one_or_none()
@@ -700,7 +808,7 @@ async def actualizar_orden_venta(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    require_finanzas_role(current_user)
+    require_ventas_role(current_user)
 
     result = await db.execute(select(OrdenVenta).where(OrdenVenta.ov_id == ov_id))
     orden = result.scalar_one_or_none()
@@ -725,7 +833,7 @@ async def enviar_orden_venta(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    require_finanzas_role(current_user)
+    require_ventas_role(current_user)
 
     result = await db.execute(select(OrdenVenta).where(OrdenVenta.ov_id == ov_id))
     orden = result.scalar_one_or_none()
@@ -774,7 +882,7 @@ async def listar_devoluciones(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    require_finanzas_role(current_user)
+    require_ventas_role(current_user)
 
     query = select(Devolucion).order_by(Devolucion.fecha_devolucion.desc()).limit(limite)
     if estado:
@@ -812,7 +920,7 @@ async def registrar_devolucion(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    require_finanzas_role(current_user)
+    require_ventas_role(current_user)
 
     ahora = ahora_local()
     fecha_str = ahora.strftime("%d%m%y%H%M")
@@ -844,7 +952,7 @@ async def procesar_disposicion(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    require_finanzas_role(current_user)
+    require_ventas_role(current_user)
 
     result = await db.execute(
         select(Devolucion).where(Devolucion.devolucion_id == devolucion_id)
@@ -882,7 +990,7 @@ async def listar_planes_ventas(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    require_finanzas_role(current_user)
+    require_ventas_role(current_user)
 
     result = await db.execute(
         select(PlanVentas).order_by(PlanVentas.fecha_inicio_semana.desc()).limit(20)
@@ -910,7 +1018,7 @@ async def obtener_plan_ventas(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    require_finanzas_role(current_user)
+    require_ventas_role(current_user)
 
     result = await db.execute(
         select(PlanVentas).where(PlanVentas.identificador_semana == identificador_semana)
@@ -932,12 +1040,12 @@ async def obtener_plan_ventas(
 @router.post("/plan-ventas/importar")
 @router.post("/plan-ventas/importar/")
 async def importar_plan_ventas(
-    fecha_inicio_semana: str = Query(..., description="Fecha inicio semana YYYY-MM-DD"),
+    fecha_inicio_semana: str = Query(...),
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    require_finanzas_role(current_user)
+    require_ventas_role(current_user)
 
     try:
         fecha_semana = date.fromisoformat(fecha_inicio_semana)
@@ -1011,7 +1119,7 @@ async def autorizar_ventas_masivo(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    require_finanzas_role(current_user)
+    require_ventas_role(current_user)
 
     result = await db.execute(
         select(PlanVentas).where(PlanVentas.identificador_semana == data.identificador_semana)
@@ -1101,86 +1209,3 @@ async def limpiar_devoluciones_finalizadas(
     )
     await db.commit()
     return {"message": f"{result.rowcount} devoluciones finalizadas eliminadas (>{dias} días)"}
-
-
-@router.get("/lote/{lote_id}")
-@router.get("/lote/{lote_id}/")
-async def obtener_info_lote(
-    lote_id: str,
-    db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user),
-):
-    """Busca info de lote por Lote ID (formato: YYYYMMDD-XXXX-N)."""
-    require_finanzas_role(current_user)
-
-    partes = lote_id.split("-")
-    if len(partes) != 3:
-        raise HTTPException(status_code=400, detail="Formato de Lote ID inválido. Esperado: YYYYMMDD-XXXX-N")
-
-    fecha_str, sku_suffix, rec_count_str = partes
-
-    result = await db.execute(
-        select(RecepcionCompra).where(
-            RecepcionCompra.sku_producto.ilike(f"%{sku_suffix}")
-        ).order_by(RecepcionCompra.fecha_recepcion.desc())
-    )
-    recepciones = result.scalars().all()
-
-    if not recepciones:
-        raise HTTPException(status_code=404, detail=f"No se encontraron recepciones para el lote {lote_id}")
-
-    recepciones_filtradas = [
-        r for r in recepciones
-        if r.fecha_recepcion and r.fecha_recepcion.strftime("%Y%m%d") == fecha_str
-    ]
-
-    recs_finales = recepciones_filtradas if recepciones_filtradas else recepciones
-
-    if not recs_finales:
-        raise HTTPException(status_code=404, detail=f"No se encontraron recepciones para el lote {lote_id}")
-
-    rec_principal = recs_finales[0]
-    sku_completo = rec_principal.sku_producto
-    oc_id = rec_principal.oc_id
-
-    oc_result = await db.execute(select(OrdenCompra).where(OrdenCompra.oc_id == oc_id))
-    orden = oc_result.scalar_one_or_none()
-
-    item = None
-    if orden:
-        item_result = await db.execute(
-            select(OrdenCompraItem).where(
-                and_(
-                    OrdenCompraItem.orden_compra_id == orden.id,
-                    OrdenCompraItem.sku_producto == sku_completo,
-                )
-            )
-        )
-        item = item_result.scalar_one_or_none()
-
-    cantidad_total = sum(r.cantidad_recibida for r in recs_finales if r.sku_producto == sku_completo)
-
-    return {
-        "lote_id": lote_id,
-        "sku_producto": sku_completo,
-        "nombre_producto": item.nombre_producto if item else None,
-        "oc_id": oc_id,
-        "nombre_proveedor": orden.nombre_proveedor if orden else None,
-        "cantidad_total_recibida": cantidad_total,
-        "cantidad_requerida": item.cantidad_requerida if item else None,
-        "precio_unitario": item.precio_unitario if item else None,
-        "moneda": item.moneda if item else "MXN",
-        "status_oc": orden.status if orden else None,
-        "total_recepciones": len(recs_finales),
-        "recepciones": [
-            {
-                "recepcion_id": r.recepcion_id,
-                "cantidad_recibida": r.cantidad_recibida,
-                "fecha_recepcion": r.fecha_recepcion.isoformat() if r.fecha_recepcion else None,
-                "recibido_por": r.recibido_por,
-                "notas": r.notas,
-            }
-            for r in recs_finales
-            if r.sku_producto == sku_completo
-        ],
-    }

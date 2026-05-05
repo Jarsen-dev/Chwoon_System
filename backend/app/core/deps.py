@@ -64,10 +64,35 @@ async def get_supervisor_or_admin(
 async def get_current_finanzas(
     current_user: Usuario = Depends(get_current_user),
 ) -> Usuario:
+    """Mantiene compatibilidad — admin + finanzas (acceso total a ambos paneles)."""
     if current_user.rol not in [RolUsuario.admin, RolUsuario.finanzas]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Se requiere rol administrador o finanzas",
+        )
+    return current_user
+
+
+async def get_current_compras(
+    current_user: Usuario = Depends(get_current_user),
+) -> Usuario:
+    """Permite acceso solo a usuarios con rol admin, finanzas o compras."""
+    if current_user.rol not in [RolUsuario.admin, RolUsuario.finanzas, RolUsuario.compras]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Se requiere rol administrador, finanzas o compras",
+        )
+    return current_user
+
+
+async def get_current_ventas(
+    current_user: Usuario = Depends(get_current_user),
+) -> Usuario:
+    """Permite acceso solo a usuarios con rol admin, finanzas o ventas."""
+    if current_user.rol not in [RolUsuario.admin, RolUsuario.finanzas, RolUsuario.ventas]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Se requiere rol administrador, finanzas o ventas",
         )
     return current_user
 

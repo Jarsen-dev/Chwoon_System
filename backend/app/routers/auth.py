@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from typing import List
+from typing import List, Optional, Dict
 from datetime import datetime
 
 from app.core.security import verify_password, get_password_hash, create_access_token
@@ -59,13 +59,13 @@ async def listar_usuarios(
     result = await db.execute(select(Usuario).order_by(Usuario.created_at.desc()))
     return result.scalars().all()
 
+
 @router.post("/usuarios", response_model=UsuarioResponse)
 async def crear_usuario(
     data: UsuarioCreate,
     db: AsyncSession = Depends(get_db),
     _: Usuario = Depends(get_current_admin)
 ):
-    # Verificar que no existe
     result = await db.execute(
         select(Usuario).where(Usuario.username == data.username)
     )
@@ -73,17 +73,19 @@ async def crear_usuario(
         raise HTTPException(status_code=400, detail="El username ya existe")
 
     user = Usuario(
-        username=data.username,
-        email=data.email,
-        hashed_password=get_password_hash(data.password),
-        rol=data.rol,
-        activo=True,
-        created_at=datetime.utcnow()
+        username        = data.username,
+        email           = data.email,
+        hashed_password = get_password_hash(data.password),
+        rol             = data.rol,
+        activo          = True,
+        created_at      = datetime.utcnow(),
+        permisos_tabs   = data.permisos_tabs,  # ← NUEVO (puede ser None)
     )
     db.add(user)
     await db.commit()
     await db.refresh(user)
     return user
+
 
 @router.put("/usuarios/{user_id}", response_model=UsuarioResponse)
 async def actualizar_usuario(
@@ -98,18 +100,20 @@ async def actualizar_usuario(
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
-    if data.email is not None:
-        user.email = data.email
-    if data.rol is not None:
-        user.rol = data.rol
-    if data.activo is not None:
-        user.activo = data.activo
-    if data.password is not None:
-        user.hashed_password = get_password_hash(data.password)
+    if data.email    is not None: user.email    = data.email
+    if data.rol      is not None: user.rol      = data.rol
+    if data.activo   is not None: user.activo   = data.activo
+    if data.password is not None: user.hashed_password = get_password_hash(data.password)
+
+    # permisos_tabs: solo se toca si el campo fue enviado explícitamente
+    # Esto permite enviar null para borrar permisos, o un dict para actualizar
+    if 'permisos_tabs' in data.model_fields_set:
+        user.permisos_tabs = data.permisos_tabs
 
     await db.commit()
     await db.refresh(user)
     return user
+
 
 @router.delete("/usuarios/{user_id}")
 async def eliminar_usuario(
@@ -130,6 +134,7 @@ async def eliminar_usuario(
     await db.commit()
     return {"message": "Usuario eliminado"}
 
+
 @router.patch("/usuarios/{user_id}/toggle")
 async def toggle_usuario(
     user_id: int,
@@ -145,3 +150,31 @@ async def toggle_usuario(
     user.activo = not user.activo
     await db.commit()
     return {"activo": user.activo, "username": user.username}
+
+
+# ==================== PERMISOS (solo admin) ====================
+
+@router.patch("/usuarios/{user_id}/permisos", response_model=UsuarioResponse)
+@router.patch("/usuarios/{user_id}/permisos/", response_model=UsuarioResponse)
+async def actualizar_permisos_usuario(
+    user_id:       int,
+    permisos_tabs: Optional[Dict[str, List[str]]],
+    db:            AsyncSession = Depends(get_db),
+    _:             Usuario      = Depends(get_current_admin),
+):
+    """
+    Actualiza solo los permisos_tabs de un usuario.
+    Enviar null borra todos los permisos (usuario ve todo lo permitido por su rol).
+    Enviar {} restringe al usuario a no ver ningún tab.
+    Enviar {"calidad": ["iqc", "oqc"]} da acceso solo a esos tabs.
+    """
+    result = await db.execute(select(Usuario).where(Usuario.id == user_id))
+    user   = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    user.permisos_tabs = permisos_tabs
+    await db.commit()
+    await db.refresh(user)
+    return user

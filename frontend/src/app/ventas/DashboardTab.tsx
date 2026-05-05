@@ -78,7 +78,10 @@ export default function DashboardTab({ token }: Props) {
     return (
       <div className="bg-red-900/30 border border-red-500/50 rounded-xl p-6 text-center">
         <p className="text-red-400">❌ {error}</p>
-        <button onClick={fetchData} className="mt-3 bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm">
+        <button
+          onClick={fetchData}
+          className="mt-3 bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm"
+        >
           Reintentar
         </button>
       </div>
@@ -94,7 +97,13 @@ export default function DashboardTab({ token }: Props) {
         <div>
           <h2 className="text-2xl font-bold">Dashboard de Ventas</h2>
           <p className="text-gray-400 text-sm">
-            Resumen de ventas — {new Date().toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            Resumen de ventas —{' '}
+            {new Date().toLocaleDateString('es-MX', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+            })}
           </p>
         </div>
         <button
@@ -105,24 +114,33 @@ export default function DashboardTab({ token }: Props) {
         </button>
       </div>
 
-      {/* Ventas */}
+      {/* Órdenes de Venta */}
       <div>
-        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">💵 Ventas</h3>
+        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
+          💵 Órdenes de Venta
+        </h3>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <StatCard
-            icon="📋"
+            icon="🧾"
             label="Total Órdenes de Venta"
             value={data.total_ov}
             badge={`${data.ov_pendientes} pendientes`}
-            badgeColor="text-orange-400"
-            borderColor="border-violet-500/30"
+            badgeColor="text-yellow-400"
+            borderColor="border-blue-500/30"
           />
           <StatCard
-            icon="🚚"
+            icon="✅"
             label="OV Enviadas"
             value={data.ov_enviadas}
             borderColor="border-green-500/30"
             valueColor="text-green-400"
+          />
+          <StatCard
+            icon="⏳"
+            label="Pendientes de Envío"
+            value={data.ov_pendientes}
+            borderColor="border-yellow-500/30"
+            valueColor="text-yellow-400"
           />
           <StatCard
             icon="⚠️"
@@ -131,43 +149,37 @@ export default function DashboardTab({ token }: Props) {
             borderColor="border-red-500/30"
             valueColor="text-red-400"
           />
-          <StatCard
-            icon="💵"
-            label="Valor Ventas (Mes)"
-            value={formatCurrency(data.valor_ventas_mes)}
-            badge="Mes actual"
-            borderColor="border-violet-500/30"
-            valueColor="text-violet-400"
-          />
         </div>
       </div>
 
       {/* Devoluciones y Plan */}
       <div>
-        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">🔄 Devoluciones & Plan</h3>
+        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
+          🔄 Devoluciones y Plan
+        </h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <StatCard
             icon="🔄"
             label="Total Devoluciones"
             value={data.total_devoluciones}
             badge={`${data.devoluciones_pendientes} pendientes`}
-            badgeColor="text-red-400"
+            badgeColor="text-orange-400"
             borderColor="border-orange-500/30"
           />
           <StatCard
-            icon="🔍"
-            label="Devoluciones Pendientes Inspección"
-            value={data.devoluciones_pendientes}
-            borderColor="border-yellow-500/30"
-            valueColor="text-yellow-400"
-          />
-          <StatCard
-            icon="📅"
+            icon="📋"
             label="Planes de Venta Activos"
             value={data.planes_venta_activos}
-            badge="Semanas registradas"
-            borderColor="border-indigo-500/30"
-            valueColor="text-indigo-400"
+            borderColor="border-violet-500/30"
+            valueColor="text-violet-400"
+          />
+          <StatCard
+            icon="💰"
+            label="Valor Ventas (Mes)"
+            value={formatCurrency(data.valor_ventas_mes)}
+            badge="Mes actual"
+            borderColor="border-purple-500/30"
+            valueColor="text-purple-400"
           />
         </div>
       </div>

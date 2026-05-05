@@ -106,11 +106,11 @@ function savePinnedTabs(user: string, pinned: string[]) {
 
 // ══════════════════════════════════════════════════════════════════
 export default function ProduccionPage() {
-  const { token, rol, username, logout, loading } = useAuth()
+  const { token, rol, username, logout, loading, tieneAccesoTab  } = useAuth()
   const router = useRouter()
 
   // ── UI ──────────────────────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState('home')
+  const [activeTab, setActiveTab] = useState('')
   const [wsStatus, setWsStatus]   = useState<'conectado'|'desconectado'|'conectando'>('desconectado')
   const [menuOpen, setMenuOpen]   = useState(false)
   const [pinnedTabs, setPinnedTabs] = useState<string[]>(DEFAULT_PINNED)
@@ -434,7 +434,9 @@ export default function ProduccionPage() {
   }
 
   // ── Computed ───────────────────────────────────────────────────
-  const tabs = ALL_TABS.filter(t => t.roles.includes(rol ?? ''))
+  const tabs = ALL_TABS.filter(
+    t => t.roles.includes(rol ?? '') && tieneAccesoTab('produccion', t.id)
+  )
   const badge = ROL_BADGE[rol || ''] || { icon: '👤', color: 'text-gray-400' }
 
   // Pinned tabs filtered by role access
@@ -446,6 +448,13 @@ export default function ProduccionPage() {
     conectando:   { label: 'Conectando…',  dot: 'bg-yellow-400', badge: 'bg-yellow-900/40 text-yellow-300 border-yellow-700' },
   }
   const ws_cfg = wsStatusConfig[wsStatus]
+
+  // ── Tab inicial: activar primer tab disponible ─────────────────────
+  useEffect(() => {
+    if (tabs.length > 0 && !activeTab) {
+      setActiveTab(tabs[0].id)
+    }
+  }, [tabs.length])
 
   // ── Loading / guard ────────────────────────────────────────────
   if (loading) {
