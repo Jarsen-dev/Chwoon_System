@@ -31,10 +31,8 @@ const TIPOS_PRODUCTO = ['COMPONENTE', 'RESINA', 'PRODUCTO FINAL']
 const CLASES_PRODUCTO = ['PRE EXPANSIÓN', 'INYECCIÓN', 'ASSY']
 const UNIDADES_MEDIDA = ['PZA', 'KG', 'LT', 'MT', 'ROLLO', 'CAJA']
 const PROVEEDORES = ['SOLARPOL (HYUNDAI)', 'LG', 'CHEONG WOON', 'PLASTIC MANAGEMENT', 'HAENG SUNG']
-const CLIENTES_ASOCIADOS = ['HANWHA', 'LG ELECTRONICS']
 const ID_PROCESOS = ['ASSY', 'VENTA', 'CORTE']
 const TIPOS_RESINA = ['EPS', 'EPP']
-const LINEAS_LG = ['R1', 'R2', 'BOSCH', 'EPS']
 
 export default function ProductosTab() {
   const [productos, setProductos] = useState<ProductoItem[]>([])
@@ -49,7 +47,7 @@ export default function ProductosTab() {
   // Formulario principal
   const [formData, setFormData] = useState({
     sku: '',
-    nombre: '',
+    modelo: '',
     tipo: '',
     clase_producto: '',
     unidad_de_medida: '',
@@ -57,10 +55,8 @@ export default function ProductosTab() {
     cantidad_carrito: '',
     proveedor: '',
     cliente_id: '',
-    cliente_asociado: '',
     linea_produccion: '',
     ubicacion: '',
-    linea_lg: '',
   })
   const [editing, setEditing] = useState<string | null>(null)
   const [showInyeccion, setShowInyeccion] = useState(false)
@@ -72,6 +68,7 @@ export default function ProductosTab() {
     peso: '',
     peso_seco: '',
     cav: '',
+    ciclo: '',
   })
 
   // Selección múltiple
@@ -158,7 +155,7 @@ export default function ProductosTab() {
       const pasaBusqueda =
         !q ||
         (item.sku || '').toLowerCase().includes(q) ||
-        (item.nombre || '').toLowerCase().includes(q) ||
+        (item.modelo || '').toLowerCase().includes(q) ||
         (item.descripcion || '').toLowerCase().includes(q) ||
         (item.cliente_id || '').toLowerCase().includes(q)
       const pasaTipo = !filtroTipo || item.tipo === filtroTipo
@@ -183,7 +180,7 @@ export default function ProductosTab() {
     try {
         if (editing) {
             const updatePayload: ProductoUpdate = {
-                nombre: formData.nombre,
+                modelo: formData.modelo,
                 tipo: formData.tipo,
                 clase_producto: formData.clase_producto,
                 unidad_de_medida: formData.unidad_de_medida,
@@ -191,10 +188,8 @@ export default function ProductosTab() {
                 cantidad_carrito: parseInt(formData.cantidad_carrito) || 0,
                 proveedor: formData.proveedor,
                 cliente_id: formData.cliente_id,
-                cliente_asociado: formData.cliente_asociado,
                 linea_produccion: formData.linea_produccion,
                 ubicacion: formData.ubicacion,
-                linea_lg: formData.linea_lg,
             }
         if (showInyeccion) {
             updatePayload.caracteristicas_inyeccion = {
@@ -205,6 +200,7 @@ export default function ProductosTab() {
             peso: parseFloat(inyeccionData.peso) || 0,
             peso_seco: parseFloat(inyeccionData.peso_seco) || 0,
             cav: parseInt(inyeccionData.cav) || 0,
+            ciclo: parseFloat(inyeccionData.ciclo) || 0,
             }
         }
         await updateProducto(editing, updatePayload)
@@ -217,7 +213,7 @@ export default function ProductosTab() {
         } else {
             const createPayload: ProductoCreate = {
                 sku: formData.sku,
-                nombre: formData.nombre,
+                modelo: formData.modelo,
                 tipo: formData.tipo,
                 clase_producto: formData.clase_producto,
                 unidad_de_medida: formData.unidad_de_medida,
@@ -225,10 +221,8 @@ export default function ProductosTab() {
                 cantidad_carrito: parseInt(formData.cantidad_carrito) || 0,
                 proveedor: formData.proveedor,
                 cliente_id: formData.cliente_id,
-                cliente_asociado: formData.cliente_asociado,
                 linea_produccion: formData.linea_produccion,
                 ubicacion: formData.ubicacion,
-                linea_lg: formData.linea_lg,
             }
         if (showInyeccion) {
             createPayload.caracteristicas_inyeccion = {
@@ -239,6 +233,7 @@ export default function ProductosTab() {
             peso: parseFloat(inyeccionData.peso) || 0,
             peso_seco: parseFloat(inyeccionData.peso_seco) || 0,
             cav: parseInt(inyeccionData.cav) || 0,
+            ciclo: parseFloat(inyeccionData.ciclo) || 0,
             }
         }
         await createProducto(createPayload)
@@ -259,7 +254,7 @@ export default function ProductosTab() {
   const handleEdit = (item: ProductoItem) => {
     setFormData({
       sku: item.sku,
-      nombre: item.nombre,
+      modelo: item.modelo || '',
       tipo: item.tipo,
       clase_producto: item.clase_producto,
       unidad_de_medida: item.unidad_de_medida,
@@ -267,10 +262,8 @@ export default function ProductosTab() {
       cantidad_carrito: String(item.cantidad_carrito || ''),
       proveedor: item.proveedor,
       cliente_id: item.cliente_id,
-      cliente_asociado: item.cliente_asociado,
       linea_produccion: item.linea_produccion,
       ubicacion: item.ubicacion,
-      linea_lg: item.linea_lg || '',
     })
     if (item.caracteristicas_inyeccion && Object.keys(item.caracteristicas_inyeccion).length > 0) {
       setInyeccionData({
@@ -281,6 +274,7 @@ export default function ProductosTab() {
         peso: String(item.caracteristicas_inyeccion.peso ?? ''),
         peso_seco: String(item.caracteristicas_inyeccion.peso_seco ?? ''),
         cav: String(item.caracteristicas_inyeccion.cav ?? ''),
+        ciclo: String(item.caracteristicas_inyeccion.ciclo ?? ''),
       })
     }
     setEditing(item.sku)
@@ -316,7 +310,7 @@ export default function ProductosTab() {
     setEditing(null)
     setFormData({
       sku: '',
-      nombre: '',
+      modelo: '',
       tipo: '',
       clase_producto: '',
       unidad_de_medida: '',
@@ -324,10 +318,8 @@ export default function ProductosTab() {
       cantidad_carrito: '',
       proveedor: '',
       cliente_id: '',
-      cliente_asociado: '',
       linea_produccion: '',
       ubicacion: '',
-      linea_lg: '',
     })
     setInyeccionData({
       id_proceso: '',
@@ -337,6 +329,7 @@ export default function ProductosTab() {
       peso: '',
       peso_seco: '',
       cav: '',
+      ciclo: '',
     })
   }
 
@@ -679,7 +672,7 @@ export default function ProductosTab() {
                 <table className="w-full text-sm mb-4">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="p-2 text-left">SKU Componente</th>
+                      <th className="p-2 text-left">No. de Parte Componente</th>
                       <th className="p-2 text-center">Cantidad</th>
                       <th className="p-2 text-center">Acción</th>
                     </tr>
@@ -709,7 +702,7 @@ export default function ProductosTab() {
               <div className="flex gap-2 items-end">
                 <div className="flex-1">
                   <label className="block text-xs font-semibold text-gray-600 mb-1">
-                    SKU Componente
+                    No. de Parte Componente
                   </label>
                   <input
                     type="text"
@@ -812,15 +805,14 @@ export default function ProductosTab() {
 
               <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Nombre</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Punto *</label>
                   <input
                     type="text"
                     value={newPuntoInspeccion.nombre}
-                    onChange={(e) =>
-                      setNewPuntoInspeccion({ ...newPuntoInspeccion, nombre: e.target.value })
-                    }
-                    className="w-full border border-gray-300 p-2 rounded text-sm focus:ring-2 focus:ring-teal-200 focus:outline-none"
-                    placeholder="Dimensión X"
+                    onChange={(e) => setNewPuntoInspeccion({ ...newPuntoInspeccion, nombre: e.target.value })}
+                    className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-200 focus:outline-none"
+                    required
+                    placeholder="Ej: Dimensional"
                   />
                 </div>
                 <div>
@@ -900,12 +892,12 @@ export default function ProductosTab() {
             <div className="p-6 overflow-y-auto flex-1">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <span className="font-semibold text-gray-600">SKU:</span>
+                  <span className="font-semibold text-gray-600">No. de Parte:</span>
                   <p className="font-mono">{detalleModal.sku}</p>
                 </div>
                 <div>
-                  <span className="font-semibold text-gray-600">Nombre:</span>
-                  <p>{detalleModal.nombre}</p>
+                  <span className="font-semibold text-gray-600">Modelo:</span>
+                  <p>{detalleModal.modelo || '—'}</p>
                 </div>
                 <div>
                   <span className="font-semibold text-gray-600">Tipo:</span>
@@ -928,10 +920,6 @@ export default function ProductosTab() {
                   <p>{detalleModal.cliente_id || '—'}</p>
                 </div>
                 <div>
-                  <span className="font-semibold text-gray-600">Cliente Asociado:</span>
-                  <p>{detalleModal.cliente_asociado || '—'}</p>
-                </div>
-                <div>
                   <span className="font-semibold text-gray-600">Proveedor:</span>
                   <p>{detalleModal.proveedor || '—'}</p>
                 </div>
@@ -942,10 +930,6 @@ export default function ProductosTab() {
                 <div>
                   <span className="font-semibold text-gray-600">Ubicación:</span>
                   <p>{detalleModal.ubicacion || '—'}</p>
-                </div>
-                <div>
-                  <span className="font-semibold text-gray-600">Línea LG:</span>
-                  <p>{detalleModal.linea_lg || '—'}</p>
                 </div>
                 <div>
                   <span className="font-semibold text-gray-600">Cantidad/Carrito:</span>
@@ -1021,7 +1005,7 @@ export default function ProductosTab() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">SKU *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">No. de Parte *</label>
             <input
               type="text"
               value={formData.sku}
@@ -1033,14 +1017,14 @@ export default function ProductosTab() {
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Nombre *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Modelo *</label>
             <input
               type="text"
-              value={formData.nombre}
-              onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+              value={formData.modelo}
+              onChange={(e) => setFormData({ ...formData, modelo: e.target.value })}
               className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-200 focus:outline-none"
               required
-              placeholder="Nombre del producto"
+              placeholder="Modelo del producto"
             />
           </div>
           <div>
@@ -1059,11 +1043,24 @@ export default function ProductosTab() {
               ))}
             </select>
             <p className="text-xs text-gray-500 mt-1">
-              {formData.tipo === 'COMPONENTE' || formData.tipo === 'RESINA'
-                ? '→ Se asignará control IQC'
-                : formData.tipo === 'PRODUCTO FINAL'
-                ? '→ Se asignarán controles LQC + OQC'
-                : ''}
+              {(() => {
+                const t = formData.tipo
+                const c = formData.clase_producto
+                const p = inyeccionData.id_proceso
+                if (t === 'COMPONENTE' && c === 'INYECCIÓN' && (p === 'ASSY' || p === 'CORTE')) {
+                  return '→ Se asignará control LQC'
+                }
+                if (t === 'COMPONENTE' && c === 'INYECCIÓN' && p === 'VENTA') {
+                  return '→ Se asignará control OQC'
+                }
+                if (t === 'PRODUCTO FINAL') {
+                  return '→ Se asignará control OQC'
+                }
+                if (t === 'COMPONENTE' || t === 'RESINA') {
+                  return '→ Se asignará control IQC'
+                }
+                return ''
+              })()}
             </p>
           </div>
           <div>
@@ -1121,17 +1118,6 @@ export default function ProductosTab() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Cliente Asociado</label>
-            <select
-                value={formData.cliente_asociado}
-                onChange={(e) => setFormData({ ...formData, cliente_asociado: e.target.value })}
-                className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-200 focus:outline-none"
-            >
-                <option value="">-- Seleccionar --</option>
-                {CLIENTES_ASOCIADOS.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
-          <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">Cliente ID</label>
             <input
               type="text"
@@ -1160,27 +1146,14 @@ export default function ProductosTab() {
               className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-200 focus:outline-none"
             />
           </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Línea LG</label>
-            <select
-              value={formData.linea_lg}
-              onChange={(e) => setFormData({ ...formData, linea_lg: e.target.value })}
-              className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-200 focus:outline-none"
-            >
-              <option value="">-- Seleccionar --</option>
-              {LINEAS_LG.map((l) => (
-                <option key={l} value={l}>{l}</option>
-              ))}
-            </select>
-          </div>
-          <div className="md:col-span-3">
+          <div className="md:col-span-2">
             <label className="block text-sm font-semibold text-gray-700 mb-1">Descripción</label>
-            <textarea
+            <input
+              type="text"
               value={formData.descripcion}
               onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
               className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-200 focus:outline-none"
-              rows={2}
-              placeholder="Descripción detallada del producto..."
+              placeholder="Descripción del producto..."
             />
           </div>
         </div>
@@ -1267,6 +1240,17 @@ export default function ProductosTab() {
                     onChange={(e) => setInyeccionData({ ...inyeccionData, cav: e.target.value })}
                     className="w-full border border-gray-300 p-1.5 rounded text-sm"
                     placeholder="0"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Ciclo (seg)</label>
+                <input
+                    type="text"
+                    inputMode="decimal"
+                    value={inyeccionData.ciclo}
+                    onChange={(e) => setInyeccionData({ ...inyeccionData, ciclo: e.target.value })}
+                    className="w-full border border-gray-300 p-1.5 rounded text-sm"
+                    placeholder="0.00"
                 />
               </div>
             </div>
@@ -1439,11 +1423,11 @@ export default function ProductosTab() {
                   className="rounded"
                 />
               </th>
-              <th className="p-3 text-left font-semibold text-slate-700">SKU</th>
-              <th className="p-3 text-left font-semibold text-slate-700">Nombre</th>
+              <th className="p-3 text-left font-semibold text-slate-700">No. de Parte</th>
+              <th className="p-3 text-left font-semibold text-slate-700">Modelo</th>
               <th className="p-3 text-center font-semibold text-slate-700">Tipo</th>
               <th className="p-3 text-center font-semibold text-slate-700">Clase</th>
-              <th className="p-3 text-center font-semibold text-slate-700">Línea LG</th>
+              <th className="p-3 text-center font-semibold text-slate-700">Línea Producción</th>
               <th className="p-3 text-center font-semibold text-slate-700">Status</th>
               <th className="p-3 text-center font-semibold text-slate-700">Controles</th>
               <th className="p-3 text-center font-semibold text-slate-700">BOM</th>
@@ -1467,7 +1451,7 @@ export default function ProductosTab() {
                   />
                 </td>
                 <td className="p-3 font-mono font-medium text-slate-800">{item.sku}</td>
-                <td className="p-3 text-slate-600">{item.nombre}</td>
+                <td className="p-3 text-slate-600">{item.modelo}</td>
                 <td className="p-3 text-center">
                   <span
                     className={`px-2 py-0.5 rounded-full text-xs font-bold ${
@@ -1486,24 +1470,8 @@ export default function ProductosTab() {
                 <td className="p-3 text-center text-xs text-gray-600">
                   {item.clase_producto || '—'}
                 </td>
-                <td className="p-3 text-center">
-                  {item.linea_lg ? (
-                    <span
-                      className={`px-2.5 py-1 rounded-full text-xs font-bold tracking-wide ${
-                        item.linea_lg === 'BOSCH'
-                          ? 'bg-blue-100 text-blue-800'
-                          : item.linea_lg === 'EPS'
-                          ? 'bg-purple-100 text-purple-800'
-                          : item.linea_lg === 'R2'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-gray-100 text-gray-800'
-                      }`}
-                    >
-                      {item.linea_lg}
-                    </span>
-                  ) : (
-                    <span className="text-gray-400 text-xs">—</span>
-                  )}
+                <td className="p-3 text-center text-xs text-gray-600">
+                  {item.linea_produccion || '—'}
                 </td>
                 <td className="p-3 text-center">{statusBadge(item.status)}</td>
                 <td className="p-3 text-center">

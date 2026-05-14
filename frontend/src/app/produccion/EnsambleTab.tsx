@@ -168,7 +168,7 @@ export default function EnsambleTab() {
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
                 <option value="">Seleccionar...</option>
                 {productos.map(p => (
-                  <option key={p.sku} value={p.sku}>{p.sku} — {p.nombre}</option>
+                  <option key={p.sku} value={p.sku}>{p.sku} — {p.modelo}</option>
                 ))}
               </select>
             </div>

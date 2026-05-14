@@ -20,6 +20,7 @@ from app.routers import calidad as calidad_router
 from app.routers import almacen as almacen_router
 from app.routers import ordenes_produccion as ordenes_produccion_router
 from app.routers import logistica as logistica_router
+from app.routers import plan_inyeccion
 
 logging.basicConfig(
     level=logging.INFO,
@@ -123,6 +124,7 @@ app.include_router(finanzas_router.router)
 app.include_router(calidad_router.router)
 app.include_router(almacen_router.router)
 app.include_router(ordenes_produccion_router.router)
+app.include_router(plan_inyeccion.router)
 app.include_router(logistica_router.router)
 
 

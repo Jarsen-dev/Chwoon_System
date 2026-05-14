@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List, Any
 from datetime import datetime
 
@@ -160,6 +160,79 @@ class RegistrarPiezaRequest(BaseModel):
 
 class FinalizarInyeccionRequest(BaseModel):
     scrap_data: list = []
+
+# ==========================================
+# PLAN INYECCIÓN
+# ==========================================
+
+class PlanInyeccionBase(BaseModel):
+    maquina: str
+    prioridad: int
+    numero_parte: str
+    plan_piezas: int
+    cav: int = 1
+    orden_secuencia: int = 0
+    aux_silo: Optional[str] = None
+
+
+class PlanInyeccionCreate(PlanInyeccionBase):
+    pass
+
+
+class PlanInyeccionBatchCreate(BaseModel):
+    items: List[PlanInyeccionCreate]
+
+
+class PlanInyeccionAvanceRequest(BaseModel):
+    piezas: int = Field(..., ge=1, description="Piezas producidas en este registro")
+    tiempo_ciclo: float = Field(..., ge=0, description="Tiempo de ciclo en segundos")
+    contador_hora: int = Field(..., ge=0, description="Contador por hora")
+
+
+class PlanInyeccionParoRequest(BaseModel):
+    motivo: str
+    motivo_mantenimiento: Optional[str] = None
+    comentarios: str = ""
+
+
+class PlanInyeccionReanudarRequest(BaseModel):
+    motivo: str
+    motivo_mantenimiento: Optional[str] = None
+    comentarios: str = ""
+
+
+class ParoItem(BaseModel):
+    id: str
+    motivo: str
+    motivo_mantenimiento: Optional[str] = None
+    comentarios: str = ""
+    inicio: str
+    fin: Optional[str] = None
+    duracion_segundos: int = 0
+    status: str  # Activo | Finalizado
+
+
+class PlanInyeccionResponse(PlanInyeccionBase):
+    id: int
+    piezas_producidas: int
+    status: str
+    hora_inicio: Optional[datetime] = None
+    hora_ultimo_inicio: Optional[datetime] = None
+    tiempo_acumulado_seg: int
+    en_paro: bool
+    paros: List[ParoItem] = []
+    hora_fin: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+    aux_silo: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class PlanInyeccionFinalizarResponse(BaseModel):
+    message: str
+    finalizado_id: int
+    siguiente_iniciado: Optional[PlanInyeccionResponse] = None
 
 
 # ==========================================

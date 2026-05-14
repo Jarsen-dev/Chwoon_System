@@ -27,12 +27,12 @@ export interface CaracteristicasInyeccion {
   peso?:        number
   peso_seco?:   number
   cav?:         number
+  ciclo?:       number
 }
 
 export interface ProductoItem {
   id:                        number
   sku:                       string
-  nombre:                    string
   tipo:                      string
   clase_producto:            string
   unidad_de_medida:          string
@@ -40,10 +40,9 @@ export interface ProductoItem {
   cantidad_carrito:          number
   proveedor:                 string
   cliente_id:                string
-  cliente_asociado:          string
+  modelo:                    string
   linea_produccion:          string
   ubicacion:                 string
-  linea_lg:                  string
   status:                    string
   controles_calidad:         string[]
   puntos_inspeccion_iqc:     Record<string, any>[]
@@ -55,7 +54,6 @@ export interface ProductoItem {
 
 export interface ProductoCreate {
   sku:                        string
-  nombre:                     string
   tipo?:                      string
   clase_producto?:            string
   unidad_de_medida?:          string
@@ -63,15 +61,13 @@ export interface ProductoCreate {
   cantidad_carrito?:          number
   proveedor?:                 string
   cliente_id?:                string
-  cliente_asociado?:          string
+  modelo?:                    string
   linea_produccion?:          string
   ubicacion?:                 string
-  linea_lg?:                  string
   caracteristicas_inyeccion?: CaracteristicasInyeccion
 }
 
 export interface ProductoUpdate {
-  nombre?:                    string
   tipo?:                      string
   clase_producto?:            string
   unidad_de_medida?:          string
@@ -79,10 +75,9 @@ export interface ProductoUpdate {
   cantidad_carrito?:          number
   proveedor?:                 string
   cliente_id?:                string
-  cliente_asociado?:          string
+  modelo?:                    string
   linea_produccion?:          string
   ubicacion?:                 string
-  linea_lg?:                  string
   status?:                    string
   controles_calidad?:         string[]
   puntos_inspeccion_iqc?:     Record<string, any>[]

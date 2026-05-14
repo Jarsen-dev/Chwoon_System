@@ -1185,6 +1185,22 @@ export async function importarUbicaciones(token: string, file: File): Promise<{ 
   return res.json()
 }
 
+export async function getSilosProduccion(token: string): Promise<UbicacionAlmacen[]> {
+  const res = await fetch(`${API_URL}/almacen/ubicaciones/silos-produccion`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error cargando silos')
+  return res.json()
+}
+
+export async function getSilosAux(token: string): Promise<UbicacionAlmacen[]> {
+  const res = await fetch(`${API_URL}/almacen/ubicaciones/silos-aux`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error cargando silos AUX')
+  return res.json()
+}
+
 // ==========================================
 // ALMACÉN — Inventario de Lotes
 // ==========================================
@@ -1837,5 +1853,229 @@ export async function descargarReportePreexpansionExcel(token: string, fecha?: s
     headers: { Authorization: `Bearer ${token}` },
   })
   if (!res.ok) throw new Error('Error al descargar reporte')
+  return res.blob()
+}
+
+// ==========================================
+// PLAN INYECCIÓN
+// ==========================================
+
+export interface ParoItem {
+  id: string
+  motivo: string
+  motivo_mantenimiento?: string | null
+  comentarios: string
+  inicio: string
+  fin?: string | null
+  duracion_segundos: number
+  status: string
+}
+
+export interface PlanInyeccionItem {
+  id: number
+  maquina: string
+  prioridad: number
+  numero_parte: string
+  plan_piezas: number
+  cav: number
+  piezas_producidas: number
+  orden_secuencia: number
+  status: string
+  hora_inicio?: string
+  hora_ultimo_inicio?: string
+  tiempo_acumulado_seg: number
+  en_paro: boolean
+  paros: ParoItem[]
+  hora_fin?: string
+  created_at?: string
+  aux_silo?: string | null
+}
+
+export async function getPlanInyeccion(token: string, params?: { status?: string; maquina?: string }): Promise<PlanInyeccionItem[]> {
+  const sp = new URLSearchParams()
+  if (params?.status) sp.append('status', params.status)
+  if (params?.maquina) sp.append('maquina', params.maquina)
+  const qs = sp.toString()
+  const res = await fetch(`${API_URL}/plan-inyeccion${qs ? `?${qs}` : ''}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener plan de inyección')
+  return res.json()
+}
+
+export async function crearPlanInyeccionBatch(token: string, items: Omit<PlanInyeccionItem, 'id'>[]): Promise<PlanInyeccionItem[]> {
+  const res = await fetch(`${API_URL}/plan-inyeccion/batch`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ items }),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al crear plan')
+  }
+  return res.json()
+}
+
+export async function eliminarPlanInyeccion(token: string, id: number): Promise<void> {
+  const res = await fetch(`${API_URL}/plan-inyeccion/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al eliminar')
+}
+
+export async function importarPlanInyeccionExcel(token: string, file: File): Promise<{ message: string; creados: number; errores: string[] }> {
+  const form = new FormData()
+  form.append('file', file)
+  const res = await fetch(`${API_URL}/plan-inyeccion/importar-excel`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al importar')
+  }
+  return res.json()
+}
+
+export async function iniciarPlanInyeccion(token: string, id: number): Promise<PlanInyeccionItem> {
+  const res = await fetch(`${API_URL}/plan-inyeccion/${id}/iniciar`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al iniciar')
+  }
+  return res.json()
+}
+
+export async function avanzarPlanInyeccion(token: string, id: number, piezas: number, tiempoCiclo: number, contadorHora: number): Promise<PlanInyeccionItem> {
+  const res = await fetch(`${API_URL}/plan-inyeccion/${id}/avanzar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ piezas, tiempo_ciclo: tiempoCiclo, contador_hora: contadorHora }),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al registrar avance')
+  }
+  return res.json()
+}
+
+// FIX: Ahora acepta datos del paro (motivo, motivo_mantenimiento, comentarios)
+export async function registrarParoPlanInyeccion(
+  token: string,
+  id: number,
+  data: {
+    motivo: string
+    motivo_mantenimiento?: string | null
+    comentarios: string
+  }
+): Promise<PlanInyeccionItem> {
+  const res = await fetch(`${API_URL}/plan-inyeccion/${id}/paro`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al registrar paro')
+  }
+  return res.json()
+}
+
+export async function reanudarPlanInyeccion(token: string, id: number, data: {
+  motivo: string
+  motivo_mantenimiento?: string | null
+  comentarios: string
+}): Promise<PlanInyeccionItem> {
+  const res = await fetch(`${API_URL}/plan-inyeccion/${id}/reanudar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al reanudar')
+  }
+  return res.json()
+}
+
+export async function finalizarPlanInyeccion(token: string, id: number): Promise<{
+  message: string
+  finalizado_id: number
+  siguiente_iniciado?: PlanInyeccionItem
+}> {
+  const res = await fetch(`${API_URL}/plan-inyeccion/${id}/finalizar`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al finalizar')
+  }
+  return res.json()
+}
+
+export async function asignarAuxSiloPlanInyeccion(token: string, id: number, auxSilo: string): Promise<{ message: string; aux_silo: string | null }> {
+  const res = await fetch(`${API_URL}/plan-inyeccion/${id}/aux-silo?aux_silo=${encodeURIComponent(auxSilo)}`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al asignar Silo Aux')
+  }
+  return res.json()
+}
+
+export interface ReporteInyeccionGeneral {
+  lote: string
+  fecha: string
+  turno: string
+  turno_real?: string
+  numero_parte: string
+  maquina: string
+  cav: number
+  ciclo: number | null
+  tiempo_trabajo: number
+  meta_plan: number
+  produccion_total: number
+  percent_prod: number
+  motivo_paro: string | null
+  motivo_mantenimiento: string | null
+  tiempo_paro: number
+  comentarios: string | null
+  parte_anterior: string | null
+  orden_id: number
+}
+
+export async function getReporteGeneralInyeccion(token: string, fecha: string, turno?: string): Promise<ReporteInyeccionGeneral[]> {
+  const sp = new URLSearchParams({ fecha })
+  if (turno) sp.append('turno', turno)
+  const res = await fetch(`${API_URL}/plan-inyeccion/reporte-general?${sp.toString()}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener reporte general')
+  return res.json()
+}
+
+export async function descargarReporteGeneralInyeccionExcel(token: string, fecha: string, turno?: string): Promise<Blob> {
+  const sp = new URLSearchParams({ fecha })
+  if (turno) sp.append('turno', turno)
+  const res = await fetch(`${API_URL}/plan-inyeccion/reporte-general/excel?${sp.toString()}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al descargar Excel')
+  return res.blob()
+}
+
+export async function descargarReporteIndividualInyeccionExcel(token: string, id: number): Promise<Blob> {
+  const res = await fetch(`${API_URL}/plan-inyeccion/reporte-individual/${id}/excel`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al descargar Excel')
   return res.blob()
 }

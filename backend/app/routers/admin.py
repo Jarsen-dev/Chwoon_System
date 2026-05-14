@@ -349,6 +349,7 @@ async def get_system_status(
         ("suministros_silo",    "suministros_silo"),
         ("lotes_inventario",     "lotes_inventario"),
         ("ordenes_produccion",    "ordenes_produccion"),
+        ("plan_inyeccion",        "plan_inyeccion"),
     ]
 
     for nombre, tabla in tablas:
@@ -627,6 +628,59 @@ async def vaciar_lotes_inventario_produccion(
         "message": "Lotes de inventario de producción y sus movimientos eliminados",
         "eliminados": r_lotes.rowcount + r_mov.rowcount,
     }
+
+
+# ── POST /api/admin/db/vaciar-plan-inyeccion ─────────────
+@router.post("/db/vaciar-plan-inyeccion")
+@router.post("/db/vaciar-plan-inyeccion/")
+async def vaciar_plan_inyeccion(
+    db: AsyncSession = Depends(get_db),
+    _: Usuario = Depends(get_current_admin),
+):
+    """Vacía la tabla de plan de inyección completamente"""
+    result = await db.execute(text("DELETE FROM plan_inyeccion"))
+    await db.commit()
+    return {
+        "message": "Plan de inyección eliminado completamente",
+        "eliminados": result.rowcount,
+    }
+
+
+# ── POST /api/admin/db/vaciar-plan-inyeccion-finalizados ─────────────
+@router.post("/db/vaciar-plan-inyeccion-finalizados")
+@router.post("/db/vaciar-plan-inyeccion-finalizados/")
+async def vaciar_plan_inyeccion_finalizados(
+    db: AsyncSession = Depends(get_db),
+    _: Usuario = Depends(get_current_admin),
+):
+    """Elimina órdenes de inyección con status 'Finalizado'"""
+    result = await db.execute(
+        text("DELETE FROM plan_inyeccion WHERE status = 'Finalizado'")
+    )
+    await db.commit()
+    return {
+        "message": "Órdenes finalizadas de inyección eliminadas",
+        "eliminados": result.rowcount,
+    }
+
+
+# ── POST /api/admin/db/vaciar-plan-inyeccion-pendientes ─────────────
+@router.post("/db/vaciar-plan-inyeccion-pendientes")
+@router.post("/db/vaciar-plan-inyeccion-pendientes/")
+async def vaciar_plan_inyeccion_pendientes(
+    db: AsyncSession = Depends(get_db),
+    _: Usuario = Depends(get_current_admin),
+):
+    """Elimina órdenes de inyección con status 'Pendiente'"""
+    result = await db.execute(
+        text("DELETE FROM plan_inyeccion WHERE status = 'Pendiente'")
+    )
+    await db.commit()
+    return {
+        "message": "Órdenes pendientes de inyección eliminadas",
+        "eliminados": result.rowcount,
+    }
+
 
 # ══════════════════════════════════════════════════════════════════════
 # USUARIOS — CRUD completo con permisos_tabs

@@ -79,6 +79,7 @@ export function getTablaIcon(nombre: string): string {
     ordenes_venta_items: '🏷️', envios_venta: '🚚',
     devoluciones: '🔄', planes_venta: '📅',
     inspecciones: '🔬', registros_scrap: '🗑️',
+    plan_inyeccion: '🏭',
   }
   return map[nombre] || '📄'
 }

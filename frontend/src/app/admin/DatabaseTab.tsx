@@ -256,6 +256,62 @@ export default function DatabaseTab({ token }: Props) {
         </div>
       </div>
 
+      {/* ═══ ACCIONES INYECCIÓN ═══ */}
+      <div>
+        <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider mb-1 flex items-center gap-2">
+          🏭 Inyección — Limpieza de Datos
+        </h3>
+        <p className="text-xs text-gray-500 mb-4">
+          Estas acciones eliminan registros del plan de inyección.
+          Son irreversibles.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <DbActionCard
+            icon="🗑️"
+            title="Vaciar Plan de Inyección"
+            description="⚠️ Elimina TODOS los registros del plan de inyección (Pendientes, En Proceso y Finalizados)"
+            count={getCount('plan_inyeccion')}
+            buttonLabel="Vaciar Todo"
+            buttonColor="bg-red-600 hover:bg-red-700"
+            loading={dbActionLoading === 'vaciar-plan-inyeccion'}
+            onClick={() => confirmarAccionDB(
+              'vaciar-plan-inyeccion',
+              '⚠️ Vaciar Plan de Inyección',
+              '¿ELIMINAR TODOS los registros del plan de inyección? Esto borra órdenes pendientes, en proceso y finalizadas. Acción NO reversible.'
+            )}
+            danger
+          />
+          <DbActionCard
+            icon="✅"
+            title="Vaciar Finalizados"
+            description="Elimina solo las órdenes con status 'Finalizado'"
+            count={undefined}
+            buttonLabel="Vaciar Finalizados"
+            buttonColor="bg-emerald-600 hover:bg-emerald-700"
+            loading={dbActionLoading === 'vaciar-plan-inyeccion-finalizados'}
+            onClick={() => confirmarAccionDB(
+              'vaciar-plan-inyeccion-finalizados',
+              '✅ Vaciar Finalizados',
+              '¿Eliminar solo las órdenes de inyección FINALIZADAS? Las órdenes en proceso y pendientes NO se verán afectadas.'
+            )}
+          />
+          <DbActionCard
+            icon="📋"
+            title="Vaciar Pendientes"
+            description="Elimina solo las órdenes con status 'Pendiente'"
+            count={undefined}
+            buttonLabel="Vaciar Pendientes"
+            buttonColor="bg-purple-600 hover:bg-purple-700"
+            loading={dbActionLoading === 'vaciar-plan-inyeccion-pendientes'}
+            onClick={() => confirmarAccionDB(
+              'vaciar-plan-inyeccion-pendientes',
+              '📋 Vaciar Pendientes',
+              '¿Eliminar solo las órdenes de inyección PENDIENTES? Las órdenes en proceso y finalizadas NO se verán afectadas.'
+            )}
+          />
+        </div>
+      </div>
+
       {/* ═══ MODAL CONFIRMAR ═══ */}
       {confirmAction && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">

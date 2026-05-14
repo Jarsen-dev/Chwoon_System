@@ -24,12 +24,25 @@ async def get_db():
         yield session
 
 
-def asignar_controles(tipo: str) -> list:
+def asignar_controles(tipo: str, clase_producto: str = "", id_proceso: str = "") -> list:
     t = (tipo or "").strip().upper()
+    c = (clase_producto or "").strip().upper()
+    p = (id_proceso or "").strip().upper()
+    
+    if t == "COMPONENTE" and c == "INYECCIÓN" and p in ("ASSY", "CORTE"):
+        return ["LQC"]
+    
+    if t == "COMPONENTE" and c == "INYECCIÓN" and p == "VENTA":
+        return ["OQC"]
+    
+    if t == "PRODUCTO FINAL":
+        return ["OQC"]
+    
     if t in ["COMPONENTE", "RESINA"]:
         return ["IQC"]
     elif t == "PRODUCTO FINAL":
         return ["LQC", "OQC"]
+    
     return []
 
 
@@ -47,9 +60,15 @@ async def crear_producto(data: ProductoCreate, db: AsyncSession = Depends(get_db
 
     d = data.model_dump()
     d["sku"] = d["sku"].strip().upper()
-    d["nombre"] = d["nombre"].strip().upper()
+    d["modelo"] = (d.get("modelo") or "").strip().upper()
     d["tipo"] = (d.get("tipo") or "").strip().upper()
-    d["controles_calidad"] = asignar_controles(d["tipo"])
+    
+    # Extraer clase e id_proceso para asignar controles
+    clase = (d.get("clase_producto") or "").strip().upper()
+    caract = d.get("caracteristicas_inyeccion") or {}
+    id_proceso = (caract.get("id_proceso") or "").strip().upper()
+    
+    d["controles_calidad"] = asignar_controles(d["tipo"], clase, id_proceso)
     d.setdefault("puntos_inspeccion_iqc", [])
     d.setdefault("puntos_inspeccion_lqc", [])
     d.setdefault("puntos_inspeccion_oqc", [])
@@ -81,11 +100,18 @@ async def actualizar_producto(sku: str, data: ProductoUpdate, db: AsyncSession =
         raise HTTPException(404, "Producto no encontrado")
 
     upd = data.model_dump(exclude_unset=True)
-    if "nombre" in upd:
-        upd["nombre"] = (upd["nombre"] or "").strip().upper()
+    if "modelo" in upd:
+        upd["modelo"] = (upd["modelo"] or "").strip().upper()
     if "tipo" in upd:
         upd["tipo"] = (upd["tipo"] or "").strip().upper()
-        upd["controles_calidad"] = asignar_controles(upd["tipo"])
+    
+    # Recalcular controles si cambia tipo, clase o características de inyección
+    tipo_actual = upd.get("tipo", p.tipo)
+    clase_actual = upd.get("clase_producto", p.clase_producto)
+    caract_actual = upd.get("caracteristicas_inyeccion", p.caracteristicas_inyeccion) or {}
+    id_proceso_actual = (caract_actual.get("id_proceso") or "").strip().upper()
+    
+    upd["controles_calidad"] = asignar_controles(tipo_actual, clase_actual, id_proceso_actual)
 
     for field, value in upd.items():
         setattr(p, field, value)
@@ -198,13 +224,20 @@ async def importar_productos(file: UploadFile = File(...), db: AsyncSession = De
         count = 0
         for _, row in df.iterrows():
             sku = (row.get("sku") or row.get("numero_parte") or "").strip()
-            nombre = (row.get("nombre") or "").strip()
+            modelo = (row.get("modelo") or row.get("nombre") or "").strip()
 
-            if not sku or not nombre:
+            if not sku or not modelo:
                 continue
 
             tipo = row.get("tipo") or ""
-            controles = asignar_controles(tipo)
+            clase = (row.get("clase_producto") or row.get("clase") or "").strip().upper()
+            
+            # Extraer id_proceso de características si es inyección
+            id_proceso = ""
+            if clase in ("INYECCIÓN", "INYECCION"):
+                id_proceso = (row.get("id_proceso") or "").strip().upper()
+            
+            controles = asignar_controles(tipo, clase, id_proceso)
 
             clase_raw = (row.get("clase_producto") or row.get("clase") or "").strip()
             clase = CLASE_MAP.get(clase_raw, clase_raw)
@@ -213,7 +246,7 @@ async def importar_productos(file: UploadFile = File(...), db: AsyncSession = De
             descripcion = row.get("descripcion") or ""
             proveedor = row.get("proveedor") or ""
             cliente_id = row.get("cliente_id") or ""
-            cliente_asociado = row.get("cliente_asociado") or ""
+            modelo = row.get("modelo") or row.get("cliente_asociado") or ""
             linea = row.get("linea_produccion") or row.get("linea") or ""
             ubicacion = row.get("ubicacion") or ""
             linea_lg = row.get("linea_lg") or ""
@@ -256,7 +289,6 @@ async def importar_productos(file: UploadFile = File(...), db: AsyncSession = De
             existing = result.scalar_one_or_none()
 
             if existing:
-                existing.nombre = nombre
                 existing.tipo = tipo
                 existing.clase_producto = clase
                 existing.unidad_de_medida = unidad
@@ -264,7 +296,7 @@ async def importar_productos(file: UploadFile = File(...), db: AsyncSession = De
                 existing.cantidad_carrito = cant_carrito
                 existing.proveedor = proveedor
                 existing.cliente_id = cliente_id
-                existing.cliente_asociado = cliente_asociado
+                existing.modelo = modelo
                 existing.linea_produccion = linea
                 existing.ubicacion = ubicacion
                 existing.linea_lg = linea_lg
@@ -274,7 +306,6 @@ async def importar_productos(file: UploadFile = File(...), db: AsyncSession = De
             else:
                 db.add(Producto(
                     sku=sku,
-                    nombre=nombre,
                     tipo=tipo,
                     clase_producto=clase,
                     unidad_de_medida=unidad,
@@ -282,7 +313,7 @@ async def importar_productos(file: UploadFile = File(...), db: AsyncSession = De
                     cantidad_carrito=cant_carrito,
                     proveedor=proveedor,
                     cliente_id=cliente_id,
-                    cliente_asociado=cliente_asociado,
+                    modelo=modelo,
                     linea_produccion=linea,
                     ubicacion=ubicacion,
                     linea_lg=linea_lg,

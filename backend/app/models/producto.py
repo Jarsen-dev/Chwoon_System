@@ -8,7 +8,7 @@ class Producto(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     sku = Column(String(50), unique=True, index=True, nullable=False)
-    nombre = Column(String(200), nullable=False)
+    nombre = Column(String(300), default="")
     tipo = Column(String(50), default="")
     clase_producto = Column(String(50), default="")
     unidad_de_medida = Column(String(20), default="")
@@ -16,10 +16,9 @@ class Producto(Base):
     cantidad_carrito = Column(Integer, default=0)
     proveedor = Column(String(100), default="")
     cliente_id = Column(String(100), default="")
-    cliente_asociado = Column(String(100), default="")
+    modelo = Column(String(100), default="")
     linea_produccion = Column(String(100), default="")
     ubicacion = Column(String(100), default="")
-    linea_lg = Column(String(20), default="")
     status = Column(String(20), default="Activo")
 
     controles_calidad = Column(JSON, default=list)

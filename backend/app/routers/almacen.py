@@ -129,6 +129,64 @@ async def dashboard_almacen(
 
 
 # ============================================================
+# SILOS — Endpoint de solo lectura para producción
+# Accesible por cualquier usuario autenticado (operador, supervisor, etc.)
+# ============================================================
+@router.get("/ubicaciones/silos-produccion", response_model=list[UbicacionResponse])
+@router.get("/ubicaciones/silos-produccion/", response_model=list[UbicacionResponse])
+async def listar_silos_para_produccion(
+    user: Usuario = Depends(get_current_user),   # ← cualquier rol autenticado
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Retorna únicamente las sub-ubicaciones bajo 'SILOS' (excluyendo AUX).
+    Usado por Pre-Expansión para que operadores puedan seleccionar silo destino.
+    No requiere rol almacen — solo estar autenticado.
+    """
+    # Buscar padre "SILOS"
+    result = await db.execute(
+        select(Ubicacion).where(func.upper(Ubicacion.nombre) == 'SILOS')
+    )
+    padre = result.scalar_one_or_none()
+    if not padre:
+        return []
+
+    # Solo hijos principales (sin AUX)
+    result = await db.execute(
+        select(Ubicacion)
+        .where(Ubicacion.parent_id == padre.id)
+        .order_by(Ubicacion.nombre)
+    )
+    hijos = result.scalars().all()
+    return [u for u in hijos if 'AUX' not in u.nombre.upper()]
+
+@router.get("/ubicaciones/silos-aux", response_model=list[UbicacionResponse])
+@router.get("/ubicaciones/silos-aux/", response_model=list[UbicacionResponse])
+async def listar_silos_aux_para_produccion(
+    user: Usuario = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Retorna únicamente los AUX bajo 'SILOS'.
+    Usado por Suministro en Pre-Expansión.
+    """
+    result = await db.execute(
+        select(Ubicacion).where(func.upper(Ubicacion.nombre) == 'SILOS')
+    )
+    padre = result.scalar_one_or_none()
+    if not padre:
+        return []
+
+    result = await db.execute(
+        select(Ubicacion)
+        .where(Ubicacion.parent_id == padre.id)
+        .order_by(Ubicacion.nombre)
+    )
+    hijos = result.scalars().all()
+    return [u for u in hijos if 'AUX' in u.nombre.upper()]
+
+
+# ============================================================
 # UBICACIONES
 # ============================================================
 @router.get("/ubicaciones", response_model=list[UbicacionResponse])

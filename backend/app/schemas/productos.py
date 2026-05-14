@@ -9,7 +9,7 @@ class BomItem(BaseModel):
 
 class ProductoBase(BaseModel):
     sku: str
-    nombre: str
+    nombre: Optional[str] = ""
     tipo: Optional[str] = ""
     clase_producto: Optional[str] = ""
     unidad_de_medida: Optional[str] = ""
@@ -17,10 +17,9 @@ class ProductoBase(BaseModel):
     cantidad_carrito: Optional[int] = 0
     proveedor: Optional[str] = ""
     cliente_id: Optional[str] = ""
-    cliente_asociado: Optional[str] = ""
+    modelo: Optional[str] = ""
     linea_produccion: Optional[str] = ""
     ubicacion: Optional[str] = ""
-    linea_lg: Optional[str] = ""
     status: Optional[str] = "Activo"
     controles_calidad: Optional[List[str]] = []
     puntos_inspeccion_iqc: Optional[List[Dict[str, Any]]] = []
@@ -35,7 +34,6 @@ class ProductoCreate(ProductoBase):
 
 
 class ProductoUpdate(BaseModel):
-    nombre: Optional[str] = None
     tipo: Optional[str] = None
     clase_producto: Optional[str] = None
     unidad_de_medida: Optional[str] = None
@@ -43,10 +41,9 @@ class ProductoUpdate(BaseModel):
     cantidad_carrito: Optional[int] = None
     proveedor: Optional[str] = None
     cliente_id: Optional[str] = None
-    cliente_asociado: Optional[str] = None
+    modelo: Optional[str] = None
     linea_produccion: Optional[str] = None
     ubicacion: Optional[str] = None
-    linea_lg: Optional[str] = None
     status: Optional[str] = None
     controles_calidad: Optional[List[str]] = None
     puntos_inspeccion_iqc: Optional[List[Dict[str, Any]]] = None

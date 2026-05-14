@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext'
 import { OrdenProduccion as OrdenProduccionType, UbicacionAlmacen, EstadoSilo, SuministroSilo } from '@/types'
 import {
   getOrdenesProduccion, iniciarPreExpansion, registrarProduccionParcial,
-  registrarDatosProceso, finalizarPreExpansion, getProductos, getUbicaciones,
+  registrarDatosProceso, finalizarPreExpansion, getProductos, getSilosProduccion, getSilosAux,
   getEstadoSilos, descargarEstadoSilosExcel, getSuministros, crearSuministro,
   descargarReportePreexpansionExcel,
 } from '@/lib/api'
@@ -178,14 +178,9 @@ function LotesSubTab() {
   const cargarUbicacionesSilos = async () => {
     if (!token) return
     try {
-      const todas = await getUbicaciones(token)
-      const padre = todas.find((u: UbicacionAlmacen) => u.nombre.toUpperCase() === 'SILOS')
-      if (padre) {
-        const hijas = todas.filter((u: UbicacionAlmacen) => u.parent_id === padre.id)
-        const principales = hijas.filter((u: UbicacionAlmacen) => !u.nombre.toUpperCase().includes('AUX'))
-        setUbicacionesSilos(principales)
-        if (principales.length > 0 && !formUbicacion) setFormUbicacion(principales[0].nombre)
-      }
+      const silos = await getSilosProduccion(token)
+      setUbicacionesSilos(silos)
+      if (silos.length > 0 && !formUbicacion) setFormUbicacion(silos[0].nombre)
     } catch {}
   }
 
@@ -366,7 +361,7 @@ function LotesSubTab() {
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
                 <option value="">Seleccionar...</option>
                 {productos.map(p => (
-                  <option key={p.sku} value={p.sku}>{p.sku} — {p.nombre}</option>
+                  <option key={p.sku} value={p.sku}>{p.sku} — {p.modelo}</option>
                 ))}
               </select>
             </div>
@@ -916,14 +911,14 @@ function SuministroSubTab() {
     if (!token) return
     setLoading(true)
     try {
-      const [sums, ubicaciones] = await Promise.all([getSuministros(token, 200), getUbicaciones(token)])
+      const [sums, principales, aux] = await Promise.all([
+        getSuministros(token, 200),
+        getSilosProduccion(token),   // ← silos principales
+        getSilosAux(token),          // ← silos AUX
+      ])
       setSuministros(sums)
-      const padre = ubicaciones.find((u: UbicacionAlmacen) => u.nombre.toUpperCase() === 'SILOS')
-      if (padre) {
-        const hijas = ubicaciones.filter((u: UbicacionAlmacen) => u.parent_id === padre.id)
-        setSilosPrincipales(hijas.filter((u: UbicacionAlmacen) => !u.nombre.toUpperCase().includes('AUX')))
-        setSilosAux(hijas.filter((u: UbicacionAlmacen) => u.nombre.toUpperCase().includes('AUX')))
-      }
+      setSilosPrincipales(principales)
+      setSilosAux(aux)
     } catch (e: any) { setMensaje({ tipo: 'error', texto: e.message }) }
     setLoading(false)
   }

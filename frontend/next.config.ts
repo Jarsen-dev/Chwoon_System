@@ -130,6 +130,10 @@ const nextConfig: NextConfig = {
         { source: '/almacen/dashboard/',                      destination: `${BACKEND}/almacen/dashboard/` },
         { source: '/almacen/ubicaciones/importar',            destination: `${BACKEND}/almacen/ubicaciones/importar` },
         { source: '/almacen/ubicaciones/importar/',           destination: `${BACKEND}/almacen/ubicaciones/importar/` },
+        { source: '/almacen/ubicaciones/silos-produccion',    destination: `${BACKEND}/almacen/ubicaciones/silos-produccion` },
+        { source: '/almacen/ubicaciones/silos-produccion/',   destination: `${BACKEND}/almacen/ubicaciones/silos-produccion/` },
+        { source: '/almacen/ubicaciones/silos-aux',           destination: `${BACKEND}/almacen/ubicaciones/silos-aux` },
+        { source: '/almacen/ubicaciones/silos-aux/',          destination: `${BACKEND}/almacen/ubicaciones/silos-aux/` },
         { source: '/almacen/ubicaciones/:id',                 destination: `${BACKEND}/almacen/ubicaciones/:id` },
         { source: '/almacen/ubicaciones/:id/',                destination: `${BACKEND}/almacen/ubicaciones/:id/` },
         { source: '/almacen/ubicaciones',                     destination: `${BACKEND}/almacen/ubicaciones` },
@@ -225,6 +229,11 @@ const nextConfig: NextConfig = {
         { source: '/produccion/paros/:path*',       destination: `${BACKEND}/produccion/paros/:path*` },
         { source: '/produccion/ws/:path*',          destination: `${BACKEND}/produccion/ws/:path*` },
         { source: '/produccion/:path*',             destination: `${BACKEND}/produccion/:path*` },
+        
+        // Plan Inyección
+        { source: '/plan-inyeccion',           destination: `${BACKEND}/plan-inyeccion/` },
+        { source: '/plan-inyeccion/',          destination: `${BACKEND}/plan-inyeccion/` },
+        { source: '/plan-inyeccion/:path*',    destination: `${BACKEND}/plan-inyeccion/:path*` },
 
         // Secado
         { source: '/secado',                        destination: `${BACKEND}/secado/` },
