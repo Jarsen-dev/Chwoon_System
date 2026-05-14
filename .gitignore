@@ -41,3 +41,6 @@ postgres_data/
 
 # ── pgAdmin generado ────────────────────────────
 pgadmin/pgpass
+
+# ── OpenCode ────────────────────────────────────
+.opencode/
