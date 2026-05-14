@@ -15,7 +15,6 @@ scikit-learn
 numpy
 python-multipart
 python-jose[cryptography]
-passlib
 bcrypt
 apscheduler
 pytz
