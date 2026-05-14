@@ -1,0 +1,23 @@
+# Dependencias directas del backend FastAPI
+fastapi
+uvicorn[standard]
+sqlalchemy
+asyncpg
+greenlet
+pydantic
+python-dotenv
+pandas
+openpyxl>=3.1.0
+reportlab
+qrcode[pil]
+Pillow
+scikit-learn
+numpy
+python-multipart
+python-jose[cryptography]
+passlib
+bcrypt
+apscheduler
+pytz
+alembic
+psycopg2-binary

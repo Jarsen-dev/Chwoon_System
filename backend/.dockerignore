@@ -9,6 +9,7 @@ __pycache__/
 .coverage
 .env.local
 venv/
+venv-old/
 env/
 .venv/
 .git/
