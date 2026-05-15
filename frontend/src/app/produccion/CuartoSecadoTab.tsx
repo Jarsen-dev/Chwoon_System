@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo } from 'react'
 import { useAuth } from '@/context/AuthContext'
+import { Html5Qrcode } from 'html5-qrcode'
 
 interface RegistroSecado {
   id:               number
@@ -53,7 +54,7 @@ function esFormatoQRValido(codigo: string): boolean {
 }
 
 const COLUMNAS = [
-  'Máquina', 'N° Parte', 'Descripción', 'Carrito',
+  'Máquina', 'No. de Parte', 'Descripción', 'Carrito',
   'Hora Entrada', 'Hora Salida', 'Tiempo en Cámara',
   'Total Piezas', 'Estado', 'Usuario',
 ]
@@ -67,6 +68,13 @@ export default function CuartoSecadoTab() {
   const [cargando,    setCargando]    = useState(false)
   const [descargando, setDescargando] = useState(false)
   const [errorExcel,  setErrorExcel]  = useState<string | null>(null)
+
+  // ── Scanner de cámara ─────────────────────────────────────────────
+  const [scannerOpen,  setScannerOpen]  = useState(false)
+  const [scannerError, setScannerError] = useState<string | null>(null)
+  const scannerRef          = useRef<Html5Qrcode | null>(null)
+  const scannerContainerRef = useRef<HTMLDivElement | null>(null)
+  const procesarEscaneoRef  = useRef<(codigo: string) => Promise<void>>(async () => {})
 
   // ── Filtros ───────────────────────────────────────────────────────
   const [busqueda,      setBusqueda]      = useState('')
@@ -175,52 +183,114 @@ export default function CuartoSecadoTab() {
     return charsPorSegundo > 12
   }
 
-    // ── Escaneo ───────────────────────────────────────────────────────
-    const procesarEscaneo = async (codigo: string) => {
-      // Reset contadores
-      firstKeyTime.current = 0
-      keyCount.current     = 0
+  // ── Escaneo ───────────────────────────────────────────────────────
+  const procesarEscaneo = async (codigo: string) => {
+    // Reset contadores
+    firstKeyTime.current = 0
+    keyCount.current     = 0
 
-      if (!codigo.trim()) return
+    if (!codigo.trim()) return
 
-      // Normalizar: ? → _ (por si acaso)
-      const codigoNormalizado = codigo.replace(/\?/g, '_').trim()
+    // Normalizar: ? → _ (por si acaso)
+    const codigoNormalizado = codigo.replace(/\?/g, '_').trim()
 
-      // Validar formato QR
-      if (!esFormatoQRValido(codigoNormalizado)) {
-        agregarAlerta({
-          tipo:    'FORMATO INVÁLIDO',
-          mensaje: `Código rechazado: "${codigoNormalizado}". Formato esperado: PARTE_TURNO_FECHA_CARRITO (ej: 5208JJ1024A_D_13042026_1)`,
-        })
-        inputValueRef.current = ''
-        setInputValue('')
-        return
-      }
-
-      try {
-        const res  = await fetch('/secado/escanear/', {
-          method:  'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body:    JSON.stringify({ codigo: codigoNormalizado, token: token || '' }),
-        })
-        const data = await res.json()
-
-        agregarAlerta({ tipo: data.tipo, mensaje: data.mensaje })
-        if (data.tipo === 'ERROR') return
-
-        const reg: RegistroSecado = data.registro
-        if (data.tipo === 'ENTRADA') {
-          setRegistros(prev => [reg, ...prev])
-        } else if (data.tipo === 'SALIDA') {
-          setRegistros(prev => prev.map(r => r.id === reg.id ? reg : r))
-        }
-      } catch (e) {
-        console.error('Error escaneo secado:', e)
-        agregarAlerta({ tipo: 'ERROR', mensaje: 'Error de conexión con el servidor' })
-      }
+    // Validar formato QR
+    if (!esFormatoQRValido(codigoNormalizado)) {
+      agregarAlerta({
+        tipo:    'FORMATO INVÁLIDO',
+        mensaje: `Código rechazado: "${codigoNormalizado}". Formato esperado: PARTE_TURNO_FECHA_CARRITO (ej: 5208JJ1024A_D_13042026_1)`,
+      })
       inputValueRef.current = ''
       setInputValue('')
+      return
     }
+
+    try {
+      const res  = await fetch('/secado/escanear/', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ codigo: codigoNormalizado, token: token || '' }),
+      })
+      const data = await res.json()
+
+      agregarAlerta({ tipo: data.tipo, mensaje: data.mensaje })
+      if (data.tipo === 'ERROR') return
+
+      const reg: RegistroSecado = data.registro
+      if (data.tipo === 'ENTRADA') {
+        setRegistros(prev => [reg, ...prev])
+      } else if (data.tipo === 'SALIDA') {
+        setRegistros(prev => prev.map(r => r.id === reg.id ? reg : r))
+      }
+    } catch (e) {
+      console.error('Error escaneo secado:', e)
+      agregarAlerta({ tipo: 'ERROR', mensaje: 'Error de conexión con el servidor' })
+    }
+    inputValueRef.current = ''
+    setInputValue('')
+  }
+
+  // Guardar referencia siempre actualizada de procesarEscaneo para el scanner de cámara
+  useEffect(() => {
+    procesarEscaneoRef.current = procesarEscaneo
+  }, [procesarEscaneo])
+
+  // ── Scanner de cámara: abrir / cerrar ─────────────────────────────
+  const abrirScanner = async () => {
+    setScannerError(null)
+    setScannerOpen(true)
+    // Pequeño delay para que el DOM del modal ya esté renderizado
+    setTimeout(async () => {
+      if (!scannerContainerRef.current) return
+      try {
+        const scanner = new Html5Qrcode('reader-secado')
+        scannerRef.current = scanner
+        await scanner.start(
+          { facingMode: 'environment' },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          (decodedText) => {
+            // Detener inmediatamente al leer un código
+            void scanner.stop().then(() => {
+              scannerRef.current = null
+              setScannerOpen(false)
+              // Actualizar input visualmente
+              const normalizado = decodedText.toUpperCase().replace(/\?/g, '_')
+              inputValueRef.current = normalizado
+              setInputValue(normalizado)
+              // Procesar
+              void procesarEscaneoRef.current(normalizado)
+            })
+          },
+          () => { /* ignorar errores de frame individual */ }
+        )
+      } catch (err: any) {
+        setScannerError(err?.message || 'No se pudo iniciar la cámara. Asegúrate de dar permisos.')
+        if (scannerRef.current) {
+          try { await scannerRef.current.stop() } catch {}
+          scannerRef.current = null
+        }
+      }
+    }, 300)
+  }
+
+  const cerrarScanner = async () => {
+    if (scannerRef.current) {
+      try { await scannerRef.current.stop() } catch {}
+      scannerRef.current = null
+    }
+    setScannerOpen(false)
+    setScannerError(null)
+  }
+
+  // Limpiar scanner al desmontar
+  useEffect(() => {
+    return () => {
+      if (scannerRef.current) {
+        void scannerRef.current.stop()
+        scannerRef.current = null
+      }
+    }
+  }, [])
 
   // ── Interceptar KeyDown ───────────────────────────────────────────
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -272,13 +342,13 @@ export default function CuartoSecadoTab() {
     }, 800)
   }
 
-    // ── onChange: dejar acumular siempre ───────────────────────────────
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      // Convertir ? → _ (el scanner envía _ pero el input lo interpreta como ?)
-      const valor = e.target.value.toUpperCase().replace(/\?/g, '_')
-      inputValueRef.current = valor
-      setInputValue(valor)
-    }
+  // ── onChange: dejar acumular siempre ───────────────────────────────
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Convertir ? → _ (el scanner envía _ pero el input lo interpreta como ?)
+    const valor = e.target.value.toUpperCase().replace(/\?/g, '_')
+    inputValueRef.current = valor
+    setInputValue(valor)
+  }
 
   // ── Bloquear paste ────────────────────────────────────────────────
   const handlePaste = (e: React.ClipboardEvent) => {
@@ -420,9 +490,9 @@ export default function CuartoSecadoTab() {
         </div>
       )}
 
-      {/* ── Input QR (bloqueado para escritura manual) ────────────── */}
+      {/* ── Input QR (bloqueado para escritura manual) + Botón Cámara ─ */}
       <div className="text-center">
-        <div className="inline-block w-full max-w-xl relative">
+        <div className="inline-flex w-full max-w-xl items-center gap-2">
           <input
             ref={inputRef}
             type="text"
@@ -431,13 +501,28 @@ export default function CuartoSecadoTab() {
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
             placeholder="Esperando lectura de código QR..."
-            className="w-full text-center text-2xl p-4 border-2 border-blue-400
+            className="flex-1 text-center text-2xl p-4 border-2 border-blue-400
                        rounded-lg shadow-inner focus:outline-none focus:ring-4
                        focus:ring-blue-200 uppercase tracking-widest
                        placeholder:text-gray-300 placeholder:text-lg"
             autoComplete="off"
             autoFocus
           />
+          <button
+            onClick={abrirScanner}
+            type="button"
+            title="Escanear con cámara"
+            className="shrink-0 inline-flex items-center justify-center
+                       w-14 h-14 rounded-lg border-2 border-blue-400
+                       bg-blue-50 text-blue-600 hover:bg-blue-100
+                       hover:text-blue-700 hover:border-blue-500
+                       active:scale-95 transition-all"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
         </div>
         <p className="text-xs text-gray-400 mt-2">
           1er escaneo → <span className="text-green-600 font-semibold">Entrada</span>
@@ -445,6 +530,35 @@ export default function CuartoSecadoTab() {
           2do escaneo → <span className="text-red-500 font-semibold">Salida</span>
         </p>
       </div>
+
+      {/* ── Modal Scanner de Cámara ───────────────────────────────── */}
+      {scannerOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-gray-800">📷 Escanear QR</h3>
+              <button
+                onClick={cerrarScanner}
+                className="text-gray-400 hover:text-gray-700 text-xl leading-none"
+              >✖</button>
+            </div>
+            <div
+              ref={scannerContainerRef}
+              id="reader-secado"
+              className="w-full aspect-square rounded-xl overflow-hidden bg-black"
+            />
+            {scannerError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm">
+                <p className="font-semibold">⚠️ Error de cámara</p>
+                <p className="text-xs">{scannerError}</p>
+              </div>
+            )}
+            <p className="text-xs text-gray-400 text-center">
+              Apunta el código QR dentro del recuadro
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* ── Tarjetas resumen ─────────────────────────────────────── */}
       <div className="grid grid-cols-3 gap-4">
@@ -541,7 +655,7 @@ export default function CuartoSecadoTab() {
                      focus:outline-none focus:ring-2 focus:ring-blue-200
                      focus:border-blue-400 bg-white text-gray-700"
         >
-          <option value="">Todos los N° Parte</option>
+          <option value="">Todos los No. de Parte</option>
           {partesUnicas.map(p => (
             <option key={p} value={p}>{p}</option>
           ))}

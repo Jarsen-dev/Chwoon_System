@@ -48,7 +48,7 @@ export default function AnomaliesTab({ anomalias, cargarAnomalias }: Props) {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-slate-50 border-b border-gray-200">
-              {['Tipo','Fecha','Hora','N° Parte'].map(col => (
+              {['Tipo','Fecha','Hora','No. de Parte'].map(col => (
                 <th key={col} className="p-3 text-center font-semibold text-slate-600">{col}</th>
               ))}
               <th className="p-3 text-left font-semibold text-slate-600">Motivo Detectado</th>

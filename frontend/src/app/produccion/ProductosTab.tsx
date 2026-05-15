@@ -54,6 +54,7 @@ export default function ProductosTab() {
     descripcion: '',
     cantidad_carrito: '',
     proveedor: '',
+    cliente: '',
     cliente_id: '',
     linea_produccion: '',
     ubicacion: '',
@@ -157,6 +158,7 @@ export default function ProductosTab() {
         (item.sku || '').toLowerCase().includes(q) ||
         (item.modelo || '').toLowerCase().includes(q) ||
         (item.descripcion || '').toLowerCase().includes(q) ||
+        (item.cliente || '').toLowerCase().includes(q) ||
         (item.cliente_id || '').toLowerCase().includes(q)
       const pasaTipo = !filtroTipo || item.tipo === filtroTipo
       const pasaStatus = !filtroStatus || item.status === filtroStatus
@@ -187,6 +189,7 @@ export default function ProductosTab() {
                 descripcion: formData.descripcion,
                 cantidad_carrito: parseInt(formData.cantidad_carrito) || 0,
                 proveedor: formData.proveedor,
+                cliente: formData.cliente,
                 cliente_id: formData.cliente_id,
                 linea_produccion: formData.linea_produccion,
                 ubicacion: formData.ubicacion,
@@ -220,6 +223,7 @@ export default function ProductosTab() {
                 descripcion: formData.descripcion,
                 cantidad_carrito: parseInt(formData.cantidad_carrito) || 0,
                 proveedor: formData.proveedor,
+                cliente: formData.cliente,
                 cliente_id: formData.cliente_id,
                 linea_produccion: formData.linea_produccion,
                 ubicacion: formData.ubicacion,
@@ -261,6 +265,7 @@ export default function ProductosTab() {
       descripcion: item.descripcion,
       cantidad_carrito: String(item.cantidad_carrito || ''),
       proveedor: item.proveedor,
+      cliente: item.cliente,
       cliente_id: item.cliente_id,
       linea_produccion: item.linea_produccion,
       ubicacion: item.ubicacion,
@@ -317,6 +322,7 @@ export default function ProductosTab() {
       descripcion: '',
       cantidad_carrito: '',
       proveedor: '',
+      cliente: '',
       cliente_id: '',
       linea_produccion: '',
       ubicacion: '',
@@ -917,6 +923,10 @@ export default function ProductosTab() {
                 </div>
                 <div>
                   <span className="font-semibold text-gray-600">Cliente:</span>
+                  <p>{detalleModal.cliente || '—'}</p>
+                </div>
+                <div>
+                  <span className="font-semibold text-gray-600">Cliente ID:</span>
                   <p>{detalleModal.cliente_id || '—'}</p>
                 </div>
                 <div>
@@ -1118,6 +1128,15 @@ export default function ProductosTab() {
             </select>
           </div>
           <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Cliente</label>
+            <input
+              type="text"
+              value={formData.cliente}
+              onChange={(e) => setFormData({ ...formData, cliente: e.target.value })}
+              className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-200 focus:outline-none"
+            />
+          </div>
+          <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">Cliente ID</label>
             <input
               type="text"
@@ -1146,7 +1165,7 @@ export default function ProductosTab() {
               className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-200 focus:outline-none"
             />
           </div>
-          <div className="md:col-span-2">
+          <div className="md:col-span-3">
             <label className="block text-sm font-semibold text-gray-700 mb-1">Descripción</label>
             <input
               type="text"
@@ -1278,11 +1297,26 @@ export default function ProductosTab() {
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isImporting}
-                className={`px-5 py-2.5 rounded font-medium text-white shadow-sm transition ${
-                  isImporting ? 'bg-gray-400' : 'bg-green-600 hover:bg-green-700'
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-400 ${
+                  isImporting ? 'bg-gray-400 cursor-not-allowed text-white' : 'bg-green-600 hover:bg-green-700 active:scale-95 text-white'
                 }`}
               >
-                {isImporting ? '⏳ Importando...' : '📥 Importar Productos'}
+                {isImporting ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                    </svg>
+                    Importando...
+                  </>
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6M4 20h16a1 1 0 001-1V5 a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/>
+                    </svg>
+                    Importar Productos
+                  </>
+                )}
               </button>
               <input
                 type="file"
@@ -1295,11 +1329,14 @@ export default function ProductosTab() {
                 type="button"
                 onClick={() => bomFileInputRef.current?.click()}
                 disabled={isImporting}
-                className={`px-5 py-2.5 rounded font-medium text-white shadow-sm transition ${
-                  isImporting ? 'bg-gray-400' : 'bg-indigo-600 hover:bg-indigo-700'
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-400 ${
+                  isImporting ? 'bg-gray-400 cursor-not-allowed text-white' : 'bg-green-600 hover:bg-green-700 active:scale-95 text-white'
                 }`}
               >
-                📥 Importar BOM
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6M4 20h16a1 1 0 001-1V5 a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/>
+                </svg>
+                Importar BOM
               </button>
             </>
           )}

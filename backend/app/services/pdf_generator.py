@@ -137,7 +137,7 @@ def _draw_single_label(c, item, codigo_carrito: str):
     box_top_right_height = 0.8  * inch
     c.rect(box_top_right_x, box_top_right_y, box_top_right_width, box_top_right_height)
 
-    display_text_top_right = item.get('cliente_lg', 'IQC').upper()
+    display_text_top_right = item.get('cliente', 'IQC').upper()
     font_size_top_right    = 40
     c.setFont(bold_font, font_size_top_right)
     text_width_top_right = c.stringWidth(display_text_top_right, bold_font, font_size_top_right)
@@ -210,11 +210,11 @@ def _draw_single_label(c, item, codigo_carrito: str):
 
         y_pos -= 0.4 * inch
 
-    linea = item.get('linea', 'SIN LINEA').strip().upper()
+    maquina = item.get('maquina', 'SIN MAQUINA').strip().upper()
     c.setFont(bold_font, 12)
-    dynamic_text_width = c.stringWidth(linea, bold_font, 12)
+    dynamic_text_width = c.stringWidth(maquina, bold_font, 12)
     c.drawString(4 * inch + (1.75 * inch - dynamic_text_width) / 2,
-                 y_pos + 0.4 * inch, linea)
+                 y_pos + 0.4 * inch, maquina)
 
     line_y_separator = y_pos + 0.15 * inch
     c.line(0.25 * inch, line_y_separator, 5.75 * inch, line_y_separator)
@@ -225,15 +225,15 @@ def _draw_single_label(c, item, codigo_carrito: str):
     y_qr1 = line_y_separator - 0.05 * inch - qr_size
     _generar_qr_code(c, codigo_carrito, qr_x_pos, y_qr1, qr_size)
 
-    y_qr2        = y_qr1 - 0.15 * inch - qr_size
-    qr_data_info = (
-        f"Fecha: {datetime.now().strftime('%d/%m/%Y')}\n"
-        f"Part Number: {item.get('numero_parte', '')}\n"
-        f"Description: {item.get('descripcion', '')}\n"
-        f"Qty: {item.get('cantidad_por_etiqueta', '')}\n"
-        f"Línea: {linea}"
-    )
-    _generar_qr_code(c, qr_data_info, qr_x_pos, y_qr2, qr_size)
+    y_qr2 = y_qr1 - 0.15 * inch - qr_size
+    lote_base = item.get('lote', '')
+    # Extraer número de carrito del QR1 y añadirlo al lote del QR2
+    try:
+        num_carrito = int(codigo_carrito.split('_')[-1])
+        qr_lote = f"{lote_base}_{num_carrito:02d}"
+    except (ValueError, IndexError):
+        qr_lote = lote_base
+    _generar_qr_code(c, qr_lote, qr_x_pos, y_qr2, qr_size)
 
     c.line(0.25 * inch, 3.5  * inch, 5.75 * inch, 3.5  * inch)
     c.line(4    * inch, 3.5  * inch, 4    * inch,  0.25 * inch)

@@ -19,7 +19,7 @@ export default function PredictionTab({ proyecciones, saludMaquinas }: Props) {
           <table className="w-full text-sm">
             <thead className="bg-blue-50 text-blue-900 border-b">
               <tr>
-                {['N° Parte','Producidas','Ritmo (Pz/Hr)','Meta Plan','Faltan','Tiempo Estimado'].map(col => (
+                {['No. de Parte','Producidas','Ritmo (Pz/Hr)','Meta Plan','Faltan','Tiempo Estimado'].map(col => (
                   <th key={col} className="p-3 text-center font-semibold">{col}</th>
                 ))}
               </tr>

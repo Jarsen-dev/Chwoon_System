@@ -36,6 +36,8 @@ class PlanProduccionBase(BaseModel):
     numero_parte:    str
     meta_piezas:     int
     turno_objetivo:  str
+    proceso:         Optional[str] = ""
+    maquina:         Optional[str] = ""
 
 class PlanProduccionCreate(PlanProduccionBase):
     pass

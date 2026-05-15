@@ -101,8 +101,11 @@ export default function UbicacionesTab({ token }: Props) {
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-bold">📍 Gestión de Ubicaciones</h2>
         <div className="flex gap-2">
-          <label className="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors">
-            📥 Importar Excel
+          <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-400 bg-green-600 hover:bg-green-700 active:scale-95 text-white cursor-pointer">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6M4 20h16a1 1 0 001-1V5 a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/>
+            </svg>
+            Importar Excel
             <input type="file" accept=".xlsx,.xls,.csv" onChange={handleImportar} className="hidden" />
           </label>
           <button

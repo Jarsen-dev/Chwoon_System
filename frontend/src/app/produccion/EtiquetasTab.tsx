@@ -237,7 +237,7 @@ export default function EtiquetasTab() {
 
             <div className="mb-4">
               <label className="block text-sm font-semibold text-gray-700 mb-1">
-                N° Parte / Descripción
+                No. de Parte / Descripción
               </label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 pl-2.5 flex items-center text-gray-400 pointer-events-none">🔍</span>
@@ -352,7 +352,7 @@ export default function EtiquetasTab() {
               <table className="w-full text-sm table-fixed">
                 <thead className="bg-slate-50 border-b border-gray-100">
                   <tr>
-                    <th className="p-3 text-left   font-semibold text-gray-700 w-36">N° Parte</th>
+                    <th className="p-3 text-left   font-semibold text-gray-700 w-36">No. de Parte</th>
                     <th className="p-3 text-left   font-semibold text-gray-700">Descripción</th>
                     <th className="p-3 text-center font-semibold text-gray-700 w-16">Cant.</th>
                     <th className="p-3 text-center font-semibold text-gray-700 w-24">Turno</th>

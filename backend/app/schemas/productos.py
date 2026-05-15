@@ -16,6 +16,7 @@ class ProductoBase(BaseModel):
     descripcion: Optional[str] = ""
     cantidad_carrito: Optional[int] = 0
     proveedor: Optional[str] = ""
+    cliente: Optional[str] = ""
     cliente_id: Optional[str] = ""
     modelo: Optional[str] = ""
     linea_produccion: Optional[str] = ""
@@ -40,6 +41,7 @@ class ProductoUpdate(BaseModel):
     descripcion: Optional[str] = None
     cantidad_carrito: Optional[int] = None
     proveedor: Optional[str] = None
+    cliente: Optional[str] = None
     cliente_id: Optional[str] = None
     modelo: Optional[str] = None
     linea_produccion: Optional[str] = None

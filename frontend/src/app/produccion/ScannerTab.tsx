@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo, useRef, useEffect } from 'react'
+import { Html5Qrcode } from 'html5-qrcode'
 import { RegistroConMeta } from './helpers'
 import { getFaltanStyle }  from './helpers'
 
@@ -31,7 +32,7 @@ function getFechaTurno(): string {
 }
 
 const COLUMNAS = [
-  'Hora', 'Máquina', 'N° Parte', 'Descripción',
+  'Hora', 'Máquina', 'No. de Parte', 'Descripción',
   'Carrito', 'QTY', 'Total', 'Meta Plan', 'Faltan', 'Usuario',
 ]
 
@@ -55,6 +56,12 @@ export default function ScannerTab({
 
   const [descargando, setDescargando] = useState(false)
   const [errorMsg,    setErrorMsg]    = useState<string | null>(null)
+
+  // ── Scanner cámara ────────────────────────────────────────────────
+  const [scannerOpen, setScannerOpen] = useState(false)
+  const [scannerError, setScannerError] = useState<string | null>(null)
+  const scannerRef = useRef<Html5Qrcode | null>(null)
+  const scannerContainerRef = useRef<HTMLDivElement | null>(null)
 
   // ── Anti-escritura manual ─────────────────────────────────────────
   // Estrategia: dejar que el input acumule todo libremente.
@@ -262,6 +269,73 @@ export default function ScannerTab({
     )
   }
 
+  // ── Procesar desde cámara ───────────────────────────────────────
+  const procesarDesdeCamara = (codigo: string) => {
+    if (!esFormatoQRValido(codigo)) {
+      agregarAlertaLocal(
+        'FORMATO INVÁLIDO',
+        `Código rechazado: "${codigo}". Formato esperado: PARTE_TURNO_FECHA_CARRITO (ej: 5208JJ1024A_D_13042026_1)`,
+        10_000
+      )
+      return
+    }
+    // Actualizar input
+    const fakeEvent = { target: { value: codigo } } as React.ChangeEvent<HTMLInputElement>
+    handleInputChange(fakeEvent)
+    // Disparar Enter al padre
+    handleKeyDown({ key: 'Enter', preventDefault: () => {} } as React.KeyboardEvent)
+  }
+
+  // ── Scanner cámara ──────────────────────────────────────────────
+  const abrirScanner = async () => {
+    setScannerError(null)
+    setScannerOpen(true)
+    setTimeout(async () => {
+      if (!scannerContainerRef.current) return
+      try {
+        const scanner = new Html5Qrcode('reader-captura')
+        scannerRef.current = scanner
+        await scanner.start(
+          { facingMode: 'environment' },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          (decodedText) => {
+            void scanner.stop().then(() => {
+              scannerRef.current = null
+              setScannerOpen(false)
+              const normalizado = decodedText.toUpperCase().replace(/\?/g, '_')
+              procesarDesdeCamara(normalizado)
+            })
+          },
+          () => {}
+        )
+      } catch (err: any) {
+        setScannerError(err?.message || 'No se pudo iniciar la cámara')
+        if (scannerRef.current) {
+          try { await scannerRef.current.stop() } catch {}
+          scannerRef.current = null
+        }
+      }
+    }, 300)
+  }
+
+  const cerrarScanner = async () => {
+    if (scannerRef.current) {
+      try { await scannerRef.current.stop() } catch {}
+      scannerRef.current = null
+    }
+    setScannerOpen(false)
+    setScannerError(null)
+  }
+
+  useEffect(() => {
+    return () => {
+      if (scannerRef.current) {
+        void scannerRef.current.stop()
+        scannerRef.current = null
+      }
+    }
+  }, [])
+
   // ── Descarga Excel ────────────────────────────────────────────────
   const handleDescargarExcel = async () => {
     setErrorMsg(null)
@@ -357,9 +431,9 @@ export default function ScannerTab({
         </div>
       )}
 
-      {/* ── Input QR ──────────────────────────────────────────────── */}
+      {/* ── Input QR + Botón Cámara ───────────────────────────────── */}
       <div className="flex justify-center">
-        <div className="w-full max-w-xl relative">
+        <div className="w-full max-w-xl relative flex items-center gap-2">
           <input
             ref={inputRef}
             type="text"
@@ -368,13 +442,28 @@ export default function ScannerTab({
             onKeyDown={handleScannerKeyDown}
             onPaste={handlePaste}
             placeholder="Esperando lectura de código QR..."
-            className="w-full text-center text-2xl p-4 border-2 border-blue-400
+            className="flex-1 text-center text-2xl p-4 border-2 border-blue-400
                        rounded-lg shadow-inner focus:outline-none focus:ring-4
                        focus:ring-blue-200 uppercase tracking-widest
                        placeholder:text-gray-300 placeholder:text-lg"
             autoComplete="off"
             autoFocus
           />
+          <button
+            onClick={abrirScanner}
+            type="button"
+            title="Escanear con cámara"
+            className="shrink-0 inline-flex items-center justify-center
+                       w-14 h-14 rounded-lg border-2 border-blue-400
+                       bg-blue-50 text-blue-600 hover:bg-blue-100
+                       hover:text-blue-700 hover:border-blue-500
+                       active:scale-95 transition-all"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
         </div>
       </div>
 
@@ -448,7 +537,7 @@ export default function ScannerTab({
                      focus:outline-none focus:ring-2 focus:ring-blue-200
                      focus:border-blue-400 bg-white text-gray-700"
         >
-          <option value="">Todos los N° Parte</option>
+          <option value="">Todos los No. de Parte</option>
           {partesUnicas.map(p => (
             <option key={p} value={p}>{p}</option>
           ))}
@@ -607,6 +696,35 @@ export default function ScannerTab({
         <p className="text-right text-xs text-gray-400 mt-1">
           {registros.length} registro(s) en este turno
         </p>
+      )}
+
+      {/* ═── Modal Scanner de Cámara ───═ */}
+      {scannerOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-gray-800">📷 Escanear QR</h3>
+              <button
+                onClick={cerrarScanner}
+                className="text-gray-400 hover:text-gray-700 text-xl leading-none"
+              >✖</button>
+            </div>
+            <div
+              ref={scannerContainerRef}
+              id="reader-captura"
+              className="w-full aspect-square rounded-xl overflow-hidden bg-black"
+            />
+            {scannerError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm">
+                <p className="font-semibold">⚠️ Error de cámara</p>
+                <p className="text-xs">{scannerError}</p>
+              </div>
+            )}
+            <p className="text-xs text-gray-400 text-center">
+              Apunta el código QR dentro del recuadro
+            </p>
+          </div>
+        </div>
       )}
 
     </div>

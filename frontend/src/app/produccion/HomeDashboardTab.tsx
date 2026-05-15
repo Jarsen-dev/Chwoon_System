@@ -306,12 +306,25 @@ export default function HomeDashboardTab({ token, rol }: Props) {
                         </td>
                         <td className="p-3 text-center">
                           <button onClick={() => descargarExcelTurno(r.fecha, r.turno)} disabled={descargandoExcel === key}
-                            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-sm ${
-                              descargandoExcel === key ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white'
+                            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-400 ${
+                              descargandoExcel === key ? 'bg-gray-400 text-white cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 active:scale-95 text-white'
                             }`}>
-                            {descargandoExcel === key
-                              ? <><span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> ...</>
-                              : <>📥 Excel</>}
+                            {descargandoExcel === key ? (
+                              <>
+                                <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                                </svg>
+                                ...
+                              </>
+                            ) : (
+                              <>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6M4 20h16a1 1 0 001-1V5 a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/>
+                                </svg>
+                                Excel
+                              </>
+                            )}
                           </button>
                         </td>
                       </tr>
@@ -454,15 +467,15 @@ export default function HomeDashboardTab({ token, rol }: Props) {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-slate-50 border-b border-gray-100">
-                {['#','N° Parte','Turno','Meta','Producido','Faltan','Progreso','Estado'].map(col => (
-                  <th key={col} className={`p-3 font-semibold text-slate-600 ${col === 'N° Parte' || col === 'Progreso' ? 'text-left' : 'text-center'}`}>{col}</th>
+                {['#','No. de Parte','Proceso','Turno','Meta','Producido','Faltan','Progreso','Estado'].map(col => (
+                  <th key={col} className={`p-3 font-semibold text-slate-600 ${col === 'No. de Parte' || col === 'Progreso' ? 'text-left' : 'text-center'}`}>{col}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {planData.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="p-12 text-center">
+                  <td colSpan={9} className="p-12 text-center">
                     <span className="text-4xl block mb-2">📋</span>
                     <p className="text-gray-400">No hay plan de producción activo.</p>
                   </td>
@@ -474,6 +487,9 @@ export default function HomeDashboardTab({ token, rol }: Props) {
                     <tr key={idx} className="border-b border-gray-50 hover:bg-gray-50 transition">
                       <td className="p-3 text-center text-gray-400 text-xs font-medium">{idx+1}</td>
                       <td className="p-3"><span className="font-mono font-bold text-slate-800 text-sm">{p.numero_parte}</span></td>
+                      <td className="p-3 text-center">
+                        <span className="font-bold text-slate-700 uppercase">{p.proceso || '—'}</span>
+                      </td>
                       <td className="p-3 text-center">
                         <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
                           p.turno_objetivo === 'Día' ? 'bg-yellow-100 text-yellow-800' : 'bg-indigo-100 text-indigo-800'

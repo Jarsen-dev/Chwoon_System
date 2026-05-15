@@ -15,6 +15,7 @@ class Producto(Base):
     descripcion = Column(Text, default="")
     cantidad_carrito = Column(Integer, default=0)
     proveedor = Column(String(100), default="")
+    cliente = Column(String(100), default="")
     cliente_id = Column(String(100), default="")
     modelo = Column(String(100), default="")
     linea_produccion = Column(String(100), default="")

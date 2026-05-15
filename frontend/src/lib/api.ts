@@ -1883,6 +1883,7 @@ export interface PlanInyeccionItem {
   status: string
   hora_inicio?: string
   hora_ultimo_inicio?: string
+  hora_ultimo_avance?: string
   tiempo_acumulado_seg: number
   en_paro: boolean
   paros: ParoItem[]

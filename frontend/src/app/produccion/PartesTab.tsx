@@ -420,7 +420,7 @@ export default function PartesTab() {
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">N° Parte</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">No. de Parte</label>
             <input
               type="text"
               value={formData.codigo}
@@ -522,11 +522,26 @@ export default function PartesTab() {
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isImporting}
-                className={`px-5 py-2.5 rounded font-medium text-white shadow-sm transition ${
-                  isImporting ? 'bg-gray-400' : 'bg-green-600 hover:bg-green-700'
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-400 ${
+                  isImporting ? 'bg-gray-400 cursor-not-allowed text-white' : 'bg-green-600 hover:bg-green-700 active:scale-95 text-white'
                 }`}
               >
-                {isImporting ? '⏳ Importando...' : '📥 Importar Excel'}
+                {isImporting ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                    </svg>
+                    Importando...
+                  </>
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6M4 20h16a1 1 0 001-1V5 a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/>
+                    </svg>
+                    Importar Excel
+                  </>
+                )}
               </button>
             </>
           )}
@@ -577,7 +592,7 @@ export default function PartesTab() {
           onChange={(e) => setFiltroParte(e.target.value)}
           className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white text-gray-700"
         >
-          <option value="">Todos los N° Parte</option>
+          <option value="">Todos los No. de Parte</option>
           {partesUnicas.map((p) => (
             <option key={p} value={p}>
               {p}
@@ -618,7 +633,7 @@ export default function PartesTab() {
         <table className="w-full text-sm">
           <thead className="bg-slate-50 border-b border-gray-200">
             <tr>
-              <th className="p-3 text-left font-semibold text-slate-700">N° Parte</th>
+              <th className="p-3 text-left font-semibold text-slate-700">No. de Parte</th>
               <th className="p-3 text-left font-semibold text-slate-700">Descripción</th>
               <th className="p-3 text-left font-semibold text-slate-700">Línea</th>
               <th className="p-3 text-left font-semibold text-slate-700">Tipo</th>

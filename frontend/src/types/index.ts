@@ -39,6 +39,7 @@ export interface ProductoItem {
   descripcion:               string
   cantidad_carrito:          number
   proveedor:                 string
+  cliente:                   string
   cliente_id:                string
   modelo:                    string
   linea_produccion:          string
@@ -60,6 +61,7 @@ export interface ProductoCreate {
   descripcion?:               string
   cantidad_carrito?:          number
   proveedor?:                 string
+  cliente?:                   string
   cliente_id?:                string
   modelo?:                    string
   linea_produccion?:          string
@@ -74,6 +76,7 @@ export interface ProductoUpdate {
   descripcion?:               string
   cantidad_carrito?:          number
   proveedor?:                 string
+  cliente?:                   string
   cliente_id?:                string
   modelo?:                    string
   linea_produccion?:          string
@@ -115,6 +118,8 @@ export interface PlanItem {
   numero_parte:   string
   meta_piezas:    number
   turno_objetivo: string
+  proceso?:       string
+  maquina?:       string
   created_at?:    string
 }
 
@@ -233,7 +238,6 @@ export const TABS_POR_MODULO: Record<string, { id: string; label: string }[]> = 
     { id: 'plan',          label: '📋 Plan Prod.'      },
     { id: 'prediccion',    label: '🤖 Predicción IA'   },
     { id: 'anomalias',     label: '🚨 Anomalías'       },
-    { id: 'cuarto_secado', label: '🌡️ Cuarto Secado'   },
   ],
   calidad: [
     { id: 'dashboard',    label: '📊 Dashboard'   },

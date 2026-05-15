@@ -245,11 +245,11 @@ async def importar_productos(file: UploadFile = File(...), db: AsyncSession = De
             unidad = row.get("unidad_de_medida") or row.get("unidad") or ""
             descripcion = row.get("descripcion") or ""
             proveedor = row.get("proveedor") or ""
+            cliente = row.get("cliente") or ""
             cliente_id = row.get("cliente_id") or ""
             modelo = row.get("modelo") or row.get("cliente_asociado") or ""
             linea = row.get("linea_produccion") or row.get("linea") or ""
             ubicacion = row.get("ubicacion") or ""
-            linea_lg = row.get("linea_lg") or ""
 
             try:
                 cant_carrito = int(float(row.get("cantidad_por_carrito") or row.get("cantidad_carrito") or 0))
@@ -295,11 +295,11 @@ async def importar_productos(file: UploadFile = File(...), db: AsyncSession = De
                 existing.descripcion = descripcion
                 existing.cantidad_carrito = cant_carrito
                 existing.proveedor = proveedor
+                existing.cliente = cliente
                 existing.cliente_id = cliente_id
                 existing.modelo = modelo
                 existing.linea_produccion = linea
                 existing.ubicacion = ubicacion
-                existing.linea_lg = linea_lg
                 existing.controles_calidad = controles
                 if caract:
                     existing.caracteristicas_inyeccion = caract
@@ -312,11 +312,11 @@ async def importar_productos(file: UploadFile = File(...), db: AsyncSession = De
                     descripcion=descripcion,
                     cantidad_carrito=cant_carrito,
                     proveedor=proveedor,
+                    cliente=cliente,
                     cliente_id=cliente_id,
                     modelo=modelo,
                     linea_produccion=linea,
                     ubicacion=ubicacion,
-                    linea_lg=linea_lg,
                     status="Activo",
                     controles_calidad=controles,
                     puntos_inspeccion_iqc=[],

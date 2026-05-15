@@ -218,6 +218,7 @@ class PlanInyeccionResponse(PlanInyeccionBase):
     status: str
     hora_inicio: Optional[datetime] = None
     hora_ultimo_inicio: Optional[datetime] = None
+    hora_ultimo_avance: Optional[datetime] = None
     tiempo_acumulado_seg: int
     en_paro: bool
     paros: List[ParoItem] = []

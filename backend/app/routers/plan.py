@@ -10,6 +10,7 @@ import math
 from app.database import AsyncSessionLocal
 from app.models.plan_produccion import PlanProduccion
 from app.models.inventario import InventarioPlanta
+from app.models.producto import Producto
 from app.models.cola_impresion import ColaImpresion
 
 router = APIRouter(prefix="/plan", tags=["plan"])
@@ -39,6 +40,8 @@ async def obtener_plan(db: AsyncSession = Depends(get_db)):
             "numero_parte":   plan.numero_parte,
             "meta_piezas":    plan.meta_piezas,
             "turno_objetivo": plan.turno_objetivo,
+            "proceso":        plan.proceso or "",
+            "maquina":        plan.maquina or "",
             "estado":         plan.estado or "pendiente",
             "qtu":            qtu or 1,
             "created_at":     plan.created_at,
@@ -100,6 +103,18 @@ async def importar_plan_excel(
             )),
             None
         )
+        col_proceso = next(
+            (col for col in df.columns if any(
+                k in col.lower() for k in ['proceso', 'process']
+            )),
+            None
+        )
+        col_maquina = next(
+            (col for col in df.columns if any(
+                k in col.lower() for k in ['maquina', 'máquina', 'machine', 'linea', 'línea']
+            )),
+            None
+        )
         col_meta = next(
             (col for col in df.columns if any(
                 k in col.lower() for k in ['meta', 'plan', 'cantidad', 'qty', 'piezas']
@@ -125,12 +140,22 @@ async def importar_plan_excel(
             if turno_str.upper() in ['NAN', '', 'NONE']:
                 turno_str = 'Día'
 
+            proceso_str = str(row[col_proceso]).strip() if col_proceso else ''
+            if proceso_str.upper() in ['NAN', '', 'NONE']:
+                proceso_str = ''
+
+            maquina_str = str(row[col_maquina]).strip() if col_maquina else ''
+            if maquina_str.upper() in ['NAN', '', 'NONE']:
+                maquina_str = ''
+
             try:
                 meta = int(float(str(row[col_meta])))
                 if meta > 0:
                     plan_importado[parte_str] = {
-                        "meta":  meta,
-                        "turno": turno_str
+                        "meta":    meta,
+                        "turno":   turno_str,
+                        "proceso": proceso_str,
+                        "maquina": maquina_str,
                     }
             except (ValueError, TypeError):
                 errores.append(f"Fila {idx + 2}: Meta inválida para '{parte_str}'")
@@ -145,16 +170,19 @@ async def importar_plan_excel(
         count      = 0
 
         for codigo, datos in plan_importado.items():
-            meta  = datos["meta"]
-            turno = datos["turno"]
+            meta    = datos["meta"]
+            turno   = datos["turno"]
+            proceso = datos.get("proceso", "")
+            maquina = datos.get("maquina", "")
 
-            result = await db.execute(
-                select(InventarioPlanta).where(InventarioPlanta.codigo == codigo)
+            # Validar que el producto exista
+            prod_result = await db.execute(
+                select(Producto).where(Producto.sku == codigo)
             )
-            inventario = result.scalar_one_or_none()
+            producto = prod_result.scalar_one_or_none()
 
-            if not inventario:
-                errores.append(f"Código '{codigo}' no encontrado en inventario, omitido")
+            if not producto:
+                errores.append(f"Código '{codigo}' no encontrado en productos, omitido")
                 continue
 
             result = await db.execute(
@@ -165,19 +193,29 @@ async def importar_plan_excel(
             if existente:
                 existente.meta_piezas    = meta
                 existente.turno_objetivo = turno
+                existente.proceso        = proceso
+                existente.maquina        = maquina
                 existente.estado         = "pendiente"
             else:
                 db_plan = PlanProduccion(
                     numero_parte=   codigo,
                     meta_piezas=    meta,
                     turno_objetivo= turno,
+                    proceso=        proceso,
+                    maquina=        maquina,
                     estado=         "pendiente",
                     created_at=     datetime.utcnow()
                 )
                 db.add(db_plan)
 
+            # Obtener QTU del inventario (opcional, sin error si no existe)
+            inv_result = await db.execute(
+                select(InventarioPlanta).where(InventarioPlanta.codigo == codigo)
+            )
+            inventario = inv_result.scalar_one_or_none()
+
             try:
-                qtu = int(inventario.qtu or 1)
+                qtu = int(inventario.qtu or 1) if inventario else 1
                 if qtu <= 0:
                     qtu = 1
             except (ValueError, TypeError):

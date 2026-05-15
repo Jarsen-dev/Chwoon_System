@@ -20,8 +20,9 @@ import {
 } from '@/lib/api'
 import { UbicacionAlmacen } from '@/types'
 import { PlanInyeccionItem, ParoItem, ReporteInyeccionGeneral } from '@/lib/api'
+import CuartoSecadoTab from './CuartoSecadoTab'
 
-type SubTab = 'produccion' | 'reporte'
+type SubTab = 'produccion' | 'secado' | 'reporte'
 
 interface ParteInput {
   numero_parte: string
@@ -215,6 +216,7 @@ export default function InyeccionTab() {
       <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
         {([
           { id: 'produccion' as SubTab, label: '🏭 Producción' },
+          { id: 'secado' as SubTab, label: '🌡️ Cuarto Secado' },
           { id: 'reporte' as SubTab, label: '📋 Reporte' },
         ]).map(tab => (
           <button key={tab.id} onClick={() => setSubTab(tab.id)}
@@ -226,6 +228,7 @@ export default function InyeccionTab() {
         ))}
       </div>
       {subTab === 'produccion' && <ProduccionSubTab />}
+      {subTab === 'secado' && <CuartoSecadoTab />}
       {subTab === 'reporte' && <ReporteSubTab />}
     </div>
   )
@@ -286,42 +289,34 @@ function ProduccionSubTab() {
 
     // ── Verificar si ya se registró avance en la hora actual ──
   const puedeRegistrarAvance = (item: PlanInyeccionItem): boolean => {
-    // Si no está en proceso o está en paro, no puede
     if (item.status !== 'En Proceso' || item.en_paro) return false
-    
-    // Si no hay hora_ultimo_inicio, es la primera vez → permitir
-    if (!item.hora_ultimo_inicio) return true
-    
-    const ultimo = parseUTC(item.hora_ultimo_inicio)
+    if (!item.hora_ultimo_avance) return true
+
+    const ultimo = parseUTC(item.hora_ultimo_avance)
     if (!ultimo) return true
-    
+
     const ahora = Date.now()
     const ultimoMs = ultimo.getTime()
-    
-    // Calcular franjas horarias en GMT-6
+
     const getFranjaIndex = (timestampMs: number): number => {
       const localMs = timestampMs - 6 * 60 * 60 * 1000
       const d = new Date(localMs)
       const hour = d.getUTCHours()
       const minute = d.getUTCMinutes()
       const totalMinutes = hour * 60 + minute
-      
+
       if (totalMinutes >= 450 && totalMinutes < 1170) {
-        // Turno día: franjas de 60 min desde 07:30
         return Math.floor((totalMinutes - 450) / 60)
       }
       if (totalMinutes >= 1170) {
-        // Noche primera parte
         return Math.floor((totalMinutes - 1170) / 60) + 12
       }
-      // Noche segunda parte (madrugada)
       return Math.floor((totalMinutes + 1440 - 1170) / 60) + 12
     }
-    
+
     const franjaUltimo = getFranjaIndex(ultimoMs)
     const franjaActual = getFranjaIndex(ahora)
-    
-    // Solo permitir si estamos en una franja diferente
+
     return franjaActual > franjaUltimo
   }
 
@@ -628,8 +623,11 @@ function ProduccionSubTab() {
             {showForm ? '✕ Cancelar' : '➕ Nuevo Plan'}
           </button>
           <button onClick={() => fileRef.current?.click()}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
-            📥 Importar Excel
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-400 bg-green-600 hover:bg-green-700 active:scale-95 text-white">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6M4 20h16a1 1 0 001-1V5 a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/>
+            </svg>
+            Importar Excel
           </button>
           <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImportar} />
           <button onClick={cargar} disabled={loading}
@@ -749,7 +747,7 @@ function ProduccionSubTab() {
                   <thead className="bg-gray-50 border-b">
                     <tr>
                       <th className="px-4 py-2 text-left text-gray-600">Sec</th>
-                      <th className="px-4 py-2 text-left text-gray-600">No. Parte</th>
+                      <th className="px-4 py-2 text-left text-gray-600">No. de Parte</th>
                       <th className="px-4 py-2 text-right text-gray-600">Plan</th>
                       <th className="px-4 py-2 text-left text-gray-600">Silo Aux</th>
                       <th className="px-4 py-2 text-center text-gray-600">Acción</th>
@@ -923,7 +921,7 @@ function ProduccionSubTab() {
                 <tr>
                   <th className="px-3 py-2 text-left whitespace-nowrap">Máquina</th>
                   <th className="px-3 py-2 text-left whitespace-nowrap">Prioridad</th>
-                  <th className="px-3 py-2 text-left whitespace-nowrap">No. Parte</th>
+                  <th className="px-3 py-2 text-left whitespace-nowrap">No. de Parte</th>
                   <th className="px-3 py-2 text-right whitespace-nowrap">Plan</th>
                   <th className="px-3 py-2 text-right whitespace-nowrap">Producido</th>
                   <th className="px-3 py-2 text-center whitespace-nowrap">Inicio</th>
@@ -1246,8 +1244,11 @@ function ReporteSubTab() {
           <input type="date" value={fechaFiltro} onChange={e => setFechaFiltro(e.target.value)}
             className="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
           <button onClick={handleDescargarExcel}
-            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
-            📥 Descargar Excel
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-400 bg-green-600 hover:bg-green-700 active:scale-95 text-white">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6M4 20h16a1 1 0 001-1V5 a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/>
+            </svg>
+            Descargar Excel
           </button>
           <button onClick={cargar} disabled={loading}
             className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg text-sm font-medium text-gray-700">
@@ -1275,7 +1276,7 @@ function ReporteSubTab() {
               <th className="px-2 py-2 text-left whitespace-nowrap">Lote</th>
               <th className="px-2 py-2 text-left whitespace-nowrap">Fecha</th>
               <th className="px-2 py-2 text-center whitespace-nowrap">Turno</th>
-              <th className="px-2 py-2 text-left whitespace-nowrap">No. Parte</th>
+              <th className="px-2 py-2 text-left whitespace-nowrap">No. de Parte</th>
               <th className="px-2 py-2 text-left whitespace-nowrap">Máquina</th>
               <th className="px-2 py-2 text-center whitespace-nowrap">Cav</th>
               <th className="px-2 py-2 text-center whitespace-nowrap">Ciclo</th>
@@ -1331,9 +1332,11 @@ function ReporteSubTab() {
                     </td>
                     <td className="px-2 py-2 text-center">
                       <button onClick={() => handleDescargarIndividual(row.orden_id, row.numero_parte, row.maquina)}
-                        className="bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-2 py-1.5 rounded-lg text-xs font-medium"
+                        className="inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-400 bg-green-600 hover:bg-green-700 active:scale-95 text-white"
                         title="Descargar Reporte Individual">
-                        📥
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6M4 20h16a1 1 0 001-1V5 a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/>
+                        </svg>
                       </button>
                     </td>
                   </tr>

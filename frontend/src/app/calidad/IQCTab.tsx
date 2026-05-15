@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { Html5Qrcode } from 'html5-qrcode';
 import {
   getInfoLote,
   getPuntosInspeccion,
@@ -44,6 +45,13 @@ export default function IQCTab({ token }: Props) {
 
   const inputRef = useRef<HTMLInputElement>(null);
   const scanTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Scanner cámara ────────────────────────────────────────────────
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [scannerError, setScannerError] = useState<string | null>(null);
+  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const scannerContainerRef = useRef<HTMLDivElement | null>(null);
+  const procesarLoteRef = useRef<(loteId: string) => Promise<void>>(async () => {});
 
   // ── Auto-focus en scanner ─────────────────────────────────────────
   useEffect(() => {
@@ -113,6 +121,62 @@ export default function IQCTab({ token }: Props) {
       setLoading(false);
     }
   }, [token]);
+
+  // Guardar ref siempre actualizada de procesarLote
+  useEffect(() => {
+    procesarLoteRef.current = procesarLote;
+  }, [procesarLote]);
+
+  // ── Scanner cámara ──────────────────────────────────────────────
+  const abrirScanner = async () => {
+    setScannerError(null);
+    setScannerOpen(true);
+    setTimeout(async () => {
+      if (!scannerContainerRef.current) return;
+      try {
+        const scanner = new Html5Qrcode('reader-iqc');
+        scannerRef.current = scanner;
+        await scanner.start(
+          { facingMode: 'environment' },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          (decodedText) => {
+            void scanner.stop().then(() => {
+              scannerRef.current = null;
+              setScannerOpen(false);
+              const normalizado = decodedText.replace(/'/g, '-').toUpperCase();
+              setInputValue(normalizado);
+              void procesarLoteRef.current(normalizado);
+            });
+          },
+          () => {}
+        );
+      } catch (err: any) {
+        setScannerError(err?.message || 'No se pudo iniciar la cámara');
+        if (scannerRef.current) {
+          try { await scannerRef.current.stop(); } catch {}
+          scannerRef.current = null;
+        }
+      }
+    }, 300);
+  };
+
+  const cerrarScanner = async () => {
+    if (scannerRef.current) {
+      try { await scannerRef.current.stop(); } catch {}
+      scannerRef.current = null;
+    }
+    setScannerOpen(false);
+    setScannerError(null);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (scannerRef.current) {
+        void scannerRef.current.stop();
+        scannerRef.current = null;
+      }
+    };
+  }, []);
 
   // ── Handlers input ────────────────────────────────────────────────
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -257,25 +321,42 @@ export default function IQCTab({ token }: Props) {
           </div>
 
           <div className="bg-gray-900 rounded-xl border border-cyan-500/30 p-8">
-            <div className="relative">
-              <input
-                ref={inputRef}
-                type="text"
-                value={inputValue}
-                onChange={handleInputChange}
-                onKeyDown={handleKeyDown}
-                placeholder="Escanear código QR del lote..."
-                className="w-full bg-gray-800 border-2 border-cyan-500/50 rounded-xl px-6 py-5 text-xl
-                           text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400
-                           focus:ring-2 focus:ring-cyan-400/30 transition-all"
-                autoFocus
-                autoComplete="off"
-              />
-              {loading && (
-                <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-cyan-400" />
-                </div>
-              )}
+            <div className="flex justify-center">
+              <div className="w-full max-w-xl relative flex items-center gap-2">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={inputValue}
+                  onChange={handleInputChange}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Escanear código QR del lote..."
+                  className="flex-1 bg-gray-800 border-2 border-cyan-500/50 rounded-xl px-6 py-5 text-xl
+                             text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400
+                             focus:ring-2 focus:ring-cyan-400/30 transition-all"
+                  autoFocus
+                  autoComplete="off"
+                />
+                <button
+                  onClick={abrirScanner}
+                  type="button"
+                  title="Escanear con cámara"
+                  className="shrink-0 inline-flex items-center justify-center
+                             w-14 h-14 rounded-xl border-2 border-cyan-500/50
+                             bg-cyan-900/30 text-cyan-400 hover:bg-cyan-900/50
+                             hover:text-cyan-300 hover:border-cyan-400
+                             active:scale-95 transition-all"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </button>
+                {loading && (
+                  <div className="absolute right-20 top-1/2 -translate-y-1/2">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-cyan-400" />
+                  </div>
+                )}
+              </div>
             </div>
             <p className="text-gray-500 text-sm mt-3 text-center">
               Formato esperado: <span className="text-cyan-400 font-mono">YYYYMMDD-XXXX-N</span>
@@ -562,6 +643,35 @@ export default function IQCTab({ token }: Props) {
             >
               🔍 Escanear Otro Lote
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ═── Modal Scanner de Cámara ───═ */}
+      {scannerOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-gray-800">📷 Escanear QR</h3>
+              <button
+                onClick={cerrarScanner}
+                className="text-gray-400 hover:text-gray-700 text-xl leading-none"
+              >✖</button>
+            </div>
+            <div
+              ref={scannerContainerRef}
+              id="reader-iqc"
+              className="w-full aspect-square rounded-xl overflow-hidden bg-black"
+            />
+            {scannerError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm">
+                <p className="font-semibold">⚠️ Error de cámara</p>
+                <p className="text-xs">{scannerError}</p>
+              </div>
+            )}
+            <p className="text-xs text-gray-400 text-center">
+              Apunta el código QR dentro del recuadro
+            </p>
           </div>
         </div>
       )}

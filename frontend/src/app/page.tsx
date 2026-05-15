@@ -20,7 +20,6 @@ import DashboardTab        from './produccion/DashboardTab'
 import PlanTab             from './produccion/PlanTab'
 import PredictionTab       from './produccion/PredictionTab'
 import AnomaliesTab        from './produccion/AnomaliesTab'
-import CuartoSecadoTab     from './produccion/CuartoSecadoTab'
 import ProductosTab        from './produccion/ProductosTab'
 import EtiquetasTab        from './produccion/EtiquetasTab'
 import OrdenesProduccionTab from './produccion/OrdenesProduccionTab'
@@ -68,7 +67,6 @@ const ALL_TABS = [
   { id: 'plan',              label: '📋 Plan Prod.',       roles: ['admin','supervisor'] },
   { id: 'prediccion',        label: '🤖 Predicción IA',    roles: ['admin','supervisor'] },
   { id: 'anomalias',         label: '🚨 Anomalías',        roles: ['admin','supervisor'] },
-  { id: 'cuarto_secado',     label: '🌡️ Cuarto Secado',    roles: ['admin','supervisor','operador'] },
 ]
 
 const DEFAULT_PINNED = ['home', 'captura', 'dashboard', 'productos', 'etiquetas']
@@ -716,7 +714,6 @@ export default function ProduccionPage() {
         {activeTab === 'anomalias' && (
           <AnomaliesTab anomalias={anomalias} cargarAnomalias={cargarAnomalias} />
         )}
-        {activeTab === 'cuarto_secado' && <CuartoSecadoTab />}
       </main>
     </div>
   )

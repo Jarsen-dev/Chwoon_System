@@ -17,6 +17,7 @@ from app.database import AsyncSessionLocal
 from app.models.plan_inyeccion import PlanInyeccion
 from app.models.registro_avance_inyeccion import RegistroAvanceInyeccion
 from app.models.producto import Producto
+from app.models.plan_produccion import PlanProduccion
 from app.models.lote_inventario import LoteInventario, MovimientoLote
 from app.models.ubicacion import Ubicacion
 from app.core.deps import get_current_user
@@ -61,6 +62,11 @@ def _utc_to_local(dt: datetime) -> datetime:
     return dt.astimezone(TZ_LOCAL)
 
 
+def _local_naive_to_utc_naive(dt: datetime) -> datetime:
+    """Convierte datetime naive GMT-6 a UTC naive (suma 6 horas)"""
+    return dt + timedelta(hours=6)
+
+
 def _get_turno_real(hora_inicio: Optional[datetime]) -> str:
     """
     Determina el turno real basado en la hora de inicio convertida a GMT-6.
@@ -79,12 +85,49 @@ def _get_turno_real(hora_inicio: Optional[datetime]) -> str:
     return "NOCHE"
 
 
+import re
+
+async def _construir_lote(
+    db: AsyncSession,
+    numero_parte: str,
+    turno_real: str,
+    fecha: str,
+    maquina_orden: str,
+) -> str:
+    """
+    Construye el lote: ULTIMOS4_TURNO(D/N)_FECHA_NUMMAQUINA
+    La máquina se extrae de PlanProduccion (prioridad) o de la orden.
+    Solo se toman los dígitos finales (MAQ-01 → 01).
+    """
+    # Buscar máquina en PlanProd
+    plan_result = await db.execute(
+        select(PlanProduccion).where(PlanProduccion.numero_parte == numero_parte)
+    )
+    plan_item = plan_result.scalar_one_or_none()
+
+    maquina_raw = (
+        (plan_item.maquina if plan_item and plan_item.maquina else "")
+        or maquina_orden
+        or "SINMAQUINA"
+    )
+
+    # Extraer solo los dígitos finales
+    match = re.search(r'(\d+)$', maquina_raw)
+    num_maquina = match.group(1) if match else "00"
+
+    lote_parte = numero_parte[-4:] if len(numero_parte) >= 4 else numero_parte
+    lote_turno = "D" if turno_real == "DIA" else "N"
+    lote_fecha = fecha.replace("-", "")
+
+    return f"{lote_parte}_{lote_turno}_{lote_fecha}_{num_maquina}"
+
+
 # ══════════════════════════════════════════════════════════════════
 # CRUD
 # ══════════════════════════════════════════════════════════════════
 
-@router.get("/")
-@router.get("")
+@router.get("/", response_model=List[PlanInyeccionResponse])
+@router.get("", response_model=List[PlanInyeccionResponse])
 async def listar_plan(
     status: Optional[str] = None,
     maquina: Optional[str] = None,
@@ -102,7 +145,29 @@ async def listar_plan(
     if maquina:
         q = q.where(PlanInyeccion.maquina == maquina.upper())
     result = await db.execute(q)
-    return result.scalars().all()
+    ordenes = result.scalars().all()
+
+    if ordenes:
+        plan_ids = [p.id for p in ordenes]
+        ultimos_avances = await db.execute(
+            select(
+                RegistroAvanceInyeccion.plan_inyeccion_id,
+                func.max(RegistroAvanceInyeccion.timestamp).label("ultimo_ts"),
+            )
+            .where(RegistroAvanceInyeccion.plan_inyeccion_id.in_(plan_ids))
+            .group_by(RegistroAvanceInyeccion.plan_inyeccion_id)
+        )
+        avance_map = {row.plan_inyeccion_id: row.ultimo_ts for row in ultimos_avances.all()}
+    else:
+        avance_map = {}
+
+    return [
+        PlanInyeccionResponse.model_validate({
+            **{c.name: getattr(p, c.name) for c in p.__table__.columns},
+            "hora_ultimo_avance": avance_map.get(p.id),
+        })
+        for p in ordenes
+    ]
 
 
 @router.post("/", response_model=PlanInyeccionResponse)
@@ -737,6 +802,10 @@ async def _reporte_general_data(fecha: str, turno: Optional[str], db: AsyncSessi
         hora_inicio = datetime.combine(fecha_date, datetime.min.time().replace(hour=7, minute=30))
         hora_fin = datetime.combine(fecha_date + timedelta(days=1), datetime.min.time().replace(hour=7, minute=30))
 
+    # Convertir rangos del filtro de GMT-6 a UTC (BD almacena UTC naive)
+    hora_inicio = _local_naive_to_utc_naive(hora_inicio)
+    hora_fin = _local_naive_to_utc_naive(hora_fin)
+
     q = select(PlanInyeccion).where(
         PlanInyeccion.hora_inicio >= hora_inicio,
         PlanInyeccion.hora_inicio < hora_fin,
@@ -782,21 +851,11 @@ async def _reporte_general_data(fecha: str, turno: Optional[str], db: AsyncSessi
 
         percent_prod = round((orden.piezas_producidas / orden.plan_piezas * 100), 1) if orden.plan_piezas > 0 else 0
 
-        parte_str = orden.numero_parte
-        lote_parte = parte_str[-4:] if len(parte_str) >= 4 else parte_str
-        # FIX: Usar turno_real para el lote
-        turno_real = _get_turno_real(orden.hora_inicio)
-        lote_turno = "D" if turno_real == "DIA" else "N"
-        lote_fecha = fecha.replace("-", "")
-        lot_parts = [lote_parte]
-        lot_parts.append(lote_turno)
-        lot_parts.extend([lote_fecha, orden.maquina])
-        lote = "_".join(lot_parts)
-
         tiempo_trabajo = _calc_tiempo_trabajo(orden)
 
         # FIX: Calcular turno real usando GMT-6
         turno_real = _get_turno_real(orden.hora_inicio)
+        lote = await _construir_lote(db, orden.numero_parte, turno_real, fecha, orden.maquina)
 
         reporte.append({
              "lote": lote,
@@ -1228,14 +1287,9 @@ async def reporte_individual_excel(
     percent_prod = round((orden.piezas_producidas / orden.plan_piezas * 100), 1) if orden.plan_piezas > 0 else 0
 
     # Determinar turno
-    turno = "DIA" if orden.hora_inicio and orden.hora_inicio.hour >= 7 and orden.hora_inicio.hour < 19 else "NOCHE"
-
-    # Construir lote (misma lógica que reporte general)
-    parte_str = orden.numero_parte
-    lote_parte = parte_str[-4:] if len(parte_str) >= 4 else parte_str
-    lote_turno = "D" if turno == "DIA" else "N"
-    fecha_str = orden.hora_inicio.strftime("%Y%m%d") if orden.hora_inicio else ""
-    lote = "_".join([lote_parte, lote_turno, fecha_str, orden.maquina])
+    turno_real = _get_turno_real(orden.hora_inicio)
+    fecha_str = orden.hora_inicio.strftime("%Y-%m-%d") if orden.hora_inicio else ""
+    lote = await _construir_lote(db, orden.numero_parte, turno_real, fecha_str, orden.maquina)
 
     # ═════════════════════════════════════════════════════════════════
     # CREAR EXCEL CON ESTILOS PROFESIONALES (mismo tema que reporte general)
@@ -1433,6 +1487,7 @@ async def reporte_individual_excel(
         datos_hora[i]["contador_acumulado"] = acum
 
     # Escribir datos en el Excel
+    produccion_acumulada = 0
     for row_idx, (i, (hora_inicio, hora_fin)) in enumerate(zip(range(len(horas_turno)), horas_turno), start=14):
         dato = datos_hora[i]
         
@@ -1484,14 +1539,21 @@ async def reporte_individual_excel(
         if cantidad > 0:
             cell.number_format = '#,##0'
 
-        # Producción Total (del avance)
-        cell = ws.cell(row=row_idx, column=6, value=dato["cantidad_total"] if dato["cantidad_total"] > 0 else "—")
-        cell.font = data_font
-        cell.fill = row_fill
-        cell.border = thin_border
-        cell.alignment = data_alignment_center
-        if dato["cantidad_total"] > 0:
+        # Producción Total (acumulado de Cantidad Total)
+        if cantidad > 0:
+            produccion_acumulada += cantidad
+            cell = ws.cell(row=row_idx, column=6, value=produccion_acumulada)
+            cell.font = data_font
+            cell.fill = row_fill
+            cell.border = thin_border
+            cell.alignment = data_alignment_center
             cell.number_format = '#,##0'
+        else:
+            cell = ws.cell(row=row_idx, column=6, value="—")
+            cell.font = data_font
+            cell.fill = row_fill
+            cell.border = thin_border
+            cell.alignment = data_alignment_center
 
     # ═════════════════════════════════════════════════════════════════
     # SECCIÓN: RESUMEN DE PAROS (si hay paros)
