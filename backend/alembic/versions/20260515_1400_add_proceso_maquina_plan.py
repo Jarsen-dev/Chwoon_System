@@ -1,7 +1,7 @@
 """add proceso and maquina to planes_produccion
 
 Revision ID: 20260515_1400_add_proceso_maquina_plan
-Revises: 20260515_1200_add_cliente_productos
+Revises: 20260515_1200_add_cli_prod
 Create Date: 2026-05-15 14:00:00.000000-06:00
 
 """
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = '20260515_1400_add_proceso_maquina_plan'
-down_revision: Union[str, None] = '20260515_1200_add_cliente_productos'
+down_revision: Union[str, None] = '20260515_1200_add_cli_prod'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
