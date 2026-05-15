@@ -1361,7 +1361,7 @@ async def reporte_individual_excel(
     # DATOS GENERALES (fila 4 en adelante)
     # ═════════════════════════════════════════════════════════════════
     datos_generales = [
-        ["Fecha", orden.hora_inicio.strftime("%Y-%m-%d") if orden.hora_inicio else "—", "Turno", turno, "Cav", orden.cav],
+        ["Fecha", orden.hora_inicio.strftime("%Y-%m-%d") if orden.hora_inicio else "—", "Turno", turno_real, "Cav", orden.cav],
         ["Descripción", producto.descripcion if producto else "—", "", "", "", ""],
         ["Modelo", producto.modelo if producto else "—", "", "", "", ""],
         ["Ciclo Teórico", ciclo_teorico if ciclo_teorico else "—", "Ciclo Real", ciclo_real if ciclo_real else "—", "", ""],
