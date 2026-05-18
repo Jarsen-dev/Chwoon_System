@@ -116,6 +116,15 @@ export async function getProducto(sku: string): Promise<ProductoItem> {
   return res.json()
 }
 
+export async function searchProductos(sku: string): Promise<ProductoItem[]> {
+  const res = await fetch(`${API_URL}/productos/search/sku?q=${encodeURIComponent(sku)}`)
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error buscando productos')
+  }
+  return res.json()
+}
+
 export async function createProducto(
   data: ProductoCreate
 ): Promise<ProductoItem> {

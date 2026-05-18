@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import {
   getProducto,
+  searchProductos,
   getPuntosInspeccion,
   registrarInspeccion,
   descargarPdfInspeccion,
@@ -16,7 +17,8 @@ interface Props {
 
 interface LoteInfoLQC {
   qr_raw: string;
-  numero_parte: string;
+  numero_parte: string;          // Código escaneado del QR (ej: 024A)
+  numero_parte_completo: string; // SKU completo encontrado en BD (ej: 5208JJ1024A)
   maquina: string;
   turno: string;
   fecha: string;
@@ -37,26 +39,25 @@ interface LoteInfoLQC {
 type ModoVista = 'scanner' | 'info' | 'inspeccion' | 'resultado';
 
 // ── Validación QR inyección ────────────────────────────────────────
-// Permite 4 o 5 segmentos: PARTE[_MAQUINA]_TURNO_FECHA_CARRITO
+// Formato obligatorio: PARTE_TURNO_FECHA_MAQUINA_CARRITO
 function parseQRInyeccion(codigo: string): {
-  parte: string; maquina: string; turno: string; fecha: string; carrito: string
+  parte: string; turno: string; fecha: string; maquina: string; carrito: string
 } | null {
   const limpio = codigo.trim().toUpperCase().replace(/\?/g, '_');
   const partes = limpio.split('_');
-  if (partes.length < 4 || partes.length > 5) return null;
+  if (partes.length !== 5) return null;
 
-  // Últimos 3 siempre: turno (D/N), fecha (digits), carrito (digits)
-  const turno = partes[partes.length - 3];
-  const fecha = partes[partes.length - 2];
-  const carrito = partes[partes.length - 1];
+  const parte = partes[0];
+  const turno = partes[1];
+  const fecha = partes[2];
+  const maquina = partes[3];
+  const carrito = partes[4];
+
   if (!/^[DN]$/.test(turno)) return null;
   if (!/^\d{6,10}$/.test(fecha)) return null;
   if (!/^\d+$/.test(carrito)) return null;
 
-  if (partes.length === 5) {
-    return { parte: partes[0], maquina: partes[1], turno, fecha, carrito };
-  }
-  return { parte: partes[0], maquina: '—', turno, fecha, carrito };
+  return { parte, turno, fecha, maquina, carrito };
 }
 
 export default function LQCTab({ token }: Props) {
@@ -120,16 +121,37 @@ export default function LQCTab({ token }: Props) {
     try {
       const parsed = parseQRInyeccion(raw);
       if (!parsed) {
-        throw new Error('Formato de QR inválido. Se espera: PARTE[_MAQUINA]_TURNO_FECHA_CARRITO (ej: 5208JJ1024A_D_13042026_1)');
+        throw new Error('Formato de QR inválido. Se espera: PARTE_TURNO_FECHA_MAQUINA_CARRITO (ej: 024A_D_20260518_16_01)');
       }
 
-      // Obtener producto
-      const producto = await getProducto(parsed.parte);
+      // ── Obtener producto (con fallback por búsqueda) ──
+      let producto;
+      try {
+        producto = await getProducto(parsed.parte);
+      } catch {
+        // 1) Intentar búsqueda por sufijo en BD
+        const busqueda = await searchProductos(parsed.parte);
+        const candidatos = busqueda.filter(p =>
+          p.sku.toUpperCase().endsWith(parsed.parte)
+        );
+        if (candidatos.length > 0) {
+          // Elegir el más corto (generalmente el más específico)
+          candidatos.sort((a, b) => a.sku.length - b.sku.length);
+          producto = candidatos[0];
+        } else if (busqueda.length > 0) {
+          producto = busqueda[0];
+        } else {
+          // 2) Fallback: parte_turno
+          producto = await getProducto(`${parsed.parte}_${parsed.turno}`);
+        }
+      }
 
-      // Obtener puntos LQC
+      const skuCompleto = producto.sku;
+
+      // Obtener puntos LQC (usar SKU completo)
       let puntos: ProductoPuntosInspeccion | null = null;
       try {
-        puntos = await getPuntosInspeccion(token, parsed.parte);
+        puntos = await getPuntosInspeccion(token, skuCompleto);
       } catch {
         puntos = null;
       }
@@ -137,11 +159,12 @@ export default function LQCTab({ token }: Props) {
       setLoteInfo({
         qr_raw: raw.trim().toUpperCase(),
         numero_parte: parsed.parte,
+        numero_parte_completo: skuCompleto,
         maquina: parsed.maquina,
         turno: parsed.turno,
         fecha: parsed.fecha,
         carrito: parsed.carrito,
-        sku_producto: producto.sku,
+        sku_producto: skuCompleto,
         nombre_producto: producto.descripcion || producto.sku,
         tipo: producto.tipo,
         clase_producto: producto.clase_producto,
@@ -404,7 +427,7 @@ export default function LQCTab({ token }: Props) {
               </div>
             </div>
             <p className="text-gray-500 text-sm mt-3 text-center">
-              Formato esperado: <span className="text-purple-400 font-mono">PARTE[_MAQUINA]_TURNO_FECHA_CARRITO</span>
+              Formato esperado: <span className="text-purple-400 font-mono">PARTE_TURNO_FECHA_MAQUINA_CARRITO</span>
             </p>
           </div>
         </div>
@@ -440,7 +463,10 @@ export default function LQCTab({ token }: Props) {
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4 text-sm">
               <div>
                 <span className="text-gray-400 block">No. Parte</span>
-                <span className="font-mono text-white font-semibold">{loteInfo.numero_parte}</span>
+                <span className="font-mono text-white font-semibold">{loteInfo.numero_parte_completo}</span>
+                {loteInfo.numero_parte !== loteInfo.numero_parte_completo && (
+                  <span className="text-xs text-gray-500 block">(QR: {loteInfo.numero_parte})</span>
+                )}
               </div>
               <div>
                 <span className="text-gray-400 block">Máquina</span>
@@ -564,7 +590,7 @@ export default function LQCTab({ token }: Props) {
             <div>
               <h2 className="text-2xl font-bold flex items-center gap-2">🔬 Inspección LQC en Curso</h2>
               <p className="text-gray-400 text-sm mt-1">
-                <span className="font-mono text-purple-400">{loteInfo.numero_parte}</span>
+                <span className="font-mono text-purple-400">{loteInfo.numero_parte_completo}</span>
                 {' — '}{loteInfo.sku_producto} — {loteInfo.nombre_producto || 'N/A'}
               </p>
             </div>
@@ -696,7 +722,7 @@ export default function LQCTab({ token }: Props) {
               {calcularResultadoFinal() === 'Aprobado' ? 'APROBADO' : 'RECHAZADO'}
             </h2>
             <p className="text-gray-400 mt-2">
-              Parte: <span className="font-mono text-white">{loteInfo.numero_parte}</span>
+              Parte: <span className="font-mono text-white">{loteInfo.numero_parte_completo}</span>
               {' — '}SKU: <span className="font-mono text-white">{loteInfo.sku_producto}</span>
             </p>
             {ultimaInspeccionId && (

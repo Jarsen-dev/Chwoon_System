@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from typing import List
+from sqlalchemy import select, func
+from typing import List, Optional
 import pandas as pd
 import io
 
@@ -49,6 +49,22 @@ def asignar_controles(tipo: str, clase_producto: str = "", id_proceso: str = "")
 @router.get("/", response_model=List[ProductoSchema])
 async def listar_productos(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Producto).order_by(Producto.sku))
+    return result.scalars().all()
+
+
+@router.get("/search/sku", response_model=List[ProductoSchema])
+async def buscar_producto_por_sku(
+    q: str = Query(..., min_length=2, description="Texto a buscar en SKU"),
+    tipo: Optional[str] = Query(None, description="Filtrar por tipo de producto"),
+    db: AsyncSession = Depends(get_db)
+):
+    """Busca productos cuyo SKU contenga el texto proporcionado (case-insensitive)."""
+    search = q.strip().upper()
+    query = select(Producto).where(Producto.sku.ilike(f"%{search}%"))
+    if tipo:
+        query = query.where(Producto.tipo.ilike(f"%{tipo.strip().upper()}%"))
+    query = query.order_by(func.length(Producto.sku)).limit(20)
+    result = await db.execute(query)
     return result.scalars().all()
 
 
