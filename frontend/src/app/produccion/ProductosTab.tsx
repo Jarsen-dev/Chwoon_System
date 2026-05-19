@@ -906,6 +906,10 @@ export default function ProductosTab() {
                   <p>{detalleModal.modelo || '—'}</p>
                 </div>
                 <div>
+                  <span className="font-semibold text-gray-600">Descripción:</span>
+                  <p>{detalleModal.descripcion}</p>
+                </div>
+                <div>
                   <span className="font-semibold text-gray-600">Tipo:</span>
                   <p>{detalleModal.tipo}</p>
                 </div>
@@ -957,13 +961,6 @@ export default function ProductosTab() {
                 </div>
               </div>
 
-              {detalleModal.descripcion && (
-                <div className="mt-4">
-                  <span className="font-semibold text-gray-600 text-sm">Descripción:</span>
-                  <p className="text-sm text-gray-700 mt-1">{detalleModal.descripcion}</p>
-                </div>
-              )}
-
               {/* Características de inyección */}
               {detalleModal.caracteristicas_inyeccion &&
                 Object.keys(detalleModal.caracteristicas_inyeccion).length > 0 && (
@@ -978,6 +975,7 @@ export default function ProductosTab() {
                             {k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}:
                           </span>{' '}
                           {String(v)}
+                          {(k === 'peso' || k === 'peso_seco') && ' Kg'}
                         </div>
                       ))}
                     </div>
