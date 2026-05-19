@@ -5,6 +5,13 @@ import { useAuth } from '@/context/AuthContext'
 import { getInventario, getCola, agregarACola, generarPDF, eliminarDeCola, limpiarCola } from '@/lib/api'
 import { InventarioItem, ColaItem } from '@/types'
 
+const normalizarTurno = (turno: string): 'Día' | 'Noche' => {
+  const t = (turno || '').trim().toUpperCase()
+  if (t === 'D' || t === 'DIA' || t === 'DÍA' || t === 'DIURNO' || t === 'DAY') return 'Día'
+  if (t === 'N' || t === 'NOCHE' || t === 'NOCTURNO' || t === 'NIGHT') return 'Noche'
+  return 'Día'
+}
+
 export default function EtiquetasTab() {
   const { token, username } = useAuth()
 
@@ -375,13 +382,18 @@ export default function EtiquetasTab() {
                         <td className="p-3 text-gray-600 break-words">{item.descripcion}</td>
                         <td className="p-3 text-center text-lg font-bold text-slate-700">{item.cantidad_etiquetas}</td>
                         <td className="p-3 text-center">
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                            item.turno === 'Día'
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : 'bg-indigo-100 text-indigo-800'
-                          }`}>
-                            {item.turno}
-                          </span>
+                          {(() => {
+                            const turnoNorm = normalizarTurno(item.turno)
+                            return (
+                              <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                                turnoNorm === 'Día'
+                                  ? 'bg-yellow-100 text-yellow-800'
+                                  : 'bg-indigo-100 text-indigo-800'
+                              }`}>
+                                {turnoNorm === 'Día' ? '☀️' : '🌙'} {turnoNorm}
+                              </span>
+                            )
+                          })()}
                         </td>
                         <td className="p-3 text-center">
                           {item.user ? (

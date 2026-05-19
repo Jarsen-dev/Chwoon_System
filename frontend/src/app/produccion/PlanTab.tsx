@@ -42,7 +42,10 @@ export default function PlanTab({ planes, onRefresh, onGoToTab }: Props) {
 
     setIsImporting(true)
     try {
-      const result = await importarPlanExcel(file)
+      if (!token) {
+        throw new Error('No hay sesión activa. Inicia sesión para importar.')
+      }
+      const result = await importarPlanExcel(file, token)
       if (result.errores?.length > 0) setErroresImport(result.errores)
 
       setModalInfo({
@@ -136,6 +139,16 @@ export default function PlanTab({ planes, onRefresh, onGoToTab }: Props) {
         }
       }
     })
+  }
+
+  // ==========================================
+  // HELPERS
+  // ==========================================
+  const normalizarTurno = (turno: string): 'Día' | 'Noche' => {
+    const t = (turno || '').trim().toUpperCase()
+    if (t === 'D' || t === 'DIA' || t === 'DÍA' || t === 'DIURNO' || t === 'DAY') return 'Día'
+    if (t === 'N' || t === 'NOCHE' || t === 'NOCTURNO' || t === 'NIGHT') return 'Noche'
+    return 'Día'
   }
 
   // ==========================================
@@ -387,13 +400,18 @@ export default function PlanTab({ planes, onRefresh, onGoToTab }: Props) {
 
                     {/* Turno */}
                     <td className="p-3 text-center">
-                      <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                        p.turno_objetivo === 'Día'
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : 'bg-indigo-100 text-indigo-800'
-                      }`}>
-                        {p.turno_objetivo === 'Día' ? '☀️' : '🌙'} {p.turno_objetivo}
-                      </span>
+                      {(() => {
+                        const turnoNorm = normalizarTurno(p.turno_objetivo)
+                        return (
+                          <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                            turnoNorm === 'Día'
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : 'bg-indigo-100 text-indigo-800'
+                          }`}>
+                            {turnoNorm === 'Día' ? '☀️' : '🌙'} {turnoNorm}
+                          </span>
+                        )
+                      })()}
                     </td>
 
                     {/* Maquina */}

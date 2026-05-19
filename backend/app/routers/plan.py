@@ -12,8 +12,20 @@ from app.models.plan_produccion import PlanProduccion
 from app.models.inventario import InventarioPlanta
 from app.models.producto import Producto
 from app.models.cola_impresion import ColaImpresion
+from app.core.deps import get_current_user
+from app.models.usuario import Usuario
 
 router = APIRouter(prefix="/plan", tags=["plan"])
+
+
+def _normalizar_turno(valor: str) -> str:
+    """Normaliza valores de turno a 'Día' o 'Noche'."""
+    v = valor.strip().upper()
+    if v in ('D', 'DIA', 'DIURNO', 'DAY', 'DÍA'):
+        return 'Día'
+    if v in ('N', 'NOCHE', 'NOCTURNO', 'NIGHT'):
+        return 'Noche'
+    return valor.strip()
 
 async def get_db():
     async with AsyncSessionLocal() as session:
@@ -73,7 +85,8 @@ async def eliminar_del_plan(
 @router.post("/importar-excel")
 async def importar_plan_excel(
     file: UploadFile = File(...),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
 ):
     if not file.filename.endswith(('.xlsx', '.xls', '.csv')):
         raise HTTPException(
@@ -139,6 +152,7 @@ async def importar_plan_excel(
             turno_str = str(row[col_turno]).strip() if col_turno else 'Día'
             if turno_str.upper() in ['NAN', '', 'NONE']:
                 turno_str = 'Día'
+            turno_str = _normalizar_turno(turno_str)
 
             proceso_str = str(row[col_proceso]).strip() if col_proceso else ''
             if proceso_str.upper() in ['NAN', '', 'NONE']:
@@ -185,6 +199,24 @@ async def importar_plan_excel(
                 errores.append(f"Código '{codigo}' no encontrado en productos, omitido")
                 continue
 
+            # Asegurar que exista en inventario_planta (FK obligatoria)
+            inv_result = await db.execute(
+                select(InventarioPlanta).where(InventarioPlanta.codigo == codigo)
+            )
+            inventario = inv_result.scalar_one_or_none()
+
+            if not inventario:
+                # Crear entrada mínima en inventario usando datos del producto
+                db.add(InventarioPlanta(
+                    codigo=       codigo,
+                    descripcion=  (producto.descripcion or producto.nombre or codigo),
+                    linea=        (producto.linea_produccion or 'SIN LINEA'),
+                    tipo=         (producto.tipo or 'SIN TIPO'),
+                    qtu=          (producto.cantidad_carrito or 1),
+                    linea_lg=     (producto.linea_produccion or 'SIN LINEA'),
+                    ayuda_visual= '',
+                ))
+
             result = await db.execute(
                 select(PlanProduccion).where(PlanProduccion.numero_parte == codigo)
             )
@@ -208,7 +240,8 @@ async def importar_plan_excel(
                 )
                 db.add(db_plan)
 
-            # Obtener QTU del inventario (opcional, sin error si no existe)
+            # Refrescar/actualizar inventario después del posible insert
+            await db.flush()
             inv_result = await db.execute(
                 select(InventarioPlanta).where(InventarioPlanta.codigo == codigo)
             )
@@ -240,7 +273,8 @@ async def importar_plan_excel(
                 cantidad_etiquetas= item["cantidad_etiquetas"],
                 turno=              item["turno"],
                 estado=             "pendiente",
-                created_at=         datetime.utcnow()
+                created_at=         datetime.utcnow(),
+                usuario=            current_user.username,
             )
             db.add(db_cola)
             cola_agregada += 1

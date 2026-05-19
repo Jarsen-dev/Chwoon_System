@@ -320,7 +320,8 @@ export async function getPlanProduccion(): Promise<PlanItem[]> {
 }
 
 export async function importarPlanExcel(
-  file: File
+  file: File,
+  token: string
 ): Promise<{
   message: string
   partes_importadas: number
@@ -332,6 +333,9 @@ export async function importarPlanExcel(
 
   const res = await fetch(`${API_URL}/plan/importar-excel`, {
     method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
     body: formData,
   })
 
