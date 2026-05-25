@@ -99,6 +99,9 @@ const nextConfig: NextConfig = {
         { source: '/finanzas/lote/:id',                       destination: `${BACKEND}/finanzas/lote/:id` },
         { source: '/finanzas/lote/:id/',                      destination: `${BACKEND}/finanzas/lote/:id/` },
         { source: '/finanzas/limpiar/:path*',                 destination: `${BACKEND}/finanzas/limpiar/:path*` },
+        { source: '/finanzas/proveedores',                    destination: `${BACKEND}/finanzas/proveedores` },
+        { source: '/finanzas/proveedores/',                   destination: `${BACKEND}/finanzas/proveedores/` },
+        { source: '/finanzas/proveedores/:path*',             destination: `${BACKEND}/finanzas/proveedores/:path*` },
 
         // ── CALIDAD API (beforeFiles) ──
         { source: '/calidad/inspecciones/:id/pdf',  destination: `${BACKEND}/calidad/inspecciones/:id/pdf` },
@@ -234,6 +237,11 @@ const nextConfig: NextConfig = {
         { source: '/plan-inyeccion',           destination: `${BACKEND}/plan-inyeccion/` },
         { source: '/plan-inyeccion/',          destination: `${BACKEND}/plan-inyeccion/` },
         { source: '/plan-inyeccion/:path*',    destination: `${BACKEND}/plan-inyeccion/:path*` },
+
+        // Reporte Manual Inyección
+        { source: '/reporte-manual-inyeccion',           destination: `${BACKEND}/reporte-manual-inyeccion/` },
+        { source: '/reporte-manual-inyeccion/',          destination: `${BACKEND}/reporte-manual-inyeccion/` },
+        { source: '/reporte-manual-inyeccion/:path*',    destination: `${BACKEND}/reporte-manual-inyeccion/:path*` },
 
         // Secado
         { source: '/secado',                        destination: `${BACKEND}/secado/` },

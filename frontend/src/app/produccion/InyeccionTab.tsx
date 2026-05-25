@@ -17,12 +17,17 @@ import {
   getReporteGeneralInyeccion,
   descargarReporteGeneralInyeccionExcel,
   descargarReporteIndividualInyeccionExcel,
+  crearReporteManualInyeccion,
+  getReportesManualesInyeccion,
+  eliminarReporteManualInyeccion,
+  importarReporteManualInyeccionExcel,
 } from '@/lib/api'
-import { UbicacionAlmacen } from '@/types'
+import { UbicacionAlmacen, ReporteManualInyeccion } from '@/types'
 import { PlanInyeccionItem, ParoItem, ReporteInyeccionGeneral } from '@/lib/api'
 import CuartoSecadoTab from './CuartoSecadoTab'
+import DashboardInyeccionTab from './DashboardInyeccionTab'
 
-type SubTab = 'produccion' | 'secado' | 'reporte'
+type SubTab = 'produccion' | 'secado' | 'reporte' | 'reporte-manual' | 'dashboard'
 
 interface ParteInput {
   numero_parte: string
@@ -218,6 +223,8 @@ export default function InyeccionTab() {
           { id: 'produccion' as SubTab, label: '🏭 Producción' },
           { id: 'secado' as SubTab, label: '🌡️ Cuarto Secado' },
           { id: 'reporte' as SubTab, label: '📋 Reporte' },
+          { id: 'reporte-manual' as SubTab, label: '📝 Reporte Manual' },
+          { id: 'dashboard' as SubTab, label: '📊 Dashboard' },
         ]).map(tab => (
           <button key={tab.id} onClick={() => setSubTab(tab.id)}
             className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
@@ -230,6 +237,8 @@ export default function InyeccionTab() {
       {subTab === 'produccion' && <ProduccionSubTab />}
       {subTab === 'secado' && <CuartoSecadoTab />}
       {subTab === 'reporte' && <ReporteSubTab />}
+      {subTab === 'reporte-manual' && <ReporteManualSubTab />}
+      {subTab === 'dashboard' && <DashboardInyeccionTab />}
     </div>
   )
 }
@@ -1346,6 +1355,695 @@ function ReporteSubTab() {
           </tbody>
         </table>
       </div>
+    </div>
+  )
+}
+
+// ══════════════════════════════════════════════════════════════════
+// SUB-TAB: REPORTE MANUAL
+// ══════════════════════════════════════════════════════════════════
+
+const MOTIVOS_PARO_LIST = [
+  'Cambio de Molde',
+  'Ajustes',
+  'Arranque',
+  'Mantenimiento',
+  'Molde Danado',
+  'Falta Personal',
+  'Falta Material',
+  'Otro',
+]
+
+const MOTIVOS_MANTENIMIENTO_LIST = [
+  'Soldar Puerta Ejector',
+  'Estopero',
+  'Bomba Hidraulica',
+  'Motor Hidraulico',
+  'Manguera Hidraulica',
+  'Valvula Hidraulica',
+  'Reloj',
+  'Caldera',
+  'Sensor Seguridad',
+  'Falta Aire',
+  'Fuga Aceite',
+  'Electrico',
+  'Tolva Tapada',
+  'Extra',
+]
+
+const MOTIVOS_SCRAP_LIST = [
+  'Falta Llenado',
+  'Cruda',
+  'Quebrada',
+  'Hinchada',
+  'Arranque',
+  'Fuera de Dimension',
+  'Pandeada',
+  'Aplastada por Molde',
+]
+
+interface ParoRow {
+  id: number
+  motivo: string
+  tiempoParo: string
+  subMotivo: string
+  subTiempoParo: string
+}
+
+interface ScrapRow {
+  id: number
+  motivo: string
+  cantidad: string
+}
+
+function ReporteManualSubTab() {
+  const { token } = useAuth()
+  const [items, setItems] = useState<ReporteManualInyeccion[]>([])
+  const [loading, setLoading] = useState(false)
+  const [mensaje, setMensaje] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null)
+
+  const [prod, setProd] = useState({
+    turno: '',
+    numero_parte: '',
+    descripcion: '',
+    cliente: '',
+    resina: '',
+    proceso: '',
+    peso: '',
+    cav_bom: '',
+    ciclo: '',
+    type: '',
+    maquina: '',
+    cav_real: '',
+    ciclo_real: '',
+    tiempo_trabajo: '',
+    produccion_total: '',
+  })
+
+  const [parosRows, setParosRows] = useState<ParoRow[]>([
+    { id: 1, motivo: '', tiempoParo: '', subMotivo: '', subTiempoParo: '' }
+  ])
+
+  const [scrapRows, setScrapRows] = useState<ScrapRow[]>([
+    { id: 1, motivo: '', cantidad: '' }
+  ])
+
+  const [detalleModal, setDetalleModal] = useState<ReporteManualInyeccion | null>(null)
+  const [eliminarModal, setEliminarModal] = useState<ReporteManualInyeccion | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  const cargar = async () => {
+    if (!token) return
+    setLoading(true)
+    try {
+      const data = await getReportesManualesInyeccion(token)
+      setItems(data)
+    } catch (e: any) {
+      setMensaje({ tipo: 'error', texto: e.message })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { cargar() }, [token])
+
+  useEffect(() => {
+    if (!mensaje) return
+    const t = setTimeout(() => setMensaje(null), 8000)
+    return () => clearTimeout(t)
+  }, [mensaje])
+
+  const buildPayload = () => {
+    const payload: any = { ...prod }
+    payload.peso = parseFloat(prod.peso || '0')
+    payload.cav_bom = parseInt(prod.cav_bom || '0')
+    payload.ciclo = parseFloat(prod.ciclo || '0')
+    payload.cav_real = parseInt(prod.cav_real || '0')
+    payload.ciclo_real = parseFloat(prod.ciclo_real || '0')
+    payload.tiempo_trabajo = parseFloat(prod.tiempo_trabajo || '0')
+    payload.produccion_total = parseInt(prod.produccion_total || '0')
+
+    payload.cambio_molde = 0
+    payload.ajustes = 0
+    payload.arranque_paro = 0
+    payload.mantenimiento = 0
+    payload.molde_danado = 0
+    payload.falta_personal = 0
+    payload.falta_material = 0
+    payload.otro_paro = 0
+
+    payload.soldar_puerta_ejector = 0
+    payload.estopero = 0
+    payload.bomba_hidraulica = 0
+    payload.motor_hidraulico = 0
+    payload.manguera_hidraulica = 0
+    payload.valvula_hidraulica = 0
+    payload.reloj = 0
+    payload.caldera = 0
+    payload.sensor_seguridad = 0
+    payload.falta_aire = 0
+    payload.fuga_aceite = 0
+    payload.electrico = 0
+    payload.tolva_tapada = 0
+    payload.extra = 0
+
+    parosRows.forEach(row => {
+      const t = parseFloat(row.tiempoParo || '0')
+      const st = parseFloat(row.subTiempoParo || '0')
+      switch (row.motivo) {
+        case 'Cambio de Molde': payload.cambio_molde += t; break
+        case 'Ajustes': payload.ajustes += t; break
+        case 'Arranque': payload.arranque_paro += t; break
+        case 'Mantenimiento': payload.mantenimiento += t; break
+        case 'Molde Danado': payload.molde_danado += t; break
+        case 'Falta Personal': payload.falta_personal += t; break
+        case 'Falta Material': payload.falta_material += t; break
+        case 'Otro': payload.otro_paro += t; break
+      }
+      switch (row.subMotivo) {
+        case 'Soldar Puerta Ejector': payload.soldar_puerta_ejector += st; break
+        case 'Estopero': payload.estopero += st; break
+        case 'Bomba Hidraulica': payload.bomba_hidraulica += st; break
+        case 'Motor Hidraulico': payload.motor_hidraulico += st; break
+        case 'Manguera Hidraulica': payload.manguera_hidraulica += st; break
+        case 'Valvula Hidraulica': payload.valvula_hidraulica += st; break
+        case 'Reloj': payload.reloj += st; break
+        case 'Caldera': payload.caldera += st; break
+        case 'Sensor Seguridad': payload.sensor_seguridad += st; break
+        case 'Falta Aire': payload.falta_aire += st; break
+        case 'Fuga Aceite': payload.fuga_aceite += st; break
+        case 'Electrico': payload.electrico += st; break
+        case 'Tolva Tapada': payload.tolva_tapada += st; break
+        case 'Extra': payload.extra += st; break
+      }
+    })
+
+    payload.scrap_falta_llenado = 0
+    payload.scrap_cruda = 0
+    payload.scrap_quebrada = 0
+    payload.scrap_hinchada = 0
+    payload.scrap_arranque = 0
+    payload.scrap_fuera_dimension = 0
+    payload.scrap_pandeada = 0
+    payload.scrap_aplastada_molde = 0
+
+    scrapRows.forEach(row => {
+      const c = parseInt(row.cantidad || '0')
+      switch (row.motivo) {
+        case 'Falta Llenado': payload.scrap_falta_llenado += c; break
+        case 'Cruda': payload.scrap_cruda += c; break
+        case 'Quebrada': payload.scrap_quebrada += c; break
+        case 'Hinchada': payload.scrap_hinchada += c; break
+        case 'Arranque': payload.scrap_arranque += c; break
+        case 'Fuera de Dimension': payload.scrap_fuera_dimension += c; break
+        case 'Pandeada': payload.scrap_pandeada += c; break
+        case 'Aplastada por Molde': payload.scrap_aplastada_molde += c; break
+      }
+    })
+
+    return payload
+  }
+
+  const validar = (): string | null => {
+    if (!prod.turno) return 'Turno es obligatorio'
+    if (!prod.numero_parte.trim()) return 'No. Parte es obligatorio'
+    if (!prod.descripcion.trim()) return 'Descripcion es obligatorio'
+    if (!prod.cliente.trim()) return 'Cliente es obligatorio'
+    if (!prod.resina) return 'Resina es obligatoria'
+    if (!prod.proceso) return 'Proceso es obligatorio'
+    if (!prod.peso) return 'Peso es obligatorio'
+    if (!prod.cav_bom) return 'Cav BOM es obligatorio'
+    if (!prod.ciclo) return 'Ciclo es obligatorio'
+    if (!prod.type.trim()) return 'Type es obligatorio'
+    if (!prod.maquina.trim()) return 'Maquina es obligatoria'
+    if (!prod.cav_real) return 'Cav Real es obligatorio'
+    if (!prod.ciclo_real) return 'Ciclo Real es obligatorio'
+    if (!prod.tiempo_trabajo) return 'Tiempo Trabajo es obligatorio'
+    if (!prod.produccion_total) return 'Produccion Total es obligatoria'
+    return null
+  }
+
+  const handleConfirmar = async () => {
+    if (!token) return
+    const error = validar()
+    if (error) {
+      setMensaje({ tipo: 'error', texto: error })
+      return
+    }
+    try {
+      const payload = buildPayload()
+      await crearReporteManualInyeccion(token, payload)
+      setMensaje({ tipo: 'ok', texto: 'Reporte guardado correctamente' })
+      setProd({
+        turno: '', numero_parte: '', descripcion: '', cliente: '', resina: '', proceso: '',
+        peso: '', cav_bom: '', ciclo: '', type: '', maquina: '', cav_real: '', ciclo_real: '',
+        tiempo_trabajo: '', produccion_total: ''
+      })
+      setParosRows([{ id: 1, motivo: '', tiempoParo: '', subMotivo: '', subTiempoParo: '' }])
+      setScrapRows([{ id: 1, motivo: '', cantidad: '' }])
+      cargar()
+    } catch (e: any) {
+      setMensaje({ tipo: 'error', texto: e.message })
+    }
+  }
+
+  const handleImportar = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!token || !e.target.files?.[0]) return
+    try {
+      const res = await importarReporteManualInyeccionExcel(token, e.target.files[0])
+      let texto = `${res.message} — ${res.creados} registros creados.`
+      if (res.errores && res.errores.length > 0) texto += ` Errores: ${res.errores.length}`
+      setMensaje({ tipo: res.errores?.length ? 'error' : 'ok', texto })
+      cargar()
+    } catch (err: any) {
+      setMensaje({ tipo: 'error', texto: err.message })
+    } finally {
+      if (fileRef.current) fileRef.current.value = ''
+    }
+  }
+
+  const handleEliminar = async () => {
+    if (!token || !eliminarModal) return
+    try {
+      await eliminarReporteManualInyeccion(token, eliminarModal.id)
+      setMensaje({ tipo: 'ok', texto: 'Registro eliminado correctamente' })
+      setEliminarModal(null)
+      cargar()
+    } catch (e: any) {
+      setMensaje({ tipo: 'error', texto: e.message })
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-gray-800">📝 Reporte Manual — Inyeccion</h2>
+        <div className="flex gap-2">
+          <button onClick={() => fileRef.current?.click()}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-400 bg-green-600 hover:bg-green-700 active:scale-95 text-white">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6M4 20h16a1 1 0 001-1V5 a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/>
+            </svg>
+            Importar Excel
+          </button>
+          <button onClick={cargar} disabled={loading}
+            className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg text-sm font-medium text-gray-700">
+            🔄
+          </button>
+        </div>
+      </div>
+      <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImportar} />
+
+      {mensaje && (
+        <div className={`p-3 rounded-lg text-sm font-medium ${
+          mensaje.tipo === 'ok' ? 'bg-green-50 text-green-700 border border-green-200'
+            : 'bg-red-50 text-red-700 border border-red-200'
+        }`}>{mensaje.texto}</div>
+      )}
+
+      {/* Produccion */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+        <h3 className="font-semibold text-gray-700">🏭 Produccion</h3>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-1">Turno *</label>
+            <select value={prod.turno} onChange={e => setProd({ ...prod, turno: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+              <option value="">-- Seleccionar --</option>
+              <option value="DIA">DIA</option>
+              <option value="NOCHE">NOCHE</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-1">No. Parte *</label>
+            <input value={prod.numero_parte} onChange={e => setProd({ ...prod, numero_parte: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm uppercase" />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-600 mb-1">Descripcion *</label>
+            <input value={prod.descripcion} onChange={e => setProd({ ...prod, descripcion: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-600 mb-1">Cliente *</label>
+            <input value={prod.cliente} onChange={e => setProd({ ...prod, cliente: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-1">Resina *</label>
+            <select value={prod.resina} onChange={e => setProd({ ...prod, resina: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+              <option value="">-- Seleccionar --</option>
+              <option value="EPS">EPS</option>
+              <option value="EPP">EPP</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-1">Proceso *</label>
+            <select value={prod.proceso} onChange={e => setProd({ ...prod, proceso: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+              <option value="">-- Seleccionar --</option>
+              <option value="ASSY">ASSY</option>
+              <option value="PACKING">PACKING</option>
+              <option value="BLOCK">BLOCK</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-1">Peso *</label>
+            <input type="number" step="0.01" value={prod.peso} onChange={e => setProd({ ...prod, peso: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-1">Cav BOM *</label>
+            <input type="number" value={prod.cav_bom} onChange={e => setProd({ ...prod, cav_bom: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-1">Ciclo *</label>
+            <input type="number" step="0.1" value={prod.ciclo} onChange={e => setProd({ ...prod, ciclo: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-1">Type *</label>
+            <input value={prod.type} onChange={e => setProd({ ...prod, type: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm uppercase" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-1">Maquina *</label>
+            <input value={prod.maquina} onChange={e => setProd({ ...prod, maquina: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm uppercase" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-1">Cav Real *</label>
+            <input type="number" value={prod.cav_real} onChange={e => setProd({ ...prod, cav_real: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-1">Ciclo Real *</label>
+            <input type="number" step="0.1" value={prod.ciclo_real} onChange={e => setProd({ ...prod, ciclo_real: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-1">Tiempo Trabajo (hrs) *</label>
+            <input type="number" step="0.1" value={prod.tiempo_trabajo} onChange={e => setProd({ ...prod, tiempo_trabajo: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-1">Produccion Total *</label>
+            <input type="number" value={prod.produccion_total} onChange={e => setProd({ ...prod, produccion_total: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+          </div>
+        </div>
+      </div>
+
+      {/* Paros */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+        <h3 className="font-semibold text-gray-700">🛑 Paros</h3>
+        <div className="space-y-3">
+          {parosRows.map((row, idx) => (
+            <div key={row.id} className="space-y-2 border-b border-gray-100 pb-3 last:border-0">
+              <div className="flex gap-2 items-end">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-600 mb-1">Motivo Paro</label>
+                  <select value={row.motivo} onChange={e => {
+                    const newRows = [...parosRows]
+                    newRows[idx].motivo = e.target.value
+                    setParosRows(newRows)
+                  }}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                    <option value="">-- Seleccionar --</option>
+                    {MOTIVOS_PARO_LIST.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
+                <div className="w-32">
+                  <label className="block text-sm font-medium text-gray-600 mb-1">Tiempo Paro (hrs)</label>
+                  <input type="number" step="0.1" value={row.tiempoParo} onChange={e => {
+                    const newRows = [...parosRows]
+                    newRows[idx].tiempoParo = e.target.value
+                    setParosRows(newRows)
+                  }}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                </div>
+                {parosRows.length > 1 && (
+                  <button onClick={() => setParosRows(parosRows.filter((_, i) => i !== idx))}
+                    className="text-red-400 hover:text-red-600 px-2 mb-2">✕</button>
+                )}
+              </div>
+              {row.motivo === 'Mantenimiento' && (
+                <div className="flex gap-2 items-end pl-4">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-600 mb-1">Motivo Mantenimiento</label>
+                    <select value={row.subMotivo} onChange={e => {
+                      const newRows = [...parosRows]
+                      newRows[idx].subMotivo = e.target.value
+                      setParosRows(newRows)
+                    }}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                      <option value="">-- Seleccionar --</option>
+                      {MOTIVOS_MANTENIMIENTO_LIST.map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                  </div>
+                  <div className="w-32">
+                    <label className="block text-sm font-medium text-gray-600 mb-1">Tiempo Paro (hrs)</label>
+                    <input type="number" step="0.1" value={row.subTiempoParo} onChange={e => {
+                      const newRows = [...parosRows]
+                      newRows[idx].subTiempoParo = e.target.value
+                      setParosRows(newRows)
+                    }}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+        <button onClick={() => setParosRows([...parosRows, { id: Date.now(), motivo: '', tiempoParo: '', subMotivo: '', subTiempoParo: '' }])}
+          className="flex items-center gap-1 text-sm text-purple-600 hover:text-purple-800 font-medium">
+          ➕ Agregar otro motivo de paro
+        </button>
+      </div>
+
+      {/* Scrap */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+        <h3 className="font-semibold text-gray-700">♻️ Scrap</h3>
+        <div className="space-y-3">
+          {scrapRows.map((row, idx) => (
+            <div key={row.id} className="flex gap-2 items-end border-b border-gray-100 pb-3 last:border-0">
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-600 mb-1">Motivo Scrap</label>
+                <select value={row.motivo} onChange={e => {
+                  const newRows = [...scrapRows]
+                  newRows[idx].motivo = e.target.value
+                  setScrapRows(newRows)
+                }}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                  <option value="">-- Seleccionar --</option>
+                  {MOTIVOS_SCRAP_LIST.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+              <div className="w-32">
+                <label className="block text-sm font-medium text-gray-600 mb-1">Cantidad</label>
+                <input type="number" value={row.cantidad} onChange={e => {
+                  const newRows = [...scrapRows]
+                  newRows[idx].cantidad = e.target.value
+                  setScrapRows(newRows)
+                }}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+              </div>
+              {scrapRows.length > 1 && (
+                <button onClick={() => setScrapRows(scrapRows.filter((_, i) => i !== idx))}
+                  className="text-red-400 hover:text-red-600 px-2 mb-2">✕</button>
+              )}
+            </div>
+          ))}
+        </div>
+        <button onClick={() => setScrapRows([...scrapRows, { id: Date.now(), motivo: '', cantidad: '' }])}
+          className="flex items-center gap-1 text-sm text-purple-600 hover:text-purple-800 font-medium">
+          ➕ Agregar otro motivo de scrap
+        </button>
+      </div>
+
+      {/* Confirmar */}
+      <button onClick={handleConfirmar}
+        className="w-full bg-purple-600 hover:bg-purple-700 text-white px-6 py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-2">
+        💾 Confirmar
+      </button>
+
+      {/* Tabla */}
+      <div>
+        <h3 className="font-semibold text-gray-700 mb-3">📋 Registros ({items.length})</h3>
+        <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-blue-600 text-white">
+              <tr>
+                <th className="px-3 py-2 text-left whitespace-nowrap">Fecha</th>
+                <th className="px-3 py-2 text-center whitespace-nowrap">Turno</th>
+                <th className="px-3 py-2 text-left whitespace-nowrap">No. Parte</th>
+                <th className="px-3 py-2 text-left whitespace-nowrap">Descripcion</th>
+                <th className="px-3 py-2 text-left whitespace-nowrap">Cliente</th>
+                <th className="px-3 py-2 text-center whitespace-nowrap">Accion</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {items.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
+                    No hay registros
+                  </td>
+                </tr>
+              ) : (
+                items.map(item => (
+                  <tr key={item.id} className="hover:bg-blue-50/50">
+                    <td className="px-3 py-2">{item.fecha?.slice(0, 10) || '—'}</td>
+                    <td className="px-3 py-2 text-center">
+                      <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${item.turno === 'DIA' ? 'bg-yellow-100 text-yellow-700' : 'bg-indigo-100 text-indigo-700'}`}>
+                        {item.turno === 'DIA' ? '☀️' : '🌙'} {item.turno}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 font-medium">{item.numero_parte}</td>
+                    <td className="px-3 py-2">{item.descripcion}</td>
+                    <td className="px-3 py-2">{item.cliente}</td>
+                    <td className="px-3 py-2 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <button onClick={() => setDetalleModal(item)}
+                          className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded-lg text-xs font-medium">
+                          👁️ Ver
+                        </button>
+                        <button onClick={() => setEliminarModal(item)}
+                          className="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded-lg text-xs font-medium"
+                          title="Eliminar registro">
+                          🗑️
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Modal Detalle */}
+      {detalleModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6 space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-800">📋 Detalle: {detalleModal.numero_parte}</h3>
+              <button onClick={() => setDetalleModal(null)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+            </div>
+
+            {/* Produccion */}
+            <div className="space-y-2">
+              <h4 className="font-semibold text-gray-700">🏭 Produccion</h4>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                <div className="bg-gray-50 rounded p-2"><span className="text-gray-500">Turno:</span> {detalleModal.turno}</div>
+                <div className="bg-gray-50 rounded p-2"><span className="text-gray-500">No. Parte:</span> {detalleModal.numero_parte}</div>
+                <div className="bg-gray-50 rounded p-2"><span className="text-gray-500">Descripcion:</span> {detalleModal.descripcion}</div>
+                <div className="bg-gray-50 rounded p-2"><span className="text-gray-500">Cliente:</span> {detalleModal.cliente}</div>
+                <div className="bg-gray-50 rounded p-2"><span className="text-gray-500">Resina:</span> {detalleModal.resina}</div>
+                <div className="bg-gray-50 rounded p-2"><span className="text-gray-500">Proceso:</span> {detalleModal.proceso}</div>
+                <div className="bg-gray-50 rounded p-2"><span className="text-gray-500">Peso:</span> {detalleModal.peso}</div>
+                <div className="bg-gray-50 rounded p-2"><span className="text-gray-500">Cav BOM:</span> {detalleModal.cav_bom}</div>
+                <div className="bg-gray-50 rounded p-2"><span className="text-gray-500">Ciclo:</span> {detalleModal.ciclo}</div>
+                <div className="bg-gray-50 rounded p-2"><span className="text-gray-500">Type:</span> {detalleModal.type}</div>
+                <div className="bg-gray-50 rounded p-2"><span className="text-gray-500">Maquina:</span> {detalleModal.maquina}</div>
+                <div className="bg-gray-50 rounded p-2"><span className="text-gray-500">Cav Real:</span> {detalleModal.cav_real}</div>
+                <div className="bg-gray-50 rounded p-2"><span className="text-gray-500">Ciclo Real:</span> {detalleModal.ciclo_real}</div>
+                <div className="bg-gray-50 rounded p-2"><span className="text-gray-500">Tiempo Trabajo:</span> {detalleModal.tiempo_trabajo} hrs</div>
+                <div className="bg-gray-50 rounded p-2"><span className="text-gray-500">Produccion Total:</span> {detalleModal.produccion_total}</div>
+                <div className="bg-green-50 rounded p-2"><span className="text-gray-500">Produccion Buena:</span> <span className="font-bold text-green-700">{detalleModal.produccion_buena}</span></div>
+                <div className="bg-green-50 rounded p-2"><span className="text-gray-500">Produccion Kg:</span> <span className="font-bold text-green-700">{(detalleModal.produccion_kg ?? 0).toFixed(2)}</span></div>
+                <div className="bg-green-50 rounded p-2"><span className="text-gray-500">Produccion Meta Total:</span> <span className="font-bold text-green-700">{(detalleModal.produccion_meta_total ?? 0).toFixed(2)}</span></div>
+                <div className="bg-green-50 rounded p-2"><span className="text-gray-500">Produccion Meta Kg:</span> <span className="font-bold text-green-700">{(detalleModal.produccion_meta_kg ?? 0).toFixed(2)}</span></div>
+                <div className="bg-green-50 rounded p-2"><span className="text-gray-500">Produccion %:</span> <span className="font-bold text-green-700">{(detalleModal.produccion_porcentaje ?? 0).toFixed(1)}%</span></div>
+              </div>
+            </div>
+
+            {/* Paros */}
+            <div className="space-y-2">
+              <h4 className="font-semibold text-gray-700">🛑 Paros</h4>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                {detalleModal.cambio_molde > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Cambio de Molde:</span> {detalleModal.cambio_molde} hrs</div>}
+                {detalleModal.ajustes > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Ajustes:</span> {detalleModal.ajustes} hrs</div>}
+                {detalleModal.arranque_paro > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Arranque:</span> {detalleModal.arranque_paro} hrs</div>}
+                {detalleModal.mantenimiento > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Mantenimiento:</span> {detalleModal.mantenimiento} hrs</div>}
+                {detalleModal.molde_danado > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Molde Danado:</span> {detalleModal.molde_danado} hrs</div>}
+                {detalleModal.falta_personal > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Falta Personal:</span> {detalleModal.falta_personal} hrs</div>}
+                {detalleModal.falta_material > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Falta Material:</span> {detalleModal.falta_material} hrs</div>}
+                {detalleModal.otro_paro > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Otro:</span> {detalleModal.otro_paro} hrs</div>}
+                {detalleModal.soldar_puerta_ejector > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Soldar Puerta Ejector:</span> {detalleModal.soldar_puerta_ejector} hrs</div>}
+                {detalleModal.estopero > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Estopero:</span> {detalleModal.estopero} hrs</div>}
+                {detalleModal.bomba_hidraulica > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Bomba Hidraulica:</span> {detalleModal.bomba_hidraulica} hrs</div>}
+                {detalleModal.motor_hidraulico > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Motor Hidraulico:</span> {detalleModal.motor_hidraulico} hrs</div>}
+                {detalleModal.manguera_hidraulica > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Manguera Hidraulica:</span> {detalleModal.manguera_hidraulica} hrs</div>}
+                {detalleModal.valvula_hidraulica > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Valvula Hidraulica:</span> {detalleModal.valvula_hidraulica} hrs</div>}
+                {detalleModal.reloj > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Reloj:</span> {detalleModal.reloj} hrs</div>}
+                {detalleModal.caldera > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Caldera:</span> {detalleModal.caldera} hrs</div>}
+                {detalleModal.sensor_seguridad > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Sensor Seguridad:</span> {detalleModal.sensor_seguridad} hrs</div>}
+                {detalleModal.falta_aire > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Falta Aire:</span> {detalleModal.falta_aire} hrs</div>}
+                {detalleModal.fuga_aceite > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Fuga Aceite:</span> {detalleModal.fuga_aceite} hrs</div>}
+                {detalleModal.electrico > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Electrico:</span> {detalleModal.electrico} hrs</div>}
+                {detalleModal.tolva_tapada > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Tolva Tapada:</span> {detalleModal.tolva_tapada} hrs</div>}
+                {detalleModal.extra > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Extra:</span> {detalleModal.extra} hrs</div>}
+                <div className="bg-red-100 rounded p-2 font-bold"><span className="text-gray-700">Tiempo Paro Total:</span> {(detalleModal.tiempo_paro_total ?? 0).toFixed(2)} hrs</div>
+                <div className="bg-red-100 rounded p-2 font-bold"><span className="text-gray-700">C/M:</span> {detalleModal.cm ?? 0}</div>
+              </div>
+            </div>
+
+            {/* Scrap */}
+            <div className="space-y-2">
+              <h4 className="font-semibold text-gray-700">♻️ Scrap</h4>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                {detalleModal.scrap_falta_llenado > 0 && <div className="bg-orange-50 rounded p-2"><span className="text-gray-500">Falta Llenado:</span> {detalleModal.scrap_falta_llenado}</div>}
+                {detalleModal.scrap_cruda > 0 && <div className="bg-orange-50 rounded p-2"><span className="text-gray-500">Cruda:</span> {detalleModal.scrap_cruda}</div>}
+                {detalleModal.scrap_quebrada > 0 && <div className="bg-orange-50 rounded p-2"><span className="text-gray-500">Quebrada:</span> {detalleModal.scrap_quebrada}</div>}
+                {detalleModal.scrap_hinchada > 0 && <div className="bg-orange-50 rounded p-2"><span className="text-gray-500">Hinchada:</span> {detalleModal.scrap_hinchada}</div>}
+                {detalleModal.scrap_arranque > 0 && <div className="bg-orange-50 rounded p-2"><span className="text-gray-500">Arranque:</span> {detalleModal.scrap_arranque}</div>}
+                {detalleModal.scrap_fuera_dimension > 0 && <div className="bg-orange-50 rounded p-2"><span className="text-gray-500">Fuera Dimension:</span> {detalleModal.scrap_fuera_dimension}</div>}
+                {detalleModal.scrap_pandeada > 0 && <div className="bg-orange-50 rounded p-2"><span className="text-gray-500">Pandeada:</span> {detalleModal.scrap_pandeada}</div>}
+                {detalleModal.scrap_aplastada_molde > 0 && <div className="bg-orange-50 rounded p-2"><span className="text-gray-500">Aplastada Molde:</span> {detalleModal.scrap_aplastada_molde}</div>}
+                <div className="bg-orange-100 rounded p-2 font-bold"><span className="text-gray-700">Scrap Total:</span> {detalleModal.scrap_total ?? 0}</div>
+                <div className="bg-orange-100 rounded p-2 font-bold"><span className="text-gray-700">Scrap Kg:</span> {(detalleModal.scrap_kg ?? 0).toFixed(2)}</div>
+                <div className="bg-orange-100 rounded p-2 font-bold"><span className="text-gray-700">Scrap %:</span> {(detalleModal.scrap_porcentaje ?? 0).toFixed(1)}%</div>
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <button onClick={() => setDetalleModal(null)}
+                className="bg-gray-700 hover:bg-gray-600 text-white px-6 py-2 rounded-lg text-sm transition-colors">
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Confirmar Eliminar */}
+      {eliminarModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
+            <h3 className="text-lg font-bold text-gray-800">🗑️ Eliminar Registro</h3>
+            <p className="text-sm text-gray-500">
+              ¿Estás seguro de eliminar el registro de la parte{' '}
+              <span className="font-bold">{eliminarModal.numero_parte}</span> del cliente{' '}
+              <span className="font-bold">{eliminarModal.cliente}</span>?
+            </p>
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-700">
+              ⚠️ Esta acción no se puede deshacer. El registro se eliminará permanentemente.
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setEliminarModal(null)}
+                className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Cancelar</button>
+              <button onClick={handleEliminar}
+                className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-lg text-sm font-medium">
+                🗑️ Confirmar Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

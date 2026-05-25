@@ -35,6 +35,7 @@ import {
   OrdenUnificada,
   OrdenCompraAlmacen,
   LogisticaDashboard,
+  ReporteManualInyeccion,
 } from '@/types'
 
 const API_URL = ''
@@ -2092,4 +2093,75 @@ export async function descargarReporteIndividualInyeccionExcel(token: string, id
   })
   if (!res.ok) throw new Error('Error al descargar Excel')
   return res.blob()
+}
+
+// ==========================================
+// REPORTE MANUAL INYECCIÓN
+// ==========================================
+export async function crearReporteManualInyeccion(token: string, data: Partial<ReporteManualInyeccion>): Promise<ReporteManualInyeccion> {
+  const res = await fetch(`${API_URL}/reporte-manual-inyeccion`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al crear reporte manual')
+  }
+  return res.json()
+}
+
+export async function getReportesManualesInyeccion(token: string, fecha?: string, turno?: string): Promise<ReporteManualInyeccion[]> {
+  const sp = new URLSearchParams()
+  if (fecha) sp.append('fecha', fecha)
+  if (turno) sp.append('turno', turno)
+  const qs = sp.toString()
+  const res = await fetch(`${API_URL}/reporte-manual-inyeccion${qs ? `?${qs}` : ''}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener reportes manuales')
+  return res.json()
+}
+
+export async function eliminarReporteManualInyeccion(token: string, id: number): Promise<{ message: string }> {
+  const res = await fetch(`${API_URL}/reporte-manual-inyeccion/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al eliminar reporte manual')
+  return res.json()
+}
+
+export async function importarReporteManualInyeccionExcel(token: string, file: File): Promise<{ message: string; creados: number; errores?: string[] }> {
+  const fd = new FormData()
+  fd.append('file', file)
+  const res = await fetch(`${API_URL}/reporte-manual-inyeccion/importar-excel`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: fd,
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al importar Excel')
+  }
+  return res.json()
+}
+
+export async function getDashboardInyeccion(token: string, params: {
+  group_by?: string
+  fecha_desde?: string
+  fecha_hasta?: string
+  turno?: string
+  numero_parte?: string
+  cliente?: string
+  maquina?: string
+}): Promise<any> {
+  const sp = new URLSearchParams()
+  Object.entries(params).forEach(([k, v]) => { if (v) sp.append(k, v) })
+  const qs = sp.toString()
+  const res = await fetch(`${API_URL}/reporte-manual-inyeccion/dashboard${qs ? `?${qs}` : ''}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener dashboard')
+  return res.json()
 }

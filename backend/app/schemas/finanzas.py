@@ -236,3 +236,55 @@ class AprobarOrdenCompraRequest(BaseModel):
     nombre_proveedor: Optional[str] = None
     items: Optional[List[OrdenCompraItemCreate]] = None
     notas: Optional[str] = None
+
+# ========================
+# PROVEEDORES Y MATERIALES
+# ========================
+class ProveedorMaterialBase(BaseModel):
+    sku_material: str
+    codigo_proveedor: Optional[str] = None
+    costo_unitario: float = Field(default=0.0, ge=0.0)
+    moneda: str = "MXN"
+
+class ProveedorMaterialCreate(ProveedorMaterialBase):
+    pass
+
+class ProveedorMaterialResponse(ProveedorMaterialBase):
+    id: int
+    proveedor_id: int
+
+    class Config:
+        from_attributes = True
+
+class ProveedorCreate(BaseModel):
+    razon_social: str = Field(..., min_length=2)
+    rfc: str = Field(..., min_length=12, max_length=13)
+    lead_time_dias: int = Field(default=7, ge=0)
+    condiciones_pago: Optional[str] = "30 días"
+    estatus_calidad: str = "Aprobado"
+    notas: Optional[str] = None
+    materiales: List[ProveedorMaterialCreate] = []
+
+class ProveedorUpdate(BaseModel):
+    razon_social: Optional[str] = None
+    rfc: Optional[str] = None
+    lead_time_dias: Optional[int] = None
+    condiciones_pago: Optional[str] = None
+    estatus_calidad: Optional[str] = None
+    notas: Optional[str] = None
+    materiales: Optional[List[ProveedorMaterialCreate]] = None
+
+class ProveedorResponse(BaseModel):
+    id: int
+    uuid: str
+    razon_social: str
+    rfc: str
+    lead_time_dias: int
+    condiciones_pago: Optional[str]
+    estatus_calidad: str
+    notas: Optional[str]
+    fecha_creacion: datetime
+    materiales: List[ProveedorMaterialResponse] = []
+
+    class Config:
+        from_attributes = True

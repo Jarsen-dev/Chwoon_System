@@ -6,10 +6,12 @@ import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 import DashboardTab from './DashboardTab';
 import ComprasTab from './ComprasTab';
+import ProveedoresTab from './ProveedoresTab';
 
 const ALL_TABS = [
-  { id: 'dashboard', label: '📊 Dashboard' },
-  { id: 'compras',   label: '🛒 Compras'   },
+  { id: 'dashboard',   label: '📊 Dashboard' },
+  { id: 'compras',     label: '🛒 Compras'   },
+  { id: 'proveedores', label: '🤝 Proveedores' },
 ];
 
 export default function ComprasPage() {
@@ -105,6 +107,7 @@ export default function ComprasPage() {
       <main className="flex-1 overflow-y-auto p-6">
         {activeTab === 'dashboard' && <DashboardTab token={token} />}
         {activeTab === 'compras'   && <ComprasTab   token={token} />}
+        {activeTab === 'proveedores' && <ProveedoresTab token={token} />}
       </main>
     </div>
   );

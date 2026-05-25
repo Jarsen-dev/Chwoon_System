@@ -1,9 +1,40 @@
-from sqlalchemy import Column, Integer, String, DateTime, Float, Text, JSON, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, Float, Text, ForeignKey, Numeric
 from sqlalchemy.orm import relationship
 from app.database import Base
 from datetime import datetime, timezone, timedelta
+from uuid import uuid4
 
 TZ_LOCAL = timezone(timedelta(hours=-6))
+
+
+class Proveedor(Base):
+    __tablename__ = "proveedores"
+
+    id = Column(Integer, primary_key=True, index=True)
+    uuid = Column(String(50), unique=True, nullable=False, default=lambda: f"PROV-{uuid4().hex[:6].upper()}")
+    razon_social = Column(String(200), nullable=False)
+    rfc = Column(String(13), unique=True, nullable=False, index=True)
+    lead_time_dias = Column(Integer, default=7)
+    condiciones_pago = Column(String(100), default="30 días")
+    estatus_calidad = Column(String(50), default="Aprobado")  # Aprobado | Condicional | Suspendido
+    notas = Column(Text, nullable=True)
+    fecha_creacion = Column(DateTime(timezone=True), default=lambda: datetime.now(TZ_LOCAL))
+
+    materiales = relationship("ProveedorMaterial", back_populates="proveedor", cascade="all, delete-orphan")
+    ordenes_compra = relationship("OrdenCompra", back_populates="rel_proveedor")
+
+
+class ProveedorMaterial(Base):
+    __tablename__ = "proveedor_materiales"
+
+    id = Column(Integer, primary_key=True, index=True)
+    proveedor_id = Column(Integer, ForeignKey("proveedores.id", ondelete="CASCADE"), nullable=False)
+    sku_material = Column(String(100), nullable=False, index=True)  # Mapea con partes o productos
+    codigo_proveedor = Column(String(100), nullable=True)  # SKU interno del proveedor
+    costo_unitario = Column(Float, default=0.0)
+    moneda = Column(String(10), default="MXN")
+
+    proveedor = relationship("Proveedor", back_populates="materiales")
 
 
 class OrdenCompra(Base):
@@ -11,7 +42,11 @@ class OrdenCompra(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     oc_id = Column(String(50), unique=True, nullable=False, index=True)
-    id_proveedor = Column(String(100), nullable=False)
+    
+    # Llave foránea opcional para el flujo dinámico de Proveedores
+    proveedor_id = Column(Integer, ForeignKey("proveedores.id", ondelete="SET NULL"), nullable=True)
+    
+    id_proveedor = Column(String(100), nullable=False)  # Mantiene compatibilidad ("POR-ASIGNAR")
     nombre_proveedor = Column(String(200), nullable=False)
     status = Column(String(50), default="Creada")
     origen = Column(String(50), default="FINANZAS")  # FINANZAS | PRODUCCION
@@ -21,6 +56,7 @@ class OrdenCompra(Base):
     creado_por = Column(String(100), nullable=True)
     aprobado_por = Column(String(100), nullable=True)
 
+    rel_proveedor = relationship("Proveedor", back_populates="ordenes_compra")
     items = relationship("OrdenCompraItem", back_populates="orden_compra", cascade="all, delete-orphan")
     recepciones = relationship("RecepcionCompra", back_populates="orden_compra", cascade="all, delete-orphan")
 

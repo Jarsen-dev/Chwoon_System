@@ -822,3 +822,69 @@ export interface LogisticaDashboard {
   embarques_hoy: number
   entregas_hoy: number
 }
+
+// ==========================================
+// REPORTE MANUAL INYECCIÓN
+// ==========================================
+export interface ReporteManualInyeccion {
+  id: number
+  fecha: string
+  turno: string
+  numero_parte: string
+  descripcion: string
+  cliente: string
+  resina: string
+  proceso: string
+  peso: number
+  cav_bom: number
+  ciclo: number
+  type: string
+  maquina: string
+  cav_real: number
+  ciclo_real: number
+  tiempo_trabajo: number
+  produccion_total: number
+  // paros
+  cambio_molde: number
+  ajustes: number
+  arranque_paro: number
+  mantenimiento: number
+  molde_danado: number
+  falta_personal: number
+  falta_material: number
+  otro_paro: number
+  soldar_puerta_ejector: number
+  estopero: number
+  bomba_hidraulica: number
+  motor_hidraulico: number
+  manguera_hidraulica: number
+  valvula_hidraulica: number
+  reloj: number
+  caldera: number
+  sensor_seguridad: number
+  falta_aire: number
+  fuga_aceite: number
+  electrico: number
+  tolva_tapada: number
+  extra: number
+  // scrap
+  scrap_falta_llenado: number
+  scrap_cruda: number
+  scrap_quebrada: number
+  scrap_hinchada: number
+  scrap_arranque: number
+  scrap_fuera_dimension: number
+  scrap_pandeada: number
+  scrap_aplastada_molde: number
+  // calculados
+  scrap_total: number
+  scrap_kg: number
+  tiempo_paro_total: number
+  cm: number
+  produccion_buena: number
+  produccion_kg: number
+  produccion_meta_total: number
+  produccion_meta_kg: number
+  produccion_porcentaje: number
+  scrap_porcentaje: number
+}

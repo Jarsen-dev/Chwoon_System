@@ -5,7 +5,8 @@ import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, delete, and_, extract
-from typing import Optional
+from sqlalchemy.orm import selectinload
+from typing import List, Optional
 from datetime import datetime, timezone, timedelta, date
 from fastapi.responses import StreamingResponse
 from reportlab.pdfgen import canvas as pdf_canvas
@@ -15,12 +16,12 @@ from reportlab.lib.utils import ImageReader
 
 from app.core.deps import get_db
 from app.core.deps import get_current_user
-from app.models.orden_compra import OrdenCompra, OrdenCompraItem, RecepcionCompra
+from app.models.orden_compra import OrdenCompra, OrdenCompraItem, Proveedor, ProveedorMaterial, RecepcionCompra
 from app.models.orden_venta import OrdenVenta, OrdenVentaItem, EnvioVenta
 from app.models.devolucion import Devolucion
 from app.models.plan_ventas import PlanVentas
 from app.schemas.finanzas import (
-    OrdenCompraCreate, OrdenCompraUpdate, OrdenCompraResponse,
+    OrdenCompraCreate, OrdenCompraUpdate, OrdenCompraResponse, ProveedorCreate, ProveedorResponse, ProveedorUpdate,
     RecepcionCompraCreate, RecepcionCompraResponse,
     OrdenVentaCreate, OrdenVentaUpdate, OrdenVentaResponse,
     EnvioVentaCreate,
@@ -1165,6 +1166,169 @@ async def autorizar_ventas_masivo(
     await db.commit()
 
     return {"resultados": resultados}
+
+
+# ========================
+# PROVEEDORES — CRUD
+# ========================
+@router.get("/proveedores", response_model=List[ProveedorResponse])
+@router.get("/proveedores/", response_model=List[ProveedorResponse])
+async def listar_proveedores(
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    require_compras_role(current_user)
+    result = await db.execute(
+        select(Proveedor).options(selectinload(Proveedor.materiales)).order_by(Proveedor.razon_social.asc())
+    )
+    return result.scalars().unique().all()
+
+
+@router.post("/proveedores", response_model=ProveedorResponse)
+@router.post("/proveedores/", response_model=ProveedorResponse)
+async def crear_proveedor(
+    data: ProveedorCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    require_compras_role(current_user)
+
+    # Validar RFC duplicado
+    rfc_check = await db.execute(select(Proveedor).where(Proveedor.rfc == data.rfc.strip().upper()))
+    if rfc_check.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail=f"Ya existe un proveedor con el RFC {data.rfc}")
+
+    proveedor = Proveedor(
+        razon_social=data.razon_social.strip(),
+        rfc=data.rfc.strip().upper(),
+        lead_time_dias=data.lead_time_dias,
+        condiciones_pago=data.condiciones_pago,
+        estatus_calidad=data.estatus_calidad,
+        notas=data.notas,
+    )
+    db.add(proveedor)
+    await db.flush()
+
+    for mat in data.materiales:
+        material = ProveedorMaterial(
+            proveedor_id=proveedor.id,
+            sku_material=mat.sku_material.strip().upper(),
+            codigo_proveedor=mat.codigo_proveedor.strip() if mat.codigo_proveedor else None,
+            costo_unitario=mat.costo_unitario,
+            moneda=mat.moneda,
+        )
+        db.add(material)
+
+    await db.commit()
+    
+    # Refrescar con relación cargada para la respuesta
+    result = await db.execute(
+        select(Proveedor).options(selectinload(Proveedor.materiales)).where(Proveedor.id == proveedor.id)
+    )
+    proveedor = result.scalar_one()
+    return proveedor
+
+
+@router.put("/proveedores/{proveedor_id}", response_model=ProveedorResponse)
+@router.put("/proveedores/{proveedor_id}/", response_model=ProveedorResponse)
+async def actualizar_proveedor(
+    proveedor_id: int,
+    data: ProveedorUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    require_compras_role(current_user)
+
+    result = await db.execute(select(Proveedor).where(Proveedor.id == proveedor_id))
+    proveedor = result.scalar_one_or_none()
+    if not proveedor:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+
+    if data.razon_social is not None:
+        proveedor.razon_social = data.razon_social.strip()
+    if data.rfc is not None:
+        proveedor.rfc = data.rfc.strip().upper()
+    if data.lead_time_dias is not None:
+        proveedor.lead_time_dias = data.lead_time_dias
+    if data.condiciones_pago is not None:
+        proveedor.condiciones_pago = data.condiciones_pago
+    if data.estatus_calidad is not None:
+        proveedor.estatus_calidad = data.estatus_calidad
+    if data.notas is not None:
+        proveedor.notas = data.notas
+
+    if data.materiales is not None:
+        # Eliminar materiales existentes
+        await db.execute(
+            delete(ProveedorMaterial).where(ProveedorMaterial.proveedor_id == proveedor_id)
+        )
+        # Insertar nuevos
+        for mat in data.materiales:
+            material = ProveedorMaterial(
+                proveedor_id=proveedor_id,
+                sku_material=mat.sku_material.strip().upper(),
+                codigo_proveedor=mat.codigo_proveedor.strip() if mat.codigo_proveedor else None,
+                costo_unitario=mat.costo_unitario,
+                moneda=mat.moneda,
+            )
+            db.add(material)
+
+    await db.commit()
+    
+    result = await db.execute(
+        select(Proveedor).options(selectinload(Proveedor.materiales)).where(Proveedor.id == proveedor.id)
+    )
+    proveedor = result.scalar_one()
+    return proveedor
+
+
+@router.delete("/proveedores/{proveedor_id}")
+@router.delete("/proveedores/{proveedor_id}/")
+async def eliminar_proveedor(
+    proveedor_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    require_compras_role(current_user)
+
+    result = await db.execute(select(Proveedor).where(Proveedor.id == proveedor_id))
+    proveedor = result.scalar_one_or_none()
+    if not proveedor:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+
+    await db.delete(proveedor)
+    await db.commit()
+    return {"message": "Proveedor eliminado exitosamente"}
+
+
+@router.get("/proveedores/buscar-por-sku/{sku}")
+async def buscar_proveedores_por_sku(
+    sku: str,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Busca qué proveedores surten un SKU específico (Para resolver las OCs POR-ASIGNAR)"""
+    require_compras_role(current_user)
+    
+    result = await db.execute(
+        select(ProveedorMaterial, Proveedor)
+        .join(Proveedor, ProveedorMaterial.proveedor_id == Proveedor.id)
+        .where(ProveedorMaterial.sku_material == sku.upper())
+    )
+    mapping = result.all()
+    
+    return [
+        {
+            "proveedor_id": prov.id,
+            "razon_social": prov.razon_social,
+            "uuid": prov.uuid,
+            "costo_unitario": mat.costo_unitario,
+            "moneda": mat.moneda,
+            "lead_time_dias": prov.lead_time_dias,
+            "estatus_calidad": prov.estatus_calidad
+        }
+        for mat, prov in mapping
+    ]
 
 
 # ========================

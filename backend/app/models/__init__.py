@@ -24,6 +24,7 @@ from app.models.orden_produccion import OrdenProduccion
 from app.models.suministro_silo import SuministroSilo
 from app.models.plan_inyeccion import PlanInyeccion
 from app.models.registro_avance_inyeccion import RegistroAvanceInyeccion
+from app.models.reporte_manual_inyeccion import ReporteManualInyeccion
 
 __all__ = [
     "Parte",
@@ -58,4 +59,5 @@ __all__ = [
     "SuministroSilo",
     "PlanInyeccion",
     "RegistroAvanceInyeccion",
+    "ReporteManualInyeccion",
 ]
