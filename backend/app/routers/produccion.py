@@ -277,7 +277,7 @@ class ConnectionManager:
         self.gaps_maquina:       Dict[str, List[float]] = {}
 
     async def connect(self, websocket: WebSocket):
-        await websocket.accept()
+        await websocket.accept(headers=[(b"access-control-allow-origin", b"*")])
         self.active_connections.append(websocket)
 
     def disconnect(self, websocket: WebSocket):
@@ -413,7 +413,8 @@ async def websocket_scanner(
     websocket: WebSocket,
     token: str = None,
 ):
-    await manager.connect(websocket)
+    
+    manager.active_connections.append(websocket)
 
     # ── Decodificar usuario del token ─────────────────────────────────
     usuario_ws = "desconocido"
