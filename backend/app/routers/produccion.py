@@ -414,6 +414,7 @@ async def websocket_scanner(
     token: str = None,
 ):
     
+    await websocket.accept()
     manager.active_connections.append(websocket)
 
     # ── Decodificar usuario del token ─────────────────────────────────
