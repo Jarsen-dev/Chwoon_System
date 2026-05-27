@@ -17,9 +17,23 @@ interface Proveedor {
   rfc: string;
   lead_time_dias: number;
   condiciones_pago: string;
+  dias_credito: number;
   estatus_calidad: string;
   notas: string;
+  score_calidad?: number;
+  score_detalle?: Record<string, any>;
+  score_updated_at?: string;
   materiales: Material[];
+}
+
+interface ProveedorEvento {
+  id: number;
+  tipo_evento: string;
+  impacto: number;
+  referencia_id?: string;
+  descripcion?: string;
+  fecha: string;
+  registrado_por?: string;
 }
 
 export default function ProveedoresTab({ token }: { token: string }) {
@@ -42,6 +56,7 @@ export default function ProveedoresTab({ token }: { token: string }) {
   const [rfc, setRfc] = useState('');
   const [leadTime, setLeadTime] = useState(7);
   const [condiciones, setCondiciones] = useState('30 días');
+  const [diasCredito, setDiasCredito] = useState(30);
   const [estatusCalidad, setEstatusCalidad] = useState('Aprobado');
   const [notas, setNotas] = useState('');
   
@@ -59,6 +74,16 @@ export default function ProveedoresTab({ token }: { token: string }) {
   // ═══════════════════════════════════════
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [detailTarget, setDetailTarget] = useState<Proveedor | null>(null);
+  const [detailEvents, setDetailEvents] = useState<ProveedorEvento[]>([]);
+  const [detailScore, setDetailScore] = useState<any>(null);
+
+  const [incidentModalOpen, setIncidentModalOpen] = useState(false);
+  const [incidentTipo, setIncidentTipo] = useState('MATERIAL_INCORRECTO');
+  const [incidentDesc, setIncidentDesc] = useState('');
+  const [incidentRef, setIncidentRef] = useState('');
+
+  const [viewMode, setViewMode] = useState<'catalogo' | 'ranking'>('catalogo');
+  const [rankingData, setRankingData] = useState<Proveedor[]>([]);
 
   // ── MANEJADORES DE POPUPS DE NOTIFICACIÓN
   const setErrorMsg = (msg: string) => {
@@ -97,6 +122,21 @@ export default function ProveedoresTab({ token }: { token: string }) {
     }
   };
 
+  const fetchRanking = async () => {
+    try {
+      const res = await fetch('/finanzas/proveedores/ranking', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setRankingData(data);
+      }
+    } catch (err) {
+      console.error("Error cargando ranking:", err);
+      setErrorMsg("Error al cargar el ranking de proveedores.");
+    }
+  };
+
   useEffect(() => { fetchProveedores(); }, []);
 
   // Abrir formulario en modo creación
@@ -107,6 +147,7 @@ export default function ProveedoresTab({ token }: { token: string }) {
     setRfc('');
     setLeadTime(7);
     setCondiciones('30 días');
+    setDiasCredito(30);
     setEstatusCalidad('Aprobado');
     setNotas('');
     setMaterialesForm([]);
@@ -121,6 +162,7 @@ export default function ProveedoresTab({ token }: { token: string }) {
     setRfc(proveedor.rfc);
     setLeadTime(proveedor.lead_time_dias);
     setCondiciones(proveedor.condiciones_pago || '');
+    setDiasCredito(proveedor.dias_credito || 30);
     setEstatusCalidad(proveedor.estatus_calidad);
     setNotas(proveedor.notas || '');
     setMaterialesForm([...proveedor.materiales]); // Clonar materiales existentes
@@ -130,9 +172,21 @@ export default function ProveedoresTab({ token }: { token: string }) {
   // ═══════════════════════════════════════
   // NUEVO: Abrir modal de detalle
   // ═══════════════════════════════════════
-  const handleOpenDetailModal = (proveedor: Proveedor) => {
+  const handleOpenDetailModal = async (proveedor: Proveedor) => {
     setDetailTarget(proveedor);
     setDetailModalOpen(true);
+    setDetailEvents([]);
+    setDetailScore(null);
+    try {
+      const [scoreRes, eventsRes] = await Promise.all([
+        fetch(`/finanzas/proveedores/${proveedor.id}/score`, { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch(`/finanzas/proveedores/${proveedor.id}/eventos?limite=10`, { headers: { 'Authorization': `Bearer ${token}` } }),
+      ]);
+      if (scoreRes.ok) setDetailScore(await scoreRes.json());
+      if (eventsRes.ok) setDetailEvents(await eventsRes.json());
+    } catch (err) {
+      console.error("Error cargando detalle de score:", err);
+    }
   };
 
   const handleAddMaterial = () => {
@@ -161,6 +215,7 @@ export default function ProveedoresTab({ token }: { token: string }) {
         rfc: rfc.toUpperCase(),
         lead_time_dias: Number(leadTime),
         condiciones_pago: condiciones,
+        dias_credito: Number(diasCredito),
         estatus_calidad: estatusCalidad,
         notas: notas,
         materiales: materialesForm
@@ -190,6 +245,44 @@ export default function ProveedoresTab({ token }: { token: string }) {
         }
     } catch (err) {
         setErrorMsg("Error crítico en el servidor al intentar guardar los cambios.");
+    }
+  };
+
+  const handleRegistrarIncidencia = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!detailTarget) return;
+    const tipoMap: Record<string, string> = {
+      'MATERIAL_INCORRECTO': 'EXACTITUD_INCIDENCIA',
+      'CANTIDAD_ERRONEA': 'EXACTITUD_INCIDENCIA',
+      'OTRO': 'EXACTITUD_INCIDENCIA',
+    };
+    try {
+      const res = await fetch(`/finanzas/proveedores/${detailTarget.id}/eventos`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          tipo_evento: tipoMap[incidentTipo] || 'EXACTITUD_INCIDENCIA',
+          impacto: -15.0,
+          referencia_id: incidentRef || undefined,
+          descripcion: `${incidentTipo}: ${incidentDesc}`,
+        }),
+      });
+      if (res.ok) {
+        setSuccessMsg('Incidencia registrada correctamente.');
+        setIncidentModalOpen(false);
+        setIncidentDesc('');
+        setIncidentRef('');
+        handleOpenDetailModal(detailTarget);
+        fetchProveedores();
+      } else {
+        const err = await res.json();
+        setErrorMsg(err.detail || 'Error al registrar incidencia.');
+      }
+    } catch (err) {
+      setErrorMsg('Error de servidor al registrar incidencia.');
     }
   };
 
@@ -258,18 +351,72 @@ export default function ProveedoresTab({ token }: { token: string }) {
 
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-xl font-bold tracking-tight">Catálogo de Proveedores</h2>
-          <p className="text-gray-400 text-sm">Gestiona credenciales de compra, tiempos de entrega y matriz de insumos.</p>
+          <h2 className="text-xl font-bold tracking-tight">
+            {viewMode === 'catalogo' ? 'Catálogo de Proveedores' : '🏆 Ranking de Proveedores'}
+          </h2>
+          <p className="text-gray-400 text-sm">
+            {viewMode === 'catalogo' ? 'Gestiona credenciales de compra, tiempos de entrega y matriz de insumos.' : 'Ordenados por score de calidad descendente.'}
+          </p>
         </div>
-        <button 
-          onClick={handleOpenCreateModal}
-          className="bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-4 py-2 rounded-lg text-sm transition-colors"
-        >
-          ➕ Registrar Proveedor
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => { setViewMode(viewMode === 'catalogo' ? 'ranking' : 'catalogo'); if (viewMode === 'catalogo') fetchRanking(); }}
+            className="bg-gray-800 hover:bg-gray-700 text-white font-medium px-4 py-2 rounded-lg text-sm transition-colors"
+          >
+            {viewMode === 'catalogo' ? '🏆 Ver Ranking' : '📋 Ver Catálogo'}
+          </button>
+          {viewMode === 'catalogo' && (
+            <button 
+              onClick={handleOpenCreateModal}
+              className="bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-4 py-2 rounded-lg text-sm transition-colors"
+            >
+              ➕ Registrar Proveedor
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Grid de Proveedores */}
+      {viewMode === 'ranking' ? (
+        <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+          <div className="grid grid-cols-12 gap-2 px-4 py-2 bg-gray-800/50 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            <div className="col-span-1 text-center">#</div>
+            <div className="col-span-4">Proveedor</div>
+            <div className="col-span-2 text-center">Score</div>
+            <div className="col-span-2 text-center">Estatus</div>
+            <div className="col-span-2 text-center">Lead Time</div>
+            <div className="col-span-1 text-center">Acción</div>
+          </div>
+          <div className="divide-y divide-gray-800/50">
+            {rankingData.map((p, idx) => (
+              <div key={p.id} className="grid grid-cols-12 gap-2 px-4 py-3 text-sm items-center hover:bg-gray-800/30 transition-colors">
+                <div className="col-span-1 text-center font-bold text-gray-400">{idx + 1}</div>
+                <div className="col-span-4">
+                  <div className="font-semibold text-white">{p.razon_social}</div>
+                  <div className="text-xs text-gray-500 font-mono">{p.rfc}</div>
+                </div>
+                <div className="col-span-2 text-center">
+                  <span className={`inline-block px-2 py-0.5 rounded text-xs font-bold ${
+                    (p.score_calidad ?? 100) >= 80 ? 'bg-emerald-500/20 text-emerald-400' :
+                    (p.score_calidad ?? 100) >= 60 ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400'
+                  }`}>
+                    {Math.round(p.score_calidad ?? 100)}
+                  </span>
+                </div>
+                <div className="col-span-2 text-center">
+                  <span className={`text-xs font-semibold ${
+                    p.estatus_calidad === 'Aprobado' ? 'text-emerald-400' :
+                    p.estatus_calidad === 'Condicional' ? 'text-yellow-400' : 'text-red-400'
+                  }`}>{p.estatus_calidad}</span>
+                </div>
+                <div className="col-span-2 text-center text-gray-300">{p.lead_time_dias} días</div>
+                <div className="col-span-1 text-center">
+                  <button onClick={() => handleOpenDetailModal(p)} className="text-blue-400 hover:text-blue-300 text-xs">Ver</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         {proveedores.map((p) => (
           <div key={p.id} className="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">
@@ -282,6 +429,12 @@ export default function ProveedoresTab({ token }: { token: string }) {
                     p.estatus_calidad === 'Condicional' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400'
                   }`}>
                     {p.estatus_calidad}
+                  </span>
+                  <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+                    (p.score_calidad ?? 100) >= 80 ? 'bg-emerald-500/20 text-emerald-400' :
+                    (p.score_calidad ?? 100) >= 60 ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400'
+                  }`}>
+                    {p.score_calidad !== undefined ? `${Math.round(p.score_calidad)}/100` : '100/100'}
                   </span>
                 </div>
                 <p className="text-gray-400 text-xs font-mono mt-1">{p.uuid} │ RFC: {p.rfc}</p>
@@ -316,7 +469,7 @@ export default function ProveedoresTab({ token }: { token: string }) {
 
             <div className="grid grid-cols-2 gap-2 bg-gray-950 p-3 rounded-lg text-sm border border-gray-800/50">
               <div><span className="text-gray-500">Lead Time:</span> <strong className="text-gray-300">{p.lead_time_dias} días</strong></div>
-              <div><span className="text-gray-500">Crédito:</span> <strong className="text-gray-300">{p.condiciones_pago}</strong></div>
+              <div><span className="text-gray-500">Crédito:</span> <strong className="text-gray-300">{p.dias_credito} días</strong></div>
             </div>
 
             {/* Listado de SKUs Vinculados - MÁXIMO 3 */}
@@ -348,6 +501,7 @@ export default function ProveedoresTab({ token }: { token: string }) {
           </div>
         ))}
       </div>
+      )}
 
       {/* Modal de Registro / Edición */}
       {modalOpen && (
@@ -378,14 +532,18 @@ export default function ProveedoresTab({ token }: { token: string }) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-4 gap-4">
                 <div className="flex flex-col gap-1">
                   <label className="text-xs text-gray-400">Lead Time (Días)</label>
                   <input type="number" min="0" value={leadTime} onChange={(e) => setLeadTime(Number(e.target.value))} className="bg-gray-950 border border-gray-800 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500"/>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs text-gray-400">Condiciones Pago</label>
+                  <label className="text-xs text-gray-400">Condiciones Pago (Texto)</label>
                   <input type="text" value={condiciones} onChange={(e) => setCondiciones(e.target.value)} className="bg-gray-950 border border-gray-800 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500"/>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-gray-400">Días Crédito</label>
+                  <input type="number" min="0" value={diasCredito} onChange={(e) => setDiasCredito(Number(e.target.value))} className="bg-gray-950 border border-gray-800 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500"/>
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-xs text-gray-400">Estatus Calidad</label>
@@ -499,8 +657,8 @@ export default function ProveedoresTab({ token }: { token: string }) {
               </div>
               <div className="space-y-2">
                 <div>
-                  <span className="text-gray-500 text-xs block">Condiciones de Pago</span>
-                  <span className="text-white">{detailTarget.condiciones_pago || 'No especificado'}</span>
+                  <span className="text-gray-500 text-xs block">Días Crédito</span>
+                  <span className="text-white">{detailTarget.dias_credito || 'No especificado'}</span>
                 </div>
                 <div>
                   <span className="text-gray-500 text-xs block">Total Materiales</span>
@@ -509,6 +667,44 @@ export default function ProveedoresTab({ token }: { token: string }) {
               </div>
             </div>
 
+            {/* Score Global */}
+            {detailScore && (
+              <div className="bg-gray-950 p-4 rounded-lg border border-gray-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-semibold text-gray-300">📊 Score de Calidad</h4>
+                  <span className={`text-2xl font-bold ${
+                    detailScore.score_calidad >= 80 ? 'text-emerald-400' :
+                    detailScore.score_calidad >= 60 ? 'text-yellow-400' : 'text-red-400'
+                  }`}>{Math.round(detailScore.score_calidad)}/100</span>
+                </div>
+                {detailScore.recomendacion_estatus && (
+                  <div className="bg-amber-950/20 border border-amber-500/20 rounded-lg p-2">
+                    <p className="text-xs text-amber-400">⚠️ {detailScore.recomendacion_estatus}</p>
+                  </div>
+                )}
+                {detailScore.score_detalle && (
+                  <div className="space-y-2">
+                    {['calidad','puntualidad','exactitud','credito'].map((cat) => {
+                      const val = detailScore.score_detalle[cat] ?? 100;
+                      const pct = Math.min(100, Math.max(0, val));
+                      const color = pct >= 80 ? 'bg-emerald-500' : pct >= 60 ? 'bg-yellow-500' : 'bg-red-500';
+                      return (
+                        <div key={cat}>
+                          <div className="flex justify-between text-xs mb-0.5">
+                            <span className="text-gray-400 capitalize">{cat}</span>
+                            <span className="text-white font-semibold">{Math.round(pct)}</span>
+                          </div>
+                          <div className="w-full bg-gray-800 rounded-full h-2">
+                            <div className={`${color} h-2 rounded-full transition-all`} style={{ width: `${pct}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Notas / Observaciones */}
             {detailTarget.notas && (
               <div className="bg-gray-950/50 p-4 rounded-lg border border-gray-800/50">
@@ -516,6 +712,34 @@ export default function ProveedoresTab({ token }: { token: string }) {
                 <p className="text-gray-300 text-sm whitespace-pre-wrap leading-relaxed">{detailTarget.notas}</p>
               </div>
             )}
+
+            {/* Historial de Eventos */}
+            <div>
+              <h4 className="text-sm font-semibold text-gray-300 mb-3">📜 Últimos Eventos</h4>
+              {detailEvents.length === 0 ? (
+                <div className="bg-gray-950 p-4 rounded-lg border border-gray-800 text-center">
+                  <p className="text-gray-500 text-sm">Sin eventos registrados.</p>
+                </div>
+              ) : (
+                <div className="bg-gray-950 rounded-lg border border-gray-800 overflow-hidden divide-y divide-gray-800/50 max-h-64 overflow-y-auto">
+                  {detailEvents.map((ev) => (
+                    <div key={ev.id} className="px-4 py-2.5 text-sm flex justify-between items-center">
+                      <div>
+                        <span className="text-gray-300 font-medium">{ev.tipo_evento}</span>
+                        {ev.descripcion && <p className="text-gray-500 text-xs">{ev.descripcion}</p>}
+                        {ev.referencia_id && <p className="text-gray-600 text-xs">Ref: {ev.referencia_id}</p>}
+                      </div>
+                      <div className="text-right">
+                        <span className={`font-bold ${ev.impacto >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {ev.impacto > 0 ? '+' : ''}{ev.impacto}
+                        </span>
+                        <p className="text-gray-600 text-xs">{new Date(ev.fecha).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
             {/* Lista Completa de Materiales */}
             <div>
@@ -553,23 +777,62 @@ export default function ProveedoresTab({ token }: { token: string }) {
             </div>
 
             {/* Footer con acciones */}
-            <div className="flex justify-end gap-2 border-t border-gray-800 pt-4">
-              <button 
-                onClick={() => { setDetailModalOpen(false); setDetailTarget(null); }}
-                className="bg-gray-800 hover:bg-gray-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors"
+            <div className="flex justify-between items-center border-t border-gray-800 pt-4">
+              <button
+                onClick={() => setIncidentModalOpen(true)}
+                className="bg-red-600/20 text-red-400 hover:bg-red-600/30 border border-red-500/30 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
               >
-                Cerrar
+                ⚠️ Registrar Incidencia
               </button>
-              <button 
-                onClick={() => {
-                  setDetailModalOpen(false);
-                  handleOpenEditModal(detailTarget);
-                }}
-                className="bg-amber-600/20 text-amber-400 hover:bg-amber-600/30 border border-amber-500/30 px-5 py-2 rounded-lg text-sm font-medium transition-colors"
-              >
-                ✏️ Editar Proveedor
-              </button>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => { setDetailModalOpen(false); setDetailTarget(null); }}
+                  className="bg-gray-800 hover:bg-gray-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors"
+                >
+                  Cerrar
+                </button>
+                <button 
+                  onClick={() => {
+                    setDetailModalOpen(false);
+                    handleOpenEditModal(detailTarget);
+                  }}
+                  className="bg-amber-600/20 text-amber-400 hover:bg-amber-600/30 border border-amber-500/30 px-5 py-2 rounded-lg text-sm font-medium transition-colors"
+                >
+                  ✏️ Editar Proveedor
+                </button>
+              </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Registrar Incidencia */}
+      {incidentModalOpen && detailTarget && (
+        <div className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-gray-900 border border-gray-800 rounded-xl w-full max-w-md p-6 text-white space-y-4 shadow-2xl">
+            <h3 className="text-lg font-bold border-b border-gray-800 pb-2">⚠️ Registrar Incidencia</h3>
+            <form onSubmit={handleRegistrarIncidencia} className="space-y-3">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-gray-400">Tipo de Incidencia</label>
+                <select value={incidentTipo} onChange={(e) => setIncidentTipo(e.target.value)} className="bg-gray-950 border border-gray-800 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+                  <option value="MATERIAL_INCORRECTO">Material Incorrecto</option>
+                  <option value="CANTIDAD_ERRONEA">Cantidad Errónea</option>
+                  <option value="OTRO">Otro</option>
+                </select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-gray-400">Descripción</label>
+                <textarea rows={3} value={incidentDesc} onChange={(e) => setIncidentDesc(e.target.value)} className="bg-gray-950 border border-gray-800 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500" placeholder="Describe la incidencia..." required />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-gray-400">Referencia OC ID (opcional)</label>
+                <input type="text" value={incidentRef} onChange={(e) => setIncidentRef(e.target.value)} className="bg-gray-950 border border-gray-800 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500" placeholder="Ej: OC-20260101120000" />
+              </div>
+              <div className="flex justify-end gap-2 border-t border-gray-800 pt-4">
+                <button type="button" onClick={() => setIncidentModalOpen(false)} className="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">Cancelar</button>
+                <button type="submit" className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">Registrar</button>
+              </div>
+            </form>
           </div>
         </div>
       )}

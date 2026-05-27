@@ -25,6 +25,9 @@ from app.models.suministro_silo import SuministroSilo
 from app.models.plan_inyeccion import PlanInyeccion
 from app.models.registro_avance_inyeccion import RegistroAvanceInyeccion
 from app.models.reporte_manual_inyeccion import ReporteManualInyeccion
+from app.models.orden_picking import OrdenPicking
+from app.models.conteo_fisico import ConteoFisico
+from app.models.config_alerta_stock import ConfigAlertaStock
 
 __all__ = [
     "Parte",
@@ -60,4 +63,7 @@ __all__ = [
     "PlanInyeccion",
     "RegistroAvanceInyeccion",
     "ReporteManualInyeccion",
+    "OrdenPicking",
+    "ConteoFisico",
+    "ConfigAlertaStock",
 ]

@@ -54,7 +54,10 @@ export default function RecepcionesTab({ token }: Props) {
 
   // Form: Recepción en lote
   const [recCantidades, setRecCantidades] = useState<Record<string, string>>({})
+  const [recBultos, setRecBultos] = useState<Record<string, string>>({})
   const [recNotas, setRecNotas] = useState('')
+  const [recRemision, setRecRemision] = useState('')
+  const [recTemperatura, setRecTemperatura] = useState('')
 
   // ── AUTO-DISMISS
   const setErrorMsg = (msg: string) => {
@@ -136,8 +139,9 @@ export default function RecepcionesTab({ token }: Props) {
   const handleOpenRecepcion = (oc: OrdenCompraAlmacen) => {
     setSelectedOC(oc)
     const cantidades: Record<string, string> = {}
-    oc.items.forEach((item) => { cantidades[item.sku_producto] = '' })
-    setRecCantidades(cantidades); setRecNotas(''); setShowRecepcionModal(true)
+    const bultos: Record<string, string> = {}
+    oc.items.forEach((item) => { cantidades[item.sku_producto] = ''; bultos[item.sku_producto] = '1' })
+    setRecCantidades(cantidades); setRecBultos(bultos); setRecNotas(''); setRecRemision(''); setRecTemperatura(''); setShowRecepcionModal(true)
   }
 
   const handleRecepcionLote = async () => {
@@ -148,6 +152,10 @@ export default function RecepcionesTab({ token }: Props) {
         .map(([sku, cant]) => ({
           oc_id: selectedOC.oc_id, sku_producto: sku,
           cantidad_recibida: parseFloat(cant), notas: recNotas || undefined,
+          cantidad_bultos: parseInt(recBultos[sku] || '1', 10),
+          numero_remision: recRemision || undefined,
+          temperatura: recTemperatura ? parseFloat(recTemperatura) : undefined,
+          recibido_en_zona: 'DOCK',
         }))
       if (recepciones.length === 0) { setErrorMsg('Ingrese al menos una cantidad mayor a 0'); return }
       const res = await registrarRecepcionLoteAlmacen(token, recepciones)
@@ -377,16 +385,36 @@ export default function RecepcionesTab({ token }: Props) {
                         <div><span className="text-gray-500">Pendiente:</span><span className={`ml-1 font-medium ${pendiente > 0 ? 'text-red-400' : 'text-green-400'}`}>{Math.max(0, pendiente)}</span></div>
                       </div>
                       {!completado && (
-                        <div>
-                          <label className="block text-xs text-gray-500 mb-1">Cantidad a recibir ahora:</label>
-                          <input type="text" value={recCantidades[item.sku_producto] || ''}
-                            onChange={(e) => setRecCantidades((prev) => ({ ...prev, [item.sku_producto]: e.target.value }))}
-                            className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:outline-none" placeholder="0" />
+                        <div className="space-y-2">
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-1">Cantidad a recibir ahora:</label>
+                            <input type="text" value={recCantidades[item.sku_producto] || ''}
+                              onChange={(e) => setRecCantidades((prev) => ({ ...prev, [item.sku_producto]: e.target.value }))}
+                              className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:outline-none" placeholder="0" />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-1">Bultos:</label>
+                            <input type="number" value={recBultos[item.sku_producto] || '1'}
+                              onChange={(e) => setRecBultos((prev) => ({ ...prev, [item.sku_producto]: e.target.value }))}
+                              className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:outline-none" placeholder="1" />
+                          </div>
                         </div>
                       )}
                     </div>
                   )
                 })}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">No. Remisión (opcional)</label>
+                  <input value={recRemision} onChange={(e) => setRecRemision(e.target.value)}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:outline-none" placeholder="Remisión proveedor" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Temperatura (opcional)</label>
+                  <input type="number" value={recTemperatura} onChange={(e) => setRecTemperatura(e.target.value)}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:outline-none" placeholder="°C" />
+                </div>
               </div>
               <div>
                 <label className="block text-sm text-gray-400 mb-1">Notas (opcional)</label>

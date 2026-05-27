@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Float, Text, ForeignKey, Numeric
+from sqlalchemy import Column, Integer, String, DateTime, Float, Text, ForeignKey, Numeric, JSON
 from sqlalchemy.orm import relationship
 from app.database import Base
 from datetime import datetime, timezone, timedelta
@@ -18,10 +18,30 @@ class Proveedor(Base):
     condiciones_pago = Column(String(100), default="30 días")
     estatus_calidad = Column(String(50), default="Aprobado")  # Aprobado | Condicional | Suspendido
     notas = Column(Text, nullable=True)
+    score_calidad = Column(Float, default=100.0)
+    score_detalle = Column(JSON, default=dict)
+    dias_credito = Column(Integer, default=30)
+    score_updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(TZ_LOCAL))
     fecha_creacion = Column(DateTime(timezone=True), default=lambda: datetime.now(TZ_LOCAL))
 
     materiales = relationship("ProveedorMaterial", back_populates="proveedor", cascade="all, delete-orphan")
     ordenes_compra = relationship("OrdenCompra", back_populates="rel_proveedor")
+    eventos = relationship("ProveedorEvento", back_populates="proveedor", cascade="all, delete-orphan")
+
+
+class ProveedorEvento(Base):
+    __tablename__ = "proveedor_eventos"
+
+    id = Column(Integer, primary_key=True)
+    proveedor_id = Column(Integer, ForeignKey("proveedores.id", ondelete="CASCADE"), nullable=False)
+    tipo_evento = Column(String(50), nullable=False)
+    impacto = Column(Float, nullable=False)
+    referencia_id = Column(String(100), nullable=True)
+    descripcion = Column(String(500), nullable=True)
+    fecha = Column(DateTime(timezone=True), default=lambda: datetime.now(TZ_LOCAL))
+    registrado_por = Column(String(100), nullable=True)
+
+    proveedor = relationship("Proveedor", back_populates="eventos")
 
 
 class ProveedorMaterial(Base):
@@ -88,5 +108,9 @@ class RecepcionCompra(Base):
     fecha_recepcion = Column(DateTime(timezone=True), default=lambda: datetime.now(TZ_LOCAL))
     recibido_por = Column(String(100), nullable=True)
     notas = Column(Text, nullable=True)
+    cantidad_bultos = Column(Integer, default=1)
+    numero_remision = Column(String(100), nullable=True)
+    temperatura = Column(Float, nullable=True)
+    recibido_en_zona = Column(String(50), default="DOCK")
 
     orden_compra = relationship("OrdenCompra", back_populates="recepciones")

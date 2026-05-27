@@ -16,7 +16,8 @@ from reportlab.lib.utils import ImageReader
 
 from app.core.deps import get_db
 from app.core.deps import get_current_user
-from app.models.orden_compra import OrdenCompra, OrdenCompraItem, Proveedor, ProveedorMaterial, RecepcionCompra
+from app.models.orden_compra import OrdenCompra, OrdenCompraItem, Proveedor, ProveedorMaterial, RecepcionCompra, ProveedorEvento
+from app.services.proveedor_score import recalcular_score, registrar_evento
 from app.models.orden_venta import OrdenVenta, OrdenVentaItem, EnvioVenta
 from app.models.devolucion import Devolucion
 from app.models.plan_ventas import PlanVentas
@@ -29,6 +30,7 @@ from app.schemas.finanzas import (
     PlanVentasImport, PlanVentasResponse, AutorizarVentasMasivo,
     FinanzasDashboardResponse,
     AprobarOrdenCompraRequest,
+    ProveedorScoreResponse, ProveedorEventoCreate, ProveedorEventoResponse,
 )
 
 TZ_LOCAL = timezone(timedelta(hours=-6))
@@ -1203,6 +1205,7 @@ async def crear_proveedor(
         rfc=data.rfc.strip().upper(),
         lead_time_dias=data.lead_time_dias,
         condiciones_pago=data.condiciones_pago,
+        dias_credito=data.dias_credito,
         estatus_calidad=data.estatus_calidad,
         notas=data.notas,
     )
@@ -1220,7 +1223,8 @@ async def crear_proveedor(
         db.add(material)
 
     await db.commit()
-    
+    await recalcular_score(proveedor.id, db)
+
     # Refrescar con relación cargada para la respuesta
     result = await db.execute(
         select(Proveedor).options(selectinload(Proveedor.materiales)).where(Proveedor.id == proveedor.id)
@@ -1252,6 +1256,8 @@ async def actualizar_proveedor(
         proveedor.lead_time_dias = data.lead_time_dias
     if data.condiciones_pago is not None:
         proveedor.condiciones_pago = data.condiciones_pago
+    if data.dias_credito is not None:
+        proveedor.dias_credito = data.dias_credito
     if data.estatus_calidad is not None:
         proveedor.estatus_calidad = data.estatus_calidad
     if data.notas is not None:
@@ -1274,7 +1280,8 @@ async def actualizar_proveedor(
             db.add(material)
 
     await db.commit()
-    
+    await recalcular_score(proveedor.id, db)
+
     result = await db.execute(
         select(Proveedor).options(selectinload(Proveedor.materiales)).where(Proveedor.id == proveedor.id)
     )
@@ -1329,6 +1336,122 @@ async def buscar_proveedores_por_sku(
         }
         for mat, prov in mapping
     ]
+
+
+# ========================
+# PROVEEDORES — SCORE & EVENTOS
+# ========================
+@router.get("/proveedores/{proveedor_id}/score", response_model=ProveedorScoreResponse)
+@router.get("/proveedores/{proveedor_id}/score/")
+async def obtener_score_proveedor(
+    proveedor_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    require_compras_role(current_user)
+
+    result = await db.execute(select(Proveedor).where(Proveedor.id == proveedor_id))
+    proveedor = result.scalar_one_or_none()
+    if not proveedor:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+
+    # Lazy recalc: si la última actualización fue hace más de 24 horas
+    ahora = ahora_local()
+    if proveedor.score_updated_at is None or (ahora - proveedor.score_updated_at).total_seconds() > 86400:
+        score_data = await recalcular_score(proveedor_id, db)
+    else:
+        from app.services.proveedor_score import _recomendacion_estatus
+        score_data = {
+            "proveedor_id": proveedor.id,
+            "razon_social": proveedor.razon_social,
+            "score_calidad": proveedor.score_calidad or 100.0,
+            "score_detalle": proveedor.score_detalle or {},
+            "score_updated_at": proveedor.score_updated_at,
+            "recomendacion_estatus": _recomendacion_estatus(proveedor.score_calidad or 100.0, proveedor.estatus_calidad),
+        }
+
+    return ProveedorScoreResponse(**score_data)
+
+
+@router.get("/proveedores/{proveedor_id}/eventos", response_model=list[ProveedorEventoResponse])
+@router.get("/proveedores/{proveedor_id}/eventos/")
+async def listar_eventos_proveedor(
+    proveedor_id: int,
+    limite: int = Query(100, ge=1, le=500),
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    require_compras_role(current_user)
+
+    result = await db.execute(
+        select(ProveedorEvento)
+        .where(ProveedorEvento.proveedor_id == proveedor_id)
+        .order_by(ProveedorEvento.fecha.desc())
+        .limit(limite)
+    )
+    return result.scalars().all()
+
+
+@router.post("/proveedores/{proveedor_id}/eventos", response_model=ProveedorEventoResponse)
+@router.post("/proveedores/{proveedor_id}/eventos/")
+async def crear_evento_proveedor(
+    proveedor_id: int,
+    data: ProveedorEventoCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    require_compras_role(current_user)
+
+    result = await db.execute(select(Proveedor).where(Proveedor.id == proveedor_id))
+    proveedor = result.scalar_one_or_none()
+    if not proveedor:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+
+    evento = await registrar_evento(
+        proveedor_id=proveedor_id,
+        tipo_evento=data.tipo_evento,
+        impacto=data.impacto,
+        referencia_id=data.referencia_id,
+        descripcion=data.descripcion,
+        registrado_por=current_user.username,
+        db=db,
+    )
+    return evento
+
+
+@router.post("/proveedores/{proveedor_id}/recalcular")
+@router.post("/proveedores/{proveedor_id}/recalcular/")
+async def forzar_recalcular_score(
+    proveedor_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    require_compras_role(current_user)
+
+    result = await db.execute(select(Proveedor).where(Proveedor.id == proveedor_id))
+    proveedor = result.scalar_one_or_none()
+    if not proveedor:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+
+    score_data = await recalcular_score(proveedor_id, db)
+    return ProveedorScoreResponse(**score_data)
+
+
+@router.get("/proveedores/ranking", response_model=List[ProveedorResponse])
+@router.get("/proveedores/ranking/", response_model=List[ProveedorResponse])
+async def ranking_proveedores(
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    require_compras_role(current_user)
+
+    result = await db.execute(
+        select(Proveedor)
+        .options(selectinload(Proveedor.materiales))
+        .order_by(Proveedor.score_calidad.desc().nullslast())
+    )
+    proveedores = result.scalars().unique().all()
+    return proveedores
 
 
 # ========================

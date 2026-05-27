@@ -60,7 +60,6 @@ export default function DashboardTab({ token }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex justify-between items-start">
         <div>
           <h2 className="text-2xl font-bold">Dashboard de Almacén</h2>
@@ -74,94 +73,63 @@ export default function DashboardTab({ token }: Props) {
         </button>
       </div>
 
-      {/* INVENTARIO */}
+      {/* STOCK */}
       <div>
-        <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">📦 INVENTARIO</h3>
+        <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">📦 STOCK</h3>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card
-            icon="📦"
-            value={data.total_lotes}
-            label="Total Lotes"
-            badge={`${data.lotes_sin_ubicacion} sin ubicar`}
-            badgeColor="bg-yellow-500/20 text-yellow-400"
-          />
-          <Card
-            icon="📍"
-            value={data.total_ubicaciones}
-            label="Ubicaciones"
-          />
-          <Card
-            icon="📊"
-            value={data.stock_total_items.toLocaleString('es-MX', { maximumFractionDigits: 0 })}
-            label="Stock Total (items)"
-            valueColor="text-orange-400"
-          />
-          <Card
-            icon="🏭"
-            value={data.lotes_eps}
-            label="Lotes EPS"
-            badge="Acumulado"
-            badgeColor="bg-blue-500/20 text-blue-400"
-          />
+          <Card icon="📦" value={data.total_lotes_activos} label="Lotes Activos" />
+          <Card icon="📍" value={data.lotes_sin_ubicacion} label="Sin Ubicar" badge="Aprobados" badgeColor="bg-yellow-500/20 text-yellow-400" />
+          <Card icon="🔒" value={data.lotes_cuarentena} label="En Cuarentena" badgeColor="bg-red-500/20 text-red-400" />
+          <Card icon="⏳" value={data.lotes_pendiente_iqc} label="Pendiente IQC" badgeColor="bg-blue-500/20 text-blue-400" />
         </div>
       </div>
 
-      {/* EMBARQUES */}
+      {/* OPERACIONES */}
       <div>
-        <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">🚚 EMBARQUES</h3>
+        <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">⚙️ OPERACIONES DEL DÍA</h3>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card
-            icon="📋"
-            value={data.total_embarques}
-            label="Total Embarques"
-            badge={`${data.embarques_surtidos} surtidos`}
-            badgeColor="bg-green-500/20 text-green-400"
-          />
-          <Card
-            icon="✅"
-            value={data.embarques_surtidos}
-            label="Surtidos"
-            valueColor="text-green-400"
-          />
-          <Card
-            icon="🚛"
-            value={data.embarques_en_transito}
-            label="En Tránsito"
-            valueColor="text-blue-400"
-          />
-          <Card
-            icon="📬"
-            value={data.embarques_entregados}
-            label="Entregados"
-            valueColor="text-emerald-400"
-          />
+          <Card icon="📥" value={data.recepciones_hoy} label="Recepciones Hoy" valueColor="text-orange-400" />
+          <Card icon="🛒" value={data.picking_pendientes} label="Picking Pendientes" />
+          <Card icon="✅" value={data.picking_completados_hoy} label="Picking Completados" valueColor="text-green-400" />
+          <Card icon="🔄" value={data.traslados_pendientes} label="Traslados Pendientes" valueColor="text-yellow-400" />
         </div>
       </div>
 
-      {/* TRASLADOS */}
+      {/* FIFO HEALTH */}
       <div>
-        <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">🔄 TRASLADOS A PRODUCCIÓN</h3>
+        <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">📊 SALUD FIFO</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card
-            icon="⏳"
-            value={data.traslados_pendientes}
-            label="Pendientes"
-            valueColor="text-yellow-400"
-          />
-          <Card
-            icon="🔄"
-            value={data.traslados_en_proceso}
-            label="En Proceso"
-            valueColor="text-blue-400"
-          />
-          <Card
-            icon="✅"
-            value={data.traslados_completados}
-            label="Completados"
-            valueColor="text-green-400"
-          />
+          <Card icon="🕰️" value={`${data.lote_mas_antiguo_dias} d`} label="Lote Más Antiguo" valueColor="text-blue-400" />
+          <Card icon="😴" value={data.lotes_sin_movimiento_30d} label="Sin Movimiento 30d" valueColor="text-red-400" />
+          <Card icon="🔄" value={`${data.rotacion_promedio_dias.toFixed(1)} d`} label="Rotación Promedio" valueColor="text-emerald-400" />
         </div>
       </div>
+
+      {/* STOCK POR ZONA */}
+      {Object.keys(data.stock_por_zona).length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">📍 STOCK POR ZONA</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {Object.entries(data.stock_por_zona).map(([zona, info]) => (
+              <Card key={zona} icon="📦" value={`${info.kg.toLocaleString('es-MX', {maximumFractionDigits:0})} kg`} label={`${zona} (${info.lotes} lotes)`} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ALERTAS */}
+      {data.alertas_lotes_bloqueados.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold text-red-400 uppercase tracking-wider mb-3">🚨 ALERTAS</h3>
+          <div className="bg-red-900/20 border border-red-500/30 rounded-xl p-4 space-y-2">
+            {data.alertas_lotes_bloqueados.map((a: any, i: number) => (
+              <div key={i} className="text-sm text-red-300">
+                Lote <span className="font-mono text-white">{a.lote_id}</span> ({a.sku}) en IQC &gt; 3 días
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

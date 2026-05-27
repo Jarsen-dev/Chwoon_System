@@ -11,6 +11,9 @@ import UbicacionesTab  from './UbicacionesTab';
 import TrasladosTab    from './TrasladosTab';
 import EPSTab          from './EPSTab';
 import TrazabilidadTab from './TrazabilidadTab';
+import PickingTab      from './PickingTab';
+import ConteoFisicoTab from './ConteoFisicoTab';
+import ConfiguracionTab from './ConfiguracionTab';
 
 const ALL_TABS = [
   { id: 'dashboard',    label: '📊 Dashboard'   },
@@ -20,6 +23,9 @@ const ALL_TABS = [
   { id: 'traslados',    label: '🔄 Traslados'   },
   { id: 'eps',          label: '🏭 Almacén EPS' },
   { id: 'trazabilidad', label: '🔍 Trazabilidad'},
+  { id: 'picking',      label: '🛒 Picking'     },
+  { id: 'conteo',       label: '📋 Conteo Físico'},
+  { id: 'configuracion',label: '⚙️ Configuración'},
 ];
 
 export default function AlmacenPage() {
@@ -124,13 +130,16 @@ export default function AlmacenPage() {
 
       {/* Content */}
       <main className="flex-1 overflow-y-auto p-6">
-        {activeTab === 'dashboard'    && <DashboardTab    token={token} />}
-        {activeTab === 'recepciones'  && <RecepcionesTab  token={token} />}
-        {activeTab === 'inventario'   && <InventarioTab   token={token} />}
-        {activeTab === 'ubicaciones'  && <UbicacionesTab  token={token} />}
-        {activeTab === 'traslados'    && <TrasladosTab    token={token} />}
-        {activeTab === 'eps'          && <EPSTab          token={token} />}
-        {activeTab === 'trazabilidad' && <TrazabilidadTab token={token} />}
+        {activeTab === 'dashboard'     && <DashboardTab     token={token} />}
+        {activeTab === 'recepciones'   && <RecepcionesTab   token={token} />}
+        {activeTab === 'inventario'    && <InventarioTab    token={token} />}
+        {activeTab === 'ubicaciones'   && <UbicacionesTab   token={token} />}
+        {activeTab === 'traslados'     && <TrasladosTab     token={token} />}
+        {activeTab === 'eps'           && <EPSTab           token={token} />}
+        {activeTab === 'trazabilidad'  && <TrazabilidadTab  token={token} />}
+        {activeTab === 'picking'       && <PickingTab       token={token} />}
+        {activeTab === 'conteo'        && <ConteoFisicoTab  token={token} />}
+        {activeTab === 'configuracion' && <ConfiguracionTab token={token} />}
       </main>
     </div>
   );

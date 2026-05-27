@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional, List, Any
-from datetime import datetime
+from datetime import datetime, date
 
 
 # ==========================================
@@ -9,14 +9,26 @@ from datetime import datetime
 class UbicacionCreate(BaseModel):
     nombre: str
     parent_id: Optional[int] = None
+    tipo_zona: Optional[str] = "ALMACEN"
+    capacidad_max: Optional[float] = None
+    permite_mixing: Optional[bool] = False
+    activa: Optional[bool] = True
 
 class UbicacionUpdate(BaseModel):
     nombre: str
+    tipo_zona: Optional[str] = None
+    capacidad_max: Optional[float] = None
+    permite_mixing: Optional[bool] = None
+    activa: Optional[bool] = None
 
 class UbicacionResponse(BaseModel):
     id: int
     nombre: str
     parent_id: Optional[int] = None
+    tipo_zona: str
+    capacidad_max: Optional[float] = None
+    permite_mixing: bool
+    activa: bool
 
     class Config:
         from_attributes = True
@@ -44,6 +56,11 @@ class LoteInventarioResponse(BaseModel):
     carrito_id: Optional[str] = None
     lote_produccion_origen: Optional[str] = None
     motivo_devolucion: Optional[str] = None
+    bloqueado_por: Optional[str] = None
+    numero_remision: Optional[str] = None
+    fecha_caducidad: Optional[date] = None
+    lote_proveedor: Optional[str] = None
+    bultos: int = 1
 
     class Config:
         from_attributes = True
@@ -93,6 +110,8 @@ class ConsumoFifoRequest(BaseModel):
     cantidad: float
     detalles: dict = {}
     ubicacion_priorizada: Optional[str] = None
+    zonas_prioridad: Optional[List[str]] = None
+    excluir_zonas: Optional[List[str]] = None
 
 
 # ==========================================
@@ -167,6 +186,8 @@ class TrasladoProduccionResponse(BaseModel):
 class IngresoCarritoEPSRequest(BaseModel):
     op_id: str
     carrito_id: str
+    sku_producto: str
+    cantidad: float
     ubicacion_id: int
     ubicacion_nombre: str
 
@@ -187,19 +208,26 @@ class TrazabilidadResponse(BaseModel):
 # ==========================================
 # DASHBOARD
 # ==========================================
+class StockPorZona(BaseModel):
+    lotes: int = 0
+    kg: float = 0
+
 class AlmacenDashboard(BaseModel):
-    total_lotes: int = 0
+    total_lotes_activos: int = 0
     lotes_sin_ubicacion: int = 0
-    total_ubicaciones: int = 0
-    total_embarques: int = 0
-    embarques_surtidos: int = 0
-    embarques_en_transito: int = 0
-    embarques_entregados: int = 0
+    lotes_cuarentena: int = 0
+    lotes_pendiente_iqc: int = 0
+    valor_stock_estimado: float = 0
+    lote_mas_antiguo_dias: int = 0
+    lotes_sin_movimiento_30d: int = 0
+    rotacion_promedio_dias: float = 0
+    recepciones_hoy: int = 0
+    picking_pendientes: int = 0
+    picking_completados_hoy: int = 0
     traslados_pendientes: int = 0
-    traslados_en_proceso: int = 0
-    traslados_completados: int = 0
-    stock_total_items: float = 0
-    lotes_eps: int = 0
+    alertas_stock_minimo: list = []
+    alertas_lotes_bloqueados: list = []
+    stock_por_zona: dict = {}
 
 
 # ==========================================
@@ -210,6 +238,10 @@ class RecepcionAlmacenCreate(BaseModel):
     sku_producto: str
     cantidad_recibida: float
     notas: Optional[str] = None
+    cantidad_bultos: Optional[int] = 1
+    numero_remision: Optional[str] = None
+    temperatura: Optional[float] = None
+    recibido_en_zona: Optional[str] = "DOCK"
 
 
 class OrdenCompraAlmacenItemResponse(BaseModel):
@@ -231,6 +263,10 @@ class RecepcionAlmacenResponse(BaseModel):
     fecha_recepcion: Optional[datetime] = None
     recibido_por: Optional[str] = None
     notas: Optional[str] = None
+    cantidad_bultos: Optional[int] = None
+    numero_remision: Optional[str] = None
+    temperatura: Optional[float] = None
+    recibido_en_zona: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -249,6 +285,74 @@ class OrdenCompraAlmacenResponse(BaseModel):
     creado_por: Optional[str] = None
     items: List[OrdenCompraAlmacenItemResponse] = []
     recepciones: List[RecepcionAlmacenResponse] = []
+
+    class Config:
+        from_attributes = True
+
+
+# ==========================================
+# PICKING
+# ==========================================
+class PickingItemRequest(BaseModel):
+    sku: str
+    cantidad_requerida: float
+
+class OrdenPickingCreate(BaseModel):
+    tipo_origen: str
+    origen_id: str
+    cliente_id: Optional[str] = None
+    items: List[PickingItemRequest]
+    zona_staging: Optional[str] = None
+    asignado_a: Optional[str] = None
+
+class ConfirmarLotePickingRequest(BaseModel):
+    sku: str
+    lote_id: str
+    cantidad_confirmada: float
+
+class OrdenPickingResponse(BaseModel):
+    id: int
+    picking_id: str
+    tipo_origen: str
+    origen_id: str
+    cliente_id: Optional[str] = None
+    status: str
+    items: list = []
+    zona_staging: Optional[str] = None
+    creado_por: Optional[str] = None
+    asignado_a: Optional[str] = None
+    fecha_creacion: Optional[datetime] = None
+    fecha_completado: Optional[datetime] = None
+    notas: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+# ==========================================
+# CONTEO FISICO
+# ==========================================
+class ConteoFisicoCreate(BaseModel):
+    zona: str
+
+class RegistrarConteoRequest(BaseModel):
+    lote_id: str
+    cantidad_contada: float
+
+class AprobarConteoRequest(BaseModel):
+    motivo: str
+
+class ConteoFisicoResponse(BaseModel):
+    id: int
+    conteo_id: str
+    fecha_inicio: Optional[datetime] = None
+    fecha_cierre: Optional[datetime] = None
+    zona: str
+    status: str
+    items: list = []
+    total_diferencia: float = 0
+    aprobado_por: Optional[str] = None
+    creado_por: Optional[str] = None
 
     class Config:
         from_attributes = True

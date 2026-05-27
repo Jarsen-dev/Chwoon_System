@@ -8,18 +8,21 @@ interface Props {
   token: string;
 }
 
+const TIPO_ZONAS = [
+  'ALMACEN', 'DOCK', 'IQC', 'CUARENTENA', 'APROBADO', 'PICKING', 'EMBARQUE', 'SCRAP', 'PRODUCCION', 'SILOS'
+];
+
 export default function UbicacionesTab({ token }: Props) {
   const [ubicaciones, setUbicaciones] = useState<UbicacionAlmacen[]>([]);
   const [loading, setLoading] = useState(true);
-  const [modalCrear, setModalCrear] = useState(false);
-  const [modalEditar, setModalEditar] = useState<UbicacionAlmacen | null>(null);
-  const [nombre, setNombre] = useState('');
-  const [parentId, setParentId] = useState<number | null>(null);
+  const [modal, setModal] = useState(false);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [form, setForm] = useState({ nombre: '', parent_id: '' as string | number, tipo_zona: 'ALMACEN', capacidad_max: '', permite_mixing: false, activa: true });
   const [notif, setNotif] = useState<{ msg: string; tipo: 'ok' | 'err' } | null>(null);
 
   const mostrarNotif = (msg: string, tipo: 'ok' | 'err' = 'ok') => {
     setNotif({ msg, tipo });
-    setTimeout(() => setNotif(null), 5000);
+    setTimeout(() => setNotif(null), 4000);
   };
 
   const cargar = async () => {
@@ -36,26 +39,37 @@ export default function UbicacionesTab({ token }: Props) {
 
   useEffect(() => { cargar(); }, []);
 
-  const handleCrear = async () => {
-    try {
-      await crearUbicacion(token, { nombre, parent_id: parentId });
-      mostrarNotif('Ubicación creada');
-      setModalCrear(false);
-      setNombre('');
-      setParentId(null);
-      cargar();
-    } catch (e: any) {
-      mostrarNotif(e.message, 'err');
-    }
+  const abrirCrear = () => {
+    setEditId(null);
+    setForm({ nombre: '', parent_id: '', tipo_zona: 'ALMACEN', capacidad_max: '', permite_mixing: false, activa: true });
+    setModal(true);
   };
 
-  const handleEditar = async () => {
-    if (!modalEditar) return;
+  const abrirEditar = (ub: UbicacionAlmacen) => {
+    setEditId(ub.id);
+    setForm({ nombre: ub.nombre, parent_id: ub.parent_id ?? '', tipo_zona: ub.tipo_zona, capacidad_max: ub.capacidad_max?.toString() ?? '', permite_mixing: ub.permite_mixing, activa: ub.activa });
+    setModal(true);
+  };
+
+  const guardar = async () => {
     try {
-      await actualizarUbicacion(token, modalEditar.id, nombre);
-      mostrarNotif('Ubicación actualizada');
-      setModalEditar(null);
-      setNombre('');
+      const payload: any = {
+        nombre: form.nombre.trim(),
+        tipo_zona: form.tipo_zona,
+        permite_mixing: form.permite_mixing,
+        activa: form.activa,
+      };
+      if (form.capacidad_max) payload.capacidad_max = parseFloat(form.capacidad_max);
+      if (form.parent_id) payload.parent_id = Number(form.parent_id);
+
+      if (editId) {
+        await actualizarUbicacion(token, editId, payload);
+        mostrarNotif('Ubicación actualizada');
+      } else {
+        await crearUbicacion(token, payload);
+        mostrarNotif('Ubicación creada');
+      }
+      setModal(false);
       cargar();
     } catch (e: any) {
       mostrarNotif(e.message, 'err');
@@ -63,158 +77,102 @@ export default function UbicacionesTab({ token }: Props) {
   };
 
   const handleEliminar = async (id: number) => {
-    if (!confirm('¿Eliminar esta ubicación?')) return;
+    if (!confirm('¿Eliminar ubicación?')) return;
     try {
       await eliminarUbicacion(token, id);
-      mostrarNotif('Ubicación eliminada');
+      mostrarNotif('Eliminada');
       cargar();
     } catch (e: any) {
       mostrarNotif(e.message, 'err');
     }
   };
 
-  const handleImportar = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      const res = await importarUbicaciones(token, file);
-      mostrarNotif(res.message);
-      cargar();
-    } catch (err: any) {
-      mostrarNotif(err.message, 'err');
-    }
-    e.target.value = '';
+  const zonaBadge = (zona: string) => {
+    const colors: Record<string, string> = {
+      'DOCK': 'bg-gray-500/20 text-gray-400',
+      'IQC': 'bg-yellow-500/20 text-yellow-400',
+      'CUARENTENA': 'bg-red-500/20 text-red-400',
+      'APROBADO': 'bg-green-500/20 text-green-400',
+      'PICKING': 'bg-blue-500/20 text-blue-400',
+      'EMBARQUE': 'bg-purple-500/20 text-purple-400',
+      'SCRAP': 'bg-rose-500/20 text-rose-400',
+      'PRODUCCION': 'bg-cyan-500/20 text-cyan-400',
+      'SILOS': 'bg-orange-500/20 text-orange-400',
+    };
+    return colors[zona] || 'bg-gray-500/20 text-gray-400';
   };
 
-  // Organizar en jerarquía
-  const padres = ubicaciones.filter(u => !u.parent_id);
-  const getHijos = (parentId: number) => ubicaciones.filter(u => u.parent_id === parentId);
+  const renderTree = (parentId: number | null = null, depth = 0) => {
+    const items = ubicaciones.filter(u => u.parent_id === parentId);
+    return items.map(u => (
+      <div key={u.id} style={{ marginLeft: depth * 24 }} className="mb-2">
+        <div className="flex items-center justify-between bg-gray-800/50 rounded-lg p-3 border border-gray-700">
+          <div className="flex items-center gap-3">
+            <span className={`text-xs px-2 py-0.5 rounded-full ${zonaBadge(u.tipo_zona)}`}>{u.tipo_zona}</span>
+            <span className="font-medium">{u.nombre}</span>
+            {u.capacidad_max && <span className="text-xs text-gray-500">Cap: {u.capacidad_max}</span>}
+            {u.permite_mixing && <span className="text-xs text-blue-400">Mix</span>}
+            {!u.activa && <span className="text-xs text-red-400">Inactiva</span>}
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => abrirEditar(u)} className="bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 px-2 py-1 rounded text-xs">Editar</button>
+            <button onClick={() => handleEliminar(u.id)} className="bg-red-600/20 hover:bg-red-600/40 text-red-400 px-2 py-1 rounded text-xs">Eliminar</button>
+          </div>
+        </div>
+        {renderTree(u.id, depth + 1)}
+      </div>
+    ));
+  };
 
   return (
     <div className="space-y-4">
-      {notif && (
-        <div className={`p-3 rounded-lg text-sm font-medium ${notif.tipo === 'ok' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-          {notif.msg}
-        </div>
-      )}
-
+      {notif && <div className={`p-3 rounded-lg text-sm font-medium ${notif.tipo === 'ok' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>{notif.msg}</div>}
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-bold">📍 Gestión de Ubicaciones</h2>
-        <div className="flex gap-2">
-          <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-400 bg-green-600 hover:bg-green-700 active:scale-95 text-white cursor-pointer">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6M4 20h16a1 1 0 001-1V5 a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/>
-            </svg>
-            Importar Excel
-            <input type="file" accept=".xlsx,.xls,.csv" onChange={handleImportar} className="hidden" />
-          </label>
-          <button
-            onClick={() => { setModalCrear(true); setNombre(''); setParentId(null); }}
-            className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-          >
-            ➕ Nueva Ubicación
-          </button>
-        </div>
+        <h2 className="text-xl font-bold">📍 Ubicaciones</h2>
+        <button onClick={abrirCrear} className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg text-sm font-medium">➕ Nueva</button>
       </div>
-
-      {loading ? (
-        <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-400" />
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {padres.map((padre) => (
-            <div key={padre.id} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-              <div className="flex justify-between items-center mb-3">
-                <h3 className="font-bold text-orange-400">📁 {padre.nombre}</h3>
-                <div className="flex gap-1">
-                  <button
-                    onClick={() => { setModalEditar(padre); setNombre(padre.nombre); }}
-                    className="text-gray-400 hover:text-white text-sm"
-                  >✏️</button>
-                  <button
-                    onClick={() => handleEliminar(padre.id)}
-                    className="text-gray-400 hover:text-red-400 text-sm"
-                  >🗑️</button>
-                </div>
-              </div>
-              <div className="space-y-1 ml-4">
-                {getHijos(padre.id).map((hijo) => (
-                  <div key={hijo.id} className="flex justify-between items-center py-1 text-sm">
-                    <span className="text-gray-300">📍 {hijo.nombre}</span>
-                    <div className="flex gap-1">
-                      <button
-                        onClick={() => { setModalEditar(hijo); setNombre(hijo.nombre); }}
-                        className="text-gray-500 hover:text-white text-xs"
-                      >✏️</button>
-                      <button
-                        onClick={() => handleEliminar(hijo.id)}
-                        className="text-gray-500 hover:text-red-400 text-xs"
-                      >🗑️</button>
-                    </div>
-                  </div>
-                ))}
-                {getHijos(padre.id).length === 0 && (
-                  <p className="text-xs text-gray-600">Sin sub-ubicaciones</p>
-                )}
-              </div>
-            </div>
-          ))}
-          {padres.length === 0 && (
-            <p className="text-gray-500 col-span-full text-center py-8">No hay ubicaciones registradas</p>
-          )}
-        </div>
+      {loading ? <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-400" /></div> : (
+        <div className="space-y-1">{renderTree()}</div>
       )}
 
-      {/* Modal Crear */}
-      {modalCrear && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setModalCrear(false)}>
-          <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-bold mb-4">➕ Nueva Ubicación</h3>
+      {modal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setModal(false)}>
+          <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold mb-4">{editId ? 'Editar' : 'Nueva'} Ubicación</h3>
             <div className="space-y-3">
               <div>
                 <label className="text-sm text-gray-400">Nombre</label>
-                <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white mt-1" placeholder="Nombre de la ubicación" />
+                <input value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white mt-1" />
               </div>
               <div>
-                <label className="text-sm text-gray-400">Ubicación Padre (opcional)</label>
-                <select value={parentId || ''} onChange={(e) => setParentId(e.target.value ? parseInt(e.target.value) : null)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white mt-1">
-                  <option value="">Sin padre (raíz)</option>
-                  {ubicaciones.filter(u => !u.parent_id).map(u => (
-                    <option key={u.id} value={u.id}>{u.nombre}</option>
-                  ))}
+                <label className="text-sm text-gray-400">Tipo de Zona</label>
+                <select value={form.tipo_zona} onChange={e => setForm(f => ({ ...f, tipo_zona: e.target.value }))} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white mt-1">
+                  {TIPO_ZONAS.map(z => <option key={z} value={z}>{z}</option>)}
                 </select>
               </div>
-              <div className="flex gap-3 pt-2">
-                <button onClick={handleCrear} disabled={!nombre.trim()}
-                  className="flex-1 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 px-4 py-2 rounded-lg text-sm font-medium">Crear</button>
-                <button onClick={() => setModalCrear(false)}
-                  className="flex-1 bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm font-medium">Cancelar</button>
+              <div>
+                <label className="text-sm text-gray-400">Padre (opcional)</label>
+                <select value={form.parent_id} onChange={e => setForm(f => ({ ...f, parent_id: e.target.value }))} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white mt-1">
+                  <option value="">Sin padre</option>
+                  {ubicaciones.map(u => <option key={u.id} value={u.id}>{u.nombre}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-sm text-gray-400">Capacidad Máxima</label>
+                <input type="number" value={form.capacidad_max} onChange={e => setForm(f => ({ ...f, capacidad_max: e.target.value }))} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white mt-1" placeholder="kg / unidades" />
+              </div>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 text-sm text-gray-400">
+                  <input type="checkbox" checked={form.permite_mixing} onChange={e => setForm(f => ({ ...f, permite_mixing: e.target.checked }))} /> Permite mixing
+                </label>
+                <label className="flex items-center gap-2 text-sm text-gray-400">
+                  <input type="checkbox" checked={form.activa} onChange={e => setForm(f => ({ ...f, activa: e.target.checked }))} /> Activa
+                </label>
               </div>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Editar */}
-      {modalEditar && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setModalEditar(null)}>
-          <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-bold mb-4">✏️ Editar Ubicación</h3>
-            <div className="space-y-3">
-              <div>
-                <label className="text-sm text-gray-400">Nuevo Nombre</label>
-                <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white mt-1" />
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button onClick={handleEditar} disabled={!nombre.trim()}
-                  className="flex-1 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 px-4 py-2 rounded-lg text-sm font-medium">Guardar</button>
-                <button onClick={() => setModalEditar(null)}
-                  className="flex-1 bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm font-medium">Cancelar</button>
-              </div>
+            <div className="flex gap-3 pt-4">
+              <button onClick={guardar} className="flex-1 bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg text-sm font-medium">Guardar</button>
+              <button onClick={() => setModal(false)} className="flex-1 bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm">Cancelar</button>
             </div>
           </div>
         </div>

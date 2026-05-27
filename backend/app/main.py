@@ -22,6 +22,9 @@ from app.routers import ordenes_produccion as ordenes_produccion_router
 from app.routers import logistica as logistica_router
 from app.routers import plan_inyeccion
 from app.routers import reporte_manual_inyeccion as reporte_manual_router
+from app.routers import picking as picking_router
+from app.routers import conteo_fisico as conteo_router
+from app.routers import alertas as alertas_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -128,6 +131,9 @@ app.include_router(ordenes_produccion_router.router)
 app.include_router(plan_inyeccion.router)
 app.include_router(reporte_manual_router.router)
 app.include_router(logistica_router.router)
+app.include_router(picking_router.router)
+app.include_router(conteo_router.router)
+app.include_router(alertas_router.router)
 
 
 @app.get("/")

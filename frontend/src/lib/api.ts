@@ -1084,6 +1084,10 @@ export async function registrarRecepcionLoteAlmacen(token: string, data: {
   sku_producto: string
   cantidad_recibida: number
   notas?: string
+  cantidad_bultos?: number
+  numero_remision?: string
+  temperatura?: number
+  recibido_en_zona?: string
 }[]): Promise<{ message: string; recepciones: string[]; nuevo_status_oc: string }> {
   const res = await fetch(`${API_URL}/almacen/recepciones/recepcion-lote`, {
     method: 'POST',
@@ -1146,7 +1150,7 @@ export async function getUbicaciones(token: string): Promise<UbicacionAlmacen[]>
   return res.json()
 }
 
-export async function crearUbicacion(token: string, data: { nombre: string; parent_id?: number | null }): Promise<UbicacionAlmacen> {
+export async function crearUbicacion(token: string, data: { nombre: string; parent_id?: number | null; tipo_zona?: string; capacidad_max?: number; permite_mixing?: boolean; activa?: boolean }): Promise<UbicacionAlmacen> {
   const res = await fetch(`${API_URL}/almacen/ubicaciones`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -1159,11 +1163,11 @@ export async function crearUbicacion(token: string, data: { nombre: string; pare
   return res.json()
 }
 
-export async function actualizarUbicacion(token: string, id: number, nombre: string): Promise<UbicacionAlmacen> {
+export async function actualizarUbicacion(token: string, id: number, data: { nombre: string; tipo_zona?: string; capacidad_max?: number; permite_mixing?: boolean; activa?: boolean }): Promise<UbicacionAlmacen> {
   const res = await fetch(`${API_URL}/almacen/ubicaciones/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ nombre }),
+    body: JSON.stringify(data),
   })
   if (!res.ok) {
     const err = await res.json()
@@ -1403,7 +1407,7 @@ export async function getInventarioEPS(token: string): Promise<LoteInventario[]>
 }
 
 export async function ingresarCarritoEPS(token: string, data: {
-  op_id: string; carrito_id: string; ubicacion_id: number; ubicacion_nombre: string
+  op_id: string; carrito_id: string; sku_producto: string; cantidad: number; ubicacion_id: number; ubicacion_nombre: string
 }): Promise<{ message: string; traslado_id: string }> {
   const res = await fetch(`${API_URL}/almacen/eps/ingresar`, {
     method: 'POST',
@@ -1471,6 +1475,172 @@ export async function limpiarMovimientosAntiguos(token: string, dias: number = 1
     const err = await res.json()
     throw new Error(err.detail || 'Error al limpiar')
   }
+  return res.json()
+}
+
+// ==========================================
+// ALMACÉN — Picking
+// ==========================================
+export async function getPickings(token: string, status?: string): Promise<any[]> {
+  const params = status ? `?status=${status}` : ''
+  const res = await fetch(`${API_URL}/almacen/picking/${params}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener pickings')
+  return res.json()
+}
+
+export async function crearPicking(token: string, data: {
+  tipo_origen: string; origen_id: string; cliente_id?: string; zona_staging?: string; items: { sku: string; cantidad_requerida: number }[]
+}): Promise<any> {
+  const res = await fetch(`${API_URL}/almacen/picking/crear`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al crear picking')
+  }
+  return res.json()
+}
+
+export async function confirmarLotePicking(token: string, pickingId: string, data: {
+  sku: string; lote_id: string; cantidad_confirmada: number
+}): Promise<any> {
+  const res = await fetch(`${API_URL}/almacen/picking/${pickingId}/confirmar-lote`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al confirmar lote')
+  }
+  return res.json()
+}
+
+export async function completarPicking(token: string, pickingId: string): Promise<any> {
+  const res = await fetch(`${API_URL}/almacen/picking/${pickingId}/completar`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al completar picking')
+  }
+  return res.json()
+}
+
+export async function cancelarPicking(token: string, pickingId: string): Promise<any> {
+  const res = await fetch(`${API_URL}/almacen/picking/${pickingId}/cancelar`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al cancelar picking')
+  }
+  return res.json()
+}
+
+// ==========================================
+// ALMACÉN — Conteo Físico
+// ==========================================
+export async function getConteos(token: string, status?: string): Promise<any[]> {
+  const params = status ? `?status=${status}` : ''
+  const res = await fetch(`${API_URL}/almacen/conteo/${params}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener conteos')
+  return res.json()
+}
+
+export async function crearConteo(token: string, data: { zona: string }): Promise<any> {
+  const res = await fetch(`${API_URL}/almacen/conteo/crear`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al crear conteo')
+  }
+  return res.json()
+}
+
+export async function registrarConteo(token: string, conteoId: string, data: {
+  lote_id: string; cantidad_contada: number
+}): Promise<any> {
+  const res = await fetch(`${API_URL}/almacen/conteo/${conteoId}/registrar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al registrar conteo')
+  }
+  return res.json()
+}
+
+export async function aprobarConteo(token: string, conteoId: string, data: { motivo: string }): Promise<any> {
+  const res = await fetch(`${API_URL}/almacen/conteo/${conteoId}/aprobar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al aprobar conteo')
+  }
+  return res.json()
+}
+
+// ==========================================
+// ALMACÉN — Alertas
+// ==========================================
+export async function getConfigAlertas(token: string, sku?: string): Promise<any[]> {
+  const params = sku ? `?sku=${sku}` : ''
+  const res = await fetch(`${API_URL}/almacen/alertas/config${params}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener config alertas')
+  return res.json()
+}
+
+export async function crearConfigAlerta(token: string, data: {
+  sku: string; stock_minimo: number; stock_maximo?: number; dias_rotacion?: number
+}): Promise<any> {
+  const res = await fetch(`${API_URL}/almacen/alertas/config`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al crear config alerta')
+  }
+  return res.json()
+}
+
+export async function eliminarConfigAlerta(token: string, configId: number): Promise<any> {
+  const res = await fetch(`${API_URL}/almacen/alertas/config/${configId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al eliminar config alerta')
+  }
+  return res.json()
+}
+
+export async function evaluarAlertas(token: string): Promise<{ alertas: any[]; total: number }> {
+  const res = await fetch(`${API_URL}/almacen/alertas/evaluar`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al evaluar alertas')
   return res.json()
 }
 

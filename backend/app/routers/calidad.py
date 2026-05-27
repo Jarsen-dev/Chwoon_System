@@ -11,6 +11,8 @@ from app.models.inspeccion import Inspeccion, TipoInspeccion, ResultadoInspeccio
 from app.models.registro_scrap import RegistroScrap
 from app.models.producto import Producto
 from app.models.lote_inventario import LoteInventario, MovimientoLote
+from app.models.orden_compra import OrdenCompra
+from app.services.proveedor_score import registrar_evento
 from app.schemas.calidad import (
     InspeccionCreate, InspeccionResponse,
     ScrapCreate, ScrapResponse,
@@ -229,6 +231,23 @@ async def registrar_inspeccion(
             },
         )
         db.add(mov)
+
+    # ── Registrar evento de calidad IQC ──
+    if data.tipo_inspeccion == "IQC" and data.oc_origen:
+        oc_result = await db.execute(select(OrdenCompra).where(OrdenCompra.oc_id == data.oc_origen))
+        oc = oc_result.scalar_one_or_none()
+        if oc and oc.proveedor_id:
+            impacto = 2.0 if data.resultado_final == "Aprobado" else -10.0
+            tipo = "CALIDAD_IQC_APROBADO" if data.resultado_final == "Aprobado" else "CALIDAD_IQC_RECHAZO"
+            await registrar_evento(
+                proveedor_id=oc.proveedor_id,
+                tipo_evento=tipo,
+                impacto=impacto,
+                referencia_id=inspeccion_id,
+                descripcion=f"Inspección IQC {data.resultado_final} para lote {data.lote_id}",
+                registrado_por=current_user.username,
+                db=db,
+            )
 
     await db.commit()
     await db.refresh(inspeccion)

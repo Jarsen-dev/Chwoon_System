@@ -8,6 +8,7 @@ import {
   getHistorialLote,
   ajustarLote,
   scrapInventario,
+  consumirFifo,
 } from '@/lib/api';
 import { LoteInventario, InventarioConsolidado, MovimientoLote as MovimientoLoteType } from '@/types';
 
@@ -15,7 +16,7 @@ interface Props {
   token: string;
 }
 
-type Vista = 'lotes' | 'consolidado' | 'pendientes';
+type Vista = 'lotes' | 'consolidado' | 'pendientes' | 'fifo';
 
 export default function InventarioTab({ token }: Props) {
   const [vista, setVista] = useState<Vista>('lotes');
@@ -32,6 +33,10 @@ export default function InventarioTab({ token }: Props) {
   const [ajusteForm, setAjusteForm] = useState({ nueva_cantidad: '', motivo: '', responsable: '' });
   const [scrapForm, setScrapForm] = useState({ cantidad_scrap: '', motivo: '', responsable: '' });
   const [notif, setNotif] = useState<{ msg: string; tipo: 'ok' | 'err' } | null>(null);
+  const [fifoSku, setFifoSku] = useState('');
+  const [fifoCantidad, setFifoCantidad] = useState('');
+  const [fifoResult, setFifoResult] = useState<any[] | null>(null);
+  const [fifoLoading, setFifoLoading] = useState(false);
 
   const mostrarNotif = (msg: string, tipo: 'ok' | 'err' = 'ok') => {
     setNotif({ msg, tipo });
@@ -50,7 +55,7 @@ export default function InventarioTab({ token }: Props) {
       } else if (vista === 'consolidado') {
         const data = await getInventarioConsolidado(token);
         setConsolidado(data);
-      } else {
+      } else if (vista === 'pendientes') {
         const data = await getLotesAprobadosSinUbicacion(token);
         setPendientes(data);
       }
@@ -58,6 +63,20 @@ export default function InventarioTab({ token }: Props) {
       mostrarNotif(e.message, 'err');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const runFifoViewer = async () => {
+    if (!fifoSku || !fifoCantidad) return;
+    try {
+      setFifoLoading(true);
+      const res = await consumirFifo(token, { sku: fifoSku, cantidad: parseFloat(fifoCantidad), detalles: { modo: 'VISTA_PREVIA' } });
+      setFifoResult(res.plan);
+    } catch (e: any) {
+      mostrarNotif(e.message, 'err');
+      setFifoResult([]);
+    } finally {
+      setFifoLoading(false);
     }
   };
 
@@ -129,7 +148,7 @@ export default function InventarioTab({ token }: Props) {
       {/* Selector de vista */}
       <div className="flex items-center justify-between">
         <div className="flex gap-2">
-          {(['lotes', 'consolidado', 'pendientes'] as Vista[]).map((v) => (
+          {(['lotes', 'consolidado', 'pendientes', 'fifo'] as Vista[]).map((v) => (
             <button
               key={v}
               onClick={() => setVista(v)}
@@ -139,7 +158,7 @@ export default function InventarioTab({ token }: Props) {
                   : 'bg-gray-800 text-gray-400 hover:text-white'
               }`}
             >
-              {v === 'lotes' ? '📦 Todos los Lotes' : v === 'consolidado' ? '📊 Consolidado' : '⏳ Pendientes Ubicar'}
+              {v === 'lotes' ? '📦 Todos los Lotes' : v === 'consolidado' ? '📊 Consolidado' : v === 'pendientes' ? '⏳ Pendientes Ubicar' : '📈 FIFO Viewer'}
             </button>
           ))}
         </div>
@@ -192,8 +211,10 @@ export default function InventarioTab({ token }: Props) {
                       <th className="text-left p-3 text-gray-400">SKU</th>
                       <th className="text-left p-3 text-gray-400">Producto</th>
                       <th className="text-right p-3 text-gray-400">Cantidad</th>
+                      <th className="text-left p-3 text-gray-400">Bultos</th>
                       <th className="text-left p-3 text-gray-400">Ubicación</th>
                       <th className="text-left p-3 text-gray-400">Estado</th>
+                      <th className="text-left p-3 text-gray-400">Bloqueo</th>
                       <th className="text-left p-3 text-gray-400">Origen</th>
                       <th className="text-center p-3 text-gray-400">Acciones</th>
                     </tr>
@@ -205,12 +226,14 @@ export default function InventarioTab({ token }: Props) {
                         <td className="p-3">{lote.sku_producto}</td>
                         <td className="p-3 text-gray-300">{lote.nombre_producto}</td>
                         <td className="p-3 text-right font-bold">{lote.cantidad_actual}</td>
+                        <td className="p-3 text-xs text-gray-400">{lote.bultos}</td>
                         <td className="p-3 text-gray-300">{lote.nombre_ubicacion}</td>
                         <td className="p-3">
                           <span className={`px-2 py-0.5 rounded-full text-xs ${estadoBadge(lote.estado_calidad)}`}>
                             {lote.estado_calidad}
                           </span>
                         </td>
+                        <td className="p-3 text-xs text-red-400">{lote.bloqueado_por || '-'}</td>
                         <td className="p-3 text-xs text-gray-400">{lote.oc_origen || lote.op_origen || '-'}</td>
                         <td className="p-3 text-center">
                           <div className="flex gap-1 justify-center">
@@ -234,7 +257,7 @@ export default function InventarioTab({ token }: Props) {
                       </tr>
                     ))}
                     {lotes.length === 0 && (
-                      <tr><td colSpan={8} className="p-8 text-center text-gray-500">No se encontraron lotes</td></tr>
+                      <tr><td colSpan={10} className="p-8 text-center text-gray-500">No se encontraron lotes</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -323,6 +346,56 @@ export default function InventarioTab({ token }: Props) {
                   </tbody>
                 </table>
               </div>
+            </div>
+          )}
+
+          {/* VISTA: FIFO Viewer */}
+          {vista === 'fifo' && (
+            <div className="space-y-4">
+              <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+                <h3 className="text-lg font-bold mb-3">📈 Simulador FIFO</h3>
+                <div className="flex gap-3 items-end">
+                  <div>
+                    <label className="text-xs text-gray-500">SKU</label>
+                    <input value={fifoSku} onChange={e => setFifoSku(e.target.value)} className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white w-48" placeholder="SKU..." />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500">Cantidad</label>
+                    <input type="number" value={fifoCantidad} onChange={e => setFifoCantidad(e.target.value)} className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white w-32" placeholder="0" />
+                  </div>
+                  <button onClick={runFifoViewer} disabled={fifoLoading} className="bg-orange-600 hover:bg-orange-700 disabled:opacity-50 px-4 py-2 rounded-lg text-sm font-medium">
+                    {fifoLoading ? '...' : 'Ver FIFO'}
+                  </button>
+                </div>
+              </div>
+              {fifoResult !== null && (
+                <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+                  {fifoResult.length === 0 ? (
+                    <div className="p-8 text-center text-gray-500">Sin stock disponible para este SKU</div>
+                  ) : (
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-800">
+                        <tr>
+                          <th className="text-left p-3 text-gray-400">#</th>
+                          <th className="text-left p-3 text-gray-400">Lote ID</th>
+                          <th className="text-left p-3 text-gray-400">Origen</th>
+                          <th className="text-right p-3 text-gray-400">Cantidad a Consumir</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-800">
+                        {fifoResult.map((item, idx) => (
+                          <tr key={idx} className="hover:bg-gray-800/50">
+                            <td className="p-3 text-gray-500">{idx + 1}</td>
+                            <td className="p-3 font-mono text-orange-400 text-xs">{item.lote_id}</td>
+                            <td className="p-3 text-gray-300">{item.almacen_origen}</td>
+                            <td className="p-3 text-right font-bold text-green-400">{item.cantidad_consumida}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </>

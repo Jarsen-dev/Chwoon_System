@@ -469,14 +469,14 @@ export default function ComprasTab({ token }: Props) {
                     <div key={idx} className="bg-gray-800/50 rounded-lg p-3 border border-gray-700">
                       <div className="grid grid-cols-12 gap-2 items-end">
                         <div className="col-span-3">
-                          <label className="block text-xs text-gray-500 mb-1">SKU *</label>
+                          <label className="block text-xs text-gray-500 mb-1">No. de Parte *</label>
                           <input type="text" value={item.sku_producto} onChange={(e) => updateItem(idx, 'sku_producto', e.target.value)}
-                            className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-sm focus:border-emerald-500 focus:outline-none" placeholder="SKU-001" />
+                            className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-sm focus:border-emerald-500 focus:outline-none" placeholder="No. de Parte-001" />
                         </div>
                         <div className="col-span-4">
-                          <label className="block text-xs text-gray-500 mb-1">Nombre *</label>
+                          <label className="block text-xs text-gray-500 mb-1">Descripción *</label>
                           <input type="text" value={item.nombre_producto} onChange={(e) => updateItem(idx, 'nombre_producto', e.target.value)}
-                            className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-sm focus:border-emerald-500 focus:outline-none" placeholder="Nombre del producto" />
+                            className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-sm focus:border-emerald-500 focus:outline-none" placeholder="Descripción del producto" />
                         </div>
                         <div className="col-span-2">
                           <label className="block text-xs text-gray-500 mb-1">Cantidad *</label>

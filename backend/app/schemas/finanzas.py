@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from datetime import datetime, date
 
 
@@ -261,6 +261,7 @@ class ProveedorCreate(BaseModel):
     rfc: str = Field(..., min_length=12, max_length=13)
     lead_time_dias: int = Field(default=7, ge=0)
     condiciones_pago: Optional[str] = "30 días"
+    dias_credito: int = Field(default=30, ge=0)
     estatus_calidad: str = "Aprobado"
     notas: Optional[str] = None
     materiales: List[ProveedorMaterialCreate] = []
@@ -270,6 +271,7 @@ class ProveedorUpdate(BaseModel):
     rfc: Optional[str] = None
     lead_time_dias: Optional[int] = None
     condiciones_pago: Optional[str] = None
+    dias_credito: Optional[int] = None
     estatus_calidad: Optional[str] = None
     notas: Optional[str] = None
     materiales: Optional[List[ProveedorMaterialCreate]] = None
@@ -281,10 +283,45 @@ class ProveedorResponse(BaseModel):
     rfc: str
     lead_time_dias: int
     condiciones_pago: Optional[str]
+    dias_credito: Optional[int] = None
     estatus_calidad: str
     notas: Optional[str]
+    score_calidad: Optional[float] = 100.0
+    score_detalle: Optional[Dict[str, Any]] = {}
+    score_updated_at: Optional[datetime] = None
     fecha_creacion: datetime
     materiales: List[ProveedorMaterialResponse] = []
 
     class Config:
         from_attributes = True
+
+
+# ========================
+# PROVEEDOR EVENTOS (Scoring)
+# ========================
+class ProveedorEventoCreate(BaseModel):
+    tipo_evento: str
+    impacto: float
+    referencia_id: Optional[str] = None
+    descripcion: Optional[str] = None
+
+class ProveedorEventoResponse(BaseModel):
+    id: int
+    proveedor_id: int
+    tipo_evento: str
+    impacto: float
+    referencia_id: Optional[str] = None
+    descripcion: Optional[str] = None
+    fecha: datetime
+    registrado_por: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+class ProveedorScoreResponse(BaseModel):
+    proveedor_id: int
+    razon_social: str
+    score_calidad: float
+    score_detalle: Dict[str, Any]
+    score_updated_at: Optional[datetime] = None
+    recomendacion_estatus: Optional[str] = None

@@ -27,6 +27,8 @@ export default function EPSTab({ token }: Props) {
   const [formIngreso, setFormIngreso] = useState({
     op_id: '',
     carrito_id: '',
+    sku_producto: '',
+    cantidad: '',
     ubicacion_id: '',
     ubicacion_nombre: '',
   });
@@ -60,18 +62,20 @@ export default function EPSTab({ token }: Props) {
 
   const handleIngresar = async () => {
     try {
-      if (!formIngreso.op_id || !formIngreso.carrito_id || !formIngreso.ubicacion_id) {
+      if (!formIngreso.op_id || !formIngreso.carrito_id || !formIngreso.sku_producto || !formIngreso.cantidad || !formIngreso.ubicacion_id) {
         mostrarNotif('Complete todos los campos', 'err');
         return;
       }
       const res = await ingresarCarritoEPS(token, {
         op_id: formIngreso.op_id,
         carrito_id: formIngreso.carrito_id,
+        sku_producto: formIngreso.sku_producto,
+        cantidad: parseFloat(formIngreso.cantidad),
         ubicacion_id: parseInt(formIngreso.ubicacion_id),
         ubicacion_nombre: formIngreso.ubicacion_nombre,
       });
       mostrarNotif(`Carrito ingresado. Traslado: ${res.traslado_id}`);
-      setFormIngreso({ op_id: '', carrito_id: '', ubicacion_id: '', ubicacion_nombre: '' });
+      setFormIngreso({ op_id: '', carrito_id: '', sku_producto: '', cantidad: '', ubicacion_id: '', ubicacion_nombre: '' });
       setVista('inventario');
     } catch (e: any) {
       mostrarNotif(e.message, 'err');
@@ -180,6 +184,28 @@ export default function EPSTab({ token }: Props) {
                       placeholder="Escanee o ingrese el ID del carrito"
                     />
                   </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-sm text-gray-400">SKU Producto</label>
+                      <input
+                        type="text"
+                        value={formIngreso.sku_producto}
+                        onChange={(e) => setFormIngreso(f => ({ ...f, sku_producto: e.target.value }))}
+                        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white mt-1"
+                        placeholder="SKU"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-400">Cantidad</label>
+                      <input
+                        type="number"
+                        value={formIngreso.cantidad}
+                        onChange={(e) => setFormIngreso(f => ({ ...f, cantidad: e.target.value }))}
+                        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white mt-1"
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
                   <div>
                     <label className="text-sm text-gray-400">Ubicación Destino</label>
                     <select
@@ -205,7 +231,7 @@ export default function EPSTab({ token }: Props) {
                   </div>
                   <button
                     onClick={handleIngresar}
-                    disabled={!formIngreso.op_id || !formIngreso.carrito_id || !formIngreso.ubicacion_id}
+                    disabled={!formIngreso.op_id || !formIngreso.carrito_id || !formIngreso.sku_producto || !formIngreso.cantidad || !formIngreso.ubicacion_id}
                     className="w-full bg-orange-600 hover:bg-orange-700 disabled:opacity-50 px-4 py-3 rounded-lg text-sm font-medium transition-colors"
                   >
                     📥 Ingresar al Almacén EPS

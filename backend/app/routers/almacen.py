@@ -20,7 +20,8 @@ from app.models.ubicacion import Ubicacion
 from app.models.lote_inventario import LoteInventario, MovimientoLote
 from app.models.orden_traslado import OrdenTraslado, OrdenTrasladoProduccion
 from app.models.producto import Producto
-from app.models.orden_compra import OrdenCompra, OrdenCompraItem
+from app.models.orden_compra import OrdenCompra, OrdenCompraItem, Proveedor
+from app.services.proveedor_score import registrar_evento
 from app.models.orden_venta import OrdenVenta, OrdenVentaItem
 from app.schemas.almacen import (
     UbicacionCreate, UbicacionUpdate, UbicacionResponse,
@@ -76,6 +77,11 @@ async def _get_ubicacion_map(db: AsyncSession) -> dict:
     return {u.id: u for u in result.scalars().all()}
 
 
+async def _get_ubicaciones_por_tipo(db: AsyncSession, tipo_zona: str) -> list:
+    result = await db.execute(select(Ubicacion).where(Ubicacion.tipo_zona == tipo_zona))
+    return result.scalars().all()
+
+
 async def _get_ubicacion_by_nombre(db: AsyncSession, nombre: str) -> Optional[Ubicacion]:
     result = await db.execute(select(Ubicacion).where(Ubicacion.nombre == nombre))
     return result.scalar_one_or_none()
@@ -92,39 +98,111 @@ async def dashboard_almacen(
 ):
     require_almacen_role(user)
 
-    total_lotes = (await db.execute(select(func.count(LoteInventario.id)))).scalar() or 0
-    lotes_sin_ub = (await db.execute(
-        select(func.count(LoteInventario.id)).where(LoteInventario.ubicacion_id.is_(None))
+    now = ahora_naive()
+    hoy_inicio = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    total_lotes_activos = (await db.execute(
+        select(func.count(LoteInventario.id)).where(LoteInventario.cantidad_actual > 0)
     )).scalar() or 0
-    total_ub = (await db.execute(select(func.count(Ubicacion.id)))).scalar() or 0
+
+    lotes_sin_ub = (await db.execute(
+        select(func.count(LoteInventario.id)).where(
+            and_(LoteInventario.ubicacion_id.is_(None), LoteInventario.estado_calidad == "Aprobado")
+        )
+    )).scalar() or 0
+
+    lotes_cuarentena = (await db.execute(
+        select(func.count(LoteInventario.id)).where(LoteInventario.estado_calidad == "Cuarentena")
+    )).scalar() or 0
+
+    lotes_pendiente_iqc = (await db.execute(
+        select(func.count(LoteInventario.id)).where(LoteInventario.estado_calidad == "Pendiente IQC")
+    )).scalar() or 0
 
     tr_pend = (await db.execute(
         select(func.count(OrdenTrasladoProduccion.id)).where(OrdenTrasladoProduccion.status == "Pendiente")
     )).scalar() or 0
-    tr_proc = (await db.execute(
-        select(func.count(OrdenTrasladoProduccion.id)).where(OrdenTrasladoProduccion.status == "En Proceso")
-    )).scalar() or 0
-    tr_comp = (await db.execute(
-        select(func.count(OrdenTrasladoProduccion.id)).where(OrdenTrasladoProduccion.status == "Completado")
+
+    recepciones_hoy = (await db.execute(
+        select(func.count(RecepcionCompra.id)).where(RecepcionCompra.fecha_recepcion >= hoy_inicio)
     )).scalar() or 0
 
     stock_total = (await db.execute(
         select(func.sum(LoteInventario.cantidad_actual))
     )).scalar() or 0
 
-    lotes_eps = (await db.execute(
-        select(func.count(LoteInventario.id)).where(LoteInventario.carrito_id.isnot(None))
+    # Lote mas antiguo aprobado con stock
+    lote_mas_antiguo_res = await db.execute(
+        select(LoteInventario.fecha_recepcion)
+        .where(and_(LoteInventario.estado_calidad == "Aprobado", LoteInventario.cantidad_actual > 0))
+        .order_by(LoteInventario.fecha_recepcion.asc())
+        .limit(1)
+    )
+    lote_mas_antiguo = lote_mas_antiguo_res.scalar()
+    lote_mas_antiguo_dias = 0
+    if lote_mas_antiguo:
+        delta = now - lote_mas_antiguo
+        lote_mas_antiguo_dias = delta.days
+
+    # Lotes sin movimiento 30d (simplificado: sin movimientos recientes)
+    hace_30 = now - timedelta(days=30)
+    subq_mov = select(MovimientoLote.lote_id).where(MovimientoLote.fecha >= hace_30).subquery()
+    lotes_sin_mov_30 = (await db.execute(
+        select(func.count(LoteInventario.id)).where(
+            and_(
+                LoteInventario.cantidad_actual > 0,
+                LoteInventario.fecha_recepcion < hace_30,
+                ~LoteInventario.lote_id.in_(subq_mov),
+            )
+        )
     )).scalar() or 0
 
+    # Rotacion promedio (simplificada: dias desde recepcion de lotes aprobados activos)
+    rot_res = await db.execute(
+        select(func.avg(func.extract('epoch', now - LoteInventario.fecha_recepcion) / 86400))
+        .where(and_(LoteInventario.estado_calidad == "Aprobado", LoteInventario.cantidad_actual > 0))
+    )
+    rotacion_promedio = rot_res.scalar() or 0
+
+    # Stock por zona
+    ub_map = await _get_ubicacion_map(db)
+    stock_por_zona = {}
+    result = await db.execute(select(LoteInventario).where(LoteInventario.cantidad_actual > 0))
+    for lote in result.scalars().all():
+        ub = ub_map.get(lote.ubicacion_id)
+        zona = ub.tipo_zona if ub else "SIN_UBICACION"
+        if zona not in stock_por_zona:
+            stock_por_zona[zona] = {"lotes": 0, "kg": 0.0}
+        stock_por_zona[zona]["lotes"] += 1
+        stock_por_zona[zona]["kg"] += lote.cantidad_actual or 0
+
+    # Alertas lotes bloqueados > 3 dias en cuarentena (simplificado)
+    hace_3 = now - timedelta(days=3)
+    alertas_bloqueados = []
+    bloq_res = await db.execute(
+        select(LoteInventario.lote_id, LoteInventario.sku_producto)
+        .where(and_(LoteInventario.estado_calidad == "Pendiente IQC", LoteInventario.fecha_recepcion < hace_3))
+        .limit(20)
+    )
+    for row in bloq_res.all():
+        alertas_bloqueados.append({"lote_id": row.lote_id, "sku": row.sku_producto})
+
     return AlmacenDashboard(
-        total_lotes=total_lotes,
+        total_lotes_activos=total_lotes_activos,
         lotes_sin_ubicacion=lotes_sin_ub,
-        total_ubicaciones=total_ub,
+        lotes_cuarentena=lotes_cuarentena,
+        lotes_pendiente_iqc=lotes_pendiente_iqc,
+        valor_stock_estimado=0.0,
+        lote_mas_antiguo_dias=lote_mas_antiguo_dias,
+        lotes_sin_movimiento_30d=lotes_sin_mov_30,
+        rotacion_promedio_dias=round(float(rotacion_promedio), 1),
+        recepciones_hoy=recepciones_hoy,
+        picking_pendientes=0,
+        picking_completados_hoy=0,
         traslados_pendientes=tr_pend,
-        traslados_en_proceso=tr_proc,
-        traslados_completados=tr_comp,
-        stock_total_items=stock_total,
-        lotes_eps=lotes_eps,
+        alertas_stock_minimo=[],
+        alertas_lotes_bloqueados=alertas_bloqueados,
+        stock_por_zona=stock_por_zona,
     )
 
 
@@ -216,7 +294,14 @@ async def crear_ubicacion(
     if existing:
         raise HTTPException(status_code=400, detail=f"La ubicación '{nombre}' ya existe.")
 
-    ub = Ubicacion(nombre=nombre, parent_id=data.parent_id)
+    ub = Ubicacion(
+        nombre=nombre,
+        parent_id=data.parent_id,
+        tipo_zona=data.tipo_zona or "ALMACEN",
+        capacidad_max=data.capacidad_max,
+        permite_mixing=data.permite_mixing if data.permite_mixing is not None else False,
+        activa=data.activa if data.activa is not None else True,
+    )
     db.add(ub)
     await db.commit()
     await db.refresh(ub)
@@ -246,6 +331,14 @@ async def actualizar_ubicacion(
         raise HTTPException(status_code=400, detail=f"'{nuevo_nombre}' ya está en uso.")
 
     ub.nombre = nuevo_nombre
+    if data.tipo_zona is not None:
+        ub.tipo_zona = data.tipo_zona
+    if data.capacidad_max is not None:
+        ub.capacidad_max = data.capacidad_max
+    if data.permite_mixing is not None:
+        ub.permite_mixing = data.permite_mixing
+    if data.activa is not None:
+        ub.activa = data.activa
     await db.commit()
     await db.refresh(ub)
     return ub
@@ -380,6 +473,11 @@ async def listar_inventario(
             carrito_id=lote.carrito_id,
             lote_produccion_origen=lote.lote_produccion_origen,
             motivo_devolucion=lote.motivo_devolucion,
+            bloqueado_por=lote.bloqueado_por,
+            numero_remision=lote.numero_remision,
+            fecha_caducidad=lote.fecha_caducidad,
+            lote_proveedor=lote.lote_proveedor,
+            bultos=lote.bultos,
         ))
     return items
 
@@ -677,8 +775,98 @@ async def transferir_entre_ubicaciones(
 
 
 # ============================================================
-# CONSUMO FIFO
+# CONSUMO FIFO V2 — con locking y zonas
 # ============================================================
+async def _consumir_stock_fifo_v2(
+    db: AsyncSession,
+    sku: str,
+    cantidad: float,
+    detalles: dict,
+    zonas_prioridad: list = None,
+    excluir_zonas: list = None,
+):
+    if zonas_prioridad is None:
+        zonas_prioridad = ["PICKING", "APROBADO"]
+    if excluir_zonas is None:
+        excluir_zonas = []
+
+    ub_map = await _get_ubicacion_map(db)
+    ids_excluir = set()
+    for tz in excluir_zonas:
+        ubs = await _get_ubicaciones_por_tipo(db, tz)
+        ids_excluir |= {u.id for u in ubs}
+
+    todos_los_lotes = []
+    ids_usados = set()
+    for zona_tipo in zonas_prioridad:
+        if zona_tipo in excluir_zonas:
+            continue
+        ubs = await _get_ubicaciones_por_tipo(db, zona_tipo)
+        ids_zona = {u.id for u in ubs}
+        if ids_excluir:
+            ids_zona -= ids_excluir
+        if not ids_zona:
+            continue
+        res = await db.execute(
+            select(LoteInventario)
+            .where(
+                and_(
+                    LoteInventario.sku_producto == sku,
+                    or_(LoteInventario.estado_calidad == "Aprobado", LoteInventario.estado_calidad == "Pendiente IQC"),
+                    LoteInventario.cantidad_actual > 0,
+                    LoteInventario.ubicacion_id.in_(ids_zona),
+                    LoteInventario.bloqueado_por.is_(None),
+                )
+            )
+            .order_by(LoteInventario.fecha_recepcion.asc())
+            .with_for_update(skip_locked=True)
+        )
+        for lote in res.scalars().all():
+            if lote.id not in ids_usados:
+                ids_usados.add(lote.id)
+                todos_los_lotes.append(lote)
+
+    # Fallback: cualquier ubicacion aprobada si zonas no cubrieron
+    if not todos_los_lotes:
+        res = await db.execute(
+            select(LoteInventario)
+            .where(
+                and_(
+                    LoteInventario.sku_producto == sku,
+                    or_(LoteInventario.estado_calidad == "Aprobado", LoteInventario.estado_calidad == "Pendiente IQC"),
+                    LoteInventario.cantidad_actual > 0,
+                    LoteInventario.bloqueado_por.is_(None),
+                )
+            )
+            .order_by(LoteInventario.fecha_recepcion.asc())
+            .with_for_update(skip_locked=True)
+        )
+        todos_los_lotes = res.scalars().all()
+
+    restante = cantidad
+    plan = []
+    for lote in todos_los_lotes:
+        if restante <= 0:
+            break
+        tomar = min(lote.cantidad_actual, restante)
+        lote.cantidad_actual -= tomar
+        restante -= tomar
+        ub = ub_map.get(lote.ubicacion_id)
+        plan.append({
+            "lote_id": lote.lote_id,
+            "sku_producto": sku,
+            "cantidad_consumida": tomar,
+            "almacen_origen": ub.nombre if ub else "Área de Calidad",
+            "oc_origen": lote.oc_origen or "N/A",
+        })
+        await _registrar_movimiento(db, lote.lote_id, "CONSUMO_PRODUCCION", -tomar, detalles)
+
+    if restante > 0.001:
+        raise HTTPException(status_code=400, detail=f"Stock insuficiente para {sku}. Faltan {restante:.2f}")
+
+    return plan
+
+
 @router.post("/inventario/consumir-fifo")
 @router.post("/inventario/consumir-fifo/")
 async def consumir_fifo(
@@ -687,65 +875,18 @@ async def consumir_fifo(
     db: AsyncSession = Depends(get_db),
 ):
     require_almacen_role(user)
-    ub_map = await _get_ubicacion_map(db)
 
-    prioritized_id = None
+    zonas = data.zonas_prioridad if data.zonas_prioridad else ["PICKING", "APROBADO"]
     if data.ubicacion_priorizada:
         ub = await _get_ubicacion_by_nombre(db, data.ubicacion_priorizada)
-        if ub:
-            prioritized_id = ub.id
+        if ub and ub.tipo_zona and ub.tipo_zona not in zonas:
+            zonas.insert(0, ub.tipo_zona)
 
-    # Prioritarios primero
-    lotes_prioritarios = []
-    if prioritized_id:
-        res = await db.execute(
-            select(LoteInventario).where(
-                and_(
-                    LoteInventario.sku_producto == data.sku,
-                    LoteInventario.estado_calidad == "Aprobado",
-                    LoteInventario.ubicacion_id == prioritized_id,
-                    LoteInventario.cantidad_actual > 0,
-                )
-            ).order_by(LoteInventario.fecha_recepcion)
-        )
-        lotes_prioritarios = list(res.scalars().all())
-
-    ids_prio = {l.id for l in lotes_prioritarios}
-
-    # Resto
-    res_general = await db.execute(
-        select(LoteInventario).where(
-            and_(
-                LoteInventario.sku_producto == data.sku,
-                LoteInventario.estado_calidad == "Aprobado",
-                LoteInventario.cantidad_actual > 0,
-            )
-        ).order_by(LoteInventario.fecha_recepcion)
+    plan = await _consumir_stock_fifo_v2(
+        db, data.sku, data.cantidad, data.detalles,
+        zonas_prioridad=zonas,
+        excluir_zonas=data.excluir_zonas,
     )
-    lotes_general = [l for l in res_general.scalars().all() if l.id not in ids_prio]
-    todos = lotes_prioritarios + lotes_general
-
-    restante = data.cantidad
-    plan = []
-    for lote in todos:
-        if restante <= 0:
-            break
-        tomar = min(lote.cantidad_actual, restante)
-        ub_nombre = ub_map.get(lote.ubicacion_id)
-        plan.append({
-            "lote_id": lote.lote_id,
-            "sku_producto": data.sku,
-            "cantidad_consumida": tomar,
-            "almacen_origen": ub_nombre.nombre if ub_nombre else "Área de Calidad",
-            "oc_origen": lote.oc_origen or "N/A",
-        })
-        lote.cantidad_actual -= tomar
-        await _registrar_movimiento(db, lote.lote_id, "CONSUMO_PRODUCCION", -tomar, data.detalles)
-        restante -= tomar
-
-    if restante > 0.001:
-        raise HTTPException(status_code=400, detail=f"Stock insuficiente para {data.sku}. Faltan {restante:.2f}")
-
     await db.commit()
     return {"message": "Consumo FIFO ejecutado", "plan": plan}
 
@@ -825,44 +966,14 @@ async def ejecutar_movimiento_parcial(
     if not traslado:
         raise HTTPException(status_code=404, detail="Traslado no encontrado.")
 
-    ub_map = await _get_ubicacion_map(db)
     lotes_consumidos = {}
 
     for mov in data.movimientos:
-        # Buscar lotes aprobados FIFO
-        lotes_res = await db.execute(
-            select(LoteInventario).where(
-                and_(
-                    LoteInventario.sku_producto == mov.sku,
-                    LoteInventario.estado_calidad == "Aprobado",
-                    LoteInventario.cantidad_actual > 0,
-                )
-            ).order_by(LoteInventario.fecha_recepcion)
+        plan = await _consumir_stock_fifo_v2(
+            db, mov.sku, mov.cantidad_a_mover,
+            detalles={"op_id": traslado_id, "autorizador": data.autorizador},
+            zonas_prioridad=["APROBADO"],
         )
-        lotes = list(lotes_res.scalars().all())
-
-        restante = mov.cantidad_a_mover
-        plan = []
-        for lote in lotes:
-            if restante <= 0:
-                break
-            tomar = min(lote.cantidad_actual, restante)
-            ub = ub_map.get(lote.ubicacion_id)
-            plan.append({
-                "lote_id": lote.lote_id,
-                "cantidad_consumida": tomar,
-                "almacen_origen": ub.nombre if ub else "Área de Calidad",
-            })
-            lote.cantidad_actual -= tomar
-            await _registrar_movimiento(db, lote.lote_id, "CONSUMO_PRODUCCION", -tomar, {
-                "op_id": traslado_id,
-                "autorizador": data.autorizador,
-            })
-            restante -= tomar
-
-        if restante > 0.001:
-            raise HTTPException(status_code=400, detail=f"Stock insuficiente para {mov.sku}.")
-
         lotes_consumidos[mov.sku] = plan
 
     # Actualizar traslado
@@ -981,14 +1092,11 @@ async def ingresar_carrito_eps(
     now = ahora_local()
     traslado_id = f"{now.strftime('%Y%m%d%H%M%S')}-{data.carrito_id[:8]}"
 
-    # Nota: el carrito viene del cuarto de secado con sku y cantidad.
-    # Esto se integrará con los registros de secado existentes.
-    # Por ahora creamos el lote con datos del request.
     nuevo = LoteInventario(
         lote_id=data.carrito_id,
-        sku_producto="PENDIENTE",  # Se actualizará desde la integración con secado
-        cantidad_actual=0,
-        cantidad_inicial=0,
+        sku_producto=data.sku_producto,
+        cantidad_actual=data.cantidad,
+        cantidad_inicial=data.cantidad,
         ubicacion_id=data.ubicacion_id,
         fecha_recepcion=now,
         op_origen=f"OP-{data.op_id}",
@@ -997,7 +1105,7 @@ async def ingresar_carrito_eps(
     )
     db.add(nuevo)
 
-    await _registrar_movimiento(db, data.carrito_id, "ENTRADA_EPS", 0, {
+    await _registrar_movimiento(db, data.carrito_id, "ENTRADA_EPS", data.cantidad, {
         "origen": "Cuarto de Secado",
         "destino": data.ubicacion_nombre,
         "traslado_id": traslado_id,
@@ -1314,36 +1422,60 @@ async def registrar_recepcion_lote_almacen(
             cantidad_recibida=rec_data.cantidad_recibida,
             recibido_por=user.username,
             notas=rec_data.notas,
+            cantidad_bultos=rec_data.cantidad_bultos,
+            numero_remision=rec_data.numero_remision,
+            temperatura=rec_data.temperatura,
+            recibido_en_zona=rec_data.recibido_en_zona or "DOCK",
         )
         db.add(recepcion)
 
         item.cantidad_recibida = (item.cantidad_recibida or 0) + rec_data.cantidad_recibida
 
-        # ── Crear LoteInventario para esta recepción ──
-        await db.flush()  # Asegurar que RecepcionCompra esté visible para el conteo
+        # ── Registrar evento de puntualidad ──
+        if orden.proveedor_id:
+            prov_result = await db.execute(select(Proveedor).where(Proveedor.id == orden.proveedor_id))
+            prov = prov_result.scalar_one_or_none()
+            if prov and prov.lead_time_dias is not None and orden.fecha_creacion:
+                fecha_esperada = orden.fecha_creacion + timedelta(days=prov.lead_time_dias)
+                if now > fecha_esperada:
+                    await registrar_evento(
+                        proveedor_id=prov.id,
+                        tipo_evento="PUNTUALIDAD_TARDE",
+                        impacto=-8.0,
+                        referencia_id=recepcion_id,
+                        descripcion=f"Entrega tarde. Esperada: {fecha_esperada.isoformat()}",
+                        registrado_por=user.username,
+                        db=db,
+                    )
+                else:
+                    await registrar_evento(
+                        proveedor_id=prov.id,
+                        tipo_evento="PUNTUALIDAD_A_TIEMPO",
+                        impacto=3.0,
+                        referencia_id=recepcion_id,
+                        descripcion="Entrega dentro del lead time",
+                        registrado_por=user.username,
+                        db=db,
+                    )
 
-        rec_count_result = await db.execute(
-            select(func.count(RecepcionCompra.id)).where(
-                and_(
-                    RecepcionCompra.orden_compra_id == orden.id,
-                    RecepcionCompra.sku_producto == rec_data.sku_producto,
-                )
-            )
-        )
-        rec_count = rec_count_result.scalar() or 0
+        # ── Crear LoteInventario para esta recepción ──
+        await db.flush()
 
         fecha_lote = now.strftime("%Y%m%d")
         sku_suffix = rec_data.sku_producto[-4:].upper()
-        lote_id = f"{fecha_lote}-{sku_suffix}-{rec_count}"
+        ts_micro = int(now.timestamp() * 1000000)
+        sec = ts_micro % 10000
+        lote_id = f"{fecha_lote}-{sku_suffix}-{sec:04d}"
 
-        # Verificar unicidad del lote_id
-        existing_lote_check = await db.execute(
-            select(LoteInventario).where(LoteInventario.lote_id == lote_id)
-        )
-        if existing_lote_check.scalar_one_or_none():
-            # Agregar sufijo de OC para evitar colisión
-            oc_suffix = oc_id_str.replace("OC-", "")[-6:]
-            lote_id = f"{fecha_lote}-{sku_suffix}-{rec_count}-{oc_suffix}"
+        # Evitar colisión
+        for _ in range(100):
+            existing_check = await db.execute(select(LoteInventario).where(LoteInventario.lote_id == lote_id))
+            if not existing_check.scalar_one_or_none():
+                break
+            sec += 1
+            lote_id = f"{fecha_lote}-{sku_suffix}-{sec:04d}"
+        else:
+            raise HTTPException(status_code=500, detail="No se pudo generar lote_id único")
 
         now_naive = ahora_naive()
 
@@ -1356,6 +1488,8 @@ async def registrar_recepcion_lote_almacen(
             fecha_recepcion=now_naive,
             oc_origen=oc_id_str,
             estado_calidad="Pendiente IQC",
+            numero_remision=rec_data.numero_remision,
+            bultos=rec_data.cantidad_bultos or 1,
         )
         db.add(nuevo_lote)
 

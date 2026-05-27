@@ -256,6 +256,9 @@ export const TABS_POR_MODULO: Record<string, { id: string; label: string }[]> = 
     { id: 'traslados',    label: '🔄 Traslados'   },
     { id: 'eps',          label: '🏭 Almacén EPS' },
     { id: 'trazabilidad', label: '🔍 Trazabilidad'},
+    { id: 'picking',      label: '🛒 Picking'     },
+    { id: 'conteo',       label: '📋 Conteo Físico'},
+    { id: 'configuracion',label: '⚙️ Configuración'},
   ],
   logistica: [
     { id: 'dashboard', label: '📊 Dashboard' },
@@ -523,6 +526,10 @@ export interface UbicacionAlmacen {
   id: number
   nombre: string
   parent_id?: number | null
+  tipo_zona: string
+  capacidad_max?: number | null
+  permite_mixing: boolean
+  activa: boolean
 }
 
 // ==========================================
@@ -547,6 +554,11 @@ export interface LoteInventario {
   carrito_id?: string
   lote_produccion_origen?: string
   motivo_devolucion?: string
+  bloqueado_por?: string
+  numero_remision?: string
+  fecha_caducidad?: string
+  lote_proveedor?: string
+  bultos: number
 }
 
 // ==========================================
@@ -639,19 +651,27 @@ export interface ReporteEmbarqueItem {
 // ==========================================
 // ALMACÉN — Dashboard
 // ==========================================
+export interface StockPorZona {
+  lotes: number
+  kg: number
+}
+
 export interface AlmacenDashboard {
-  total_lotes: number
+  total_lotes_activos: number
   lotes_sin_ubicacion: number
-  total_ubicaciones: number
-  total_embarques: number
-  embarques_surtidos: number
-  embarques_en_transito: number
-  embarques_entregados: number
+  lotes_cuarentena: number
+  lotes_pendiente_iqc: number
+  valor_stock_estimado: number
+  lote_mas_antiguo_dias: number
+  lotes_sin_movimiento_30d: number
+  rotacion_promedio_dias: number
+  recepciones_hoy: number
+  picking_pendientes: number
+  picking_completados_hoy: number
   traslados_pendientes: number
-  traslados_en_proceso: number
-  traslados_completados: number
-  stock_total_items: number
-  lotes_eps: number
+  alertas_stock_minimo: any[]
+  alertas_lotes_bloqueados: any[]
+  stock_por_zona: Record<string, StockPorZona>
 }
 
 // ==========================================

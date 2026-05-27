@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, JSON
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, JSON, Date
 from datetime import datetime
 from app.database import Base
 
@@ -20,6 +20,11 @@ class LoteInventario(Base):
     carrito_id             = Column(String(100), nullable=True)
     lote_produccion_origen = Column(String(100), nullable=True)
     motivo_devolucion      = Column(String(500), nullable=True)
+    bloqueado_por          = Column(String(100), nullable=True)
+    numero_remision        = Column(String(100), nullable=True)
+    fecha_caducidad        = Column(Date, nullable=True)
+    lote_proveedor         = Column(String(100), nullable=True)
+    bultos                 = Column(Integer, default=1, nullable=False)
 
 
 class MovimientoLote(Base):
