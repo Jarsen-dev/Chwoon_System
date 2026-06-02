@@ -11,11 +11,15 @@ from app.schemas.produccion import (
     RegistroParoCreate
 )
 
+# ── Empresa (importar modelos para que Alembic los detecte en Base.metadata) ──
+from app.models.empresa import ConfiguracionEmpresa, ContactoEmpresa  # noqa: F401
+
 __all__ = [
     "Parte", "ParteCreate", "ParteUpdate",
     "ColaItem", "ColaItemCreate",
     "RegistroProduccion", "RegistroProduccionCreate",
     "PlanProduccion", "PlanProduccionCreate",
     "Anomalia", "AnomaliaCreate",
-    "RegistroParo", "RegistroParoCreate"
+    "RegistroParo", "RegistroParoCreate",
+    "ConfiguracionEmpresa", "ContactoEmpresa",
 ]

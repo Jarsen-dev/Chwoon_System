@@ -3,11 +3,13 @@ from io import BytesIO
 from datetime import datetime
 
 from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import letter, landscape
+from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch, cm
-from reportlab.platypus import Paragraph
+from reportlab.lib.colors import (
+    Color, black, white, HexColor
+)
+from reportlab.platypus import Paragraph, Table, TableStyle
 from reportlab.lib.styles import ParagraphStyle
-from reportlab.lib.colors import black
 from reportlab.graphics.barcode import qr
 from reportlab.graphics.shapes import Drawing
 from reportlab.graphics import renderPDF
@@ -15,17 +17,27 @@ from reportlab.graphics import renderPDF
 from app.services.contador_service import obtener_siguiente_carrito
 
 
-# ── Helpers ─────────────────────────────────────────────────────────
+# ── Paleta de colores corporativos ──────────────────────────────────
+COLOR_PRIMARY   = HexColor('#1A3A5C')   # Azul marino oscuro
+COLOR_SECONDARY = HexColor('#2E6DA4')   # Azul medio
+COLOR_ACCENT    = HexColor('#E8F0F7')   # Azul muy claro (fondo headers)
+COLOR_LINE      = HexColor('#CBD5E1')   # Gris líneas
+COLOR_TEXT      = HexColor('#1E293B')   # Texto principal
+COLOR_SUBTEXT   = HexColor('#64748B')   # Texto secundario
+COLOR_SUCCESS   = HexColor('#15803D')   # Verde para totales
+COLOR_ROW_ALT   = HexColor('#F8FAFC')   # Fondo filas alternas
+
+
+# ════════════════════════════════════════════════════════════════════
+# HELPERS
+# ════════════════════════════════════════════════════════════════════
 
 def _normalizar_turno(turno_str: str | None) -> str:
-    """Convierte cualquier variante de turno a 'D' o 'N'"""
     if not turno_str:
         return 'D'
     t = turno_str.strip().upper()
-    # Cubre 'Día', 'DÍA', 'DIA', 'D', 'DAY'
-    if t in ['D', 'DIA', 'DÍA', 'DAY', 'DIURNO', 'DÍA']:
+    if t in ['D', 'DIA', 'DÍA', 'DAY', 'DIURNO']:
         return 'D'
-    # Cubre 'Noche', 'NOCHE', 'N', 'NIGHT'
     if t in ['N', 'NOCHE', 'NIGHT', 'NOCTURNO']:
         return 'N'
     return 'D'
@@ -35,24 +47,34 @@ def _get_fecha() -> str:
     return datetime.now().strftime('%d%m%Y')
 
 
-async def _generar_codigo_carrito(
-    numero_parte: str,
-    turno_item:   str | None,
-) -> str:
+async def _generar_codigo_carrito(numero_parte: str, turno_item: str | None) -> str:
     turno_qr    = _normalizar_turno(turno_item)
     fecha       = _get_fecha()
     num_carrito = await obtener_siguiente_carrito(numero_parte, turno_qr)
-
-    # Formato: PARTE_TURNO_FECHA_CARRITO
     return f"{numero_parte}_{turno_qr}_{fecha}_{num_carrito}"
 
 
-# ── Generador principal ─────────────────────────────────────────────
+def _fmt_currency(val: float, moneda: str = 'MXN') -> str:
+    return f"${val:,.2f} {moneda}"
+
+
+def _fmt_date(dt) -> str:
+    if isinstance(dt, str):
+        try:
+            dt = datetime.fromisoformat(dt.replace('Z', '+00:00'))
+        except Exception:
+            return dt
+    return dt.strftime('%d/%m/%Y') if dt else '—'
+
+
+# ════════════════════════════════════════════════════════════════════
+# GENERADOR DE ETIQUETAS (sin cambios funcionales, igual que antes)
+# ════════════════════════════════════════════════════════════════════
 
 async def generar_pdf_etiquetas(items_cola: list) -> bytes:
     buffer   = BytesIO()
-    c        = canvas.Canvas(buffer, pagesize=landscape(letter))
-    page_w, page_h = landscape(letter)
+    c        = canvas.Canvas(buffer, pagesize=_landscape_letter())
+    page_w, page_h = _landscape_letter()
 
     margin         = 0.5 * cm
     usable_w       = page_w - (2 * margin)
@@ -71,7 +93,6 @@ async def generar_pdf_etiquetas(items_cola: list) -> bytes:
         (margin + target_label_w, margin),
     ]
 
-    # Pre-calcular todos los códigos de forma async antes del canvas
     todas_las_etiquetas = []
     for item in items_cola:
         num_labels = item.get('cantidad_etiquetas', 1)
@@ -88,7 +109,6 @@ async def generar_pdf_etiquetas(items_cola: list) -> bytes:
         buffer.seek(0)
         return buffer.getvalue()
 
-    # Dibujar de forma síncrona
     label_count_on_page = 0
     for item, codigo_carrito in todas_las_etiquetas:
         if label_count_on_page >= 4:
@@ -108,7 +128,471 @@ async def generar_pdf_etiquetas(items_cola: list) -> bytes:
     return buffer.getvalue()
 
 
-# ── Dibujar etiqueta ─────────────────────────────────────────────────
+def _landscape_letter():
+    from reportlab.lib.pagesizes import landscape, letter
+    return landscape(letter)
+
+
+# ════════════════════════════════════════════════════════════════════
+# ORDEN DE COMPRA — DOCUMENTO PROFESIONAL
+# ════════════════════════════════════════════════════════════════════
+
+async def generar_pdf_orden_compra(orden: dict, empresa: dict | None = None, contacto_compras: dict | None = None) -> bytes:
+    """
+    Genera un PDF profesional de Orden de Compra.
+
+    Args:
+        orden: diccionario con los campos de OrdenCompraResponse +
+               datos del proveedor enriquecidos (proveedor_detalle opcional).
+        empresa: dict con ConfiguracionEmpresa (nombre, rfc, direccion, etc.).
+        contacto_compras: dict con el ContactoEmpresa del área de compras.
+    """
+    buffer = BytesIO()
+    page_w, page_h = letter          # 612 x 792 pt
+    c = canvas.Canvas(buffer, pagesize=letter)
+
+    MARGIN_L = 0.65 * inch
+    MARGIN_R = 0.65 * inch
+    MARGIN_T = 0.75 * inch
+    MARGIN_B = 0.85 * inch
+
+    content_w = page_w - MARGIN_L - MARGIN_R
+
+    # ── Datos básicos de la orden ────────────────────────────────────
+    oc_id        = orden.get('oc_id', '—')
+    fecha_oc     = _fmt_date(orden.get('fecha_creacion'))
+    notas        = orden.get('notas') or ''
+    status       = orden.get('status', '—')
+    creado_por   = orden.get('creado_por') or '—'
+    iva_pct      = float(orden.get('iva', 16.0))
+    items        = orden.get('items', [])
+    proveedor    = orden.get('proveedor_detalle') or {}   # objeto Proveedor enriquecido (opcional)
+
+    nombre_prov  = orden.get('nombre_proveedor', proveedor.get('razon_social', '—'))
+    rfc_prov     = proveedor.get('rfc', '—')
+    dir_prov     = proveedor.get('direccion', '—') or '—'
+    cond_pago    = proveedor.get('condiciones_pago', '—') or '—'
+    lead_time    = proveedor.get('lead_time_dias', '—')
+    contacto_prov_nombre  = proveedor.get('nombre_ventas') or '—'
+    contacto_prov_tel     = proveedor.get('numero_contacto') or '—'
+    contacto_prov_email   = proveedor.get('correo_contacto') or '—'
+
+    # ── Datos empresa compradora ─────────────────────────────────────
+    emp_nombre   = (empresa or {}).get('nombre', 'Mi Empresa S.A. de C.V.')
+    emp_rfc      = (empresa or {}).get('rfc', '—')
+    emp_dir      = (empresa or {}).get('direccion', '—') or '—'
+    emp_tel      = (empresa or {}).get('telefono', '—') or '—'
+    emp_email    = (empresa or {}).get('email', '—') or '—'
+    emp_ciudad   = (empresa or {}).get('ciudad', '') or ''
+    emp_estado   = (empresa or {}).get('estado', '') or ''
+    emp_cp       = (empresa or {}).get('cp', '') or ''
+
+    # Contacto de compras
+    cmp_nombre   = (contacto_compras or {}).get('nombre', '—')
+    cmp_puesto   = (contacto_compras or {}).get('puesto', 'Compras') or 'Compras'
+    cmp_tel      = (contacto_compras or {}).get('telefono', '—') or '—'
+    cmp_email    = (contacto_compras or {}).get('email', '—') or '—'
+
+    # ── Calcular totales ─────────────────────────────────────────────
+    subtotal = sum(
+        float(i.get('cantidad_requerida', 0)) * float(i.get('precio_unitario', 0))
+        for i in items
+    )
+    moneda_oc = items[0].get('moneda', 'MXN') if items else 'MXN'
+    monto_iva = subtotal * (iva_pct / 100.0)
+    total_con_iva = subtotal + monto_iva
+
+    # ════════════════════════════════════════════════════════════
+    # DIBUJAR PÁGINA
+    # ════════════════════════════════════════════════════════════
+    y = page_h - MARGIN_T
+
+    # ── 1. HEADER — banda azul con logo + título ─────────────────────
+    header_h = 1.05 * inch
+    c.setFillColor(COLOR_PRIMARY)
+    c.rect(0, y - header_h, page_w, header_h, fill=1, stroke=0)
+
+    # Logo (si existe)
+    base_dir  = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    logo_path = os.path.join(base_dir, "static", "Logo.png")
+    logo_drawn = False
+    if os.path.exists(logo_path):
+        try:
+            c.drawImage(logo_path,
+                        MARGIN_L, y - header_h + 0.12 * inch,
+                        width=1.5 * inch, height=0.8 * inch,
+                        mask='auto', preserveAspectRatio=True)
+            logo_drawn = True
+        except Exception:
+            pass
+
+    if not logo_drawn:
+        c.setFillColor(white)
+        c.setFont('Helvetica-Bold', 14)
+        c.drawString(MARGIN_L, y - header_h / 2 - 0.05 * inch, emp_nombre)
+
+    # Título ORDEN DE COMPRA
+    c.setFillColor(white)
+    c.setFont('Helvetica-Bold', 22)
+    titulo = 'ORDEN DE COMPRA'
+    t_w = c.stringWidth(titulo, 'Helvetica-Bold', 22)
+    c.drawString(page_w - MARGIN_R - t_w, y - 0.42 * inch, titulo)
+
+    c.setFont('Helvetica', 10)
+    c.setFillColor(HexColor('#B0C8E4'))
+    sub_txt = f"No. {oc_id}   ·   {fecha_oc}"
+    sub_w = c.stringWidth(sub_txt, 'Helvetica', 10)
+    c.drawString(page_w - MARGIN_R - sub_w, y - 0.65 * inch, sub_txt)
+
+    y -= header_h + 0.18 * inch
+
+    # ── 2. BLOQUE INFO — Empresa | Proveedor ────────────────────────
+    col_w = (content_w - 0.2 * inch) / 2
+    left_x  = MARGIN_L
+    right_x = MARGIN_L + col_w + 0.2 * inch
+
+    block_h = 1.55 * inch
+
+    # Recuadro empresa compradora
+    _draw_info_box(c, left_x, y - block_h, col_w, block_h,
+                   title='EMPRESA COMPRADORA',
+                   lines=[
+                       ('Razón Social:', emp_nombre),
+                       ('RFC:',          emp_rfc),
+                       ('Dirección:',    emp_dir[:55]),
+                       ('Tel / Email:',  f"{emp_tel}  |  {emp_email}"),
+                       ('C.P. / Ciudad:', f"{emp_cp} {emp_ciudad} {emp_estado}".strip()),
+                   ])
+
+    # Recuadro proveedor
+    _draw_info_box(c, right_x, y - block_h, col_w, block_h,
+                   title='PROVEEDOR',
+                   lines=[
+                       ('Razón Social:', nombre_prov),
+                       ('RFC:',          rfc_prov),
+                       ('Dirección:',    dir_prov[:55]),
+                       ('Condiciones:',  cond_pago),
+                       ('Lead Time:',    f"{lead_time} días"),
+                   ])
+
+    y -= block_h + 0.15 * inch
+
+    # ── 3. BLOQUE CONTACTOS + CONTROL ───────────────────────────────
+    ctrl_col_w = (content_w - 0.4 * inch) / 3
+    block2_h   = 1.0 * inch
+
+    _draw_info_box(c, left_x, y - block2_h, ctrl_col_w, block2_h,
+                   title='CONTACTO COMPRAS',
+                   lines=[
+                       ('Nombre:', cmp_nombre),
+                       ('Puesto:', cmp_puesto),
+                       ('Tel:',    cmp_tel),
+                       ('Email:',  cmp_email),
+                   ])
+
+    _draw_info_box(c, left_x + ctrl_col_w + 0.2 * inch, y - block2_h, ctrl_col_w, block2_h,
+                   title='CONTACTO PROVEEDOR',
+                   lines=[
+                       ('Nombre:', contacto_prov_nombre),
+                       ('Tel:',    contacto_prov_tel),
+                       ('Email:',  contacto_prov_email),
+                   ])
+
+    _draw_info_box(c, left_x + (ctrl_col_w + 0.2 * inch) * 2, y - block2_h, ctrl_col_w, block2_h,
+                   title='CONTROL',
+                   lines=[
+                       ('No. OC:',      oc_id),
+                       ('Fecha:',       fecha_oc),
+                       ('Estatus:',     status),
+                       ('Elaboró:',     creado_por),
+                   ])
+
+    y -= block2_h + 0.22 * inch
+
+    # ── 4. TABLA DE PRODUCTOS ────────────────────────────────────────
+    # Encabezado sección
+    _section_header(c, MARGIN_L, y, content_w, 'DETALLE DE PRODUCTOS')
+    y -= 0.22 * inch
+
+    col_widths = [
+        0.40 * inch,   # #
+        1.25 * inch,   # SKU
+        2.50 * inch,   # Descripción
+        0.70 * inch,   # Cant.
+        0.55 * inch,   # U.M.
+        1.10 * inch,   # Precio Unit.
+        1.10 * inch,   # Subtotal
+    ]
+    # Ajustar último col para llenar ancho exacto
+    col_widths[-1] = content_w - sum(col_widths[:-1])
+
+    headers = ['#', 'SKU / No. Parte', 'Descripción', 'Cantidad', 'UM', 'Precio Unit.', 'Subtotal']
+    data_rows = [headers]
+
+    for idx, item in enumerate(items, 1):
+        qty   = float(item.get('cantidad_requerida', 0))
+        price = float(item.get('precio_unitario', 0))
+        sub   = qty * price
+        mon   = item.get('moneda', 'MXN')
+        data_rows.append([
+            str(idx),
+            item.get('sku_producto', ''),
+            item.get('nombre_producto', ''),
+            f"{qty:,.2f}",
+            mon,
+            f"${price:,.2f}",
+            f"${sub:,.2f}",
+        ])
+
+    row_h = 0.26 * inch
+    tbl_h = row_h * len(data_rows)
+
+    # Check if we need to overflow to next page
+    available = y - MARGIN_B - 2.0 * inch   # reserve space for totals + signatures
+    if tbl_h > available:
+        # Draw partial rows that fit, add page, continue
+        rows_that_fit = max(2, int(available / row_h))
+        _draw_product_table(c, MARGIN_L, y, col_widths, data_rows[:rows_that_fit + 1], row_h)
+        y -= rows_that_fit * row_h + row_h
+        c.showPage()
+        y = page_h - MARGIN_T
+        remaining = data_rows[rows_that_fit + 1:]
+        if remaining:
+            _draw_product_table(c, MARGIN_L, y, col_widths, [headers] + remaining, row_h)
+            y -= (len(remaining) + 1) * row_h
+    else:
+        _draw_product_table(c, MARGIN_L, y, col_widths, data_rows, row_h)
+        y -= tbl_h
+
+    y -= 0.15 * inch
+
+    # ── 5. RESUMEN FINANCIERO ────────────────────────────────────────
+    fin_w = 2.6 * inch
+    fin_x = page_w - MARGIN_R - fin_w
+
+    lines_fin = [
+        ('Subtotal',                  f"${subtotal:,.2f} {moneda_oc}",  False),
+        (f'IVA ({iva_pct:.0f}%)',     f"${monto_iva:,.2f} {moneda_oc}", False),
+        ('TOTAL',                     f"${total_con_iva:,.2f} {moneda_oc}", True),
+    ]
+
+    fin_row_h = 0.265 * inch
+    fin_h     = fin_row_h * len(lines_fin) + 0.05 * inch
+
+    # Fondo sutil
+    c.setFillColor(COLOR_ACCENT)
+    c.roundRect(fin_x - 0.1 * inch, y - fin_h, fin_w + 0.1 * inch, fin_h, 4, fill=1, stroke=0)
+
+    fy = y - fin_row_h * 0.5
+    for label, valor, bold in lines_fin:
+        font = 'Helvetica-Bold' if bold else 'Helvetica'
+        size = 9.5 if not bold else 11
+        c.setFillColor(COLOR_PRIMARY if bold else COLOR_TEXT)
+        c.setFont(font, size)
+        c.drawString(fin_x, fy, label)
+        v_w = c.stringWidth(valor, font, size)
+        c.drawString(fin_x + fin_w - v_w, fy, valor)
+        if bold:
+            c.setStrokeColor(COLOR_PRIMARY)
+            c.setLineWidth(1)
+            c.line(fin_x, fy + fin_row_h - 0.03 * inch, fin_x + fin_w, fy + fin_row_h - 0.03 * inch)
+        fy -= fin_row_h
+
+    # Notas (izquierda del resumen financiero)
+    if notas:
+        _section_header(c, MARGIN_L, y, fin_x - MARGIN_L - 0.2 * inch, 'NOTAS')
+        c.setFont('Helvetica', 8.5)
+        c.setFillColor(COLOR_TEXT)
+        _draw_wrapped_text(c, MARGIN_L, y - 0.22 * inch,
+                           fin_x - MARGIN_L - 0.25 * inch, notas, font_size=8.5)
+
+    y -= fin_h + 0.35 * inch
+
+    # ── 6. FIRMAS ────────────────────────────────────────────────────
+    sig_w  = 2.2 * inch
+    sig_h  = 0.75 * inch
+    gap    = (content_w - 2 * sig_w) / 3
+
+    sig_positions = [
+        (MARGIN_L + gap,               'ELABORÓ',      cmp_nombre),
+        (MARGIN_L + gap + sig_w + gap, 'AUTORIZADO POR', ''),
+    ]
+
+    # Asegurar espacio en la página
+    if y - sig_h - 0.6 * inch < MARGIN_B:
+        c.showPage()
+        y = page_h - MARGIN_T
+
+    for sx, label, nombre in sig_positions:
+        c.setStrokeColor(COLOR_LINE)
+        c.setLineWidth(0.8)
+        c.line(sx, y - sig_h, sx + sig_w, y - sig_h)          # línea de firma
+        c.setFont('Helvetica-Bold', 8)
+        c.setFillColor(COLOR_PRIMARY)
+        lw = c.stringWidth(label, 'Helvetica-Bold', 8)
+        c.drawString(sx + (sig_w - lw) / 2, y - sig_h - 0.18 * inch, label)
+        if nombre and nombre != '—':
+            c.setFont('Helvetica', 7.5)
+            c.setFillColor(COLOR_SUBTEXT)
+            nw = c.stringWidth(nombre, 'Helvetica', 7.5)
+            c.drawString(sx + (sig_w - nw) / 2, y - sig_h - 0.34 * inch, nombre)
+
+    # ── 7. PIE DE PÁGINA ─────────────────────────────────────────────
+    _draw_footer(c, page_w, MARGIN_B, oc_id)
+
+    c.save()
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
+# ════════════════════════════════════════════════════════════════════
+# HELPERS INTERNOS DE DISEÑO
+# ════════════════════════════════════════════════════════════════════
+
+def _draw_info_box(c, x, y, w, h, title: str, lines: list):
+    """Dibuja un recuadro informativo con título y filas label: valor."""
+    # Borde
+    c.setStrokeColor(COLOR_LINE)
+    c.setLineWidth(0.5)
+    c.roundRect(x, y, w, h, 3, fill=0, stroke=1)
+
+    # Título
+    c.setFillColor(COLOR_PRIMARY)
+    c.rect(x, y + h - 0.22 * inch, w, 0.22 * inch, fill=1, stroke=0)
+    c.setFillColor(white)
+    c.setFont('Helvetica-Bold', 7.5)
+    c.drawString(x + 0.1 * inch, y + h - 0.16 * inch, title)
+
+    # Filas
+    row_h = (h - 0.22 * inch - 0.06 * inch) / max(len(lines), 1)
+    for i, (label, value) in enumerate(lines):
+        ry = y + h - 0.22 * inch - 0.06 * inch - (i + 0.75) * row_h
+        c.setFont('Helvetica-Bold', 7)
+        c.setFillColor(COLOR_SUBTEXT)
+        c.drawString(x + 0.1 * inch, ry, label)
+        c.setFont('Helvetica', 7)
+        c.setFillColor(COLOR_TEXT)
+        # Truncar valor si es muy largo
+        val_x  = x + 0.1 * inch + c.stringWidth(label + ' ', 'Helvetica-Bold', 7)
+        max_vw = w - (val_x - x) - 0.08 * inch
+        value  = _truncate_text(c, str(value), 'Helvetica', 7, max_vw)
+        c.drawString(val_x, ry, value)
+
+
+def _section_header(c, x, y, w, title: str):
+    """Banda delgada de sección."""
+    c.setFillColor(COLOR_SECONDARY)
+    c.rect(x, y - 0.19 * inch, w, 0.19 * inch, fill=1, stroke=0)
+    c.setFillColor(white)
+    c.setFont('Helvetica-Bold', 8)
+    c.drawString(x + 0.1 * inch, y - 0.135 * inch, title)
+
+
+def _draw_product_table(c, x, y, col_widths, rows, row_h):
+    """Dibuja la tabla de productos manualmente para control total."""
+    total_w = sum(col_widths)
+
+    for r_idx, row in enumerate(rows):
+        is_header = r_idx == 0
+        row_y = y - (r_idx + 1) * row_h
+
+        # Fondo fila
+        if is_header:
+            c.setFillColor(COLOR_PRIMARY)
+        elif r_idx % 2 == 0:
+            c.setFillColor(white)
+        else:
+            c.setFillColor(COLOR_ROW_ALT)
+        c.rect(x, row_y, total_w, row_h, fill=1, stroke=0)
+
+        # Línea inferior
+        c.setStrokeColor(COLOR_LINE)
+        c.setLineWidth(0.3)
+        c.line(x, row_y, x + total_w, row_y)
+
+        # Textos de celda
+        cx = x
+        alignments = ['center', 'left', 'left', 'right', 'center', 'right', 'right']
+        for c_idx, (cell, cw) in enumerate(zip(row, col_widths)):
+            text  = str(cell)
+            pad   = 0.06 * inch
+            align = alignments[c_idx] if c_idx < len(alignments) else 'left'
+
+            if is_header:
+                c.setFont('Helvetica-Bold', 7.5)
+                c.setFillColor(white)
+            else:
+                c.setFont('Helvetica-Bold' if c_idx == 0 else 'Helvetica', 7.5)
+                c.setFillColor(COLOR_SECONDARY if c_idx == 6 else COLOR_TEXT)
+
+            text = _truncate_text(c, text, c.currentFont.fontName if hasattr(c, 'currentFont') else 'Helvetica', 7.5, cw - pad * 2)
+
+            ty = row_y + row_h * 0.3
+            if align == 'right':
+                tw = c.stringWidth(text, 'Helvetica-Bold' if (is_header or c_idx == 0) else 'Helvetica', 7.5)
+                c.drawString(cx + cw - pad - tw, ty, text)
+            elif align == 'center':
+                tw = c.stringWidth(text, 'Helvetica-Bold' if (is_header or c_idx == 0) else 'Helvetica', 7.5)
+                c.drawString(cx + (cw - tw) / 2, ty, text)
+            else:
+                c.drawString(cx + pad, ty, text)
+
+            cx += cw
+
+    # Borde exterior de la tabla
+    c.setStrokeColor(COLOR_SECONDARY)
+    c.setLineWidth(0.8)
+    c.rect(x, y - len(rows) * row_h, total_w, len(rows) * row_h, fill=0, stroke=1)
+
+
+def _draw_footer(c, page_w, margin_b, oc_id):
+    """Pie de página con línea y texto."""
+    c.setStrokeColor(COLOR_LINE)
+    c.setLineWidth(0.5)
+    c.line(0.5 * inch, margin_b, page_w - 0.5 * inch, margin_b)
+    c.setFont('Helvetica', 7)
+    c.setFillColor(COLOR_SUBTEXT)
+    fecha_imp = datetime.now().strftime('%d/%m/%Y %H:%M')
+    c.drawString(0.65 * inch, margin_b - 0.15 * inch,
+                 f"Documento generado el {fecha_imp}  |  Este documento es una Orden de Compra oficial.")
+    txt_r = f"OC: {oc_id}"
+    tw = c.stringWidth(txt_r, 'Helvetica', 7)
+    c.drawString(page_w - 0.65 * inch - tw, margin_b - 0.15 * inch, txt_r)
+
+
+def _truncate_text(c, text: str, font: str, size: float, max_w: float) -> str:
+    """Trunca el texto con '…' si supera max_w."""
+    try:
+        if c.stringWidth(text, font, size) <= max_w:
+            return text
+        while text and c.stringWidth(text + '…', font, size) > max_w:
+            text = text[:-1]
+        return text + '…'
+    except Exception:
+        return text[:30]
+
+
+def _draw_wrapped_text(c, x, y, max_w, text: str, font_size=8.5, line_h=None):
+    """Dibuja texto con wrap simple."""
+    if line_h is None:
+        line_h = font_size * 1.3
+    words = text.split()
+    line  = ''
+    for word in words:
+        test = (line + ' ' + word).strip()
+        if c.stringWidth(test, 'Helvetica', font_size) <= max_w:
+            line = test
+        else:
+            c.drawString(x, y, line)
+            y   -= line_h
+            line = word
+    if line:
+        c.drawString(x, y, line)
+
+
+# ════════════════════════════════════════════════════════════════════
+# ETIQUETAS — funciones internas (sin cambios)
+# ════════════════════════════════════════════════════════════════════
 
 def _draw_single_label(c, item, codigo_carrito: str):
     default_font = "Helvetica"
@@ -152,8 +636,6 @@ def _draw_single_label(c, item, codigo_carrito: str):
 
     try:
         partes_codigo = codigo_carrito.split('_')
-        # El turno es el segundo elemento después del número de parte
-        # Buscamos 'D' o 'N' en las partes
         turno_qr = 'D'
         for parte in partes_codigo:
             if parte in ('D', 'N'):
@@ -194,9 +676,10 @@ def _draw_single_label(c, item, codigo_carrito: str):
                 style = ParagraphStyle(
                     name='DescStyle', fontName=bold_font,
                     fontSize=font_size_desc, leading=font_size_desc + 1,
-                    alignment=1, textColor=black
+                    alignment=1
                 )
-                p    = Paragraph(value, style)
+                from reportlab.platypus import Paragraph as _P
+                p    = _P(value, style)
                 w, h = p.wrapOn(c, box_value_width - 0.1 * inch, box_height_abs)
                 if h <= box_height_abs:
                     break
@@ -227,7 +710,6 @@ def _draw_single_label(c, item, codigo_carrito: str):
 
     y_qr2 = y_qr1 - 0.15 * inch - qr_size
     lote_base = item.get('lote', '')
-    # Extraer número de carrito del QR1 y añadirlo al lote del QR2
     try:
         num_carrito = int(codigo_carrito.split('_')[-1])
         qr_lote = f"{lote_base}_{num_carrito:02d}"

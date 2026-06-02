@@ -18,6 +18,7 @@ class Token(BaseModel):
 
 class UsuarioCreate(BaseModel):
     username:      str
+    nombre:        Optional[str] = None
     email:         str
     password:      str
     rol:           RolUsuario = RolUsuario.operador
@@ -25,6 +26,7 @@ class UsuarioCreate(BaseModel):
 
 
 class UsuarioUpdate(BaseModel):
+    nombre:        Optional[str]                    = None
     email:         Optional[str]                    = None
     rol:           Optional[RolUsuario]             = None
     activo:        Optional[bool]                   = None
@@ -35,6 +37,7 @@ class UsuarioUpdate(BaseModel):
 class UsuarioResponse(BaseModel):
     id:            int
     username:      str
+    nombre:        Optional[str]                    = None
     email:         str
     rol:           RolUsuario
     activo:        bool

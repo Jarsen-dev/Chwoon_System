@@ -30,7 +30,7 @@ export default function DashboardTab({ dashPorParte, dashTotalPiezas, cargarDash
         {cards.map((card, idx) => (
           <div key={idx} className={`rounded-lg border-l-4 p-4 ${card.color}`}>
             <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{card.label}</span>
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{card.label}</span>
               <span className="text-xl">{card.icon}</span>
             </div>
             <p className={`text-3xl font-bold ${card.text}`}>{card.value}</p>
@@ -39,7 +39,7 @@ export default function DashboardTab({ dashPorParte, dashTotalPiezas, cargarDash
       </div>
 
       {/* Barras */}
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <div className="bg-gray-900 border border-gray-700 rounded-xl overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
           <div>
             <h2 className="text-base font-bold text-slate-800">📊 Producción por Número de Parte</h2>
@@ -81,7 +81,7 @@ export default function DashboardTab({ dashPorParte, dashTotalPiezas, cargarDash
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="w-5" />
-                  <div className="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden">
+                  <div className="flex-1 bg-gray-800 rounded-full h-3 overflow-hidden">
                     <div
                       className={`h-3 rounded-full transition-all duration-700 ${getBarColor(item.porcentaje)}`}
                       style={{

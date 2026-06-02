@@ -61,10 +61,10 @@ function getBarColor(pct: number): string {
 
 function getTipoBadge(tipo: string): string {
   switch (tipo) {
-    case 'FRAUDE':        return 'bg-red-100 text-red-800 border-red-300'
-    case 'MANTENIMIENTO': return 'bg-orange-100 text-orange-800 border-orange-300'
-    case 'LENTITUD_PLAN': return 'bg-yellow-100 text-yellow-800 border-yellow-300'
-    default:              return 'bg-gray-100 text-gray-700 border-gray-300'
+    case 'FRAUDE':        return 'bg-red-500/20 text-red-300 border-red-500/40'
+    case 'MANTENIMIENTO': return 'bg-orange-500/20 text-orange-800 border-orange-500/40'
+    case 'LENTITUD_PLAN': return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40'
+    default:              return 'bg-gray-800 text-gray-300 border-gray-600'
   }
 }
 
@@ -188,19 +188,19 @@ export default function HomeDashboardTab({ token, rol }: Props) {
   const esAdmin = rol === 'admin' || rol === 'supervisor'
 
   const metricas = [
-    { label: 'Total Piezas Hoy', value: totalPiezas.toLocaleString(), sub: `Turno ${turno}`, icon: '📦', color: 'bg-blue-50', border: 'border-blue-500' },
-    { label: 'Máquinas Activas', value: maquinasActivas, sub: 'Con producción hoy', icon: '⚙️', color: 'bg-emerald-50', border: 'border-emerald-500' },
+    { label: 'Total Piezas Hoy', value: totalPiezas.toLocaleString(), sub: `Turno ${turno}`, icon: '📦', color: 'bg-blue-500/10', border: 'border-blue-500' },
+    { label: 'Máquinas Activas', value: maquinasActivas, sub: 'Con producción hoy', icon: '⚙️', color: 'bg-emerald-500/10', border: 'border-emerald-500' },
     { label: 'Alertas Detectadas', value: totalAlertas, sub: 'Hoy por IA', icon: '🚨',
-      color: totalAlertas > 0 ? 'bg-red-50' : 'bg-gray-50', border: totalAlertas > 0 ? 'border-red-500' : 'border-gray-300' },
+      color: totalAlertas > 0 ? 'bg-red-500/10' : 'bg-gray-800', border: totalAlertas > 0 ? 'border-red-500' : 'border-gray-600' },
     { label: 'Plan Completado', value: `${porcentajePlan}%`, sub: `${planData.filter(p => p.porcentaje >= 100).length} de ${planData.length} partes`, icon: '📋',
-      color: porcentajePlan >= 80 ? 'bg-emerald-50' : 'bg-yellow-50', border: porcentajePlan >= 80 ? 'border-emerald-500' : 'border-yellow-500' },
+      color: porcentajePlan >= 80 ? 'bg-emerald-500/10' : 'bg-yellow-500/10', border: porcentajePlan >= 80 ? 'border-emerald-500' : 'border-yellow-500' },
   ]
 
   if (loading) return (
     <div className="flex items-center justify-center py-20">
       <div className="text-center">
         <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-gray-500 font-medium">Cargando dashboard...</p>
+        <p className="text-gray-400 font-medium">Cargando dashboard...</p>
       </div>
     </div>
   )
@@ -210,11 +210,11 @@ export default function HomeDashboardTab({ token, rol }: Props) {
       {/* ═══ SUBHEADER ═══ */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800">Panel de Control</h2>
-          <p className="text-sm text-gray-500 capitalize">{formatearFecha()}</p>
+          <h2 className="text-2xl font-bold text-white">Panel de Control</h2>
+          <p className="text-sm text-gray-400 capitalize">{formatearFecha()}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 border border-gray-200 text-gray-500 text-sm">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-800 border border-gray-700 text-gray-400 text-sm">
             <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
             Actualizado: {ultimaActualizacion}
           </div>
@@ -227,7 +227,7 @@ export default function HomeDashboardTab({ token, rol }: Props) {
               onClick={() => showReportes ? setShowReportes(false) : cargarReportes()}
               disabled={loadingReportes}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 ${
-                showReportes ? 'bg-purple-600 hover:bg-purple-700 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                showReportes ? 'bg-purple-600 hover:bg-purple-700 text-white' : 'bg-gray-700 hover:bg-gray-300 text-gray-300'
               }`}
             >
               {loadingReportes ? (
@@ -240,19 +240,19 @@ export default function HomeDashboardTab({ token, rol }: Props) {
 
       {/* ═══ REPORTES ═══ */}
       {showReportes && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
-          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-purple-50 to-white">
+        <div className="bg-gray-900 rounded-xl shadow-sm border border-gray-700 overflow-hidden mb-6">
+          <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between bg-gradient-to-r from-purple-50 to-white">
             <div>
-              <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">📈 Reportes por Turno</h3>
+              <h3 className="text-base font-bold text-white flex items-center gap-2">📈 Reportes por Turno</h3>
               <p className="text-xs text-gray-400 mt-0.5">Historial — últimos {reportes.length} turnos</p>
             </div>
             <div className="flex items-center gap-2">
               <button onClick={cargarReportes} disabled={loadingReportes}
-                className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-lg transition-colors">
+                className="text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 px-3 py-1.5 rounded-lg transition-colors">
                 {loadingReportes ? '⏳' : '🔄'} Actualizar
               </button>
               <button onClick={() => setShowReportes(false)}
-                className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-lg transition-colors">
+                className="text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 px-3 py-1.5 rounded-lg transition-colors">
                 ✖ Cerrar
               </button>
             </div>
@@ -267,9 +267,9 @@ export default function HomeDashboardTab({ token, rol }: Props) {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-slate-50 border-b border-gray-100">
+                  <tr className="bg-gray-800 border-b border-gray-800">
                     {['Fecha','Turno','Escaneos','Piezas','Partes','Máquinas','Primer Escaneo','Último Escaneo','Secado','Acciones'].map(col => (
-                      <th key={col} className="p-3 text-center font-semibold text-slate-600">{col}</th>
+                      <th key={col} className="p-3 text-center font-semibold text-gray-300">{col}</th>
                     ))}
                   </tr>
                 </thead>
@@ -278,30 +278,30 @@ export default function HomeDashboardTab({ token, rol }: Props) {
                     const esHoy = r.fecha === fechaHoy
                     const key   = `${r.fecha}_${r.turno}`
                     return (
-                      <tr key={idx} className={`border-b border-gray-50 transition ${esHoy ? 'bg-blue-50/50' : 'hover:bg-gray-50'}`}>
+                      <tr key={idx} className={`border-b border-gray-800 transition ${esHoy ? 'bg-blue-500/10' : 'hover:bg-gray-800'}`}>
                         <td className="p-3">
                           <div className="flex items-center gap-2">
                             {esHoy && <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />}
-                            <span className={`font-mono text-sm ${esHoy ? 'font-bold text-blue-700' : 'text-slate-700'}`}>
+                            <span className={`font-mono text-sm ${esHoy ? 'font-bold text-blue-400' : 'text-gray-200'}`}>
                               {formatearFechaCorta(r.fecha)}
                             </span>
-                            {esHoy && <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded font-medium">Hoy</span>}
+                            {esHoy && <span className="text-xs bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded font-medium">Hoy</span>}
                           </div>
                         </td>
                         <td className="p-3 text-center">
                           <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                            r.turno === 'DIA' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' : 'bg-indigo-100 text-indigo-800 border border-indigo-200'
+                            r.turno === 'DIA' ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30' : 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
                           }`}>{r.turno === 'DIA' ? '☀️' : '🌙'} {r.turno}</span>
                         </td>
-                        <td className="p-3 text-center font-bold text-slate-700">{r.escaneos.toLocaleString()}</td>
-                        <td className="p-3 text-center font-bold text-blue-700 text-base">{r.piezas.toLocaleString()}</td>
-                        <td className="p-3 text-center"><span className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full text-xs font-semibold">{r.partes_unicas}</span></td>
-                        <td className="p-3 text-center"><span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full text-xs font-semibold">{r.maquinas}</span></td>
-                        <td className="p-3 text-center font-mono text-xs text-gray-500">{r.primer_escaneo || '—'}</td>
-                        <td className="p-3 text-center font-mono text-xs text-gray-500">{r.ultimo_escaneo || '—'}</td>
+                        <td className="p-3 text-center font-bold text-gray-200">{r.escaneos.toLocaleString()}</td>
+                        <td className="p-3 text-center font-bold text-blue-400 text-base">{r.piezas.toLocaleString()}</td>
+                        <td className="p-3 text-center"><span className="bg-gray-800 text-gray-300 px-2 py-0.5 rounded-full text-xs font-semibold">{r.partes_unicas}</span></td>
+                        <td className="p-3 text-center"><span className="bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full text-xs font-semibold">{r.maquinas}</span></td>
+                        <td className="p-3 text-center font-mono text-xs text-gray-400">{r.primer_escaneo || '—'}</td>
+                        <td className="p-3 text-center font-mono text-xs text-gray-400">{r.ultimo_escaneo || '—'}</td>
                         <td className="p-3 text-center">
                           {r.secado_total > 0
-                            ? <span className="text-xs text-orange-600 font-semibold">🌡️ {r.secado_salidos}/{r.secado_total}</span>
+                            ? <span className="text-xs text-orange-400 font-semibold">🌡️ {r.secado_salidos}/{r.secado_total}</span>
                             : <span className="text-xs text-gray-300">—</span>}
                         </td>
                         <td className="p-3 text-center">
@@ -336,9 +336,9 @@ export default function HomeDashboardTab({ token, rol }: Props) {
           )}
 
           {reportes.length > 0 && (
-            <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
-              <span>Total: <strong className="text-gray-700">{reportes.reduce((a,r) => a + r.piezas, 0).toLocaleString()}</strong> piezas en <strong className="text-gray-700">{reportes.length}</strong> turnos</span>
-              <span>Promedio: <strong className="text-gray-700">{Math.round(reportes.reduce((a,r) => a + r.piezas, 0) / reportes.length).toLocaleString()}</strong> piezas/turno</span>
+            <div className="px-5 py-3 bg-gray-800 border-t border-gray-800 flex items-center justify-between text-xs text-gray-400">
+              <span>Total: <strong className="text-gray-300">{reportes.reduce((a,r) => a + r.piezas, 0).toLocaleString()}</strong> piezas en <strong className="text-gray-300">{reportes.length}</strong> turnos</span>
+              <span>Promedio: <strong className="text-gray-300">{Math.round(reportes.reduce((a,r) => a + r.piezas, 0) / reportes.length).toLocaleString()}</strong> piezas/turno</span>
             </div>
           )}
         </div>
@@ -347,13 +347,13 @@ export default function HomeDashboardTab({ token, rol }: Props) {
       {/* ═══ TARJETAS ═══ */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
         {metricas.map((m, i) => (
-          <div key={i} className={`bg-white rounded-lg border-l-4 ${m.border} shadow-sm p-5 flex items-center gap-4`}>
+          <div key={i} className={`bg-gray-900 rounded-lg border-l-4 ${m.border} shadow-sm p-5 flex items-center gap-4`}>
             <div className={`w-12 h-12 rounded-lg ${m.color} flex items-center justify-center text-2xl flex-shrink-0`}>
               {m.icon}
             </div>
             <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest">{m.label}</p>
-              <p className="text-3xl font-bold text-slate-800 leading-tight">{m.value}</p>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">{m.label}</p>
+              <p className="text-3xl font-bold text-white leading-tight">{m.value}</p>
               <p className="text-xs text-gray-400 mt-0.5">{m.sub}</p>
             </div>
           </div>
@@ -363,13 +363,13 @@ export default function HomeDashboardTab({ token, rol }: Props) {
       {/* ═══ PRODUCCIÓN + ALERTAS ═══ */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">
         {/* Producción por parte */}
-        <div className="xl:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+        <div className="xl:col-span-2 bg-gray-900 rounded-xl shadow-sm border border-gray-700 overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
             <div>
-              <h3 className="text-base font-bold text-slate-800">📊 Producción por Número de Parte</h3>
+              <h3 className="text-base font-bold text-white">📊 Producción por Número de Parte</h3>
               <p className="text-xs text-gray-400 mt-0.5">Acumulado del turno actual</p>
             </div>
-            <span className="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full font-semibold">
+            <span className="text-xs bg-blue-500/10 text-blue-400 border border-blue-500/30 px-2.5 py-1 rounded-full font-semibold">
               {produccionPorParte.length} partes
             </span>
           </div>
@@ -386,22 +386,22 @@ export default function HomeDashboardTab({ token, rol }: Props) {
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="text-xs font-bold text-gray-400 w-5 text-right flex-shrink-0">{idx+1}</span>
                       <div className="min-w-0">
-                        <span className="font-mono font-bold text-slate-800 text-sm">{item.numero_parte}</span>
+                        <span className="font-mono font-bold text-white text-sm">{item.numero_parte}</span>
                         {item.descripcion && <span className="text-gray-400 text-xs ml-2 truncate hidden sm:inline">{item.descripcion}</span>}
                       </div>
                     </div>
                     <div className="flex items-center gap-3 flex-shrink-0 ml-4">
-                      <span className="text-slate-700 font-bold text-sm">{item.total.toLocaleString()}</span>
+                      <span className="text-gray-200 font-bold text-sm">{item.total.toLocaleString()}</span>
                       {item.meta > 0 && (
                         <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                          item.porcentaje >= 100 ? 'bg-emerald-100 text-emerald-700' : item.porcentaje >= 60 ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'
+                          item.porcentaje >= 100 ? 'bg-emerald-500/20 text-emerald-400' : item.porcentaje >= 60 ? 'bg-blue-500/20 text-blue-400' : 'bg-yellow-500/20 text-yellow-400'
                         }`}>{item.porcentaje}%</span>
                       )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-gray-400 w-5 flex-shrink-0" />
-                    <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
+                    <div className="flex-1 bg-gray-800 rounded-full h-2 overflow-hidden">
                       <div className={`h-2 rounded-full transition-all duration-500 ${getBarColor(item.porcentaje)}`}
                         style={{ width: `${item.meta > 0 ? item.porcentaje : 100}%` }} />
                     </div>
@@ -414,14 +414,14 @@ export default function HomeDashboardTab({ token, rol }: Props) {
         </div>
 
         {/* Alertas */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+        <div className="bg-gray-900 rounded-xl shadow-sm border border-gray-700 overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
             <div>
-              <h3 className="text-base font-bold text-slate-800">🚨 Alertas IA</h3>
+              <h3 className="text-base font-bold text-white">🚨 Alertas IA</h3>
               <p className="text-xs text-gray-400 mt-0.5">Detecciones de hoy</p>
             </div>
             {totalAlertas > 0 && (
-              <span className="text-xs bg-red-50 text-red-700 border border-red-200 px-2.5 py-1 rounded-full font-bold">
+              <span className="text-xs bg-red-500/10 text-red-400 border border-red-500/30 px-2.5 py-1 rounded-full font-bold">
                 {totalAlertas} alerta{totalAlertas !== 1 ? 's' : ''}
               </span>
             )}
@@ -434,15 +434,15 @@ export default function HomeDashboardTab({ token, rol }: Props) {
               </div>
             ) : (
               alertasRecientes.map((alerta, idx) => (
-                <div key={idx} className="p-3 rounded-lg border bg-gray-50 hover:bg-gray-100 transition">
+                <div key={idx} className="p-3 rounded-lg border bg-gray-800 hover:bg-gray-800 transition">
                   <div className="flex items-center gap-2 mb-1">
                     <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${getTipoBadge(alerta.tipo)}`}>
                       {alerta.tipo}
                     </span>
                     <span className="text-xs text-gray-400 font-mono ml-auto">{alerta.hora}</span>
                   </div>
-                  <p className="text-xs font-semibold text-slate-700 font-mono">{alerta.numero_parte}</p>
-                  <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{alerta.motivo}</p>
+                  <p className="text-xs font-semibold text-gray-200 font-mono">{alerta.numero_parte}</p>
+                  <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{alerta.motivo}</p>
                 </div>
               ))
             )}
@@ -451,14 +451,14 @@ export default function HomeDashboardTab({ token, rol }: Props) {
       </div>
 
       {/* ═══ TABLA PLAN ═══ */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+      <div className="bg-gray-900 rounded-xl shadow-sm border border-gray-700 overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
           <div>
-            <h3 className="text-base font-bold text-slate-800">📋 Estado del Plan de Producción</h3>
+            <h3 className="text-base font-bold text-white">📋 Estado del Plan de Producción</h3>
             <p className="text-xs text-gray-400 mt-0.5">Avance por número de parte</p>
           </div>
           {planData.length > 0 && (
-            <span className="text-xs bg-slate-100 text-slate-600 border border-slate-200 px-2.5 py-1 rounded-full font-semibold">
+            <span className="text-xs bg-gray-800 text-gray-300 border border-gray-600 px-2.5 py-1 rounded-full font-semibold">
               {planData.length} parte{planData.length !== 1 ? 's' : ''} en plan
             </span>
           )}
@@ -466,9 +466,9 @@ export default function HomeDashboardTab({ token, rol }: Props) {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-slate-50 border-b border-gray-100">
+              <tr className="bg-gray-800 border-b border-gray-800">
                 {['#','No. de Parte','Proceso','Turno','Meta','Producido','Faltan','Progreso','Estado'].map(col => (
-                  <th key={col} className={`p-3 font-semibold text-slate-600 ${col === 'No. de Parte' || col === 'Progreso' ? 'text-left' : 'text-center'}`}>{col}</th>
+                  <th key={col} className={`p-3 font-semibold text-gray-300 ${col === 'No. de Parte' || col === 'Progreso' ? 'text-left' : 'text-center'}`}>{col}</th>
                 ))}
               </tr>
             </thead>
@@ -484,38 +484,38 @@ export default function HomeDashboardTab({ token, rol }: Props) {
                 planData.map((p: any, idx: number) => {
                   const faltan = Math.max(0, p.meta_piezas - p.producido)
                   return (
-                    <tr key={idx} className="border-b border-gray-50 hover:bg-gray-50 transition">
+                    <tr key={idx} className="border-b border-gray-800 hover:bg-gray-800 transition">
                       <td className="p-3 text-center text-gray-400 text-xs font-medium">{idx+1}</td>
-                      <td className="p-3"><span className="font-mono font-bold text-slate-800 text-sm">{p.numero_parte}</span></td>
+                      <td className="p-3"><span className="font-mono font-bold text-white text-sm">{p.numero_parte}</span></td>
                       <td className="p-3 text-center">
-                        <span className="font-bold text-slate-700 uppercase">{p.proceso || '—'}</span>
+                        <span className="font-bold text-gray-200 uppercase">{p.proceso || '—'}</span>
                       </td>
                       <td className="p-3 text-center">
                         <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                          p.turno_objetivo === 'Día' ? 'bg-yellow-100 text-yellow-800' : 'bg-indigo-100 text-indigo-800'
+                          p.turno_objetivo === 'Día' ? 'bg-yellow-500/20 text-yellow-300' : 'bg-indigo-500/20 text-indigo-300'
                         }`}>{p.turno_objetivo}</span>
                       </td>
-                      <td className="p-3 text-center font-semibold text-slate-700">{p.meta_piezas.toLocaleString()}</td>
-                      <td className="p-3 text-center font-bold text-blue-700">{p.producido.toLocaleString()}</td>
-                      <td className={`p-3 text-center font-semibold ${faltan === 0 ? 'text-emerald-600' : 'text-orange-500'}`}>
+                      <td className="p-3 text-center font-semibold text-gray-200">{p.meta_piezas.toLocaleString()}</td>
+                      <td className="p-3 text-center font-bold text-blue-400">{p.producido.toLocaleString()}</td>
+                      <td className={`p-3 text-center font-semibold ${faltan === 0 ? 'text-emerald-400' : 'text-orange-500'}`}>
                         {faltan === 0 ? '—' : faltan.toLocaleString()}
                       </td>
                       <td className="p-3">
                         <div className="flex items-center gap-2">
-                          <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
+                          <div className="flex-1 bg-gray-800 rounded-full h-2 overflow-hidden">
                             <div className={`h-2 rounded-full transition-all duration-500 ${getBarColor(p.porcentaje)}`}
                               style={{ width: `${p.porcentaje}%` }} />
                           </div>
-                          <span className="text-xs font-bold text-gray-500 w-9 text-right">{p.porcentaje}%</span>
+                          <span className="text-xs font-bold text-gray-400 w-9 text-right">{p.porcentaje}%</span>
                         </div>
                       </td>
                       <td className="p-3 text-center">
                         {p.porcentaje >= 100 ? (
-                          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">✅ Completo</span>
+                          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">✅ Completo</span>
                         ) : p.producido > 0 ? (
-                          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 border border-blue-200">🔄 En Proceso</span>
+                          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30">🔄 En Proceso</span>
                         ) : (
-                                                    <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-600 border border-gray-200">⏸️ En Cola</span>
+                                                    <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-gray-800 text-gray-400 border border-gray-700">⏸️ En Cola</span>
                         )}
                       </td>
                     </tr>

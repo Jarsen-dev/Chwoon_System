@@ -32,6 +32,7 @@ class OrdenCompraCreate(BaseModel):
     nombre_proveedor: str
     items: List[OrdenCompraItemCreate]
     notas: Optional[str] = None
+    iva: float = Field(default=0.0, ge=0.0, description="IVA aplicado al total de la orden, ej: 16.0 para 16%")
 
 
 class OrdenCompraUpdate(BaseModel):
@@ -51,6 +52,7 @@ class OrdenCompraResponse(BaseModel):
     fecha_actualizacion: Optional[datetime] = None
     notas: Optional[str] = None
     creado_por: Optional[str] = None
+    iva: float = 0.0
     items: List[OrdenCompraItemResponse] = []
 
     class Config:
@@ -263,6 +265,10 @@ class ProveedorCreate(BaseModel):
     condiciones_pago: Optional[str] = "30 días"
     dias_credito: int = Field(default=30, ge=0)
     estatus_calidad: str = "Aprobado"
+    direccion: Optional[str] = None
+    nombre_ventas: Optional[str] = None
+    numero_contacto: Optional[str] = None
+    correo_contacto: Optional[str] = None
     notas: Optional[str] = None
     materiales: List[ProveedorMaterialCreate] = []
 
@@ -273,6 +279,10 @@ class ProveedorUpdate(BaseModel):
     condiciones_pago: Optional[str] = None
     dias_credito: Optional[int] = None
     estatus_calidad: Optional[str] = None
+    direccion: Optional[str] = None
+    nombre_ventas: Optional[str] = None
+    numero_contacto: Optional[str] = None
+    correo_contacto: Optional[str] = None
     notas: Optional[str] = None
     materiales: Optional[List[ProveedorMaterialCreate]] = None
 
@@ -285,6 +295,10 @@ class ProveedorResponse(BaseModel):
     condiciones_pago: Optional[str]
     dias_credito: Optional[int] = None
     estatus_calidad: str
+    direccion: Optional[str] = None
+    nombre_ventas: Optional[str] = None
+    numero_contacto: Optional[str] = None
+    correo_contacto: Optional[str] = None
     notas: Optional[str]
     score_calidad: Optional[float] = 100.0
     score_detalle: Optional[Dict[str, Any]] = {}

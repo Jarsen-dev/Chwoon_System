@@ -719,6 +719,7 @@ async def create_usuario(
 
     nuevo = Usuario(
         username        = body.username,
+        nombre          = body.nombre,
         email           = body.email,
         hashed_password = get_password_hash(body.password),
         rol             = body.rol,
@@ -745,6 +746,7 @@ async def update_usuario(
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
+    if body.nombre  is not None: user.nombre = body.nombre
     if body.email    is not None: user.email  = body.email
     if body.rol      is not None: user.rol    = body.rol
     if body.activo   is not None: user.activo = body.activo

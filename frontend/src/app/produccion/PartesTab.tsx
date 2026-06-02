@@ -277,7 +277,7 @@ export default function PartesTab() {
 
   if (loading)
     return (
-      <div className="p-8 text-center text-xl font-semibold text-gray-600">
+      <div className="p-8 text-center text-xl font-semibold text-gray-400">
         Cargando datos...
       </div>
     )
@@ -287,7 +287,7 @@ export default function PartesTab() {
       {/* MODAL NOTIFICACIÓN */}
       {modalInfo && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
+          <div className="bg-gray-900 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
             <div
               className={`px-6 py-4 ${
                 modalInfo.type === 'success'
@@ -305,7 +305,7 @@ export default function PartesTab() {
               </h3>
             </div>
             <div className="p-6">
-              <p className="text-gray-700 text-base mb-6">{modalInfo.message}</p>
+              <p className="text-gray-300 text-base mb-6">{modalInfo.message}</p>
               <div className="flex justify-end">
                 <button
                   ref={okButtonRef}
@@ -329,16 +329,16 @@ export default function PartesTab() {
       {/* MODAL CONFIRMAR ELIMINACIÓN */}
       {confirmModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
+          <div className="bg-gray-900 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
             <div className="bg-red-600 px-6 py-4">
               <h3 className="text-lg font-bold text-white">🗑️ {confirmModal.title}</h3>
             </div>
             <div className="p-6">
-              <p className="text-gray-700 text-base mb-6">{confirmModal.message}</p>
+              <p className="text-gray-300 text-base mb-6">{confirmModal.message}</p>
               <div className="flex justify-end gap-3">
                 <button
                   onClick={() => setConfirmModal(null)}
-                  className="px-5 py-2.5 rounded-lg font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition"
+                  className="px-5 py-2.5 rounded-lg font-medium text-gray-300 bg-gray-800 hover:bg-gray-700 transition"
                 >
                   Cancelar
                 </button>
@@ -358,18 +358,18 @@ export default function PartesTab() {
       {/* MODAL AÑADIR A COLA */}
       {isQueueModalOpen && itemForQueue && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
+          <div className="bg-gray-900 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
             <div className="bg-blue-600 px-6 py-4">
               <h3 className="text-lg font-bold text-white">🖨️ Añadir a Cola</h3>
             </div>
             <form onSubmit={confirmAddToQueue} className="p-6">
-              <p className="text-gray-600 mb-4">
+              <p className="text-gray-400 mb-4">
                 Parte:{' '}
-                <strong className="text-blue-700 font-mono bg-blue-50 px-1 rounded">
+                <strong className="text-blue-400 font-mono bg-blue-500/10 px-1 rounded">
                   {itemForQueue.codigo}
                 </strong>
               </p>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-gray-300 mb-1">
                 Cantidad de Etiquetas
               </label>
               <input
@@ -378,14 +378,14 @@ export default function PartesTab() {
                 min="1"
                 value={queueQty}
                 onChange={(e) => setQueueQty(e.target.value)}
-                className="w-full border-2 border-gray-300 p-3 rounded-lg focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none text-2xl text-center font-bold mb-4 transition-all"
+                className="w-full border-2 border-gray-600 p-3 rounded-lg focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none text-2xl text-center font-bold mb-4 transition-all"
                 required
               />
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Turno</label>
+              <label className="block text-sm font-semibold text-gray-300 mb-1">Turno</label>
               <select
                 value={turnoQueue}
                 onChange={(e) => setTurnoQueue(e.target.value as 'Día' | 'Noche')}
-                className="w-full border-2 border-gray-300 p-2.5 rounded-lg focus:border-blue-500 outline-none mb-6"
+                className="w-full border-2 border-gray-600 p-2.5 rounded-lg focus:border-blue-500 outline-none mb-6"
               >
                 <option value="Día">Día</option>
                 <option value="Noche">Noche</option>
@@ -394,7 +394,7 @@ export default function PartesTab() {
                 <button
                   type="button"
                   onClick={() => setIsQueueModalOpen(false)}
-                  className="px-5 py-2.5 rounded-lg font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition"
+                  className="px-5 py-2.5 rounded-lg font-medium text-gray-300 bg-gray-800 hover:bg-gray-700 transition"
                 >
                   Cancelar
                 </button>
@@ -413,50 +413,50 @@ export default function PartesTab() {
       {/* FORMULARIO */}
       <form
         onSubmit={handleSubmit}
-        className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-6"
+        className="bg-gray-900 p-6 rounded-lg shadow-sm border border-gray-700 mb-6"
       >
-        <h2 className="text-lg font-bold text-gray-700 mb-4 pb-2 border-b">
+        <h2 className="text-lg font-bold text-gray-300 mb-4 pb-2 border-b">
           {editing ? `✏️ Editar Parte: ${editing}` : '➕ Nueva Parte'}
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">No. de Parte</label>
+            <label className="block text-sm font-semibold text-gray-300 mb-1">No. de Parte</label>
             <input
               type="text"
               value={formData.codigo}
               onChange={(e) => setFormData({ ...formData, codigo: e.target.value })}
-              className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-200 focus:outline-none"
+              className="w-full border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
               required
               disabled={!!editing}
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Descripción</label>
+            <label className="block text-sm font-semibold text-gray-300 mb-1">Descripción</label>
             <input
               type="text"
               value={formData.descripcion}
               onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-              className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-200 focus:outline-none"
+              className="w-full border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
               required
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">
+            <label className="block text-sm font-semibold text-gray-300 mb-1">
               Línea (máquina)
             </label>
             <input
               type="text"
               value={formData.linea}
               onChange={(e) => setFormData({ ...formData, linea: e.target.value })}
-              className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-200 focus:outline-none"
+              className="w-full border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Tipo</label>
+            <label className="block text-sm font-semibold text-gray-300 mb-1">Tipo</label>
             <select
               value={formData.tipo}
               onChange={(e) => setFormData({ ...formData, tipo: e.target.value })}
-              className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-200 focus:outline-none"
+              className="w-full border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
             >
               <option value="assy">assy</option>
               <option value="Packing">Packing</option>
@@ -464,7 +464,7 @@ export default function PartesTab() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">
+            <label className="block text-sm font-semibold text-gray-300 mb-1">
               QTY (piezas por carrito)
             </label>
             <input
@@ -473,15 +473,15 @@ export default function PartesTab() {
               onChange={(e) =>
                 setFormData({ ...formData, qtu: parseInt(e.target.value) || 1 })
               }
-              className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-200 focus:outline-none"
+              className="w-full border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Línea LG</label>
+            <label className="block text-sm font-semibold text-gray-300 mb-1">Línea LG</label>
             <select
               value={formData.linea_lg}
               onChange={(e) => setFormData({ ...formData, linea_lg: e.target.value })}
-              className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-200 focus:outline-none"
+              className="w-full border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
             >
               <option value="R1">R1</option>
               <option value="R2">R2</option>
@@ -490,7 +490,7 @@ export default function PartesTab() {
             </select>
           </div>
           <div className="md:col-span-3">
-            <label className="block text-sm font-semibold text-gray-700 mb-1">
+            <label className="block text-sm font-semibold text-gray-300 mb-1">
               Ayuda Visual (link)
             </label>
             <input
@@ -498,7 +498,7 @@ export default function PartesTab() {
               placeholder="https://..."
               value={formData.ayuda_visual}
               onChange={(e) => setFormData({ ...formData, ayuda_visual: e.target.value })}
-              className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-200 focus:outline-none"
+              className="w-full border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
             />
           </div>
         </div>
@@ -573,12 +573,12 @@ export default function PartesTab() {
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
           placeholder="Buscar máquina, parte o descripción..."
-          className="flex-1 min-w-[200px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 placeholder:text-gray-400"
+          className="flex-1 min-w-[200px] border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 placeholder:text-gray-400"
         />
         <select
           value={filtroMaquina}
           onChange={(e) => setFiltroMaquina(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white text-gray-700"
+          className="border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 bg-gray-900 text-gray-300"
         >
           <option value="">Todas las Máquinas</option>
           {maquinasUnicas.map((m) => (
@@ -590,7 +590,7 @@ export default function PartesTab() {
         <select
           value={filtroParte}
           onChange={(e) => setFiltroParte(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white text-gray-700"
+          className="border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 bg-gray-900 text-gray-300"
         >
           <option value="">Todos los No. de Parte</option>
           {partesUnicas.map((p) => (
@@ -602,7 +602,7 @@ export default function PartesTab() {
         <select
           value={filtroDesc}
           onChange={(e) => setFiltroDesc(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white text-gray-700"
+          className="border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 bg-gray-900 text-gray-300"
         >
           <option value="">Todas las Descripciones</option>
           {descsUnicas.map((d) => (
@@ -615,12 +615,12 @@ export default function PartesTab() {
           {hayFiltros && (
             <button
               onClick={limpiarFiltros}
-              className="text-xs text-gray-500 hover:text-red-600 underline underline-offset-2 transition-colors"
+              className="text-xs text-gray-400 hover:text-red-400 underline underline-offset-2 transition-colors"
             >
               Limpiar filtros
             </button>
           )}
-          <span className="bg-gray-100 text-gray-600 text-xs font-semibold px-3 py-2 rounded-lg whitespace-nowrap border border-gray-200">
+          <span className="bg-gray-800 text-gray-400 text-xs font-semibold px-3 py-2 rounded-lg whitespace-nowrap border border-gray-700">
             {inventarioFiltrado.length === inventario.length
               ? `${inventario.length} registro${inventario.length !== 1 ? 's' : ''}`
               : `${inventarioFiltrado.length} de ${inventario.length} registros`}
@@ -629,40 +629,40 @@ export default function PartesTab() {
       </div>
 
       {/* TABLA */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-x-auto">
+      <div className="bg-gray-900 rounded-lg shadow-sm border border-gray-700 overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 border-b border-gray-200">
+          <thead className="bg-gray-800 border-b border-gray-700">
             <tr>
-              <th className="p-3 text-left font-semibold text-slate-700">No. de Parte</th>
-              <th className="p-3 text-left font-semibold text-slate-700">Descripción</th>
-              <th className="p-3 text-left font-semibold text-slate-700">Línea</th>
-              <th className="p-3 text-left font-semibold text-slate-700">Tipo</th>
-              <th className="p-3 text-center font-semibold text-slate-700">QTY</th>
-              <th className="p-3 text-center font-semibold text-slate-700">Línea LG</th>
-              <th className="p-3 text-center font-semibold text-slate-700">Acciones</th>
+              <th className="p-3 text-left font-semibold text-gray-200">No. de Parte</th>
+              <th className="p-3 text-left font-semibold text-gray-200">Descripción</th>
+              <th className="p-3 text-left font-semibold text-gray-200">Línea</th>
+              <th className="p-3 text-left font-semibold text-gray-200">Tipo</th>
+              <th className="p-3 text-center font-semibold text-gray-200">QTY</th>
+              <th className="p-3 text-center font-semibold text-gray-200">Línea LG</th>
+              <th className="p-3 text-center font-semibold text-gray-200">Acciones</th>
             </tr>
           </thead>
           <tbody>
             {inventarioFiltrado.map((item) => (
               <tr
                 key={item.codigo}
-                className="border-b last:border-b-0 hover:bg-blue-50/30 transition"
+                className="border-b last:border-b-0 hover:bg-blue-500/10/30 transition"
               >
-                <td className="p-3 font-mono font-medium text-slate-800">{item.codigo}</td>
-                <td className="p-3 text-slate-600">{item.descripcion}</td>
-                <td className="p-3 text-slate-600">{item.linea}</td>
-                <td className="p-3 text-slate-600">{item.tipo}</td>
+                <td className="p-3 font-mono font-medium text-white">{item.codigo}</td>
+                <td className="p-3 text-gray-300">{item.descripcion}</td>
+                <td className="p-3 text-gray-300">{item.linea}</td>
+                <td className="p-3 text-gray-300">{item.tipo}</td>
                 <td className="p-3 text-center font-semibold">{item.qtu}</td>
                 <td className="p-3 text-center">
                   <span
                     className={`px-2.5 py-1 rounded-full text-xs font-bold tracking-wide ${
                       item.linea_lg === 'BOSCH'
-                        ? 'bg-blue-100 text-blue-800'
+                        ? 'bg-blue-500/20 text-blue-300'
                         : item.linea_lg === 'EPS'
-                        ? 'bg-purple-100 text-purple-800'
+                        ? 'bg-purple-500/20 text-purple-300'
                         : item.linea_lg === 'R2'
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-gray-100 text-gray-800'
+                        ? 'bg-green-500/20 text-green-400'
+                        : 'bg-gray-800 text-gray-800'
                     }`}
                   >
                     {item.linea_lg}
@@ -671,21 +671,21 @@ export default function PartesTab() {
                 <td className="p-3 text-center space-x-2">
                   <button
                     onClick={() => openQueueModal(item)}
-                    className="text-purple-600 hover:text-purple-900 bg-purple-50 hover:bg-purple-100 p-1.5 rounded transition"
+                    className="text-purple-400 hover:text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 p-1.5 rounded transition"
                     title="Añadir a la Cola e Imprimir"
                   >
                     🖨️
                   </button>
                   <button
                     onClick={() => handleEdit(item)}
-                    className="text-blue-600 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 p-1.5 rounded transition"
+                    className="text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 p-1.5 rounded transition"
                     title="Editar"
                   >
                     ✏️
                   </button>
                   <button
                     onClick={() => handleDelete(item.codigo)}
-                    className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 p-1.5 rounded transition"
+                    className="text-red-400 hover:text-red-900 bg-red-500/100/10 hover:bg-red-500/20 p-1.5 rounded transition"
                     title="Eliminar"
                   >
                     🗑️
@@ -696,14 +696,14 @@ export default function PartesTab() {
           </tbody>
         </table>
         {inventarioFiltrado.length === 0 && (
-          <div className="p-10 text-center text-gray-500">
+          <div className="p-10 text-center text-gray-400">
             <span className="text-4xl block mb-2">📦</span>
             {hayFiltros ? (
               <>
                 No se encontraron partes con los filtros aplicados.
                 <button
                   onClick={limpiarFiltros}
-                  className="block mx-auto mt-2 text-blue-600 hover:underline text-sm"
+                  className="block mx-auto mt-2 text-blue-400 hover:underline text-sm"
                 >
                   Limpiar filtros
                 </button>
@@ -715,7 +715,7 @@ export default function PartesTab() {
         )}
       </div>
 
-      <div className="mt-4 text-sm font-medium text-slate-500 text-right">
+      <div className="mt-4 text-sm font-medium text-gray-400 text-right">
         Mostrando {inventarioFiltrado.length} de {inventario.length} partes registradas
       </div>
     </div>

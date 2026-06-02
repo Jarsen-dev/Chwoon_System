@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
+import { ModuleShell, LoadingSpinner } from '@/components/ui';
+import { getModuleTheme, ROLE_BADGE } from '@/lib/theme';
 import DashboardTab       from './DashboardTab';
 import EmbarquesTab       from './EmbarquesTab';
 import ReporteEmbarquesTab from './ReporteEmbarquesTab';
@@ -13,6 +15,8 @@ const ALL_TABS = [
   { id: 'embarques', label: '🚚 Embarques' },
   { id: 'reporte',   label: '📋 Reporte'   },
 ];
+
+const THEME = getModuleTheme('logistica');
 
 export default function LogisticaPage() {
   const [activeTab, setActiveTab] = useState('');
@@ -36,80 +40,56 @@ export default function LogisticaPage() {
   if (loading) {
     return (
       <div className="fixed inset-0 bg-gray-950 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-400" />
+        <LoadingSpinner colorClass={THEME.spinner} />
       </div>
     );
   }
 
   if (!token || (rol && !['admin', 'logistica'].includes(rol))) return null;
 
-  const rolBadge: Record<string, { icon: string; color: string }> = {
-    admin:     { icon: '👑', color: 'text-yellow-400' },
-    logistica: { icon: '🚛', color: 'text-teal-400'   },
-  };
-  const badge = rolBadge[rol || ''] || { icon: '👤', color: 'text-gray-400' };
+  const badge = ROLE_BADGE[rol || ''] || { icon: '👤', color: 'text-gray-400' };
+
+  const headerRight = (
+    <>
+      {['admin', 'supervisor', 'operador', 'calidad'].includes(rol || '') && (
+        <Link href="/" className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+          🏭 Producción
+        </Link>
+      )}
+      {['admin', 'finanzas'].includes(rol || '') && (
+        <>
+          <Link href="/compras" className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">🛒 Compras</Link>
+          <Link href="/ventas"  className="bg-violet-600 hover:bg-violet-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">💵 Ventas</Link>
+        </>
+      )}
+      {['admin', 'calidad'].includes(rol || '') && (
+        <Link href="/calidad" className="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">🔬 Calidad</Link>
+      )}
+      {['admin', 'almacen'].includes(rol || '') && (
+        <Link href="/almacen" className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">📦 Almacén</Link>
+      )}
+      {rol === 'admin' && (
+        <Link href="/admin" className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">👑 Admin</Link>
+      )}
+      <span className={`text-sm font-medium ${badge.color}`}>{badge.icon} {username}</span>
+      <button onClick={logout} className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+        🚪 Salir
+      </button>
+    </>
+  );
 
   return (
-    <div className="fixed inset-0 bg-gray-950 text-white flex flex-col">
-      {/* Header */}
-      <header className="bg-gray-900 border-b border-gray-800 px-6 py-3 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3">
-          <img src="/Logo.png" alt="Logo" className="h-10 w-auto" />
-          <h1 className="text-xl font-bold">Panel de Logística</h1>
-        </div>
-        <div className="flex items-center gap-3">
-          {['admin', 'supervisor', 'operador', 'calidad'].includes(rol || '') && (
-            <Link href="/" className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-              🏭 Producción
-            </Link>
-          )}
-          {['admin', 'finanzas'].includes(rol || '') && (
-            <>
-              <Link href="/compras" className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">🛒 Compras</Link>
-              <Link href="/ventas"  className="bg-violet-600 hover:bg-violet-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">💵 Ventas</Link>
-            </>
-          )}
-          {['admin', 'calidad'].includes(rol || '') && (
-            <Link href="/calidad" className="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">🔬 Calidad</Link>
-          )}
-          {['admin', 'almacen'].includes(rol || '') && (
-            <Link href="/almacen" className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">📦 Almacén</Link>
-          )}
-          {rol === 'admin' && (
-            <Link href="/admin" className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">👑 Admin</Link>
-          )}
-          <span className={`text-sm font-medium ${badge.color}`}>{badge.icon} {username}</span>
-          <button onClick={logout} className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-            🚪 Salir
-          </button>
-        </div>
-      </header>
-
-      {/* Tabs */}
-      <div className="bg-gray-900 border-b border-gray-800 px-6 shrink-0">
-        <div className="flex gap-1 overflow-x-auto">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-3 text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
-                activeTab === tab.id
-                  ? 'bg-gray-950 text-teal-400 border-b-2 border-teal-400'
-                  : 'text-gray-400 hover:text-white hover:bg-gray-800'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Content */}
-      <main className="flex-1 overflow-y-auto p-6">
-        {activeTab === 'dashboard' && <DashboardTab        token={token} />}
-        {activeTab === 'embarques' && <EmbarquesTab        token={token} />}
-        {activeTab === 'reporte'   && <ReporteEmbarquesTab token={token} />}
-      </main>
-    </div>
+    <ModuleShell
+      moduleKey="logistica"
+      title="Panel de Logística"
+      tabs={tabs}
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
+      headerRight={headerRight}
+    >
+      {activeTab === 'dashboard' && <DashboardTab        token={token} />}
+      {activeTab === 'embarques' && <EmbarquesTab        token={token} />}
+      {activeTab === 'reporte'   && <ReporteEmbarquesTab token={token} />}
+    </ModuleShell>
   );
 }

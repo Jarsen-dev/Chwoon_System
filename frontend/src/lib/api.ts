@@ -36,6 +36,7 @@ import {
   OrdenCompraAlmacen,
   LogisticaDashboard,
   ReporteManualInyeccion,
+  ProveedorItem
 } from '@/types'
 
 const API_URL = ''
@@ -537,6 +538,7 @@ export async function crearOrdenCompra(token: string, data: {
   nombre_proveedor: string
   items: { sku_producto: string; nombre_producto: string; cantidad_requerida: number; precio_unitario: number; moneda?: string }[]
   notas?: string
+  iva?: number
 }): Promise<{ message: string; oc_id: string; id: number }> {
   const res = await fetch(`${API_URL}/finanzas/compras`, {
     method: 'POST',
@@ -590,6 +592,14 @@ export async function eliminarOrdenCompra(token: string, ocId: string): Promise<
     const err = await res.json()
     throw new Error(err.detail || 'Error al eliminar orden de compra')
   }
+  return res.json()
+}
+
+export async function getProveedores(token: string): Promise<ProveedorItem[]> {
+  const res = await fetch(`${API_URL}/finanzas/proveedores`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error al obtener proveedores')
   return res.json()
 }
 
@@ -2335,3 +2345,5 @@ export async function getDashboardInyeccion(token: string, params: {
   if (!res.ok) throw new Error('Error al obtener dashboard')
   return res.json()
 }
+
+export type { ProveedorItem }

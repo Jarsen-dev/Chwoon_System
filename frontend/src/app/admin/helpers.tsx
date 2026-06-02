@@ -37,6 +37,7 @@ export const TABS = [
   { id: 'logs',      label: '📋 Logs'          },
   { id: 'database',  label: '🗃️ Base de Datos' },
   { id: 'sistema',   label: '🖥️ Sistema'       },
+  { id: 'empresa',   label: '🏢 Empresa'       },   // ← NUEVO
 ]
 
 // ── Tipos compartidos ───────────────────────────────────────────────
@@ -66,6 +67,45 @@ export interface SystemStatus {
   tablas: TablaInfo[]; uptime: string; pg_version: string; hora_servidor: string
 }
 
+// ── Tipos empresa ────────────────────────────────────────────────────
+export interface ConfiguracionEmpresa {
+  id?:                 number
+  nombre:              string
+  rfc?:                string
+  direccion?:          string
+  telefono?:           string
+  email?:              string
+  logo_url?:           string
+  representante_legal?: string
+  regimen_fiscal?:     string
+  cp?:                 string
+  ciudad?:             string
+  estado?:             string
+  pais?:               string
+  banco?:              string
+  cuenta?:             string
+  clabe?:              string
+  created_at?:         string
+  updated_at?:         string
+}
+
+export interface ContactoEmpresa {
+  id?:          number
+  area:         string
+  nombre:       string
+  puesto?:      string
+  telefono?:    string
+  ext?:         string
+  celular?:     string
+  email?:       string
+  es_principal: boolean
+  horario?:     string
+  notas?:       string
+  activo:       boolean
+  created_at?:  string
+  updated_at?:  string
+}
+
 // ── Helpers ─────────────────────────────────────────────────────────
 export function getTablaIcon(nombre: string): string {
   const map: Record<string, string> = {
@@ -80,6 +120,7 @@ export function getTablaIcon(nombre: string): string {
     devoluciones: '🔄', planes_venta: '📅',
     inspecciones: '🔬', registros_scrap: '🗑️',
     plan_inyeccion: '🏭',
+    configuracion_empresa: '🏢', contactos_empresa: '📇',
   }
   return map[nombre] || '📄'
 }

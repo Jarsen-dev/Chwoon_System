@@ -374,7 +374,7 @@ export default function ScannerTab({
 
       {/* ── Título + Botón Excel ───────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <h2 className="text-lg font-bold text-blue-700 tracking-wide uppercase">
+        <h2 className="text-lg font-bold text-blue-400 tracking-wide uppercase">
           Escanee el Código del Carrito
         </h2>
 
@@ -387,7 +387,7 @@ export default function ScannerTab({
             text-sm font-semibold shadow-sm transition-all duration-200
             focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-400
             ${descargando || registros.length === 0
-              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
               : 'bg-green-600 hover:bg-green-700 active:scale-95 text-white'
             }
           `}
@@ -417,7 +417,7 @@ export default function ScannerTab({
 
       {/* ── Error Excel ────────────────────────────────────────────── */}
       {errorMsg && (
-        <div className="bg-red-50 border border-red-300 text-red-700 rounded-lg
+        <div className="bg-red-500/100/10 border border-red-500/40 text-red-400 rounded-lg
                         p-3 text-sm flex justify-between items-start">
           <div>
             <p className="font-semibold mb-1">❌ Error al generar Excel</p>
@@ -425,7 +425,7 @@ export default function ScannerTab({
           </div>
           <button
             onClick={() => setErrorMsg(null)}
-            className="text-red-400 hover:text-red-700 font-bold ml-4
+            className="text-red-400 hover:text-red-400 font-bold ml-4
                        text-lg leading-none flex-shrink-0"
           >✖</button>
         </div>
@@ -444,7 +444,7 @@ export default function ScannerTab({
             placeholder="Esperando lectura de código QR..."
             className="flex-1 text-center text-2xl p-4 border-2 border-blue-400
                        rounded-lg shadow-inner focus:outline-none focus:ring-4
-                       focus:ring-blue-200 uppercase tracking-widest
+                       focus:ring-blue-500/40 uppercase tracking-widest
                        placeholder:text-gray-300 placeholder:text-lg"
             autoComplete="off"
             autoFocus
@@ -455,8 +455,8 @@ export default function ScannerTab({
             title="Escanear con cámara"
             className="shrink-0 inline-flex items-center justify-center
                        w-14 h-14 rounded-lg border-2 border-blue-400
-                       bg-blue-50 text-blue-600 hover:bg-blue-100
-                       hover:text-blue-700 hover:border-blue-500
+                       bg-blue-500/10 text-blue-400 hover:bg-blue-500/20
+                       hover:text-blue-400 hover:border-blue-500
                        active:scale-95 transition-all"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -474,10 +474,10 @@ export default function ScannerTab({
             <div key={alerta.id}
               className={`border-l-4 p-3 rounded flex justify-between items-start ${
                 alerta.tipo === 'TECLADO BLOQUEADO' || alerta.tipo === 'PEGADO BLOQUEADO'
-                  ? 'bg-yellow-50 border-yellow-500 text-yellow-700'
+                  ? 'bg-yellow-500/10 border-yellow-500 text-yellow-400'
                   : alerta.tipo === 'FORMATO INVÁLIDO'
-                  ? 'bg-orange-50 border-orange-500 text-orange-700'
-                  : 'bg-red-50 border-red-500 text-red-700'
+                  ? 'bg-orange-500/10 border-orange-500 text-orange-400'
+                  : 'bg-red-500/100/10 border-red-500 text-red-400'
               }`}
             >
               <div>
@@ -511,18 +511,18 @@ export default function ScannerTab({
           value={busqueda}
           onChange={e => setBusqueda(e.target.value)}
           placeholder="Buscar máquina, parte o descripción..."
-          className="flex-1 min-w-[200px] border border-gray-300 rounded-lg
+          className="flex-1 min-w-[200px] border border-gray-600 rounded-lg
                      px-3 py-2 text-sm focus:outline-none focus:ring-2
-                     focus:ring-blue-200 focus:border-blue-400
+                     focus:ring-blue-500/40 focus:border-blue-500
                      placeholder:text-gray-400"
         />
 
         <select
           value={filtroMaquina}
           onChange={e => setFiltroMaquina(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm
-                     focus:outline-none focus:ring-2 focus:ring-blue-200
-                     focus:border-blue-400 bg-white text-gray-700"
+          className="border border-gray-600 rounded-lg px-3 py-2 text-sm
+                     focus:outline-none focus:ring-2 focus:ring-blue-500/40
+                     focus:border-blue-500 bg-gray-900 text-gray-300"
         >
           <option value="">Todas las Máquinas</option>
           {maquinasUnicas.map(m => (
@@ -533,9 +533,9 @@ export default function ScannerTab({
         <select
           value={filtroParte}
           onChange={e => setFiltroParte(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm
-                     focus:outline-none focus:ring-2 focus:ring-blue-200
-                     focus:border-blue-400 bg-white text-gray-700"
+          className="border border-gray-600 rounded-lg px-3 py-2 text-sm
+                     focus:outline-none focus:ring-2 focus:ring-blue-500/40
+                     focus:border-blue-500 bg-gray-900 text-gray-300"
         >
           <option value="">Todos los No. de Parte</option>
           {partesUnicas.map(p => (
@@ -546,9 +546,9 @@ export default function ScannerTab({
         <select
           value={filtroDesc}
           onChange={e => setFiltroDesc(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm
-                     focus:outline-none focus:ring-2 focus:ring-blue-200
-                     focus:border-blue-400 bg-white text-gray-700"
+          className="border border-gray-600 rounded-lg px-3 py-2 text-sm
+                     focus:outline-none focus:ring-2 focus:ring-blue-500/40
+                     focus:border-blue-500 bg-gray-900 text-gray-300"
         >
           <option value="">Todas las Descripciones</option>
           {descsUnicas.map(d => (
@@ -560,14 +560,14 @@ export default function ScannerTab({
           {hayFiltros && (
             <button
               onClick={limpiarFiltros}
-              className="text-xs text-gray-500 hover:text-red-600
+              className="text-xs text-gray-400 hover:text-red-400
                          underline underline-offset-2 transition-colors"
             >
               Limpiar filtros
             </button>
           )}
-          <span className="bg-gray-100 text-gray-600 text-xs font-semibold
-                           px-3 py-2 rounded-lg whitespace-nowrap border border-gray-200">
+          <span className="bg-gray-800 text-gray-400 text-xs font-semibold
+                           px-3 py-2 rounded-lg whitespace-nowrap border border-gray-700">
             {registrosFiltrados.length === registros.length
               ? `${registros.length} registro${registros.length !== 1 ? 's' : ''}`
               : `${registrosFiltrados.length} de ${registros.length} registros`
@@ -577,13 +577,13 @@ export default function ScannerTab({
       </div>
 
       {/* ── Tabla ─────────────────────────────────────────────────── */}
-      <div className="overflow-x-auto border border-gray-200 rounded-lg">
+      <div className="overflow-x-auto border border-gray-700 rounded-lg">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-gray-100 border-b border-gray-200">
+            <tr className="bg-gray-800 border-b border-gray-700">
               {COLUMNAS.map(col => (
                 <th key={col}
-                  className="p-3 text-center font-semibold text-slate-600 whitespace-nowrap">
+                  className="p-3 text-center font-semibold text-gray-300 whitespace-nowrap">
                   {col}
                 </th>
               ))}
@@ -606,7 +606,7 @@ export default function ScannerTab({
                   </span>
                   <button
                     onClick={limpiarFiltros}
-                    className="block mx-auto mt-2 text-blue-600
+                    className="block mx-auto mt-2 text-blue-400
                                hover:underline text-sm"
                   >
                     Limpiar filtros
@@ -621,53 +621,53 @@ export default function ScannerTab({
                     key={`${reg.hora}-${reg.numero_parte}-${idx}`}
                     className={`border-b transition-colors ${
                       esNuevo
-                        ? 'bg-blue-50 border-l-4 border-l-blue-500'
-                        : 'hover:bg-gray-50'
+                        ? 'bg-blue-500/10 border-l-4 border-l-blue-500'
+                        : 'hover:bg-gray-800'
                     }`}
                   >
                     <td className={`p-3 text-center font-mono text-sm whitespace-nowrap ${
-                      esNuevo ? 'text-blue-700 font-semibold' : 'text-slate-500'
+                      esNuevo ? 'text-blue-400 font-semibold' : 'text-gray-400'
                     }`}>
                       {reg.hora}
                     </td>
 
                     <td className={`p-3 text-center ${
-                      esNuevo ? 'text-slate-800 font-semibold' : 'text-slate-600'
+                      esNuevo ? 'text-white font-semibold' : 'text-gray-300'
                     }`}>
                       {reg.maquina}
                     </td>
 
                     <td className={`p-3 text-center font-mono font-bold whitespace-nowrap ${
-                      esNuevo ? 'text-blue-700' : 'text-blue-600'
+                      esNuevo ? 'text-blue-400' : 'text-blue-400'
                     }`}>
                       {reg.numero_parte}
                     </td>
 
                     <td className={`p-3 text-left text-xs max-w-[160px] ${
-                      esNuevo ? 'text-slate-700' : 'text-slate-500'
+                      esNuevo ? 'text-gray-200' : 'text-gray-400'
                     }`}>
                       <span className="block truncate" title={reg.descripcion || ''}>
                         {reg.descripcion || '—'}
                       </span>
                     </td>
 
-                    <td className="p-3 text-center text-slate-600 whitespace-nowrap">
+                    <td className="p-3 text-center text-gray-300 whitespace-nowrap">
                       #{reg.carrito_numero}
                     </td>
 
                     <td className={`p-3 text-center font-semibold ${
-                      esNuevo ? 'text-slate-800' : 'text-slate-700'
+                      esNuevo ? 'text-white' : 'text-gray-200'
                     }`}>
                       {reg.qty_bolsa}
                     </td>
 
                     <td className={`p-3 text-center font-bold ${
-                      esNuevo ? 'text-emerald-700' : 'text-emerald-600'
+                      esNuevo ? 'text-emerald-400' : 'text-emerald-400'
                     }`}>
                       {reg.total_acumulado}
                     </td>
 
-                    <td className="p-3 text-center text-slate-500">
+                    <td className="p-3 text-center text-gray-400">
                       {reg.meta_plan ?? 'N/A'}
                     </td>
 
@@ -677,7 +677,7 @@ export default function ScannerTab({
                     </td>
 
                     <td className={`p-3 text-center text-xs whitespace-nowrap ${
-                      esNuevo ? 'text-slate-700 font-semibold' : 'text-slate-500'
+                      esNuevo ? 'text-gray-200 font-semibold' : 'text-gray-400'
                     }`}>
                       <span className="inline-flex items-center gap-1">
                         <span>👤</span>
@@ -701,12 +701,12 @@ export default function ScannerTab({
       {/* ═── Modal Scanner de Cámara ───═ */}
       {scannerOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-4 space-y-3">
+          <div className="bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md p-4 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold text-gray-800">📷 Escanear QR</h3>
               <button
                 onClick={cerrarScanner}
-                className="text-gray-400 hover:text-gray-700 text-xl leading-none"
+                className="text-gray-400 hover:text-gray-300 text-xl leading-none"
               >✖</button>
             </div>
             <div
@@ -715,7 +715,7 @@ export default function ScannerTab({
               className="w-full aspect-square rounded-xl overflow-hidden bg-black"
             />
             {scannerError && (
-              <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm">
+              <div className="bg-red-500/100/10 border border-red-200 text-red-400 rounded-lg p-3 text-sm">
                 <p className="font-semibold">⚠️ Error de cámara</p>
                 <p className="text-xs">{scannerError}</p>
               </div>

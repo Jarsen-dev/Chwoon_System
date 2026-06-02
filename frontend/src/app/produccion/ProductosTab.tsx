@@ -556,14 +556,14 @@ export default function ProductosTab() {
   // ── Badges de controles ──
   const controlBadge = (control: string) => {
     const colors: Record<string, string> = {
-      IQC: 'bg-orange-100 text-orange-800',
-      LQC: 'bg-blue-100 text-blue-800',
-      OQC: 'bg-green-100 text-green-800',
+      IQC: 'bg-orange-500/20 text-orange-800',
+      LQC: 'bg-blue-500/20 text-blue-300',
+      OQC: 'bg-green-500/20 text-green-400',
     }
     return (
       <span
         key={control}
-        className={`px-2 py-0.5 rounded-full text-xs font-bold ${colors[control] || 'bg-gray-100 text-gray-800'}`}
+        className={`px-2 py-0.5 rounded-full text-xs font-bold ${colors[control] || 'bg-gray-800 text-gray-800'}`}
       >
         {control}
       </span>
@@ -575,7 +575,7 @@ export default function ProductosTab() {
     return (
       <span
         className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-          isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+          isActive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-300'
         }`}
       >
         {status}
@@ -585,7 +585,7 @@ export default function ProductosTab() {
 
   if (loading)
     return (
-      <div className="p-8 text-center text-xl font-semibold text-gray-600">
+      <div className="p-8 text-center text-xl font-semibold text-gray-400">
         Cargando productos...
       </div>
     )
@@ -595,7 +595,7 @@ export default function ProductosTab() {
       {/* ════════════════ MODAL NOTIFICACIÓN ════════════════ */}
       {modalInfo && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
+          <div className="bg-gray-900 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
             <div
               className={`px-6 py-4 ${
                 modalInfo.type === 'success'
@@ -613,7 +613,7 @@ export default function ProductosTab() {
               </h3>
             </div>
             <div className="p-6">
-              <p className="text-gray-700 text-base mb-6">{modalInfo.message}</p>
+              <p className="text-gray-300 text-base mb-6">{modalInfo.message}</p>
               <div className="flex justify-end">
                 <button
                   ref={okButtonRef}
@@ -637,16 +637,16 @@ export default function ProductosTab() {
       {/* ════════════════ MODAL CONFIRMAR ════════════════ */}
       {confirmModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
+          <div className="bg-gray-900 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
             <div className="bg-red-600 px-6 py-4">
               <h3 className="text-lg font-bold text-white">⚠️ {confirmModal.title}</h3>
             </div>
             <div className="p-6">
-              <p className="text-gray-700 text-base mb-6">{confirmModal.message}</p>
+              <p className="text-gray-300 text-base mb-6">{confirmModal.message}</p>
               <div className="flex justify-end gap-3">
                 <button
                   onClick={() => setConfirmModal(null)}
-                  className="px-5 py-2.5 rounded-lg font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition"
+                  className="px-5 py-2.5 rounded-lg font-medium text-gray-300 bg-gray-800 hover:bg-gray-700 transition"
                 >
                   Cancelar
                 </button>
@@ -666,7 +666,7 @@ export default function ProductosTab() {
       {/* ════════════════ MODAL BOM ════════════════ */}
       {bomModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden max-h-[90vh] flex flex-col">
+          <div className="bg-gray-900 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden max-h-[90vh] flex flex-col">
             <div className="bg-indigo-600 px-6 py-4">
               <h3 className="text-lg font-bold text-white">
                 📋 BOM - {bomModal.sku}
@@ -676,7 +676,7 @@ export default function ProductosTab() {
               {/* Lista actual */}
               {bomModal.bom.length > 0 ? (
                 <table className="w-full text-sm mb-4">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-gray-800">
                     <tr>
                       <th className="p-2 text-left">No. de Parte Componente</th>
                       <th className="p-2 text-center">Cantidad</th>
@@ -691,7 +691,7 @@ export default function ProductosTab() {
                         <td className="p-2 text-center">
                           <button
                             onClick={() => removeBomItem(idx)}
-                            className="text-red-600 hover:text-red-800"
+                            className="text-red-400 hover:text-red-300"
                           >
                             🗑️
                           </button>
@@ -701,13 +701,13 @@ export default function ProductosTab() {
                   </tbody>
                 </table>
               ) : (
-                <p className="text-gray-500 text-center mb-4">No hay componentes en el BOM.</p>
+                <p className="text-gray-400 text-center mb-4">No hay componentes en el BOM.</p>
               )}
 
               {/* Agregar nuevo */}
               <div className="flex gap-2 items-end">
                 <div className="flex-1">
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">
+                  <label className="block text-xs font-semibold text-gray-400 mb-1">
                     No. de Parte Componente
                   </label>
                   <input
@@ -716,12 +716,12 @@ export default function ProductosTab() {
                     onChange={(e) =>
                       setNewBomItem({ ...newBomItem, sku_componente: e.target.value })
                     }
-                    className="w-full border border-gray-300 p-2 rounded text-sm focus:ring-2 focus:ring-indigo-200 focus:outline-none"
+                    className="w-full border border-gray-600 p-2 rounded text-sm focus:ring-2 focus:ring-indigo-200 focus:outline-none"
                     placeholder="Ej: COMP-001"
                   />
                 </div>
                 <div className="w-24">
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">
+                  <label className="block text-xs font-semibold text-gray-400 mb-1">
                     Cantidad
                   </label>
                   <input
@@ -735,7 +735,7 @@ export default function ProductosTab() {
                         cantidad: parseFloat(e.target.value) || 0,
                       })
                     }
-                    className="w-full border border-gray-300 p-2 rounded text-sm focus:ring-2 focus:ring-indigo-200 focus:outline-none"
+                    className="w-full border border-gray-600 p-2 rounded text-sm focus:ring-2 focus:ring-indigo-200 focus:outline-none"
                   />
                 </div>
                 <button
@@ -749,7 +749,7 @@ export default function ProductosTab() {
             <div className="border-t px-6 py-4 flex justify-end gap-3">
               <button
                 onClick={() => setBomModal(null)}
-                className="px-5 py-2.5 rounded-lg font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition"
+                className="px-5 py-2.5 rounded-lg font-medium text-gray-300 bg-gray-800 hover:bg-gray-700 transition"
               >
                 Cancelar
               </button>
@@ -767,7 +767,7 @@ export default function ProductosTab() {
       {/* ════════════════ MODAL INSPECCIÓN ════════════════ */}
       {inspeccionModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden max-h-[90vh] flex flex-col">
+          <div className="bg-gray-900 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden max-h-[90vh] flex flex-col">
             <div className="bg-teal-600 px-6 py-4">
               <h3 className="text-lg font-bold text-white">
                 🔍 Puntos de Inspección {inspeccionModal.tipo_control.toUpperCase()} -{' '}
@@ -777,7 +777,7 @@ export default function ProductosTab() {
             <div className="p-6 overflow-y-auto flex-1">
               {inspeccionModal.puntos.length > 0 ? (
                 <table className="w-full text-sm mb-4">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-gray-800">
                     <tr>
                       <th className="p-2 text-left">Nombre</th>
                       <th className="p-2 text-left">Especificación</th>
@@ -789,12 +789,12 @@ export default function ProductosTab() {
                     {inspeccionModal.puntos.map((punto, idx) => (
                       <tr key={idx} className="border-b">
                         <td className="p-2">{punto.nombre}</td>
-                        <td className="p-2 text-gray-600">{punto.especificacion}</td>
-                        <td className="p-2 text-gray-600">{punto.metodo}</td>
+                        <td className="p-2 text-gray-400">{punto.especificacion}</td>
+                        <td className="p-2 text-gray-400">{punto.metodo}</td>
                         <td className="p-2 text-center">
                           <button
                             onClick={() => removePuntoInspeccion(idx)}
-                            className="text-red-600 hover:text-red-800"
+                            className="text-red-400 hover:text-red-300"
                           >
                             🗑️
                           </button>
@@ -804,25 +804,25 @@ export default function ProductosTab() {
                   </tbody>
                 </table>
               ) : (
-                <p className="text-gray-500 text-center mb-4">
+                <p className="text-gray-400 text-center mb-4">
                   No hay puntos de inspección configurados.
                 </p>
               )}
 
               <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Punto *</label>
+                  <label className="block text-sm font-semibold text-gray-300 mb-1">Punto *</label>
                   <input
                     type="text"
                     value={newPuntoInspeccion.nombre}
                     onChange={(e) => setNewPuntoInspeccion({ ...newPuntoInspeccion, nombre: e.target.value })}
-                    className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-200 focus:outline-none"
+                    className="w-full border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
                     required
                     placeholder="Ej: Dimensional"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">
+                  <label className="block text-xs font-semibold text-gray-400 mb-1">
                     Especificación
                   </label>
                   <input
@@ -834,13 +834,13 @@ export default function ProductosTab() {
                         especificacion: e.target.value,
                       })
                     }
-                    className="w-full border border-gray-300 p-2 rounded text-sm focus:ring-2 focus:ring-teal-200 focus:outline-none"
+                    className="w-full border border-gray-600 p-2 rounded text-sm focus:ring-2 focus:ring-teal-200 focus:outline-none"
                     placeholder="10mm ± 0.5"
                   />
                 </div>
                 <div className="flex items-end gap-1">
                   <div className="flex-1">
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">
+                    <label className="block text-xs font-semibold text-gray-400 mb-1">
                       Método
                     </label>
                     <input
@@ -849,7 +849,7 @@ export default function ProductosTab() {
                       onChange={(e) =>
                         setNewPuntoInspeccion({ ...newPuntoInspeccion, metodo: e.target.value })
                       }
-                      className="w-full border border-gray-300 p-2 rounded text-sm focus:ring-2 focus:ring-teal-200 focus:outline-none"
+                      className="w-full border border-gray-600 p-2 rounded text-sm focus:ring-2 focus:ring-teal-200 focus:outline-none"
                       placeholder="Calibrador"
                     />
                   </div>
@@ -865,7 +865,7 @@ export default function ProductosTab() {
             <div className="border-t px-6 py-4 flex justify-end gap-3">
               <button
                 onClick={() => setInspeccionModal(null)}
-                className="px-5 py-2.5 rounded-lg font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition"
+                className="px-5 py-2.5 rounded-lg font-medium text-gray-300 bg-gray-800 hover:bg-gray-700 transition"
               >
                 Cancelar
               </button>
@@ -883,7 +883,7 @@ export default function ProductosTab() {
       {/* ════════════════ MODAL DETALLE ════════════════ */}
       {detalleModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col">
+          <div className="bg-gray-900 rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col">
             <div className="bg-slate-700 px-6 py-4 flex justify-between items-center">
               <h3 className="text-lg font-bold text-white">
                 📦 Detalle: {detalleModal.sku}
@@ -898,59 +898,59 @@ export default function ProductosTab() {
             <div className="p-6 overflow-y-auto flex-1">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <span className="font-semibold text-gray-600">No. de Parte:</span>
+                  <span className="font-semibold text-gray-400">No. de Parte:</span>
                   <p className="font-mono">{detalleModal.sku}</p>
                 </div>
                 <div>
-                  <span className="font-semibold text-gray-600">Modelo:</span>
+                  <span className="font-semibold text-gray-400">Modelo:</span>
                   <p>{detalleModal.modelo || '—'}</p>
                 </div>
                 <div>
-                  <span className="font-semibold text-gray-600">Descripción:</span>
+                  <span className="font-semibold text-gray-400">Descripción:</span>
                   <p>{detalleModal.descripcion}</p>
                 </div>
                 <div>
-                  <span className="font-semibold text-gray-600">Tipo:</span>
+                  <span className="font-semibold text-gray-400">Tipo:</span>
                   <p>{detalleModal.tipo}</p>
                 </div>
                 <div>
-                  <span className="font-semibold text-gray-600">Clase:</span>
+                  <span className="font-semibold text-gray-400">Clase:</span>
                   <p>{detalleModal.clase_producto}</p>
                 </div>
                 <div>
-                  <span className="font-semibold text-gray-600">Status:</span>
+                  <span className="font-semibold text-gray-400">Status:</span>
                   <p>{statusBadge(detalleModal.status)}</p>
                 </div>
                 <div>
-                  <span className="font-semibold text-gray-600">Unidad:</span>
+                  <span className="font-semibold text-gray-400">Unidad:</span>
                   <p>{detalleModal.unidad_de_medida || '—'}</p>
                 </div>
                 <div>
-                  <span className="font-semibold text-gray-600">Cliente:</span>
+                  <span className="font-semibold text-gray-400">Cliente:</span>
                   <p>{detalleModal.cliente || '—'}</p>
                 </div>
                 <div>
-                  <span className="font-semibold text-gray-600">Cliente ID:</span>
+                  <span className="font-semibold text-gray-400">Cliente ID:</span>
                   <p>{detalleModal.cliente_id || '—'}</p>
                 </div>
                 <div>
-                  <span className="font-semibold text-gray-600">Proveedor:</span>
+                  <span className="font-semibold text-gray-400">Proveedor:</span>
                   <p>{detalleModal.proveedor || '—'}</p>
                 </div>
                 <div>
-                  <span className="font-semibold text-gray-600">Línea Producción:</span>
+                  <span className="font-semibold text-gray-400">Línea Producción:</span>
                   <p>{detalleModal.linea_produccion || '—'}</p>
                 </div>
                 <div>
-                  <span className="font-semibold text-gray-600">Ubicación:</span>
+                  <span className="font-semibold text-gray-400">Ubicación:</span>
                   <p>{detalleModal.ubicacion || '—'}</p>
                 </div>
                 <div>
-                  <span className="font-semibold text-gray-600">Cantidad/Carrito:</span>
+                  <span className="font-semibold text-gray-400">Cantidad/Carrito:</span>
                   <p>{detalleModal.cantidad_carrito}</p>
                 </div>
                 <div>
-                  <span className="font-semibold text-gray-600">Controles:</span>
+                  <span className="font-semibold text-gray-400">Controles:</span>
                   <div className="flex gap-1 mt-1">
                     {(detalleModal.controles_calidad || []).map(controlBadge)}
                     {(!detalleModal.controles_calidad ||
@@ -964,14 +964,14 @@ export default function ProductosTab() {
               {/* Características de inyección */}
               {detalleModal.caracteristicas_inyeccion &&
                 Object.keys(detalleModal.caracteristicas_inyeccion).length > 0 && (
-                  <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                    <h4 className="font-semibold text-blue-800 text-sm mb-2">
+                  <div className="mt-4 p-3 bg-blue-500/10 rounded-lg">
+                    <h4 className="font-semibold text-blue-300 text-sm mb-2">
                       🏭 Características de Inyección
                     </h4>
                     <div className="grid grid-cols-3 gap-2 text-xs">
                       {Object.entries(detalleModal.caracteristicas_inyeccion).map(([k, v]) => (
                         <div key={k}>
-                          <span className="font-semibold text-gray-600">
+                          <span className="font-semibold text-gray-400">
                             {k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}:
                           </span>{' '}
                           {String(v)}
@@ -1005,42 +1005,42 @@ export default function ProductosTab() {
       {/* ════════════════ FORMULARIO ════════════════ */}
       <form
         onSubmit={handleSubmit}
-        className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-6"
+        className="bg-gray-900 p-6 rounded-lg shadow-sm border border-gray-700 mb-6"
       >
-        <h2 className="text-lg font-bold text-gray-700 mb-4 pb-2 border-b">
+        <h2 className="text-lg font-bold text-gray-300 mb-4 pb-2 border-b">
           {editing ? `✏️ Editar Producto: ${editing}` : '➕ Nuevo Producto'}
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">No. de Parte *</label>
+            <label className="block text-sm font-semibold text-gray-300 mb-1">No. de Parte *</label>
             <input
               type="text"
               value={formData.sku}
               onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-              className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-200 focus:outline-none"
+              className="w-full border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
               required
               disabled={!!editing}
               placeholder="Ej: PROD-001"
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Modelo *</label>
+            <label className="block text-sm font-semibold text-gray-300 mb-1">Modelo *</label>
             <input
               type="text"
               value={formData.modelo}
               onChange={(e) => setFormData({ ...formData, modelo: e.target.value })}
-              className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-200 focus:outline-none"
+              className="w-full border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
               required
               placeholder="Modelo del producto"
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Tipo *</label>
+            <label className="block text-sm font-semibold text-gray-300 mb-1">Tipo *</label>
             <select
               value={formData.tipo}
               onChange={(e) => setFormData({ ...formData, tipo: e.target.value })}
-              className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-200 focus:outline-none"
+              className="w-full border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
               required
             >
               <option value="">-- Seleccionar --</option>
@@ -1050,7 +1050,7 @@ export default function ProductosTab() {
                 </option>
               ))}
             </select>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-400 mt-1">
               {(() => {
                 const t = formData.tipo
                 const c = formData.clase_producto
@@ -1072,11 +1072,11 @@ export default function ProductosTab() {
             </p>
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Clase</label>
+            <label className="block text-sm font-semibold text-gray-300 mb-1">Clase</label>
             <select
               value={formData.clase_producto}
               onChange={(e) => setFormData({ ...formData, clase_producto: e.target.value })}
-              className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-200 focus:outline-none"
+              className="w-full border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
             >
               <option value="">-- Seleccionar --</option>
               {CLASES_PRODUCTO.map((c) => (
@@ -1087,13 +1087,13 @@ export default function ProductosTab() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">
+            <label className="block text-sm font-semibold text-gray-300 mb-1">
               Unidad de Medida
             </label>
             <select
               value={formData.unidad_de_medida}
               onChange={(e) => setFormData({ ...formData, unidad_de_medida: e.target.value })}
-              className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-200 focus:outline-none"
+              className="w-full border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
             >
               <option value="">-- Seleccionar --</option>
               {UNIDADES_MEDIDA.map((u) => (
@@ -1104,72 +1104,72 @@ export default function ProductosTab() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Cantidad por Carrito</label>
+            <label className="block text-sm font-semibold text-gray-300 mb-1">Cantidad por Carrito</label>
             <input
                 type="text"
                 inputMode="numeric"
                 value={formData.cantidad_carrito}
                 onChange={(e) => setFormData({ ...formData, cantidad_carrito: e.target.value })}
-                className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-200 focus:outline-none"
+                className="w-full border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
                 placeholder="0"
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Proveedor</label>
+            <label className="block text-sm font-semibold text-gray-300 mb-1">Proveedor</label>
             <select
                 value={formData.proveedor}
                 onChange={(e) => setFormData({ ...formData, proveedor: e.target.value })}
-                className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-200 focus:outline-none"
+                className="w-full border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
             >
                 <option value="">-- Seleccionar --</option>
                 {PROVEEDORES.map((p) => <option key={p} value={p}>{p}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Cliente</label>
+            <label className="block text-sm font-semibold text-gray-300 mb-1">Cliente</label>
             <input
               type="text"
               value={formData.cliente}
               onChange={(e) => setFormData({ ...formData, cliente: e.target.value })}
-              className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-200 focus:outline-none"
+              className="w-full border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Cliente ID</label>
+            <label className="block text-sm font-semibold text-gray-300 mb-1">Cliente ID</label>
             <input
               type="text"
               value={formData.cliente_id}
               onChange={(e) => setFormData({ ...formData, cliente_id: e.target.value })}
-              className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-200 focus:outline-none"
+              className="w-full border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">
+            <label className="block text-sm font-semibold text-gray-300 mb-1">
               Línea Producción
             </label>
             <input
               type="text"
               value={formData.linea_produccion}
               onChange={(e) => setFormData({ ...formData, linea_produccion: e.target.value })}
-              className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-200 focus:outline-none"
+              className="w-full border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Ubicación</label>
+            <label className="block text-sm font-semibold text-gray-300 mb-1">Ubicación</label>
             <input
               type="text"
               value={formData.ubicacion}
               onChange={(e) => setFormData({ ...formData, ubicacion: e.target.value })}
-              className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-200 focus:outline-none"
+              className="w-full border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
             />
           </div>
           <div className="md:col-span-3">
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Descripción</label>
+            <label className="block text-sm font-semibold text-gray-300 mb-1">Descripción</label>
             <input
               type="text"
               value={formData.descripcion}
               onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-              className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-200 focus:outline-none"
+              className="w-full border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
               placeholder="Descripción del producto..."
             />
           </div>
@@ -1177,96 +1177,96 @@ export default function ProductosTab() {
 
         {/* Características de Inyección */}
         {showInyeccion && (
-          <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <h3 className="text-sm font-bold text-blue-800 mb-3">
+          <div className="mt-4 p-4 bg-blue-500/10 rounded-lg border border-blue-200">
+            <h3 className="text-sm font-bold text-blue-300 mb-3">
               🏭 Características de Inyección
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">ID Proceso</label>
+                <label className="block text-xs font-semibold text-gray-400 mb-1">ID Proceso</label>
                 <select
                     value={inyeccionData.id_proceso}
                     onChange={(e) => setInyeccionData({ ...inyeccionData, id_proceso: e.target.value })}
-                    className="w-full border border-gray-300 p-1.5 rounded text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none"
+                    className="w-full border border-gray-600 p-1.5 rounded text-sm focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
                 >
                     <option value="">-- Seleccionar --</option>
                     {ID_PROCESOS.map((p) => <option key={p} value={p}>{p}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Tipo Resina</label>
+                <label className="block text-xs font-semibold text-gray-400 mb-1">Tipo Resina</label>
                 <select
                     value={inyeccionData.tipo_resina}
                     onChange={(e) => setInyeccionData({ ...inyeccionData, tipo_resina: e.target.value })}
-                    className="w-full border border-gray-300 p-1.5 rounded text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none"
+                    className="w-full border border-gray-600 p-1.5 rounded text-sm focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
                 >
                     <option value="">-- Seleccionar --</option>
                     {TIPOS_RESINA.map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Resina</label>
+                <label className="block text-xs font-semibold text-gray-400 mb-1">Resina</label>
                 <input
                   type="text"
                   value={inyeccionData.resina}
                   onChange={(e) =>
                     setInyeccionData({ ...inyeccionData, resina: e.target.value })
                   }
-                  className="w-full border border-gray-300 p-1.5 rounded text-sm"
+                  className="w-full border border-gray-600 p-1.5 rounded text-sm"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Densidad</label>
+                <label className="block text-xs font-semibold text-gray-400 mb-1">Densidad</label>
                 <input
                     type="text"
                     inputMode="decimal"
                     value={inyeccionData.densidad}
                     onChange={(e) => setInyeccionData({ ...inyeccionData, densidad: e.target.value })}
-                    className="w-full border border-gray-300 p-1.5 rounded text-sm"
+                    className="w-full border border-gray-600 p-1.5 rounded text-sm"
                     placeholder="0.00"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Peso</label>
+                <label className="block text-xs font-semibold text-gray-400 mb-1">Peso</label>
                 <input
                     type="text"
                     inputMode="decimal"
                     value={inyeccionData.peso}
                     onChange={(e) => setInyeccionData({ ...inyeccionData, peso: e.target.value })}
-                    className="w-full border border-gray-300 p-1.5 rounded text-sm"
+                    className="w-full border border-gray-600 p-1.5 rounded text-sm"
                     placeholder="0.00"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Peso Seco</label>
+                <label className="block text-xs font-semibold text-gray-400 mb-1">Peso Seco</label>
                 <input
                     type="text"
                     inputMode="decimal"
                     value={inyeccionData.peso_seco}
                     onChange={(e) => setInyeccionData({ ...inyeccionData, peso_seco: e.target.value })}
-                    className="w-full border border-gray-300 p-1.5 rounded text-sm"
+                    className="w-full border border-gray-600 p-1.5 rounded text-sm"
                     placeholder="0.00"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Cavidades</label>
+                <label className="block text-xs font-semibold text-gray-400 mb-1">Cavidades</label>
                 <input
                     type="text"
                     inputMode="numeric"
                     value={inyeccionData.cav}
                     onChange={(e) => setInyeccionData({ ...inyeccionData, cav: e.target.value })}
-                    className="w-full border border-gray-300 p-1.5 rounded text-sm"
+                    className="w-full border border-gray-600 p-1.5 rounded text-sm"
                     placeholder="0"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Ciclo (seg)</label>
+                <label className="block text-xs font-semibold text-gray-400 mb-1">Ciclo (seg)</label>
                 <input
                     type="text"
                     inputMode="decimal"
                     value={inyeccionData.ciclo}
                     onChange={(e) => setInyeccionData({ ...inyeccionData, ciclo: e.target.value })}
-                    className="w-full border border-gray-300 p-1.5 rounded text-sm"
+                    className="w-full border border-gray-600 p-1.5 rounded text-sm"
                     placeholder="0.00"
                 />
               </div>
@@ -1357,12 +1357,12 @@ export default function ProductosTab() {
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
           placeholder="Buscar SKU, nombre, descripción, cliente..."
-          className="flex-1 min-w-[200px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 placeholder:text-gray-400"
+          className="flex-1 min-w-[200px] border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 placeholder:text-gray-400"
         />
         <select
           value={filtroTipo}
           onChange={(e) => setFiltroTipo(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white text-gray-700"
+          className="border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 bg-gray-900 text-gray-300"
         >
           <option value="">Todos los Tipos</option>
           {tiposUnicos.map((t) => (
@@ -1374,7 +1374,7 @@ export default function ProductosTab() {
         <select
           value={filtroClase}
           onChange={(e) => setFiltroClase(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white text-gray-700"
+          className="border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 bg-gray-900 text-gray-300"
         >
           <option value="">Todas las Clases</option>
           {clasesUnicas.map((c) => (
@@ -1386,7 +1386,7 @@ export default function ProductosTab() {
         <select
           value={filtroStatus}
           onChange={(e) => setFiltroStatus(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white text-gray-700"
+          className="border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 bg-gray-900 text-gray-300"
         >
           <option value="">Todos los Status</option>
           <option value="Activo">Activo</option>
@@ -1396,12 +1396,12 @@ export default function ProductosTab() {
           {hayFiltros && (
             <button
               onClick={limpiarFiltros}
-              className="text-xs text-gray-500 hover:text-red-600 underline underline-offset-2 transition-colors"
+              className="text-xs text-gray-400 hover:text-red-400 underline underline-offset-2 transition-colors"
             >
               Limpiar filtros
             </button>
           )}
-          <span className="bg-gray-100 text-gray-600 text-xs font-semibold px-3 py-2 rounded-lg whitespace-nowrap border border-gray-200">
+          <span className="bg-gray-800 text-gray-400 text-xs font-semibold px-3 py-2 rounded-lg whitespace-nowrap border border-gray-700">
             {productosFiltrados.length === productos.length
               ? `${productos.length} producto${productos.length !== 1 ? 's' : ''}`
               : `${productosFiltrados.length} de ${productos.length} productos`}
@@ -1411,8 +1411,8 @@ export default function ProductosTab() {
 
       {/* ════════════════ ACCIONES BATCH ════════════════ */}
       {selectedSkus.size > 0 && (
-        <div className="flex items-center gap-3 mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-          <span className="text-sm font-semibold text-blue-800">
+        <div className="flex items-center gap-3 mb-4 p-3 bg-blue-500/10 rounded-lg border border-blue-200">
+          <span className="text-sm font-semibold text-blue-300">
             {selectedSkus.size} seleccionado(s)
           </span>
           <button
@@ -1435,7 +1435,7 @@ export default function ProductosTab() {
           </button>
           <button
             onClick={() => setSelectedSkus(new Set())}
-            className="px-3 py-1.5 rounded text-xs font-medium text-gray-700 bg-gray-200 hover:bg-gray-300 transition ml-auto"
+            className="px-3 py-1.5 rounded text-xs font-medium text-gray-300 bg-gray-700 hover:bg-gray-300 transition ml-auto"
           >
             Deseleccionar
           </button>
@@ -1443,9 +1443,9 @@ export default function ProductosTab() {
       )}
 
       {/* ════════════════ TABLA ════════════════ */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-x-auto">
+      <div className="bg-gray-900 rounded-lg shadow-sm border border-gray-700 overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 border-b border-gray-200">
+          <thead className="bg-gray-800 border-b border-gray-700">
             <tr>
               <th className="p-3 text-center w-10">
                 <input
@@ -1458,23 +1458,23 @@ export default function ProductosTab() {
                   className="rounded"
                 />
               </th>
-              <th className="p-3 text-left font-semibold text-slate-700">No. de Parte</th>
-              <th className="p-3 text-left font-semibold text-slate-700">Modelo</th>
-              <th className="p-3 text-center font-semibold text-slate-700">Tipo</th>
-              <th className="p-3 text-center font-semibold text-slate-700">Clase</th>
-              <th className="p-3 text-center font-semibold text-slate-700">Línea Producción</th>
-              <th className="p-3 text-center font-semibold text-slate-700">Status</th>
-              <th className="p-3 text-center font-semibold text-slate-700">Controles</th>
-              <th className="p-3 text-center font-semibold text-slate-700">BOM</th>
-              <th className="p-3 text-center font-semibold text-slate-700">Acciones</th>
+              <th className="p-3 text-left font-semibold text-gray-200">No. de Parte</th>
+              <th className="p-3 text-left font-semibold text-gray-200">Modelo</th>
+              <th className="p-3 text-center font-semibold text-gray-200">Tipo</th>
+              <th className="p-3 text-center font-semibold text-gray-200">Clase</th>
+              <th className="p-3 text-center font-semibold text-gray-200">Línea Producción</th>
+              <th className="p-3 text-center font-semibold text-gray-200">Status</th>
+              <th className="p-3 text-center font-semibold text-gray-200">Controles</th>
+              <th className="p-3 text-center font-semibold text-gray-200">BOM</th>
+              <th className="p-3 text-center font-semibold text-gray-200">Acciones</th>
             </tr>
           </thead>
           <tbody>
             {productosFiltrados.map((item) => (
               <tr
                 key={item.sku}
-                className={`border-b last:border-b-0 hover:bg-blue-50/30 transition ${
-                  selectedSkus.has(item.sku) ? 'bg-blue-50' : ''
+                className={`border-b last:border-b-0 hover:bg-blue-500/10/30 transition ${
+                  selectedSkus.has(item.sku) ? 'bg-blue-500/10' : ''
                 }`}
               >
                 <td className="p-3 text-center">
@@ -1485,27 +1485,27 @@ export default function ProductosTab() {
                     className="rounded"
                   />
                 </td>
-                <td className="p-3 font-mono font-medium text-slate-800">{item.sku}</td>
-                <td className="p-3 text-slate-600">{item.modelo}</td>
+                <td className="p-3 font-mono font-medium text-white">{item.sku}</td>
+                <td className="p-3 text-gray-300">{item.modelo}</td>
                 <td className="p-3 text-center">
                   <span
                     className={`px-2 py-0.5 rounded-full text-xs font-bold ${
                       item.tipo === 'PRODUCTO FINAL'
-                        ? 'bg-emerald-100 text-emerald-800'
+                        ? 'bg-emerald-500/20 text-emerald-800'
                         : item.tipo === 'COMPONENTE'
                         ? 'bg-sky-100 text-sky-800'
                         : item.tipo === 'RESINA'
                         ? 'bg-amber-100 text-amber-800'
-                        : 'bg-gray-100 text-gray-800'
+                        : 'bg-gray-800 text-gray-800'
                     }`}
                   >
                     {item.tipo}
                   </span>
                 </td>
-                <td className="p-3 text-center text-xs text-gray-600">
+                <td className="p-3 text-center text-xs text-gray-400">
                   {item.clase_producto || '—'}
                 </td>
-                <td className="p-3 text-center text-xs text-gray-600">
+                <td className="p-3 text-center text-xs text-gray-400">
                   {item.linea_produccion || '—'}
                 </td>
                 <td className="p-3 text-center">{statusBadge(item.status)}</td>
@@ -1532,7 +1532,7 @@ export default function ProductosTab() {
                     className={`px-2 py-1 rounded text-xs font-medium transition ${
                       item.bom && item.bom.length > 0
                         ? 'bg-indigo-100 text-indigo-800 hover:bg-indigo-200'
-                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                        : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
                     }`}
                     title="Editar BOM"
                   >
@@ -1542,21 +1542,21 @@ export default function ProductosTab() {
                 <td className="p-3 text-center space-x-1">
                   <button
                     onClick={() => setDetalleModal(item)}
-                    className="text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 p-1.5 rounded transition"
+                    className="text-gray-300 hover:text-slate-900 bg-gray-800 hover:bg-slate-100 p-1.5 rounded transition"
                     title="Ver detalle"
                   >
                     👁️
                   </button>
                   <button
                     onClick={() => handleEdit(item)}
-                    className="text-blue-600 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 p-1.5 rounded transition"
+                    className="text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 p-1.5 rounded transition"
                     title="Editar"
                   >
                     ✏️
                   </button>
                   <button
                     onClick={() => handleDelete(item.sku)}
-                    className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 p-1.5 rounded transition"
+                    className="text-red-400 hover:text-red-900 bg-red-500/100/10 hover:bg-red-500/20 p-1.5 rounded transition"
                     title="Eliminar"
                   >
                     🗑️
@@ -1567,14 +1567,14 @@ export default function ProductosTab() {
           </tbody>
         </table>
         {productosFiltrados.length === 0 && (
-          <div className="p-10 text-center text-gray-500">
+          <div className="p-10 text-center text-gray-400">
             <span className="text-4xl block mb-2">📦</span>
             {hayFiltros ? (
               <>
                 No se encontraron productos con los filtros aplicados.
                 <button
                   onClick={limpiarFiltros}
-                  className="block mx-auto mt-2 text-blue-600 hover:underline text-sm"
+                  className="block mx-auto mt-2 text-blue-400 hover:underline text-sm"
                 >
                   Limpiar filtros
                 </button>
@@ -1586,7 +1586,7 @@ export default function ProductosTab() {
         )}
       </div>
 
-      <div className="mt-4 text-sm font-medium text-slate-500 text-right">
+      <div className="mt-4 text-sm font-medium text-gray-400 text-right">
         Mostrando {productosFiltrados.length} de {productos.length} productos
       </div>
     </div>

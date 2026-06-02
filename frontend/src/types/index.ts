@@ -200,6 +200,7 @@ export interface Token {
 export interface Usuario {
   id:            number
   username:      string
+  nombre?:       string | null
   email:         string
   rol:           RolUsuario
   activo:        boolean
@@ -209,6 +210,7 @@ export interface Usuario {
 
 export interface UsuarioCreate {
   username:      string
+  nombre?:       string
   email:         string
   password:      string
   rol:           RolUsuario
@@ -216,6 +218,7 @@ export interface UsuarioCreate {
 }
 
 export interface UsuarioUpdate {
+  nombre?:       string
   email?:        string
   rol?:          RolUsuario
   activo?:       boolean
@@ -329,6 +332,36 @@ export interface OrdenCompra {
   aprobado_por?:       string
   items:               OrdenCompraItem[]
   recepciones?:        RecepcionCompra[]
+}
+
+export interface ProveedorMaterialItem {
+  id: number
+  proveedor_id: number
+  sku_material: string
+  codigo_proveedor?: string
+  costo_unitario: number
+  moneda: string
+}
+ 
+export interface ProveedorItem {
+  id: number
+  uuid: string
+  razon_social: string
+  rfc: string
+  lead_time_dias: number
+  condiciones_pago?: string
+  dias_credito?: number
+  estatus_calidad: string
+  direccion?: string
+  nombre_ventas?: string
+  numero_contacto?: string
+  correo_contacto?: string
+  notas?: string
+  score_calidad?: number
+  score_detalle?: Record<string, any>
+  score_updated_at?: string
+  fecha_creacion: string
+  materiales: ProveedorMaterialItem[]
 }
 
 // ==========================================

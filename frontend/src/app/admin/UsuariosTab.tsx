@@ -34,7 +34,7 @@ export default function UsuariosTab({ token }: Props) {
   const [error,          setError]          = useState('')
 
   const [form, setForm] = useState<UsuarioCreate>({
-    username: '', email: '', password: '', rol: 'operador', permisos_tabs: null,
+    username: '', nombre: '', email: '', password: '', rol: 'operador', permisos_tabs: null,
   })
 
   // permisos_tabs en el form: null = sin restricciones, dict = permisos específicos
@@ -64,7 +64,7 @@ export default function UsuariosTab({ token }: Props) {
   // ── Abrir modal nuevo usuario ────────────────────────────────────
   const handleNuevo = () => {
     setEditUser(null)
-    setForm({ username: '', email: '', password: '', rol: 'operador', permisos_tabs: null })
+      setForm({ username: '', nombre: '', email: '', password: '', rol: 'operador', permisos_tabs: null })
     setUsarPermisos(false)
     setPermisosEditor(getDefaultPermisos('operador'))
     setError('')
@@ -74,7 +74,7 @@ export default function UsuariosTab({ token }: Props) {
   // ── Abrir modal editar usuario ───────────────────────────────────
   const handleEdit = (user: Usuario) => {
     setEditUser(user)
-    setForm({ username: user.username, email: user.email, password: '', rol: user.rol, permisos_tabs: user.permisos_tabs ?? null })
+    setForm({ username: user.username, nombre: user.nombre ?? '', email: user.email, password: '', rol: user.rol, permisos_tabs: user.permisos_tabs ?? null })
 
     const tienePermisos = user.permisos_tabs !== null && user.permisos_tabs !== undefined
     setUsarPermisos(tienePermisos)
@@ -115,6 +115,7 @@ export default function UsuariosTab({ token }: Props) {
     try {
       if (editUser) {
         await updateUsuario(token, editUser.id, {
+          nombre:        form.nombre,
           email:         form.email,
           rol:           form.rol,
           permisos_tabs: permisos_tabs_final,
@@ -128,7 +129,7 @@ export default function UsuariosTab({ token }: Props) {
       }
       setShowModal(false)
       setEditUser(null)
-      setForm({ username: '', email: '', password: '', rol: 'operador', permisos_tabs: null })
+    setForm({ username: '', nombre: '', email: '', password: '', rol: 'operador', permisos_tabs: null })
       setUsarPermisos(false)
       await cargarUsuarios()
     } catch (err: any) { setError(err.message) }
@@ -275,6 +276,17 @@ export default function UsuariosTab({ token }: Props) {
             </h3>
 
             <form onSubmit={handleSubmit} className="space-y-4">
+
+              {/* Nombre */}
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Nombre</label>
+                <input
+                  type="text"
+                  value={form.nombre}
+                  onChange={e => setForm({ ...form, nombre: e.target.value })}
+                  className="w-full bg-gray-700 text-white rounded-lg px-3 py-2 border border-gray-600 focus:border-blue-500 focus:outline-none"
+                />
+              </div>
 
               {/* Username (solo crear) */}
               {!editUser && (

@@ -74,6 +74,7 @@ async def crear_usuario(
 
     user = Usuario(
         username        = data.username,
+        nombre          = data.nombre,
         email           = data.email,
         hashed_password = get_password_hash(data.password),
         rol             = data.rol,
@@ -100,6 +101,7 @@ async def actualizar_usuario(
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
+    if data.nombre  is not None: user.nombre  = data.nombre
     if data.email    is not None: user.email    = data.email
     if data.rol      is not None: user.rol      = data.rol
     if data.activo   is not None: user.activo   = data.activo

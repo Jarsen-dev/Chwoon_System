@@ -226,7 +226,6 @@ export default function ProduccionPage() {
     return () => clearInterval(i)
   }, [activeTab])
 
-  // ── Pin/Unpin handler ──────────────────────────────────────────
   const togglePin = (tabId: string) => {
     setPinnedTabs(prev => {
       const next = prev.includes(tabId)
@@ -237,13 +236,11 @@ export default function ProduccionPage() {
     })
   }
 
-  // ── Select tab from menu ───────────────────────────────────────
   const selectTabFromMenu = (tabId: string) => {
     setActiveTab(tabId)
     setMenuOpen(false)
   }
 
-  // ── WebSocket ──────────────────────────────────────────────────
   const conectarWebSocket = () => {
     setWsStatus('conectando')
     const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000'
@@ -283,7 +280,6 @@ export default function ProduccionPage() {
     }
   }
 
-  // ── Dashboard en tiempo real ───────────────────────────────────
   const actualizarDashEnTiempoReal = (reg: any, meta?: number) => {
     setDashPorParte(prev => {
       const metaVal = meta ?? reg.meta_plan ?? 0
@@ -306,7 +302,6 @@ export default function ProduccionPage() {
     setDashTotalPiezas(prev => prev + (reg.qty_bolsa || 0))
   }
 
-  // ── Input handlers ─────────────────────────────────────────────
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const valor = e.target.value.toUpperCase()
     inputValueRef.current = valor
@@ -336,7 +331,6 @@ export default function ProduccionPage() {
     }
   }
 
-  // ── Carga de datos ─────────────────────────────────────────────
   const cargarPlanInicial = async () => {
     try {
       const data = await getPlanProduccion()
@@ -431,13 +425,11 @@ export default function ProduccionPage() {
     setTimeout(() => { setAlertas(prev => prev.filter(a => a.id !== id)) }, 15_000)
   }
 
-  // ── Computed ───────────────────────────────────────────────────
   const tabs = ALL_TABS.filter(
     t => t.roles.includes(rol ?? '') && tieneAccesoTab('produccion', t.id)
   )
   const badge = ROL_BADGE[rol || ''] || { icon: '👤', color: 'text-gray-400' }
 
-  // Pinned tabs filtered by role access
   const pinnedVisibleTabs = tabs.filter(t => pinnedTabs.includes(t.id))
 
   const wsStatusConfig = {
@@ -447,18 +439,16 @@ export default function ProduccionPage() {
   }
   const ws_cfg = wsStatusConfig[wsStatus]
 
-  // ── Tab inicial: activar primer tab disponible ─────────────────────
   useEffect(() => {
     if (tabs.length > 0 && !activeTab) {
       setActiveTab(tabs[0].id)
     }
   }, [tabs.length])
 
-  // ── Loading / guard ────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="fixed inset-0 bg-white flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+      <div className="fixed inset-0 bg-gray-950 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400" />
       </div>
     )
   }
@@ -467,11 +457,10 @@ export default function ProduccionPage() {
     return null
   }
 
-  // ══════════════════════════════════════════════════════════════
-  // RENDER
-  // ══════════════════════════════════════════════════════════════
+  const isInyeccion = activeTab === 'inyeccion'
+
   return (
-    <div className="fixed inset-0 bg-white text-gray-900 flex flex-col">
+    <div className="fixed inset-0 bg-gray-950 text-white flex flex-col">
 
       {/* ═══ HEADER ═══ */}
       <header className="bg-gray-900 border-b border-gray-800 px-6 py-3 flex items-center justify-between shrink-0">
@@ -481,13 +470,11 @@ export default function ProduccionPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          {/* WS Status */}
           <div className={`flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-full border ${ws_cfg.badge}`}>
             <span className={`w-2 h-2 rounded-full animate-pulse ${ws_cfg.dot}`} />
             {ws_cfg.label}
           </div>
 
-          {/* Turno */}
           <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold border ${
             turnoActual === 'DIA'
               ? 'bg-yellow-500/10 border-yellow-500/40 text-yellow-400'
@@ -497,7 +484,6 @@ export default function ProduccionPage() {
             <span>{turnoActual}</span>
           </div>
 
-          {/* Nav links */}
           {['admin', 'finanzas'].includes(rol || '') && (
             <>
               <Link href="/compras" className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors">
@@ -545,11 +531,9 @@ export default function ProduccionPage() {
         </div>
       </header>
 
-      {/* ═══ TABS BAR (Hamburger + Pinned Shortcuts) ═══ */}
+      {/* ═══ TABS BAR ═══ */}
       <div className="bg-gray-900 border-b border-gray-800 px-4 shrink-0">
         <div className="flex items-center gap-1">
-
-          {/* ── Hamburger Button + Dropdown ── */}
           <div className="relative" ref={menuRef}>
             <button
               onClick={() => setMenuOpen(prev => !prev)}
@@ -569,15 +553,12 @@ export default function ProduccionPage() {
               </svg>
             </button>
 
-            {/* ── Dropdown Menu (3 columns) ── */}
             {menuOpen && (
               <div className="absolute top-full left-0 mt-2 z-50 bg-gray-800 border border-gray-700 rounded-xl shadow-2xl p-4 min-w-[480px]">
-                {/* Header */}
                 <div className="flex items-center justify-between mb-3 pb-3 border-b border-gray-700">
                   <span className="text-sm font-semibold text-gray-300">📂 Módulos</span>
                 </div>
 
-                {/* 3-column grid */}
                 <div className="grid grid-cols-3 gap-1">
                   {tabs.map(tab => {
                     const isPinned = pinnedTabs.includes(tab.id)
@@ -591,7 +572,6 @@ export default function ProduccionPage() {
                             : 'hover:bg-gray-700/60 border border-transparent'
                         }`}
                       >
-                        {/* Tab button */}
                         <button
                           onClick={() => selectTabFromMenu(tab.id)}
                           className={`flex-1 text-left text-sm font-medium truncate transition-colors ${
@@ -604,7 +584,6 @@ export default function ProduccionPage() {
                           {tab.label}
                         </button>
 
-                        {/* Pin toggle */}
                         <button
                           onClick={(e) => {
                             e.stopPropagation()
@@ -636,7 +615,6 @@ export default function ProduccionPage() {
                   })}
                 </div>
 
-                {/* Footer hint */}
                 <div className="mt-3 pt-3 border-t border-gray-700 flex items-center gap-2 text-xs text-gray-500">
                   <svg className="w-3.5 h-3.5 text-blue-400" fill="currentColor" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M16 3l-4 4-4-1-3 3 4 4-2 6 6-2 4 4 3-3-1-4 4-4z" />
@@ -647,10 +625,8 @@ export default function ProduccionPage() {
             )}
           </div>
 
-          {/* ── Divider ── */}
           <div className="w-px h-8 bg-gray-700 mx-1" />
 
-          {/* ── Pinned Shortcut Tabs ── */}
           <div className="flex gap-1 overflow-x-auto flex-1 py-1">
             {pinnedVisibleTabs.map(tab => (
               <button
@@ -658,7 +634,7 @@ export default function ProduccionPage() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`px-4 py-2.5 text-sm font-medium rounded-lg transition-all whitespace-nowrap ${
                   activeTab === tab.id
-                    ? 'bg-white text-blue-600 shadow-sm'
+                    ? 'bg-gray-800 text-blue-400 shadow-sm'
                     : 'text-gray-400 hover:text-white hover:bg-gray-800'
                 }`}
               >
@@ -676,7 +652,7 @@ export default function ProduccionPage() {
       </div>
 
       {/* ═══ CONTENT ═══ */}
-      <main className="flex-1 overflow-y-auto p-6 bg-gray-50">
+      <main className="flex-1 overflow-y-auto p-6 bg-gray-950">
         {activeTab === 'home' && (
           <HomeDashboardTab token={token} rol={rol} />
         )}

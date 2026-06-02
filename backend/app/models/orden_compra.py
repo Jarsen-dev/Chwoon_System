@@ -17,6 +17,10 @@ class Proveedor(Base):
     lead_time_dias = Column(Integer, default=7)
     condiciones_pago = Column(String(100), default="30 días")
     estatus_calidad = Column(String(50), default="Aprobado")  # Aprobado | Condicional | Suspendido
+    direccion = Column(String(300), nullable=True)
+    nombre_ventas = Column(String(100), nullable=True)
+    numero_contacto = Column(String(20), nullable=True)
+    correo_contacto = Column(String(100), nullable=True)
     notas = Column(Text, nullable=True)
     score_calidad = Column(Float, default=100.0)
     score_detalle = Column(JSON, default=dict)
@@ -75,6 +79,7 @@ class OrdenCompra(Base):
     notas = Column(Text, nullable=True)
     creado_por = Column(String(100), nullable=True)
     aprobado_por = Column(String(100), nullable=True)
+    iva = Column(Float, default=0.0)
 
     rel_proveedor = relationship("Proveedor", back_populates="ordenes_compra")
     items = relationship("OrdenCompraItem", back_populates="orden_compra", cascade="all, delete-orphan")
@@ -108,9 +113,5 @@ class RecepcionCompra(Base):
     fecha_recepcion = Column(DateTime(timezone=True), default=lambda: datetime.now(TZ_LOCAL))
     recibido_por = Column(String(100), nullable=True)
     notas = Column(Text, nullable=True)
-    cantidad_bultos = Column(Integer, default=1)
-    numero_remision = Column(String(100), nullable=True)
-    temperatura = Column(Float, nullable=True)
-    recibido_en_zona = Column(String(50), default="DOCK")
 
     orden_compra = relationship("OrdenCompra", back_populates="recepciones")

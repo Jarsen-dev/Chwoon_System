@@ -12,16 +12,16 @@ import {
 } from '@/lib/api'
 
 const STATUS_BADGES: Record<string, { bg: string; text: string }> = {
-  'En Proceso':         { bg: 'bg-blue-100',   text: 'text-blue-800' },
-  'Pendiente Material': { bg: 'bg-yellow-100', text: 'text-yellow-800' },
-  'Finalizado':         { bg: 'bg-green-100',  text: 'text-green-800' },
-  'Error Consumo':      { bg: 'bg-red-100',    text: 'text-red-800' },
+  'En Proceso':         { bg: 'bg-blue-500/20',   text: 'text-blue-300' },
+  'Pendiente Material': { bg: 'bg-yellow-500/20', text: 'text-yellow-300' },
+  'Finalizado':         { bg: 'bg-green-500/20',  text: 'text-green-400' },
+  'Error Consumo':      { bg: 'bg-red-500/20',    text: 'text-red-300' },
 }
 
 const TIPO_BADGES: Record<string, { icon: string; color: string }> = {
-  'PRE-EXPANSION': { icon: '🔥', color: 'text-orange-600' },
-  'INYECCION':     { icon: '💉', color: 'text-purple-600' },
-  'ASSY':          { icon: '🔧', color: 'text-blue-600' },
+  'PRE-EXPANSION': { icon: '🔥', color: 'text-orange-400' },
+  'INYECCION':     { icon: '💉', color: 'text-purple-400' },
+  'ASSY':          { icon: '🔧', color: 'text-blue-400' },
 }
 
 export default function OrdenesProduccionTab() {
@@ -115,8 +115,8 @@ export default function OrdenesProduccionTab() {
       {/* Mensaje */}
       {mensaje && (
         <div className={`p-3 rounded-lg text-sm font-medium ${
-          mensaje.tipo === 'ok' ? 'bg-green-50 text-green-700 border border-green-200'
-            : 'bg-red-50 text-red-700 border border-red-200'
+          mensaje.tipo === 'ok' ? 'bg-green-500/10 text-green-400 border border-green-200'
+            : 'bg-red-500/100/10 text-red-400 border border-red-200'
         }`}>
           {mensaje.texto}
         </div>
@@ -124,80 +124,80 @@ export default function OrdenesProduccionTab() {
 
       {/* Filtros */}
       <div className="flex gap-3 items-center flex-wrap">
-        <div className="flex bg-gray-100 rounded-lg p-1">
+        <div className="flex bg-gray-800 rounded-lg p-1">
           <button onClick={() => setVerActivas(true)}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              verActivas ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'
+              verActivas ? 'bg-gray-900 shadow text-blue-400' : 'text-gray-400 hover:text-gray-300'
             }`}>
             🟢 Activas
           </button>
           <button onClick={() => setVerActivas(false)}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              !verActivas ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'
+              !verActivas ? 'bg-gray-900 shadow text-blue-400' : 'text-gray-400 hover:text-gray-300'
             }`}>
             ✅ Finalizadas
           </button>
         </div>
 
         <select value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+          className="border border-gray-600 rounded-lg px-3 py-2 text-sm">
           <option value="">Todas las clases</option>
           <option value="PRE-EXPANSION">🔥 Pre-Expansión</option>
           <option value="INYECCION">💉 Inyección</option>
           <option value="ASSY">🔧 Ensamble</option>
         </select>
 
-        <span className="text-sm text-gray-500">
+        <span className="text-sm text-gray-400">
           {ordenesFiltradas.length} orden{ordenesFiltradas.length !== 1 ? 'es' : ''}
         </span>
       </div>
 
       {/* Tabla */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
+            <thead className="bg-gray-800 border-b border-gray-700">
               <tr>
-                <th className="px-4 py-3 text-left font-semibold text-gray-600">OP ID</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-600">Tipo</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-600">SKU</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-600">Nombre</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-600">Progreso</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-600">Status</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-600">Línea</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-600">Operador</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-600">Fecha</th>
-                <th className="px-4 py-3 text-center font-semibold text-gray-600">Acciones</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-400">OP ID</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-400">Tipo</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-400">SKU</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-400">Nombre</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-400">Progreso</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-400">Status</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-400">Línea</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-400">Operador</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-400">Fecha</th>
+                <th className="px-4 py-3 text-center font-semibold text-gray-400">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {ordenesFiltradas.map(op => {
-                const tipoBadge = TIPO_BADGES[op.tipo] || { icon: '📄', color: 'text-gray-600' }
-                const statusBadge = STATUS_BADGES[op.status] || { bg: 'bg-gray-100', text: 'text-gray-800' }
+                const tipoBadge = TIPO_BADGES[op.tipo] || { icon: '📄', color: 'text-gray-400' }
+                const statusBadge = STATUS_BADGES[op.status] || { bg: 'bg-gray-800', text: 'text-gray-800' }
                 return (
-                  <tr key={op.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3 font-mono font-medium text-blue-600">{op.id}</td>
+                  <tr key={op.id} className="hover:bg-gray-800 transition-colors">
+                    <td className="px-4 py-3 font-mono font-medium text-blue-400">{op.id}</td>
                     <td className="px-4 py-3">
                       <span className={`font-medium ${tipoBadge.color}`}>
                         {tipoBadge.icon} {op.tipo}
                       </span>
                     </td>
-                    <td className="px-4 py-3 font-mono text-gray-700">{op.sku}</td>
-                    <td className="px-4 py-3 text-gray-700 max-w-48 truncate">{op.nombre || '—'}</td>
+                    <td className="px-4 py-3 font-mono text-gray-300">{op.sku}</td>
+                    <td className="px-4 py-3 text-gray-300 max-w-48 truncate">{op.nombre || '—'}</td>
                     <td className="px-4 py-3 font-medium">{op.progreso}</td>
                     <td className="px-4 py-3">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${statusBadge.bg} ${statusBadge.text}`}>
                         {op.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-gray-600">{op.linea || '—'}</td>
-                    <td className="px-4 py-3 text-gray-600">{op.operador || '—'}</td>
-                    <td className="px-4 py-3 text-gray-500 text-xs">
+                    <td className="px-4 py-3 text-gray-400">{op.linea || '—'}</td>
+                    <td className="px-4 py-3 text-gray-400">{op.operador || '—'}</td>
+                    <td className="px-4 py-3 text-gray-400 text-xs">
                       {op.fecha ? new Date(op.fecha).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' }) : '—'}
                     </td>
                     <td className="px-4 py-3 text-center">
                       <button onClick={() => abrirDetalle(op.id)}
-                        className="bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-700 transition-colors">
+                        className="bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-300 transition-colors">
                         👁️ Ver
                       </button>
                     </td>
@@ -219,13 +219,13 @@ export default function OrdenesProduccionTab() {
       {/* Modal Detalle */}
       {showDetalle && detalle && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowDetalle(false)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[85vh] overflow-y-auto m-4" onClick={e => e.stopPropagation()}>
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-2xl">
+          <div className="bg-gray-900 rounded-2xl shadow-xl w-full max-w-3xl max-h-[85vh] overflow-y-auto m-4" onClick={e => e.stopPropagation()}>
+            <div className="sticky top-0 bg-gray-900 border-b border-gray-700 px-6 py-4 flex items-center justify-between rounded-t-2xl">
               <div>
                 <h3 className="text-lg font-bold text-gray-800">Orden: {detalle.op_id}</h3>
-                <p className="text-sm text-gray-500">{detalle.clase_produccion} — {detalle.nombre_producto || detalle.sku_producto}</p>
+                <p className="text-sm text-gray-400">{detalle.clase_produccion} — {detalle.nombre_producto || detalle.sku_producto}</p>
               </div>
-              <button onClick={() => setShowDetalle(false)} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>
+              <button onClick={() => setShowDetalle(false)} className="text-gray-400 hover:text-gray-400 text-2xl">×</button>
             </div>
 
             <div className="p-6 space-y-6">
@@ -252,14 +252,14 @@ export default function OrdenesProduccionTab() {
               {/* Material consumido */}
               {detalle.material_consumido.length > 0 && (
                 <div>
-                  <h4 className="font-semibold text-gray-700 mb-2">📦 Material Consumido</h4>
-                  <div className="bg-gray-50 rounded-lg overflow-hidden">
+                  <h4 className="font-semibold text-gray-300 mb-2">📦 Material Consumido</h4>
+                  <div className="bg-gray-800 rounded-lg overflow-hidden">
                     <table className="w-full text-sm">
-                      <thead className="bg-gray-100">
+                      <thead className="bg-gray-800">
                         <tr>
-                          <th className="px-3 py-2 text-left text-gray-600">Lote</th>
-                          <th className="px-3 py-2 text-left text-gray-600">SKU</th>
-                          <th className="px-3 py-2 text-right text-gray-600">Cantidad</th>
+                          <th className="px-3 py-2 text-left text-gray-400">Lote</th>
+                          <th className="px-3 py-2 text-left text-gray-400">SKU</th>
+                          <th className="px-3 py-2 text-right text-gray-400">Cantidad</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
@@ -279,10 +279,10 @@ export default function OrdenesProduccionTab() {
               {/* Registros parciales (Pre-Exp) */}
               {detalle.registros_parciales.length > 0 && (
                 <div>
-                  <h4 className="font-semibold text-gray-700 mb-2">📝 Registros Parciales</h4>
+                  <h4 className="font-semibold text-gray-300 mb-2">📝 Registros Parciales</h4>
                   <div className="space-y-2">
                     {detalle.registros_parciales.map((r: any, i: number) => (
-                      <div key={i} className="bg-gray-50 rounded-lg p-3 text-sm flex justify-between">
+                      <div key={i} className="bg-gray-800 rounded-lg p-3 text-sm flex justify-between">
                         <span>Producido: <strong>{r.cantidad_producida} kg</strong></span>
                         <span>Consumido: <strong>{r.cantidad_consumida} kg</strong></span>
                         <span className="text-gray-400 text-xs">
@@ -297,14 +297,14 @@ export default function OrdenesProduccionTab() {
               {/* Paros */}
               {detalle.paros.length > 0 && (
                 <div>
-                  <h4 className="font-semibold text-gray-700 mb-2">⏸️ Paros</h4>
+                  <h4 className="font-semibold text-gray-300 mb-2">⏸️ Paros</h4>
                   <div className="space-y-2">
                     {detalle.paros.map((p: any, i: number) => (
                       <div key={i} className={`rounded-lg p-3 text-sm flex justify-between items-center ${
-                        p.status === 'Activo' ? 'bg-red-50 border border-red-200' : 'bg-gray-50'
+                        p.status === 'Activo' ? 'bg-red-500/100/10 border border-red-200' : 'bg-gray-800'
                       }`}>
                         <span className="font-medium">{p.motivo}</span>
-                        <span className="text-gray-500">
+                        <span className="text-gray-400">
                           {p.status === 'Activo' ? '🔴 Activo' :
                             `${Math.round(p.duracion_segundos / 60)} min`}
                         </span>
@@ -316,7 +316,7 @@ export default function OrdenesProduccionTab() {
 
               {/* Acciones */}
               {detalle.status !== 'Finalizado' && (
-                <div className="flex gap-3 pt-4 border-t border-gray-200">
+                <div className="flex gap-3 pt-4 border-t border-gray-700">
                   {detalle.status === 'Pendiente Material' && (
                     <button onClick={() => handleSurtir(detalle.op_id)}
                       className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
@@ -332,7 +332,7 @@ export default function OrdenesProduccionTab() {
                         </button>
                       ) : (
                         <button onClick={() => handleParo(detalle.op_id, 'iniciar')}
-                          className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                          className="bg-yellow-500/100 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-medium">
                           ⏸️ Registrar Paro
                         </button>
                       )}
@@ -350,8 +350,8 @@ export default function OrdenesProduccionTab() {
 
 function InfoCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-gray-50 rounded-lg p-3">
-      <p className="text-xs text-gray-500 mb-1">{label}</p>
+    <div className="bg-gray-800 rounded-lg p-3">
+      <p className="text-xs text-gray-400 mb-1">{label}</p>
       <p className="font-medium text-gray-800 text-sm truncate">{value}</p>
     </div>
   )

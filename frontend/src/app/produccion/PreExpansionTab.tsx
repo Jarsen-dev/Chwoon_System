@@ -90,7 +90,7 @@ export default function PreExpansionTab() {
   const [subTab, setSubTab] = useState<SubTab>('lotes')
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
+      <div className="flex items-center gap-1 bg-gray-800 rounded-xl p-1">
         {([
           { id: 'lotes' as SubTab, label: '🔥 Lotes' },
           { id: 'silos' as SubTab, label: '🏗️ Estado Silos' },
@@ -99,7 +99,7 @@ export default function PreExpansionTab() {
         ]).map(tab => (
           <button key={tab.id} onClick={() => setSubTab(tab.id)}
             className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-              subTab === tab.id ? 'bg-white text-orange-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              subTab === tab.id ? 'bg-gray-900 text-orange-400 shadow-sm' : 'text-gray-400 hover:text-gray-300'
             }`}>
             {tab.label}
           </button>
@@ -331,7 +331,7 @@ function LotesSubTab() {
             {showForm ? '✕ Cancelar' : '➕ Nuevo Lote'}
           </button>
           <button onClick={cargar} disabled={loading}
-            className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg text-sm font-medium text-gray-700">
+            className="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg text-sm font-medium text-gray-300">
             🔄
           </button>
         </div>
@@ -341,9 +341,9 @@ function LotesSubTab() {
         <div className={`p-3 rounded-lg text-sm font-medium ${
           mensaje.tipo === 'ok'
             ? mensaje.texto.includes('orden de compra') || mensaje.texto.includes('OC')
-              ? 'bg-orange-50 text-orange-700 border border-orange-300'
-              : 'bg-green-50 text-green-700 border border-green-200'
-            : 'bg-red-50 text-red-700 border border-red-200'
+              ? 'bg-orange-500/10 text-orange-400 border border-orange-500/40'
+              : 'bg-green-500/10 text-green-400 border border-green-200'
+            : 'bg-red-500/100/10 text-red-400 border border-red-200'
         }`}>
           {mensaje.texto}
         </div>
@@ -351,14 +351,14 @@ function LotesSubTab() {
 
       {/* ── Formulario Nuevo Lote ── */}
       {showForm && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
-          <h3 className="font-semibold text-gray-700">Iniciar Lote de Pre-Expansión</h3>
+        <div className="bg-gray-900 rounded-xl border border-gray-700 p-6 space-y-4">
+          <h3 className="font-semibold text-gray-300">Iniciar Lote de Pre-Expansión</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
             <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">Producto Resina (SKU)</label>
+              <label className="block text-sm font-medium text-gray-400 mb-1">Producto Resina (SKU)</label>
               <select value={formSkuResina} onChange={e => setFormSkuResina(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                className="w-full border border-gray-600 rounded-lg px-3 py-2 text-sm">
                 <option value="">Seleccionar...</option>
                 {productos.map(p => (
                   <option key={p.sku} value={p.sku}>{p.sku} — {p.modelo}</option>
@@ -367,27 +367,27 @@ function LotesSubTab() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">Grado</label>
+              <label className="block text-sm font-medium text-gray-400 mb-1">Grado</label>
               <input type="text" value={formGrado} onChange={e => setFormGrado(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                className="w-full border border-gray-600 rounded-lg px-3 py-2 text-sm"
                 placeholder="Ej: 350, 450, CHINA..." />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">Número de Costal</label>
+              <label className="block text-sm font-medium text-gray-400 mb-1">Número de Costal</label>
               <input type="text" value={formNumeroCostal} onChange={e => setFormNumeroCostal(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                className="w-full border border-gray-600 rounded-lg px-3 py-2 text-sm"
                 placeholder="Ej: 12, X26011741..." />
             </div>
 
             {bomComponentes.length > 0 && (
               <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">
+                <label className="block text-sm font-medium text-gray-400 mb-1">
                   Materia Prima (BOM)
                   <span className="ml-2 text-xs text-gray-400">{bomComponentes.length} comp.</span>
                 </label>
                 <select value={formSkuMP} onChange={e => setFormSkuMP(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                  className="w-full border border-gray-600 rounded-lg px-3 py-2 text-sm">
                   <option value="">Seleccionar...</option>
                   {bomComponentes.map(c => (
                     <option key={c.sku_componente} value={c.sku_componente}>
@@ -401,13 +401,13 @@ function LotesSubTab() {
             {/* ELIMINADO: Cantidad a Producir — ahora se pide solo al finalizar */}
 
             <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">Materia Prima a Usar (kg)</label>
+              <label className="block text-sm font-medium text-gray-400 mb-1">Materia Prima a Usar (kg)</label>
               <input type="number" value={formCantUsada} onChange={e => setFormCantUsada(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" min="0" step="0.01" />
+                className="w-full border border-gray-600 rounded-lg px-3 py-2 text-sm" min="0" step="0.01" />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">
+              <label className="block text-sm font-medium text-gray-400 mb-1">
                 Silo Destino
                 {ubicacionesSilos.length > 0 && (
                   <span className="ml-2 text-xs text-gray-400">{ubicacionesSilos.length} disponibles</span>
@@ -415,14 +415,14 @@ function LotesSubTab() {
               </label>
               {ubicacionesSilos.length > 0 ? (
                 <select value={formUbicacion} onChange={e => setFormUbicacion(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                  className="w-full border border-gray-600 rounded-lg px-3 py-2 text-sm">
                   <option value="">Seleccionar silo...</option>
                   {ubicacionesSilos.map(ub => (
                     <option key={ub.id} value={ub.nombre}>{ub.nombre}</option>
                   ))}
                 </select>
               ) : (
-                <div className="w-full border border-red-300 bg-red-50 rounded-lg px-3 py-2 text-sm text-red-600">
+                <div className="w-full border border-red-500/40 bg-red-500/100/10 rounded-lg px-3 py-2 text-sm text-red-400">
                   ⚠️ No se encontraron silos. Crea sub-ubicaciones bajo &quot;SILOS&quot; en Almacén → Ubicaciones.
                 </div>
               )}
@@ -439,7 +439,7 @@ function LotesSubTab() {
 
       {/* ── Lotes Activos ── */}
       <div>
-        <h3 className="font-semibold text-gray-700 mb-3">🟢 Lotes Activos ({activas.length})</h3>
+        <h3 className="font-semibold text-gray-300 mb-3">🟢 Lotes Activos ({activas.length})</h3>
         {activas.length === 0 ? (
           <p className="text-gray-400 text-sm py-4">No hay lotes activos</p>
         ) : (
@@ -449,34 +449,34 @@ function LotesSubTab() {
                 ? Math.min(100, Math.round((op.cantidad_total_consumida / op.cantidad_usada_requerida) * 100))
                 : 0
               return (
-                <div key={op.op_id} className="bg-white rounded-xl border border-gray-200 p-4">
+                <div key={op.op_id} className="bg-gray-900 rounded-xl border border-gray-700 p-4">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-mono font-bold text-blue-600">{op.op_id}</span>
-                      <span className="text-sm text-gray-500">{op.sku_producto}</span>
+                      <span className="font-mono font-bold text-blue-400">{op.op_id}</span>
+                      <span className="text-sm text-gray-400">{op.sku_producto}</span>
                       {op.grado && (
-                        <span className="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full font-medium">
+                        <span className="text-xs bg-purple-500/10 text-purple-400 px-2 py-0.5 rounded-full font-medium">
                           Grado: {op.grado}
                         </span>
                       )}
                       {op.numero_costal && (
-                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                        <span className="text-xs bg-gray-800 text-gray-400 px-2 py-0.5 rounded-full">
                           Costal: {op.numero_costal}
                         </span>
                       )}
                       {op.ubicacion_destino && (
-                        <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">
+                        <span className="text-xs bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-full">
                           📍 {op.ubicacion_destino}
                         </span>
                       )}
                     </div>
                     <div className="flex gap-2">
                       <button onClick={() => { setParcialOpId(op.op_id); setParcialCantidad('') }}
-                        className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-medium">
+                        className="bg-blue-500/20 hover:bg-blue-200 text-blue-400 px-3 py-1.5 rounded-lg text-xs font-medium">
                         📝 Parcial
                       </button>
                       <button onClick={() => handleClickFinalizar(op.op_id)}
-                        className="bg-green-100 hover:bg-green-200 text-green-700 px-3 py-1.5 rounded-lg text-xs font-medium">
+                        className="bg-green-500/20 hover:bg-green-200 text-green-400 px-3 py-1.5 rounded-lg text-xs font-medium">
                         ✅ Finalizar
                       </button>
                     </div>
@@ -484,15 +484,15 @@ function LotesSubTab() {
 
                   {/* Barra progreso MP consumida */}
                   <div className="flex items-center gap-3">
-                    <div className="flex-1 bg-gray-100 rounded-full h-3">
-                      <div className="bg-orange-500 h-3 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                    <div className="flex-1 bg-gray-800 rounded-full h-3">
+                      <div className="bg-orange-500/100 h-3 rounded-full transition-all" style={{ width: `${pct}%` }} />
                     </div>
-                    <span className="text-sm font-medium text-gray-700 w-52 text-right">
+                    <span className="text-sm font-medium text-gray-300 w-52 text-right">
                       MP: {op.cantidad_total_consumida.toFixed(2)} / {op.cantidad_usada_requerida.toFixed(2)} kg ({pct}%)
                     </span>
                   </div>
 
-                  <div className="mt-2 text-xs text-gray-500 flex gap-4 flex-wrap">
+                  <div className="mt-2 text-xs text-gray-400 flex gap-4 flex-wrap">
                     <span>Parciales: {(op.registros_parciales || []).length}</span>
                     <span>Parcial acum.: {op.cantidad_producida.toFixed(2)} kg</span>
                     <span>Operador: {op.operador || '—'}</span>
@@ -504,9 +504,9 @@ function LotesSubTab() {
 
                   {/* Form parcial inline */}
                   {parcialOpId === op.op_id && (
-                    <div className="mt-3 bg-blue-50 rounded-lg p-3 flex items-end gap-3">
+                    <div className="mt-3 bg-blue-500/10 rounded-lg p-3 flex items-end gap-3">
                       <div className="flex-1">
-                        <label className="block text-xs font-medium text-blue-700 mb-1">Cantidad Parcial Producida (kg)</label>
+                        <label className="block text-xs font-medium text-blue-400 mb-1">Cantidad Parcial Producida (kg)</label>
                         <input type="number" value={parcialCantidad} onChange={e => setParcialCantidad(e.target.value)}
                           className="w-full border border-blue-200 rounded-lg px-3 py-2 text-sm"
                           min="0" step="0.01" autoFocus />
@@ -516,7 +516,7 @@ function LotesSubTab() {
                         Registrar
                       </button>
                       <button onClick={() => setParcialOpId(null)}
-                        className="text-gray-400 hover:text-gray-600 px-2 py-2 text-sm">✕</button>
+                        className="text-gray-400 hover:text-gray-400 px-2 py-2 text-sm">✕</button>
                     </div>
                   )}
                 </div>
@@ -529,36 +529,36 @@ function LotesSubTab() {
       {/* ── Finalizados ── */}
       {ordenes.some(o => o.status === 'Finalizado') && (
         <div>
-          <h3 className="font-semibold text-gray-700 mb-3">
+          <h3 className="font-semibold text-gray-300 mb-3">
             ✅ Finalizados ({finalizadas.length})
           </h3>
 
           {/* Filtros */}
-          <div className="bg-gray-50 rounded-xl border border-gray-200 p-3 mb-3 grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="bg-gray-800 rounded-xl border border-gray-700 p-3 mb-3 grid grid-cols-2 md:grid-cols-4 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Turno</label>
+              <label className="block text-xs font-medium text-gray-400 mb-1">Turno</label>
               <select value={filtroTurno} onChange={e => setFiltroTurno(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-xs">
+                className="w-full border border-gray-600 rounded-lg px-2 py-1.5 text-xs">
                 <option value="">Todos</option>
                 <option value="DIA">☀️ DIA</option>
                 <option value="NOCHE">🌙 NOCHE</option>
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Fecha inicio turno</label>
+              <label className="block text-xs font-medium text-gray-400 mb-1">Fecha inicio turno</label>
               <input type="date" value={filtroFecha} onChange={e => setFiltroFecha(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-xs" />
+                className="w-full border border-gray-600 rounded-lg px-2 py-1.5 text-xs" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">SKU</label>
+              <label className="block text-xs font-medium text-gray-400 mb-1">SKU</label>
               <input type="text" value={filtroSku} onChange={e => setFiltroSku(e.target.value)}
                 placeholder="Buscar SKU..."
-                className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-xs" />
+                className="w-full border border-gray-600 rounded-lg px-2 py-1.5 text-xs" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Silo</label>
+              <label className="block text-xs font-medium text-gray-400 mb-1">Silo</label>
               <select value={filtroSilo} onChange={e => setFiltroSilo(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-xs">
+                className="w-full border border-gray-600 rounded-lg px-2 py-1.5 text-xs">
                 <option value="">Todos</option>
                 {silosUnicos.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
@@ -568,41 +568,41 @@ function LotesSubTab() {
           {finalizadas.length === 0 ? (
             <p className="text-gray-400 text-sm py-4 text-center">Sin resultados con los filtros aplicados</p>
           ) : (
-            <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
+            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b">
+                <thead className="bg-gray-800 border-b">
                   <tr>
-                    <th className="px-3 py-2 text-left text-gray-600">Turno</th>
-                    <th className="px-3 py-2 text-left text-gray-600">OP ID</th>
-                    <th className="px-3 py-2 text-left text-gray-600">SKU</th>
-                    <th className="px-3 py-2 text-left text-gray-600">Grado</th>
-                    <th className="px-3 py-2 text-left text-gray-600">Costal</th>
-                    <th className="px-3 py-2 text-right text-gray-600">Producido</th>
-                    <th className="px-3 py-2 text-right text-gray-600">Densidad</th>
-                    <th className="px-3 py-2 text-right text-gray-600">Pantalla</th>
-                    <th className="px-3 py-2 text-right text-gray-600">Ciclo</th>
-                    <th className="px-3 py-2 text-right text-gray-600">Counter</th>
-                    <th className="px-3 py-2 text-left text-gray-600">Silo</th>
-                    <th className="px-3 py-2 text-left text-gray-600">Inicio</th>
-                    <th className="px-3 py-2 text-left text-gray-600">Fin</th>
-                    <th className="px-3 py-2 text-left text-gray-600">Usuario</th>
+                    <th className="px-3 py-2 text-left text-gray-400">Turno</th>
+                    <th className="px-3 py-2 text-left text-gray-400">OP ID</th>
+                    <th className="px-3 py-2 text-left text-gray-400">SKU</th>
+                    <th className="px-3 py-2 text-left text-gray-400">Grado</th>
+                    <th className="px-3 py-2 text-left text-gray-400">Costal</th>
+                    <th className="px-3 py-2 text-right text-gray-400">Producido</th>
+                    <th className="px-3 py-2 text-right text-gray-400">Densidad</th>
+                    <th className="px-3 py-2 text-right text-gray-400">Pantalla</th>
+                    <th className="px-3 py-2 text-right text-gray-400">Ciclo</th>
+                    <th className="px-3 py-2 text-right text-gray-400">Counter</th>
+                    <th className="px-3 py-2 text-left text-gray-400">Silo</th>
+                    <th className="px-3 py-2 text-left text-gray-400">Inicio</th>
+                    <th className="px-3 py-2 text-left text-gray-400">Fin</th>
+                    <th className="px-3 py-2 text-left text-gray-400">Usuario</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {finalizadas.map(op => (
-                    <tr key={op.op_id} className="hover:bg-gray-50">
+                    <tr key={op.op_id} className="hover:bg-gray-800">
                       <td className="px-3 py-2">
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                           getTurno(op.fecha_inicio) === 'DIA'
-                            ? 'bg-yellow-100 text-yellow-700'
+                            ? 'bg-yellow-500/20 text-yellow-400'
                             : 'bg-indigo-100 text-indigo-700'
                         }`}>
                           {getTurno(op.fecha_inicio) === 'DIA' ? '☀️' : '🌙'} {getTurno(op.fecha_inicio)}
                         </span>
                       </td>
-                      <td className="px-3 py-2 font-mono text-blue-600 text-xs">{op.op_id}</td>
+                      <td className="px-3 py-2 font-mono text-blue-400 text-xs">{op.op_id}</td>
                       <td className="px-3 py-2 text-xs">{op.sku_producto}</td>
-                      <td className="px-3 py-2 text-xs text-purple-600 font-medium">{op.grado || '—'}</td>
+                      <td className="px-3 py-2 text-xs text-purple-400 font-medium">{op.grado || '—'}</td>
                       <td className="px-3 py-2 text-xs">{op.numero_costal || '—'}</td>
                       <td className="px-3 py-2 text-right font-medium text-xs">{op.cantidad_producida.toFixed(2)} kg</td>
                       <td className="px-3 py-2 text-right text-xs">{op.densidad != null ? op.densidad : '—'}</td>
@@ -611,16 +611,16 @@ function LotesSubTab() {
                       <td className="px-3 py-2 text-right text-xs">{op.counter_tiro != null ? op.counter_tiro : '—'}</td>
                       <td className="px-3 py-2 text-xs">
                         {op.ubicacion_destino
-                          ? <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">{op.ubicacion_destino}</span>
+                          ? <span className="bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-full">{op.ubicacion_destino}</span>
                           : '—'}
                       </td>
-                      <td className="px-3 py-2 text-xs text-gray-500 whitespace-nowrap">
+                      <td className="px-3 py-2 text-xs text-gray-400 whitespace-nowrap">
                         {formatFechaHora(op.hora_inicio_real || op.fecha_inicio)}
                       </td>
-                      <td className="px-3 py-2 text-xs text-gray-500 whitespace-nowrap">
+                      <td className="px-3 py-2 text-xs text-gray-400 whitespace-nowrap">
                         {formatFechaHora(op.hora_finalizacion || op.fecha_fin)}
                       </td>
-                      <td className="px-3 py-2 text-xs text-gray-500">{op.creado_por || '—'}</td>
+                      <td className="px-3 py-2 text-xs text-gray-400">{op.creado_por || '—'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -633,34 +633,34 @@ function LotesSubTab() {
       {/* ── MODAL: Datos de Proceso ── */}
       {showDatosModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
+          <div className="bg-gray-900 rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
             <h3 className="text-lg font-bold text-gray-800">📊 Datos de Proceso</h3>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-400">
               Primer parcial registrado para{' '}
               <span className="font-mono font-semibold">{datosOpId}</span>.
               Ingresa los datos del proceso:
             </p>
             <div className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">Densidad (g/cm³)</label>
+                <label className="block text-sm font-medium text-gray-400 mb-1">Densidad (g/cm³)</label>
                 <input type="number" value={formDensidad} onChange={e => setFormDensidad(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  className="w-full border border-gray-600 rounded-lg px-3 py-2 text-sm"
                   min="0" step="0.001" autoFocus />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">Pantalla Peso (kg)</label>
+                <label className="block text-sm font-medium text-gray-400 mb-1">Pantalla Peso (kg)</label>
                 <input type="number" value={formPantalla} onChange={e => setFormPantalla(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" min="0" step="0.01" />
+                  className="w-full border border-gray-600 rounded-lg px-3 py-2 text-sm" min="0" step="0.01" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">Ciclo (seg)</label>
+                <label className="block text-sm font-medium text-gray-400 mb-1">Ciclo (seg)</label>
                 <input type="number" value={formCiclo} onChange={e => setFormCiclo(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" min="0" step="1" />
+                  className="w-full border border-gray-600 rounded-lg px-3 py-2 text-sm" min="0" step="1" />
               </div>
             </div>
             <div className="flex gap-3 justify-end">
               <button onClick={() => { setShowDatosModal(false); setDatosOpId(null) }}
-                className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Omitir</button>
+                className="px-4 py-2 text-sm text-gray-400 hover:text-gray-300">Omitir</button>
               <button onClick={handleGuardarDatos}
                 className="bg-orange-600 hover:bg-orange-700 text-white px-5 py-2 rounded-lg text-sm font-medium">
                 💾 Guardar
@@ -673,30 +673,30 @@ function LotesSubTab() {
       {/* ── MODAL: Finalizar ── */}
       {showFinalizarModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
+          <div className="bg-gray-900 rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
             <h3 className="text-lg font-bold text-gray-800">✅ Finalizar Lote</h3>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-400">
               Finalizando <span className="font-mono font-semibold">{finalizarOpId}</span>
             </p>
             <div className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">
+                <label className="block text-sm font-medium text-gray-400 mb-1">
                   Cantidad Producida (kg) <span className="text-red-500">*</span>
                 </label>
                 <input type="number" value={formCantProducida} onChange={e => setFormCantProducida(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  className="w-full border border-gray-600 rounded-lg px-3 py-2 text-sm"
                   min="0" step="0.01" autoFocus placeholder="Ingresa kg producidos..." />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">Counter Tiro</label>
+                <label className="block text-sm font-medium text-gray-400 mb-1">Counter Tiro</label>
                 <input type="number" value={formCounterTiro} onChange={e => setFormCounterTiro(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  className="w-full border border-gray-600 rounded-lg px-3 py-2 text-sm"
                   min="0" step="1" placeholder="Ingresa el counter tiro..." />
               </div>
             </div>
             <div className="flex gap-3 justify-end">
               <button onClick={() => { setShowFinalizarModal(false); setFinalizarOpId(null) }}
-                className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Cancelar</button>
+                className="px-4 py-2 text-sm text-gray-400 hover:text-gray-300">Cancelar</button>
               <button onClick={handleConfirmarFinalizar}
                 className="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg text-sm font-medium">
                 ✅ Confirmar
@@ -771,15 +771,15 @@ function SilosSubTab() {
     return (
       <div key={s.nombre_silo}
         className={`rounded-xl border-2 p-4 transition-all h-full ${
-          s.vacio ? 'border-dashed border-gray-300 bg-gray-50'
+          s.vacio ? 'border-dashed border-gray-600 bg-gray-800'
             : isAux ? 'border-cyan-300 bg-cyan-50'
-            : 'border-orange-300 bg-orange-50'
+            : 'border-orange-500/40 bg-orange-500/10'
         }`}>
         <div className="flex items-center justify-between mb-3">
           <h4 className="font-bold text-lg text-gray-800">{s.nombre_silo}</h4>
           {s.vacio
-            ? <span className="text-xs bg-gray-200 text-gray-500 px-2 py-1 rounded-full">Vacío</span>
-            : <span className={`text-xs px-2 py-1 rounded-full font-semibold ${isAux ? 'bg-cyan-200 text-cyan-700' : 'bg-orange-200 text-orange-700'}`}>
+            ? <span className="text-xs bg-gray-700 text-gray-400 px-2 py-1 rounded-full">Vacío</span>
+            : <span className={`text-xs px-2 py-1 rounded-full font-semibold ${isAux ? 'bg-cyan-200 text-cyan-700' : 'bg-orange-200 text-orange-400'}`}>
                 {s.kg_totales} kg
               </span>}
         </div>
@@ -788,9 +788,9 @@ function SilosSubTab() {
         ) : isAux && s.suministro ? (
           <div className="space-y-2 text-sm">
             {[
-              ['Fuente:', <span className="font-medium text-orange-600">{s.silo_fuente}</span>],
+              ['Fuente:', <span className="font-medium text-orange-400">{s.silo_fuente}</span>],
               ['Resina:', <span className="font-medium">{s.suministro.sku_resina || '—'}</span>],
-              ['Grado:', <span className="font-medium text-purple-600">{s.suministro.grado || '—'}</span>],
+              ['Grado:', <span className="font-medium text-purple-400">{s.suministro.grado || '—'}</span>],
               ['Kg suministrados:', <span className="font-medium">{s.suministro.kg_suministrados}</span>],
               ['Reposo silo fuente:', <span className="font-medium">{formatTiempoReposo(s.suministro.tiempo_reposo_horas * 3600)}</span>],
               ['Fecha:', <span className="text-xs">{formatFechaLocal(s.suministro.fecha_suministro)}</span>],
@@ -799,10 +799,10 @@ function SilosSubTab() {
             ))}
             {s.suministro.maquinas_inyeccion.length > 0 && (
               <div>
-                <span className="text-gray-500 text-xs">Máquinas:</span>
+                <span className="text-gray-400 text-xs">Máquinas:</span>
                 <div className="flex flex-wrap gap-1 mt-1">
                   {s.suministro.maquinas_inyeccion.map((m, i) => (
-                    <span key={i} className="text-xs bg-white border border-cyan-200 text-cyan-700 px-2 py-0.5 rounded-full">{m}</span>
+                    <span key={i} className="text-xs bg-gray-900 border border-cyan-500/30 text-cyan-700 px-2 py-0.5 rounded-full">{m}</span>
                   ))}
                 </div>
               </div>
@@ -812,18 +812,18 @@ function SilosSubTab() {
           <div className="space-y-2 text-sm">
             {[
               ['Resina:', <span className="font-medium">{s.sku_resina || '—'}</span>],
-              ['Grado:', <span className="font-medium text-purple-600">{s.grado || '—'}</span>],
+              ['Grado:', <span className="font-medium text-purple-400">{s.grado || '—'}</span>],
               ['Densidad:', <span className="font-medium">{s.densidad != null ? `${s.densidad} g/cm³` : '—'}</span>],
               ['Entrada:', <span className="text-xs">{formatFechaLocal(s.fecha_entrada)}</span>],
               ['Fin lote:', <span className="text-xs">{formatHoraLocal(s.hora_finalizacion_lote)}</span>],
-              ['OP:', <span className="font-mono text-xs text-blue-600">{s.op_id_origen || '—'}</span>],
+              ['OP:', <span className="font-mono text-xs text-blue-400">{s.op_id_origen || '—'}</span>],
             ].map(([label, val], i) => (
               <div key={i} className="flex justify-between">{label}{val}</div>
             ))}
-            <div className="mt-2 bg-white rounded-lg p-2 border border-orange-200">
+            <div className="mt-2 bg-gray-900 rounded-lg p-2 border border-orange-500/30">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-500">⏱️ Tiempo en reposo:</span>
-                <span className="font-bold text-orange-600 text-sm">
+                <span className="text-xs text-gray-400">⏱️ Tiempo en reposo:</span>
+                <span className="font-bold text-orange-400 text-sm">
                   {formatTiempoReposo(reposoVivo || s.tiempo_reposo_segundos)}
                 </span>
               </div>
@@ -847,16 +847,16 @@ function SilosSubTab() {
             Descargar Excel
           </button>
           <button onClick={cargar} disabled={loading}
-            className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg text-sm font-medium text-gray-700">🔄</button>
+            className="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg text-sm font-medium text-gray-300">🔄</button>
         </div>
       </div>
 
       <div>
-        <h3 className="font-semibold text-gray-600 mb-3 text-sm uppercase tracking-wide">Silos Principales</h3>
+        <h3 className="font-semibold text-gray-400 mb-3 text-sm uppercase tracking-wide">Silos Principales</h3>
         <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${letrasOrdenadas.length}, minmax(0, 1fr))` }}>
           {letrasOrdenadas.map(l => (
             <div key={`h-${l}`} className="text-center">
-              <span className="text-sm font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-full">Columna {l}</span>
+              <span className="text-sm font-bold text-gray-400 bg-gray-800 px-3 py-1 rounded-full">Columna {l}</span>
             </div>
           ))}
         </div>
@@ -873,7 +873,7 @@ function SilosSubTab() {
 
       {auxiliares.length > 0 && (
         <div>
-          <h3 className="font-semibold text-gray-600 mb-3 text-sm uppercase tracking-wide">Silos AUX (Suministro)</h3>
+          <h3 className="font-semibold text-gray-400 mb-3 text-sm uppercase tracking-wide">Silos AUX (Suministro)</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {auxiliares
               .sort((a, b) => a.nombre_silo.localeCompare(b.nombre_silo, undefined, { numeric: true }))
@@ -980,51 +980,51 @@ function SuministroSubTab() {
             {showForm ? '✕ Cancelar' : '➕ Nuevo Suministro'}
           </button>
           <button onClick={cargar} disabled={loading}
-            className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg text-sm font-medium text-gray-700">🔄</button>
+            className="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg text-sm font-medium text-gray-300">🔄</button>
         </div>
       </div>
 
       {mensaje && (
         <div className={`p-3 rounded-lg text-sm font-medium ${
           mensaje.tipo === 'ok'
-            ? 'bg-green-50 text-green-700 border border-green-200'
-            : 'bg-red-50 text-red-700 border border-red-200'
+            ? 'bg-green-500/10 text-green-400 border border-green-200'
+            : 'bg-red-500/100/10 text-red-400 border border-red-200'
         }`}>{mensaje.texto}</div>
       )}
 
       {/* ── Formulario nuevo suministro (SIN densidad) ── */}
       {showForm && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
-          <h3 className="font-semibold text-gray-700">Registrar Suministro</h3>
+        <div className="bg-gray-900 rounded-xl border border-gray-700 p-6 space-y-4">
+          <h3 className="font-semibold text-gray-300">Registrar Suministro</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">SILO de Salida</label>
+              <label className="block text-sm font-medium text-gray-400 mb-1">SILO de Salida</label>
               <select value={formSiloOrigen} onChange={e => setFormSiloOrigen(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                className="w-full border border-gray-600 rounded-lg px-3 py-2 text-sm">
                 <option value="">Seleccionar silo...</option>
                 {silosPrincipales.map(s => <option key={s.id} value={s.nombre}>{s.nombre}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">AUX de Entrada</label>
+              <label className="block text-sm font-medium text-gray-400 mb-1">AUX de Entrada</label>
               <select value={formAuxDestino} onChange={e => setFormAuxDestino(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                className="w-full border border-gray-600 rounded-lg px-3 py-2 text-sm">
                 <option value="">Seleccionar AUX...</option>
                 {silosAux.map(s => <option key={s.id} value={s.nombre}>{s.nombre}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">Kg a Suministrar</label>
+              <label className="block text-sm font-medium text-gray-400 mb-1">Kg a Suministrar</label>
               <input type="number" value={formKg} onChange={e => setFormKg(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                className="w-full border border-gray-600 rounded-lg px-3 py-2 text-sm"
                 min="0" step="0.01" placeholder="Ej: 500" />
             </div>
             <div className="md:col-span-2 lg:col-span-3">
-              <label className="block text-sm font-medium text-gray-600 mb-1">
+              <label className="block text-sm font-medium text-gray-400 mb-1">
                 Máquinas de Inyección <span className="text-xs text-gray-400">separadas por coma</span>
               </label>
               <input type="text" value={formMaquinas} onChange={e => setFormMaquinas(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                className="w-full border border-gray-600 rounded-lg px-3 py-2 text-sm"
                 placeholder="Ej: MAQ-1, MAQ-3, MAQ-7" />
             </div>
           </div>
@@ -1036,37 +1036,37 @@ function SuministroSubTab() {
       )}
 
       {/* ── Filtros historial ── */}
-      <div className="bg-gray-50 rounded-xl border border-gray-200 p-3 grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="bg-gray-800 rounded-xl border border-gray-700 p-3 grid grid-cols-2 md:grid-cols-4 gap-3">
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">AUX Destino</label>
+          <label className="block text-xs font-medium text-gray-400 mb-1">AUX Destino</label>
           <select value={filtroAux} onChange={e => setFiltroAux(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-xs">
+            className="w-full border border-gray-600 rounded-lg px-2 py-1.5 text-xs">
             <option value="">Todos</option>
             {auxUnicos.map(a => <option key={a} value={a}>{a}</option>)}
           </select>
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">Resina (SKU)</label>
+          <label className="block text-xs font-medium text-gray-400 mb-1">Resina (SKU)</label>
           <input type="text" value={filtroResina} onChange={e => setFiltroResina(e.target.value)}
             placeholder="Buscar SKU..."
-            className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-xs" />
+            className="w-full border border-gray-600 rounded-lg px-2 py-1.5 text-xs" />
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">Fecha</label>
+          <label className="block text-xs font-medium text-gray-400 mb-1">Fecha</label>
           <input type="date" value={filtroFecha} onChange={e => setFiltroFecha(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-xs" />
+            className="w-full border border-gray-600 rounded-lg px-2 py-1.5 text-xs" />
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">Usuario</label>
+          <label className="block text-xs font-medium text-gray-400 mb-1">Usuario</label>
           <input type="text" value={filtroUsuario} onChange={e => setFiltroUsuario(e.target.value)}
             placeholder="Buscar usuario..."
-            className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-xs" />
+            className="w-full border border-gray-600 rounded-lg px-2 py-1.5 text-xs" />
         </div>
       </div>
 
       {/* ── Historial de Suministros ── */}
       <div>
-        <h3 className="font-semibold text-gray-700 mb-3">
+        <h3 className="font-semibold text-gray-300 mb-3">
           📋 Historial de Suministros ({suministrosFiltrados.length}
           {suministrosFiltrados.length !== suministros.length && (
             <span className="text-xs font-normal text-gray-400 ml-1">de {suministros.length}</span>
@@ -1077,55 +1077,55 @@ function SuministroSubTab() {
             {suministros.length === 0 ? 'No hay suministros registrados' : 'Sin resultados con los filtros aplicados'}
           </p>
         ) : (
-          <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
+          <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b">
+              <thead className="bg-gray-800 border-b">
                 <tr>
-                  <th className="px-3 py-2 text-left text-gray-600">ID</th>
-                  <th className="px-3 py-2 text-left text-gray-600">SILO Origen</th>
-                  <th className="px-3 py-2 text-left text-gray-600">AUX Destino</th>
-                  <th className="px-3 py-2 text-left text-gray-600">Resina</th>
-                  <th className="px-3 py-2 text-left text-gray-600">Grado</th>
-                  <th className="px-3 py-2 text-right text-gray-600">Kg</th>
-                  <th className="px-3 py-2 text-right text-gray-600">Kg Rest.</th>
-                  <th className="px-3 py-2 text-right text-gray-600">Reposo Silo</th>
-                  <th className="px-3 py-2 text-left text-gray-600">Máquinas</th>
-                  <th className="px-3 py-2 text-left text-gray-600">Fecha</th>
-                  <th className="px-3 py-2 text-left text-gray-600">Usuario</th>
+                  <th className="px-3 py-2 text-left text-gray-400">ID</th>
+                  <th className="px-3 py-2 text-left text-gray-400">SILO Origen</th>
+                  <th className="px-3 py-2 text-left text-gray-400">AUX Destino</th>
+                  <th className="px-3 py-2 text-left text-gray-400">Resina</th>
+                  <th className="px-3 py-2 text-left text-gray-400">Grado</th>
+                  <th className="px-3 py-2 text-right text-gray-400">Kg</th>
+                  <th className="px-3 py-2 text-right text-gray-400">Kg Rest.</th>
+                  <th className="px-3 py-2 text-right text-gray-400">Reposo Silo</th>
+                  <th className="px-3 py-2 text-left text-gray-400">Máquinas</th>
+                  <th className="px-3 py-2 text-left text-gray-400">Fecha</th>
+                  <th className="px-3 py-2 text-left text-gray-400">Usuario</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {suministrosFiltrados.map((s: SuministroSilo) => (
-                  <tr key={s.id} className="hover:bg-gray-50">
-                    <td className="px-3 py-2 font-mono text-xs text-cyan-600">{s.suministro_id}</td>
+                  <tr key={s.id} className="hover:bg-gray-800">
+                    <td className="px-3 py-2 font-mono text-xs text-cyan-400">{s.suministro_id}</td>
                     <td className="px-3 py-2">
-                      <span className="bg-orange-50 text-orange-600 px-2 py-0.5 rounded-full text-xs font-medium">
+                      <span className="bg-orange-500/10 text-orange-400 px-2 py-0.5 rounded-full text-xs font-medium">
                         {s.silo_origen}
                       </span>
                     </td>
                     <td className="px-3 py-2">
-                      <span className="bg-cyan-50 text-cyan-600 px-2 py-0.5 rounded-full text-xs font-medium">
+                      <span className="bg-cyan-50 text-cyan-400 px-2 py-0.5 rounded-full text-xs font-medium">
                         {s.aux_destino}
                       </span>
                     </td>
                     <td className="px-3 py-2 text-xs">{s.sku_resina || '—'}</td>
-                    <td className="px-3 py-2 text-xs text-purple-600 font-medium">{s.grado || '—'}</td>
+                    <td className="px-3 py-2 text-xs text-purple-400 font-medium">{s.grado || '—'}</td>
                     <td className="px-3 py-2 text-right text-xs font-medium">{s.kg_suministrados} kg</td>
-                    <td className="px-3 py-2 text-right text-xs text-green-700 font-medium">
+                    <td className="px-3 py-2 text-right text-xs text-green-400 font-medium">
                       {s.kg_restantes != null ? `${s.kg_restantes} kg` : '—'}
                     </td>
                     <td className="px-3 py-2 text-right text-xs">{s.tiempo_reposo_horas}h</td>
                     <td className="px-3 py-2 text-xs">
                       <div className="flex flex-wrap gap-1">
                         {(s.maquinas_inyeccion || []).map((m: string, i: number) => (
-                          <span key={i} className="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded text-xs">{m}</span>
+                          <span key={i} className="bg-gray-800 text-gray-400 px-1.5 py-0.5 rounded text-xs">{m}</span>
                         ))}
                       </div>
                     </td>
-                    <td className="px-3 py-2 text-xs text-gray-500 whitespace-nowrap">
+                    <td className="px-3 py-2 text-xs text-gray-400 whitespace-nowrap">
                       {formatFechaHora(s.fecha_suministro)}
                     </td>
-                    <td className="px-3 py-2 text-xs text-gray-500">{s.creado_por || '—'}</td>
+                    <td className="px-3 py-2 text-xs text-gray-400">{s.creado_por || '—'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1260,13 +1260,13 @@ function ReporteSubTab() {
         <div className="flex items-center gap-3 flex-wrap">
           {/* Filtro Turno */}
           <select value={filtroTurno} onChange={e => setFiltroTurno(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            className="border border-gray-600 rounded-lg px-3 py-2 text-sm">
             <option value="">Ambos turnos</option>
             <option value="DIA">☀️ DIA</option>
             <option value="NOCHE">🌙 NOCHE</option>
           </select>
           <input type="date" value={fechaFiltro} onChange={e => setFechaFiltro(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+            className="border border-gray-600 rounded-lg px-3 py-2 text-sm" />
           <button onClick={handleDescargarExcel}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-400 bg-green-600 hover:bg-green-700 active:scale-95 text-white">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1275,17 +1275,17 @@ function ReporteSubTab() {
             Descargar Excel
           </button>
           <button onClick={cargar} disabled={loading}
-            className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg text-sm font-medium text-gray-700">
+            className="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg text-sm font-medium text-gray-300">
             🔄
           </button>
         </div>
       </div>
 
       {/* Encabezado info */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center justify-between flex-wrap gap-2">
+      <div className="bg-blue-500/10 border border-blue-200 rounded-lg p-3 flex items-center justify-between flex-wrap gap-2">
         <div>
-          <span className="font-bold text-blue-800 text-lg">REPORTE DE PREEXPANSIÓN</span>
-          <span className="ml-4 text-sm text-blue-600">
+          <span className="font-bold text-blue-300 text-lg">REPORTE DE PREEXPANSIÓN</span>
+          <span className="ml-4 text-sm text-blue-400">
             Fecha: {fechaFiltro}{filtroTurno ? ` | Turno: ${filtroTurno}` : ''}
           </span>
         </div>
@@ -1300,7 +1300,7 @@ function ReporteSubTab() {
       {filas.length === 0 ? (
         <p className="text-gray-400 text-sm py-8 text-center">No hay registros para esta fecha</p>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
+        <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-x-auto">
           <table className="w-full text-xs">
             <thead className="bg-blue-600 text-white">
               <tr>
@@ -1334,14 +1334,14 @@ function ReporteSubTab() {
 
                 return (
                   <tr key={`${op.op_id}-${sum?.suministro_id || 'base'}-${idx}`}
-                    className={`hover:bg-blue-50/50 ${!esFilaPrincipal ? 'bg-cyan-50/30' : ''}`}>
+                    className={`hover:bg-blue-500/100/10 ${!esFilaPrincipal ? 'bg-cyan-50/30' : ''}`}>
 
                     {/* Turno */}
                     <td className="px-2 py-2">
                       {esFilaPrincipal && (
                         <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
                           turno === 'DIA'
-                            ? 'bg-yellow-100 text-yellow-700'
+                            ? 'bg-yellow-500/20 text-yellow-400'
                             : 'bg-indigo-100 text-indigo-700'
                         }`}>
                           {turno === 'DIA' ? '☀️' : '🌙'} {turno}
@@ -1355,7 +1355,7 @@ function ReporteSubTab() {
                     </td>
 
                     {/* No. Lote */}
-                    <td className="px-2 py-2 font-mono text-blue-600">
+                    <td className="px-2 py-2 font-mono text-blue-400">
                       {esFilaPrincipal
                         ? op.op_id
                         : <span className="text-gray-400 text-xs italic">↳ suministro</span>}
@@ -1364,14 +1364,14 @@ function ReporteSubTab() {
                     {/* No. Silo */}
                     <td className="px-2 py-2">
                       {esFilaPrincipal && op.ubicacion_destino ? (
-                        <span className="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-xs font-medium">
+                        <span className="bg-orange-500/20 text-orange-400 px-1.5 py-0.5 rounded text-xs font-medium">
                           {op.ubicacion_destino}
                         </span>
                       ) : esFilaPrincipal ? '—' : ''}
                     </td>
 
                     {/* Grado */}
-                    <td className="px-2 py-2 text-purple-600 font-medium">
+                    <td className="px-2 py-2 text-purple-400 font-medium">
                       {esFilaPrincipal ? (op.grado || '—') : ''}
                     </td>
 
@@ -1404,7 +1404,7 @@ function ReporteSubTab() {
                     <td className="px-2 py-2 text-center">
                       {esFilaPrincipal ? (
                         op.status !== 'Finalizado'
-                          ? <span className="text-yellow-600 font-medium">En proceso</span>
+                          ? <span className="text-yellow-400 font-medium">En proceso</span>
                           : formatHoraLocal(op.hora_finalizacion || op.fecha_fin)
                       ) : ''}
                     </td>
@@ -1428,7 +1428,7 @@ function ReporteSubTab() {
                       {sum ? `${sum.kg_suministrados} kg` : '—'}
                     </td>
 
-                    <td className="px-2 py-2 text-right font-medium text-green-700">
+                    <td className="px-2 py-2 text-right font-medium text-green-400">
                       {sum ? (
                         sum.kg_restantes != null && sum.kg_restantes > 0
                           ? `${sum.kg_restantes} kg`
@@ -1437,7 +1437,7 @@ function ReporteSubTab() {
                     </td>
 
                     {/* Usuario */}
-                    <td className="px-2 py-2 text-gray-600">
+                    <td className="px-2 py-2 text-gray-400">
                       {esFilaPrincipal ? (op.creado_por || '—') : (sum?.creado_por || '')}
                     </td>
                   </tr>
@@ -1450,31 +1450,31 @@ function ReporteSubTab() {
 
       {/* Resumen */}
       {(ordenes.length > 0 || suministrosTotal > 0) && (
-        <div className="bg-gray-50 rounded-lg border border-gray-200 p-4">
-          <h4 className="font-semibold text-gray-700 text-sm mb-2">📊 Resumen del Día</h4>
+        <div className="bg-gray-800 rounded-lg border border-gray-700 p-4">
+          <h4 className="font-semibold text-gray-300 text-sm mb-2">📊 Resumen del Día</h4>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
             <div>
-              <span className="text-gray-500">Total Lotes:</span>
+              <span className="text-gray-400">Total Lotes:</span>
               <span className="ml-2 font-bold text-gray-800">{ordenes.length}</span>
             </div>
             <div>
-              <span className="text-gray-500">Finalizados:</span>
-              <span className="ml-2 font-bold text-green-600">
+              <span className="text-gray-400">Finalizados:</span>
+              <span className="ml-2 font-bold text-green-400">
                 {ordenes.filter(o => o.status === 'Finalizado').length}
               </span>
             </div>
             <div>
-              <span className="text-gray-500">Total Producido:</span>
+              <span className="text-gray-400">Total Producido:</span>
               <span className="ml-2 font-bold text-gray-800">
                 {ordenes.reduce((s, o) => s + o.cantidad_producida, 0).toFixed(2)} kg
               </span>
             </div>
             <div>
-              <span className="text-gray-500">Suministros:</span>
-              <span className="ml-2 font-bold text-cyan-600">{suministrosTotal}</span>
+              <span className="text-gray-400">Suministros:</span>
+              <span className="ml-2 font-bold text-cyan-400">{suministrosTotal}</span>
             </div>
             <div>
-              <span className="text-gray-500">Total Suministrado:</span>
+              <span className="text-gray-400">Total Suministrado:</span>
               <span className="ml-2 font-bold text-cyan-800">
                 {kgTotalSuministrado.toFixed(2)} kg
               </span>

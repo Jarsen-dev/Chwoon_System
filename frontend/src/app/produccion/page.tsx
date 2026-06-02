@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { LoadingSpinner } from '@/components/ui'
 
 export default function ProduccionRedirect() {
   const router = useRouter()
@@ -11,8 +12,8 @@ export default function ProduccionRedirect() {
   }, [router])
 
   return (
-    <div className="fixed inset-0 bg-white flex items-center justify-center">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+    <div className="fixed inset-0 bg-gray-950 flex items-center justify-center">
+      <LoadingSpinner colorClass="border-blue-400" />
     </div>
   )
 }

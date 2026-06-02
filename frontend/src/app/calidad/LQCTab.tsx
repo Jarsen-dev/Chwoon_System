@@ -754,7 +754,7 @@ export default function LQCTab({ token }: Props) {
       {/* ═── Modal Scanner de Cámara ───═ */}
       {scannerOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-4 space-y-3">
+          <div className="bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md p-4 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold text-gray-800">📷 Escanear QR</h3>
               <button

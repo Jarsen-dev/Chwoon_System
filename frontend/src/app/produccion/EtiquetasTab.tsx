@@ -155,7 +155,7 @@ export default function EtiquetasTab() {
   }
 
   if (loading) return (
-    <div className="p-8 text-center text-xl font-semibold text-gray-600">
+    <div className="p-8 text-center text-xl font-semibold text-gray-400">
       Cargando datos...
     </div>
   )
@@ -166,7 +166,7 @@ export default function EtiquetasTab() {
       {/* MODAL NOTIFICACIÓN */}
       {modalInfo && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
+          <div className="bg-gray-900 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
             <div className={`px-6 py-4 ${
               modalInfo.type === 'success' ? 'bg-green-600' :
               modalInfo.type === 'error'   ? 'bg-red-600'   : 'bg-blue-600'
@@ -179,7 +179,7 @@ export default function EtiquetasTab() {
               </h3>
             </div>
             <div className="p-6">
-              <p className="text-gray-700 text-base mb-6">{modalInfo.message}</p>
+              <p className="text-gray-300 text-base mb-6">{modalInfo.message}</p>
               <div className="flex justify-end">
                 <button
                   ref={okButtonRef}
@@ -201,18 +201,18 @@ export default function EtiquetasTab() {
       {/* MODAL CONFIRMAR LIMPIEZA */}
       {isClearModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
+          <div className="bg-gray-900 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
             <div className="bg-orange-500 px-6 py-4">
               <h3 className="text-lg font-bold text-white">⚠️ Confirmar Acción</h3>
             </div>
             <div className="p-6">
-              <p className="text-gray-700 text-base mb-6">
+              <p className="text-gray-300 text-base mb-6">
                 ¿Estás seguro de que deseas limpiar <strong>TODA</strong> la cola de impresión?
               </p>
               <div className="flex justify-end gap-3">
                 <button
                   onClick={() => setIsClearModalOpen(false)}
-                  className="px-5 py-2.5 rounded-lg font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition"
+                  className="px-5 py-2.5 rounded-lg font-medium text-gray-300 bg-gray-800 hover:bg-gray-700 transition"
                 >
                   Cancelar
                 </button>
@@ -231,7 +231,7 @@ export default function EtiquetasTab() {
       {/* TÍTULO */}
       <div className="flex items-center gap-2 mb-6">
         <span className="text-2xl">🖨️</span>
-        <h1 className="text-2xl font-bold text-slate-800">Impresión de Etiquetas</h1>
+        <h1 className="text-2xl font-bold text-white">Impresión de Etiquetas</h1>
       </div>
 
       {/* GRID PRINCIPAL */}
@@ -239,11 +239,11 @@ export default function EtiquetasTab() {
 
         {/* FORMULARIO */}
         <div className="md:col-span-1">
-          <form onSubmit={handleAdd} className="bg-white p-5 rounded-lg shadow-sm border border-gray-200">
-            <h2 className="text-lg font-bold text-gray-700 mb-4 border-b pb-2">Añadir a la Cola</h2>
+          <form onSubmit={handleAdd} className="bg-gray-900 p-5 rounded-lg shadow-sm border border-gray-700">
+            <h2 className="text-lg font-bold text-gray-300 mb-4 border-b pb-2">Añadir a la Cola</h2>
 
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-gray-300 mb-1">
                 No. de Parte / Descripción
               </label>
               <div className="relative">
@@ -253,13 +253,13 @@ export default function EtiquetasTab() {
                   placeholder="Buscar por código, descripción, línea..."
                   value={searchParte}
                   onChange={e => setSearchParte(e.target.value)}
-                  className="w-full border border-gray-300 border-b-0 pl-8 pr-8 py-2 rounded-t-md focus:ring-2 focus:ring-blue-200 focus:outline-none bg-gray-50 text-sm"
+                  className="w-full border border-gray-600 border-b-0 pl-8 pr-8 py-2 rounded-t-md focus:ring-2 focus:ring-blue-500/40 focus:outline-none bg-gray-800 text-sm"
                 />
                 {searchParte && (
                   <button
                     type="button"
                     onClick={() => setSearchParte('')}
-                    className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-gray-400 hover:text-gray-600"
+                    className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-gray-400 hover:text-gray-400"
                   >✖</button>
                 )}
               </div>
@@ -270,7 +270,7 @@ export default function EtiquetasTab() {
                   const value = (e.target as HTMLSelectElement).value
                   if (value) ejecutarAgregarACola(value)
                 }}
-                className="w-full border border-gray-300 p-2.5 rounded-b-md focus:ring-2 focus:ring-blue-200 focus:outline-none bg-gray-50 text-sm cursor-pointer"
+                className="w-full border border-gray-600 p-2.5 rounded-b-md focus:ring-2 focus:ring-blue-500/40 focus:outline-none bg-gray-800 text-sm cursor-pointer"
                 required
                 size={5}
               >
@@ -285,7 +285,7 @@ export default function EtiquetasTab() {
               {selectedCodigo && (() => {
                 const item = inventario.find(i => i.codigo === selectedCodigo)
                 return item ? (
-                  <div className="mt-2 p-2 bg-blue-50 rounded text-xs text-blue-700 border border-blue-100">
+                  <div className="mt-2 p-2 bg-blue-500/10 rounded text-xs text-blue-400 border border-blue-500/30">
                     <span className="font-semibold">Línea:</span> {item.linea} &nbsp;|&nbsp;
                     <span className="font-semibold">QTY:</span> {item.qtu} &nbsp;|&nbsp;
                     <span className="font-semibold">Cliente:</span> {item.linea_lg}
@@ -298,23 +298,23 @@ export default function EtiquetasTab() {
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Cantidad de Etiquetas</label>
+              <label className="block text-sm font-semibold text-gray-300 mb-1">Cantidad de Etiquetas</label>
               <input
                 type="number"
                 min="1"
                 value={cantidad}
                 onChange={e => setCantidad(e.target.value)}
-                className="w-full border border-gray-300 p-2.5 rounded focus:ring-2 focus:ring-blue-200 focus:outline-none bg-gray-50"
+                className="w-full border border-gray-600 p-2.5 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none bg-gray-800"
                 required
               />
             </div>
 
             <div className="mb-6">
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Turno</label>
+              <label className="block text-sm font-semibold text-gray-300 mb-1">Turno</label>
               <select
                 value={turno}
                 onChange={e => setTurno(e.target.value as 'Día' | 'Noche')}
-                className="w-full border border-gray-300 p-2.5 rounded focus:ring-2 focus:ring-blue-200 focus:outline-none bg-gray-50"
+                className="w-full border border-gray-600 p-2.5 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none bg-gray-800"
               >
                 <option value="Día">Día</option>
                 <option value="Noche">Noche</option>
@@ -332,16 +332,16 @@ export default function EtiquetasTab() {
 
         {/* TABLA */}
         <div className="md:col-span-3">
-          <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-200 h-full">
+          <div className="bg-gray-900 p-5 rounded-lg shadow-sm border border-gray-700 h-full">
             <div className="flex justify-between items-center mb-4 border-b pb-3">
-              <h2 className="text-lg font-bold text-gray-700">
+              <h2 className="text-lg font-bold text-gray-300">
                 Etiquetas en Cola ({cola.length})
               </h2>
               <div className="flex gap-2">
                 <button
                   onClick={() => setIsClearModalOpen(true)}
                   disabled={cola.length === 0}
-                  className="bg-gray-100 border border-gray-300 text-gray-700 px-4 py-1.5 rounded font-medium hover:bg-gray-200 transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
+                  className="bg-gray-800 border border-gray-600 text-gray-300 px-4 py-1.5 rounded font-medium hover:bg-gray-700 transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
                 >
                   🧹 Limpiar Cola
                 </button>
@@ -355,39 +355,39 @@ export default function EtiquetasTab() {
               </div>
             </div>
 
-            <div className="rounded border border-gray-100">
+            <div className="rounded border border-gray-800">
               <table className="w-full text-sm table-fixed">
-                <thead className="bg-slate-50 border-b border-gray-100">
+                <thead className="bg-gray-800 border-b border-gray-800">
                   <tr>
-                    <th className="p-3 text-left   font-semibold text-gray-700 w-36">No. de Parte</th>
-                    <th className="p-3 text-left   font-semibold text-gray-700">Descripción</th>
-                    <th className="p-3 text-center font-semibold text-gray-700 w-16">Cant.</th>
-                    <th className="p-3 text-center font-semibold text-gray-700 w-24">Turno</th>
-                    <th className="p-3 text-center font-semibold text-gray-700 w-28">Usuario</th>
-                    <th className="p-3 text-center font-semibold text-gray-700 w-16">Acción</th>
+                    <th className="p-3 text-left   font-semibold text-gray-300 w-36">No. de Parte</th>
+                    <th className="p-3 text-left   font-semibold text-gray-300">Descripción</th>
+                    <th className="p-3 text-center font-semibold text-gray-300 w-16">Cant.</th>
+                    <th className="p-3 text-center font-semibold text-gray-300 w-24">Turno</th>
+                    <th className="p-3 text-center font-semibold text-gray-300 w-28">Usuario</th>
+                    <th className="p-3 text-center font-semibold text-gray-300 w-16">Acción</th>
                   </tr>
                 </thead>
                 <tbody>
                   {cola.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="p-10 text-center text-gray-500">
+                      <td colSpan={6} className="p-10 text-center text-gray-400">
                         <span className="text-3xl block mb-2">📥</span>
                         La cola está vacía. Selecciona un número de parte y añádelo.
                       </td>
                     </tr>
                   ) : (
                     cola.map(item => (
-                      <tr key={item.id} className="border-t border-gray-100 hover:bg-blue-50/50 transition">
-                        <td className="p-3 font-mono font-bold text-blue-800 break-all">{item.numero_parte}</td>
-                        <td className="p-3 text-gray-600 break-words">{item.descripcion}</td>
-                        <td className="p-3 text-center text-lg font-bold text-slate-700">{item.cantidad_etiquetas}</td>
+                      <tr key={item.id} className="border-t border-gray-800 hover:bg-blue-500/10 transition">
+                        <td className="p-3 font-mono font-bold text-blue-300 break-all">{item.numero_parte}</td>
+                        <td className="p-3 text-gray-400 break-words">{item.descripcion}</td>
+                        <td className="p-3 text-center text-lg font-bold text-gray-200">{item.cantidad_etiquetas}</td>
                         <td className="p-3 text-center">
                           {(() => {
                             const turnoNorm = normalizarTurno(item.turno)
                             return (
                               <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
                                 turnoNorm === 'Día'
-                                  ? 'bg-yellow-100 text-yellow-800'
+                                  ? 'bg-yellow-500/20 text-yellow-300'
                                   : 'bg-indigo-100 text-indigo-800'
                               }`}>
                                 {turnoNorm === 'Día' ? '☀️' : '🌙'} {turnoNorm}
@@ -397,11 +397,11 @@ export default function EtiquetasTab() {
                         </td>
                         <td className="p-3 text-center">
                           {item.user ? (
-                            <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-800">
+                            <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-purple-500/20 text-purple-300">
                               {item.user}
                             </span>
                           ) : (
-                            <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-400 italic">
+                            <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-800 text-gray-400 italic">
                               Sin asignar
                             </span>
                           )}
@@ -409,7 +409,7 @@ export default function EtiquetasTab() {
                         <td className="p-3 text-center">
                           <button
                             onClick={() => handleDelete(item.id!)}
-                            className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-full w-8 h-8 inline-flex items-center justify-center transition"
+                            className="text-red-500 hover:text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-full w-8 h-8 inline-flex items-center justify-center transition"
                           >✖</button>
                         </td>
                       </tr>

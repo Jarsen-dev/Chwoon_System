@@ -23,9 +23,10 @@ import {
   importarReporteManualInyeccionExcel,
 } from '@/lib/api'
 import { UbicacionAlmacen, ReporteManualInyeccion } from '@/types'
-import { PlanInyeccionItem, ParoItem, ReporteInyeccionGeneral } from '@/lib/api'
+import { PlanInyeccionItem, ReporteInyeccionGeneral } from '@/lib/api'
 import CuartoSecadoTab from './CuartoSecadoTab'
 import DashboardInyeccionTab from './DashboardInyeccionTab'
+
 
 type SubTab = 'produccion' | 'secado' | 'reporte' | 'reporte-manual' | 'dashboard'
 
@@ -35,41 +36,22 @@ interface ParteInput {
 }
 
 const MOTIVOS_PARO = [
-  'Cambio de Molde',
-  'Ajustes',
-  'Arranque',
-  'Mantenimiento',
-  'Molde Dañado',
-  'Falta de Personal',
-  'Falta de Material',
-  'Otro',
+  'Cambio de Molde', 'Ajustes', 'Arranque', 'Mantenimiento',
+  'Molde Dañado', 'Falta de Personal', 'Falta de Material', 'Otro',
 ]
 
 const MOTIVOS_MANTENIMIENTO = [
-  'Soldar Puerta Eyector',
-  'Estopero',
-  'Bomba Hidráulica',
-  'Motor Hidráulico',
-  'Manguera Hidráulica',
-  'Válvula Hidráulica',
-  'Reloj',
-  'Caldera',
-  'Sensor de Seguridad',
-  'Falta de Aire',
-  'Fuga de Aceite',
-  'Eléctrico',
-  'Tolva Tapada',
-  'Otro',
+  'Soldar Puerta Eyector', 'Estopero', 'Bomba Hidráulica', 'Motor Hidráulico',
+  'Manguera Hidráulica', 'Válvula Hidráulica', 'Reloj', 'Caldera',
+  'Sensor de Seguridad', 'Falta de Aire', 'Fuga de Aceite', 'Eléctrico',
+  'Tolva Tapada', 'Otro',
 ]
 
 // ── Helpers ──────────────────────────────────────────────────────
-
-function formatDuration(totalSeconds: number): string {
-  if (!totalSeconds || totalSeconds < 0) return '00:00:00'
-  const h = Math.floor(totalSeconds / 3600)
-  const m = Math.floor((totalSeconds % 3600) / 60)
-  const s = totalSeconds % 60
-  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+function fmtDur(s: number): string {
+  if (!s || s < 0) return '00:00:00'
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), ss = s % 60
+  return ` ${String(h).padStart(2,'0')}: ${String(m).padStart(2,'0')}: ${String(ss).padStart(2,'0')}`
 }
 
 function parseUTC(iso?: string): Date | null {
@@ -78,887 +60,556 @@ function parseUTC(iso?: string): Date | null {
   return isNaN(d.getTime()) ? null : d
 }
 
-const toLocalDate = (iso?: string): Date | null => {
+function toLocalDate(iso?: string): Date | null {
   const d = parseUTC(iso)
-  if (!d) return null
-  return new Date(d.getTime() - 6 * 60 * 60 * 1000)
+  return d ? new Date(d.getTime() - 6 * 3600000) : null
 }
 
-const formatFechaHora = (iso?: string): string => {
+function fmtDateTime(iso?: string): string {
   const d = toLocalDate(iso)
   if (!d) return '—'
-  const fecha = d.toISOString().slice(0, 10)
-  const hora = d.toISOString().slice(11, 16)
-  return `${fecha}, ${hora}`
+  return d.toISOString().slice(0, 10) + ' ' + d.toISOString().slice(11, 16)
 }
 
-const formatHoraLocal = (iso?: string): string => {
-  const d = toLocalDate(iso)
-  if (!d) return '—'
-  return d.toISOString().slice(11, 16)
+function getFranjaIndex(ms: number): number {
+  const localMs = ms - 6 * 3600000
+  const d = new Date(localMs)
+  const total = d.getUTCHours() * 60 + d.getUTCMinutes()
+  if (total >= 450 && total < 1170) return Math.floor((total - 450) / 60)
+  if (total >= 1170) return Math.floor((total - 1170) / 60) + 12
+  return Math.floor((total + 1440 - 1170) / 60) + 12
 }
 
-const formatFechaLocal = (iso?: string): string => {
-  const d = toLocalDate(iso)
-  if (!d) return '—'
-  return d.toISOString().slice(0, 10)
-}
-
-// ── Helpers de franja horaria ────────────────────────────────────
-
-/**
- * Determina la franja horaria actual en GMT-6
- * Retorna string tipo "07:30-08:30" o null si no está en turno
- */
-const getFranjaActual = (): string | null => {
-  const now = new Date()
-  // Convertir a GMT-6
-  const localMs = now.getTime() - 6 * 60 * 60 * 1000
-  const localDate = new Date(localMs)
-  const hour = localDate.getUTCHours()
-  const minute = localDate.getUTCMinutes()
-  const totalMinutes = hour * 60 + minute
-  
-  // Turno DIA: 07:30 (450) a 19:30 (1170)
-  if (totalMinutes >= 450 && totalMinutes < 1170) {
-    const franjaInicio = Math.floor((totalMinutes - 450) / 60) * 60 + 450
-    const h = Math.floor(franjaInicio / 60)
-    const m = franjaInicio % 60
-    const hFin = Math.floor((franjaInicio + 60) / 60)
-    const mFin = (franjaInicio + 60) % 60
-    return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}-${hFin.toString().padStart(2,'0')}:${mFin.toString().padStart(2,'0')}`
-  }
-  
-  // Turno NOCHE: 19:30 (1170) a 07:30 (450) del día siguiente
-  if (totalMinutes >= 1170 || totalMinutes < 450) {
-    let franjaInicio: number
-    if (totalMinutes >= 1170) {
-      franjaInicio = Math.floor((totalMinutes - 1170) / 60) * 60 + 1170
-    } else {
-      franjaInicio = Math.floor((totalMinutes + 1440 - 1170) / 60) * 60 + 1170
-      if (franjaInicio >= 1440) franjaInicio -= 1440
-    }
-    const h = Math.floor(franjaInicio / 60) % 24
-    const m = franjaInicio % 60
-    const hFin = Math.floor((franjaInicio + 60) / 60) % 24
-    const mFin = (franjaInicio + 60) % 60
-    return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}-${hFin.toString().padStart(2,'0')}:${mFin.toString().padStart(2,'0')}`
-  }
-  
-  return null
-}
-
-/**
- * Convierte un timestamp ISO a franja horaria GMT-6
- */
-const getFranjaFromTimestamp = (iso?: string): string | null => {
-  if (!iso) return null
-  const d = new Date(iso.endsWith('Z') ? iso : iso + 'Z')
-  if (isNaN(d.getTime())) return null
-  
-  const localMs = d.getTime() - 6 * 60 * 60 * 1000
-  const localDate = new Date(localMs)
-  const hour = localDate.getUTCHours()
-  const minute = localDate.getUTCMinutes()
-  const totalMinutes = hour * 60 + minute
-  
-  // Determinar franja (mismo cálculo que arriba)
-  if (totalMinutes >= 450 && totalMinutes < 1170) {
-    const franjaInicio = Math.floor((totalMinutes - 450) / 60) * 60 + 450
-    const h = Math.floor(franjaInicio / 60)
-    const m = franjaInicio % 60
-    const hFin = Math.floor((franjaInicio + 60) / 60)
-    const mFin = (franjaInicio + 60) % 60
-    return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}-${hFin.toString().padStart(2,'0')}:${mFin.toString().padStart(2,'0')}`
-  }
-  
-  if (totalMinutes >= 1170 || totalMinutes < 450) {
-    let franjaInicio: number
-    if (totalMinutes >= 1170) {
-      franjaInicio = Math.floor((totalMinutes - 1170) / 60) * 60 + 1170
-    } else {
-      franjaInicio = Math.floor((totalMinutes + 1440 - 1170) / 60) * 60 + 1170
-      if (franjaInicio >= 1440) franjaInicio -= 1440
-    }
-    const h = Math.floor(franjaInicio / 60) % 24
-    const m = franjaInicio % 60
-    const hFin = Math.floor((franjaInicio + 60) / 60) % 24
-    const mFin = (franjaInicio + 60) % 60
-    return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}-${hFin.toString().padStart(2,'0')}:${mFin.toString().padStart(2,'0')}`
-  }
-  
-  return null
-}
-
-// ══════════════════════════════════════════════════════════════════
-// FIX: Helper para determinar turno desde hora UTC usando GMT-6
-// ══════════════════════════════════════════════════════════════════
-const getTurnoFromUTC = (iso?: string): 'DIA' | 'NOCHE' | '—' => {
+function getTurnoFromISO(iso?: string): 'DIA' | 'NOCHE' {
   const d = parseUTC(iso)
-  if (!d) return '—'
-  // Convertir a GMT-6
-  const localMs = d.getTime() - 6 * 60 * 60 * 1000
-  const localDate = new Date(localMs)
-  const hour = localDate.getUTCHours()  // Usamos UTCHours porque ya hicimos el offset manual
-  const minute = localDate.getUTCMinutes()
-  
-  // Turno DIA: 07:30 a 19:29:59
-  // Turno NOCHE: 19:30 a 07:29:59 (del día siguiente)
-  const totalMinutes = hour * 60 + minute
-  
-  if (totalMinutes >= 450 && totalMinutes < 1170) {  // 07:30 = 450, 19:30 = 1170
-    return 'DIA'
-  } else {
-    return 'NOCHE'
-  }
+  if (!d) return 'NOCHE'
+  const local = new Date(d.getTime() - 6 * 3600000)
+  const total = local.getUTCHours() * 60 + local.getUTCMinutes()
+  return total >= 450 && total < 1170 ? 'DIA' : 'NOCHE'
 }
 
-// ══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+// ROOT COMPONENT
+// ═══════════════════════════════════════════════════════════════
 export default function InyeccionTab() {
   const [subTab, setSubTab] = useState<SubTab>('produccion')
+
+  const tabs: { id: SubTab; label: string; icon: string }[] = [
+    { id: 'produccion',     label: 'Producción',     icon: '⚙️' },
+    { id: 'secado',         label: 'Cuarto Secado',  icon: '🌡️' },
+    { id: 'reporte',        label: 'Reporte',        icon: '📊' },
+    { id: 'reporte-manual', label: 'Reporte Manual', icon: '📝' },
+    { id: 'dashboard',      label: 'Dashboard',      icon: '📈' },
+  ]
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
-        {([
-          { id: 'produccion' as SubTab, label: '🏭 Producción' },
-          { id: 'secado' as SubTab, label: '🌡️ Cuarto Secado' },
-          { id: 'reporte' as SubTab, label: '📋 Reporte' },
-          { id: 'reporte-manual' as SubTab, label: '📝 Reporte Manual' },
-          { id: 'dashboard' as SubTab, label: '📊 Dashboard' },
-        ]).map(tab => (
-          <button key={tab.id} onClick={() => setSubTab(tab.id)}
-            className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-              subTab === tab.id ? 'bg-white text-purple-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-            }`}>
-            {tab.label}
+    <div className="min-h-full rounded-[14px] p-[18px] bg-[radial-gradient(circle_at_top,rgba(245,158,11,0.05),transparent_28%),linear-gradient(180deg,#0a0a0a_0%,#000000_100%)] text-white">
+      <div className="flex gap-[2px] bg-gray-950 border border-gray-800 rounded-[10px] p-1 mb-5 shadow-[0_10px_30px_rgba(0,0,0,0.28)]">
+        {tabs.map(t => (
+          <button
+            key={t.id}
+            className={`flex-1 px-2 py-[9px] rounded-[7px] border-none bg-transparent text-gray-400 text-xs font-medium cursor-pointer transition-all duration-150 tracking-wide whitespace-nowrap hover:text-white hover:bg-gray-800 ${subTab === t.id ? ' bg-amber-500 text-black font-semibold shadow-[0_2px_8px_rgba(245,158,11,0.35)]': ''}`}
+            onClick={() => setSubTab(t.id)}
+          >
+            {t.icon} {t.label}
           </button>
         ))}
       </div>
-      {subTab === 'produccion' && <ProduccionSubTab />}
-      {subTab === 'secado' && <CuartoSecadoTab />}
-      {subTab === 'reporte' && <ReporteSubTab />}
-      {subTab === 'reporte-manual' && <ReporteManualSubTab />}
-      {subTab === 'dashboard' && <DashboardInyeccionTab />}
+
+      <div className="min-h-[calc(100vh-240px)] bg-transparent">
+        {subTab === 'produccion'     && <ProduccionSubTab />}
+        {subTab === 'secado'         && <CuartoSecadoTab />}
+        {subTab === 'reporte'        && <ReporteSubTab />}
+        {subTab === 'reporte-manual' && <ReporteManualSubTab />}
+        {subTab === 'dashboard'      && <DashboardInyeccionTab />}
+      </div>
     </div>
   )
 }
 
-// ══════════════════════════════════════════════════════════════════
-// SUB-TAB: PRODUCCIÓN (con Paros integrados)
-// ══════════════════════════════════════════════════════════════════
-
+// ═══════════════════════════════════════════════════════════════
+// SUB-TAB: PRODUCCIÓN
+// ═══════════════════════════════════════════════════════════════
 function ProduccionSubTab() {
   const { token } = useAuth()
-  const [items, setItems] = useState<PlanInyeccionItem[]>([])
+  const [items, setItems]     = useState<PlanInyeccionItem[]>([])
   const [loading, setLoading] = useState(false)
-  const [mensaje, setMensaje] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null)
-
-  // Formulario plan
+  const [msg, setMsg]         = useState<{tipo:'ok'|'error'; texto:string}|null>(null)
   const [showForm, setShowForm] = useState(false)
-  const [formMaquina, setFormMaquina] = useState('')
-  const [formPrioridad, setFormPrioridad] = useState('')
-  const [formCav, setFormCav] = useState('')
-  const [formAuxSilo, setFormAuxSilo] = useState('')
-  const [partes, setPartes] = useState<ParteInput[]>([{ numero_parte: '', plan_piezas: '' }])
 
-  // Silos AUX disponibles
+  // Form state
+  const [formMaquina, setFormMaquina]     = useState('')
+  const [formPrioridad, setFormPrioridad] = useState('')
+  const [formCav, setFormCav]             = useState('')
+  const [formAuxSilo, setFormAuxSilo]     = useState('')
+  const [partes, setPartes] = useState<ParteInput[]>([{ numero_parte: '', plan_piezas: '' }])
   const [silosAux, setSilosAux] = useState<UbicacionAlmacen[]>([])
 
-  // Importar Excel
-  const fileRef = useRef<HTMLInputElement>(null)
-
-  // Avance modal
-  const [avanceModal, setAvanceModal] = useState<{id: number; cav: number; numero_parte: string} | null>(null)
-  const [avanceTiempoCiclo, setAvanceTiempoCiclo] = useState('')
-  const [avanceContadorHora, setAvanceContadorHora] = useState('')
-
-  // Reanudar modal
-  const [reanudarModal, setReanudarModal] = useState<{id: number; maquina: string; numero_parte: string} | null>(null)
-  const [reanudarMotivo, setReanudarMotivo] = useState('')
-  const [reanudarMotivoMantenimiento, setReanudarMotivoMantenimiento] = useState('')
+  // Modals
+  const [avanceModal, setAvanceModal]     = useState<{id:number;cav:number;numero_parte:string}|null>(null)
+  const [avanceCiclo, setAvanceCiclo]     = useState('')
+  const [avanceContador, setAvanceContador] = useState('')
+  const [reanudarModal, setReanudarModal] = useState<{id:number;maquina:string;numero_parte:string}|null>(null)
+  const [reanudarMotivo, setReanudarMotivo]           = useState('')
+  const [reanudarSubMotivo, setReanudarSubMotivo]     = useState('')
   const [reanudarComentarios, setReanudarComentarios] = useState('')
+  const [finalizarModal, setFinalizarModal]   = useState<{id:number;numero_parte:string;maquina:string}|null>(null)
+  const [eliminarModal, setEliminarModal]     = useState<{id:number;numero_parte:string;maquina:string}|null>(null)
+  const [paroModal, setParoModal]             = useState<{id:number;numero_parte:string;maquina:string}|null>(null)
 
-  // ══════════════════════════════════════════════════════════════════
-  // FIX: Modal de confirmación para finalizar
-  // ══════════════════════════════════════════════════════════════════
-  const [finalizarModal, setFinalizarModal] = useState<{id: number; numero_parte: string; maquina: string} | null>(null)
-
-  // ══════════════════════════════════════════════════════════════════
-  // FIX: Modal de confirmación para eliminar
-  // ══════════════════════════════════════════════════════════════════
-  const [eliminarModal, setEliminarModal] = useState<{id: number; numero_parte: string; maquina: string} | null>(null)
-
-  // ══════════════════════════════════════════════════════════════════
-  // FIX: Modal de confirmación para paro
-  // ══════════════════════════════════════════════════════════════════
-  const [paroModal, setParoModal] = useState<{id: number; numero_parte: string; maquina: string} | null>(null)
-
-  // Contador en vivo
+  const fileRef = useRef<HTMLInputElement>(null)
   const [nowTick, setNowTick] = useState(Date.now())
 
-    // ── Verificar si ya se registró avance en la hora actual ──
-  const puedeRegistrarAvance = (item: PlanInyeccionItem): boolean => {
-    if (item.status !== 'En Proceso' || item.en_paro) return false
-    if (!item.hora_ultimo_avance) return true
-
-    const ultimo = parseUTC(item.hora_ultimo_avance)
-    if (!ultimo) return true
-
-    const ahora = Date.now()
-    const ultimoMs = ultimo.getTime()
-
-    const getFranjaIndex = (timestampMs: number): number => {
-      const localMs = timestampMs - 6 * 60 * 60 * 1000
-      const d = new Date(localMs)
-      const hour = d.getUTCHours()
-      const minute = d.getUTCMinutes()
-      const totalMinutes = hour * 60 + minute
-
-      if (totalMinutes >= 450 && totalMinutes < 1170) {
-        return Math.floor((totalMinutes - 450) / 60)
-      }
-      if (totalMinutes >= 1170) {
-        return Math.floor((totalMinutes - 1170) / 60) + 12
-      }
-      return Math.floor((totalMinutes + 1440 - 1170) / 60) + 12
-    }
-
-    const franjaUltimo = getFranjaIndex(ultimoMs)
-    const franjaActual = getFranjaIndex(ahora)
-
-    return franjaActual > franjaUltimo
-  }
-
-  // ── Carga ──
   const cargar = async () => {
     if (!token) return
     setLoading(true)
-    try {
-      const data = await getPlanInyeccion(token)
-      setItems(data)
-    } catch (e: any) {
-      setMensaje({ tipo: 'error', texto: e.message })
-    } finally {
-      setLoading(false)
-    }
+    try { setItems(await getPlanInyeccion(token)) }
+    catch (e: any) { showMsg('error', e.message) }
+    finally { setLoading(false) }
   }
 
   useEffect(() => { cargar() }, [token])
-
   useEffect(() => {
-    if (!mensaje) return
-    const t = setTimeout(() => setMensaje(null), 8000)
+    if (!msg) return
+    const t = setTimeout(() => setMsg(null), 7000)
     return () => clearTimeout(t)
-  }, [mensaje])
-
-  // Cargar silos AUX
+  }, [msg])
   useEffect(() => {
     if (!token) return
-    const cargarSilos = async () => {
-      try {
-        const data = await getSilosAux(token)
-        setSilosAux(data)
-      } catch {}
-    }
-    cargarSilos()
+    getSilosAux(token).then(setSilosAux).catch(() => {})
   }, [token])
-
   useEffect(() => {
     const iv = setInterval(() => setNowTick(Date.now()), 1000)
     return () => clearInterval(iv)
   }, [])
 
-  // ── Handlers form ──
-  const agregarParte = () => {
-    setPartes(prev => [...prev, { numero_parte: '', plan_piezas: '' }])
+  const showMsg = (tipo: 'ok'|'error', texto: string) => setMsg({ tipo, texto })
+
+  const puedeAvanzar = (item: PlanInyeccionItem): boolean => {
+    if (item.status !== 'En Proceso' || item.en_paro) return false
+    if (!item.hora_ultimo_avance) return true
+    const ultimo = parseUTC(item.hora_ultimo_avance)
+    if (!ultimo) return true
+    return getFranjaIndex(nowTick) > getFranjaIndex(ultimo.getTime())
   }
 
-  const quitarParte = (idx: number) => {
-    setPartes(prev => prev.filter((_, i) => i !== idx))
-  }
-
-  const actualizarParte = (idx: number, campo: keyof ParteInput, valor: string) => {
-    setPartes(prev => prev.map((p, i) => i === idx ? { ...p, [campo]: valor } : p))
-  }
-
-  const validarPrioridad = (): boolean => {
-    const maquina = formMaquina.trim().toUpperCase()
-    const prioridad = parseInt(formPrioridad)
-    if (!maquina || isNaN(prioridad)) return true
-    const conflicto = items.find(i => 
-      i.prioridad === prioridad && 
-      i.maquina !== maquina && 
-      i.status !== 'Finalizado'
-    )
-    if (conflicto) {
-      setMensaje({ tipo: 'error', texto: `La prioridad ${prioridad} ya está asignada a la máquina ${conflicto.maquina} (activa)` })
-      return false
+  const calcTrabajo = (item: PlanInyeccionItem): number => {
+    let t = item.tiempo_acumulado_seg || 0
+    if (!item.en_paro && item.hora_ultimo_inicio) {
+      const ul = parseUTC(item.hora_ultimo_inicio)
+      if (ul) t += Math.floor((nowTick - ul.getTime()) / 1000)
     }
-    return true
+    return t
   }
 
+  const calcParo = (item: PlanInyeccionItem): number => {
+    if (!item.en_paro || !item.paros) return 0
+    const activo = [...item.paros].reverse().find(p => p.status === 'Activo')
+    if (!activo) return 0
+    const ini = parseUTC(activo.inicio)
+    return ini ? Math.floor((nowTick - ini.getTime()) / 1000) : 0
+  }
+
+  // Lists
+  const pendientes = items.filter(i => i.status === 'Pendiente')
+  const enProceso  = items.filter(i => i.status === 'En Proceso')
+  const finalizados = items.filter(i => i.status === 'Finalizado')
+
+  const gruposPendientes = useMemo(() => {
+    const map = new Map<string, PlanInyeccionItem[]>()
+    pendientes.forEach(p => {
+      const k = ` ${p.maquina}| ${p.prioridad}`
+      if (!map.has(k)) map.set(k, [])
+      map.get(k)!.push(p)
+    })
+    map.forEach(arr => arr.sort((a,b) => a.orden_secuencia - b.orden_secuencia))
+    return Array.from(map.entries()).sort((a,b) => a[1][0].prioridad - b[1][0].prioridad)
+  }, [pendientes])
+
+  // Handlers
   const handleGuardar = async () => {
     if (!token) return
-    const maquina = formMaquina.trim().toUpperCase()
+    const maquina   = formMaquina.trim().toUpperCase()
     const prioridad = parseInt(formPrioridad)
-    const cav = parseInt(formCav)
-    if (!maquina || isNaN(prioridad)) {
-      setMensaje({ tipo: 'error', texto: 'Ingresa máquina y prioridad' })
-      return
-    }
-    if (isNaN(cav) || cav < 1) {
-      setMensaje({ tipo: 'error', texto: 'Ingresa un número de cavidades válido' })
-      return
-    }
+    const cav       = parseInt(formCav)
+    if (!maquina || isNaN(prioridad)) { showMsg('error', 'Ingresa máquina y prioridad'); return }
+    if (isNaN(cav) || cav < 1)        { showMsg('error', 'Ingresa número de cavidades válido'); return }
     const validas = partes.filter(p => p.numero_parte.trim() && parseInt(p.plan_piezas) > 0)
-    if (validas.length === 0) {
-      setMensaje({ tipo: 'error', texto: 'Agrega al menos un número de parte con plan válido' })
-      return
-    }
-    if (!validarPrioridad()) return
-
-    const payload = validas.map((p, idx) => ({
-      maquina,
-      prioridad,
-      cav,
-      numero_parte: p.numero_parte.trim().toUpperCase(),
-      plan_piezas: parseInt(p.plan_piezas),
-      orden_secuencia: idx,
-      aux_silo: formAuxSilo || null,
-      paros: [],
-      piezas_producidas: 0,
-      status: 'Pendiente',
-      tiempo_acumulado_seg: 0,
-      en_paro: false,
-    }))
-
+    if (!validas.length)              { showMsg('error', 'Agrega al menos un número de parte'); return }
     try {
-      await crearPlanInyeccionBatch(token, payload)
-      setMensaje({ tipo: 'ok', texto: 'Plan guardado correctamente' })
+      await crearPlanInyeccionBatch(token, validas.map((p, idx) => ({
+        maquina, prioridad, cav, numero_parte: p.numero_parte.trim().toUpperCase(),
+        plan_piezas: parseInt(p.plan_piezas), orden_secuencia: idx,
+        aux_silo: formAuxSilo || null, paros: [], piezas_producidas: 0,
+        status: 'Pendiente', tiempo_acumulado_seg: 0, en_paro: false,
+      })))
+      showMsg('ok', 'Plan guardado correctamente')
       setShowForm(false)
-      setFormMaquina(''); setFormPrioridad(''); setFormCav(''); setFormAuxSilo(''); setPartes([{ numero_parte: '', plan_piezas: '' }])
+      setFormMaquina(''); setFormPrioridad(''); setFormCav(''); setFormAuxSilo('')
+      setPartes([{ numero_parte: '', plan_piezas: '' }])
       cargar()
-    } catch (e: any) {
-      setMensaje({ tipo: 'error', texto: e.message })
-    }
+    } catch (e: any) { showMsg('error', e.message) }
   }
 
   const handleImportar = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!token || !e.target.files?.[0]) return
     try {
       const res = await importarPlanInyeccionExcel(token, e.target.files[0])
-      let texto = `${res.message} — ${res.creados} registros creados.`
-      if (res.errores.length > 0) texto += ` Errores: ${res.errores.length}`
-      setMensaje({ tipo: res.errores.length ? 'error' : 'ok', texto })
+      showMsg(res.errores.length ? 'error' : 'ok', ` ${res.message} — ${res.creados} creados`)
       cargar()
-    } catch (err: any) {
-      setMensaje({ tipo: 'error', texto: err.message })
-    } finally {
-      if (fileRef.current) fileRef.current.value = ''
-    }
+    } catch (e: any) { showMsg('error', e.message) }
+    finally { if (fileRef.current) fileRef.current.value = '' }
   }
 
-  // ══════════════════════════════════════════════════════════════════
-  // FIX: Abrir modal de confirmación para eliminar (reemplaza confirm nativo)
-  // ══════════════════════════════════════════════════════════════════
-  const handleClickEliminar = (id: number, numeroParte: string, maquina: string) => {
-    setEliminarModal({ id, numero_parte: numeroParte, maquina })
+  const handleIniciar = async (id: number) => {
+    if (!token) return
+    try { await iniciarPlanInyeccion(token, id); cargar() }
+    catch (e: any) { showMsg('error', e.message) }
   }
 
-  const handleConfirmarEliminar = async () => {
-    if (!token || !eliminarModal) return
+  const handleAuxSilo = async (id: number, val: string) => {
+    if (!token) return
+    try { await asignarAuxSiloPlanInyeccion(token, id, val); cargar() }
+    catch (e: any) { showMsg('error', e.message) }
+  }
+
+  const handleAvanzar = async () => {
+    if (!token || !avanceModal || !avanceCiclo || !avanceContador) return
     try {
-      await eliminarPlanInyeccion(token, eliminarModal.id)
-      setMensaje({ tipo: 'ok', texto: 'Registro eliminado correctamente' })
-      setEliminarModal(null)
+      const piezas = parseInt(avanceContador) * avanceModal.cav
+      await avanzarPlanInyeccion(token, avanceModal.id, piezas, parseFloat(avanceCiclo), parseInt(avanceContador))
+      setAvanceModal(null); setAvanceCiclo(''); setAvanceContador('')
       cargar()
-    } catch (e: any) {
-      setMensaje({ tipo: 'error', texto: e.message })
-    }
-  }
-
-  // ══════════════════════════════════════════════════════════════════
-  // FIX: Abrir modal de confirmación para paro
-  // ══════════════════════════════════════════════════════════════════
-  const handleClickParo = (id: number, numeroParte: string, maquina: string) => {
-    setParoModal({ id, numero_parte: numeroParte, maquina })
+    } catch (e: any) { showMsg('error', e.message) }
   }
 
   const handleConfirmarParo = async () => {
     if (!token || !paroModal) return
     try {
-      await registrarParoPlanInyeccion(token, paroModal.id, {
-        motivo: '',
-        comentarios: '',
-      })
-      setMensaje({ tipo: 'ok', texto: 'Paro registrado correctamente' })
-      setParoModal(null)
-      cargar()
-    } catch (e: any) {
-      setMensaje({ tipo: 'error', texto: e.message })
-    }
-  }
-
-  const handleIniciar = async (id: number) => {
-    if (!token) return
-    try {
-      await iniciarPlanInyeccion(token, id)
-      cargar()
-    } catch (e: any) {
-      setMensaje({ tipo: 'error', texto: e.message })
-    }
-  }
-
-  const handleAsignarAuxSilo = async (id: number, auxSilo: string) => {
-    if (!token) return
-    try {
-      await asignarAuxSiloPlanInyeccion(token, id, auxSilo)
-      cargar()
-    } catch (e: any) {
-      setMensaje({ tipo: 'error', texto: e.message })
-    }
-  }
-
-  const handleAvanzar = async () => {
-    if (!token || !avanceModal || !avanceTiempoCiclo || !avanceContadorHora) return
-    try {
-      const piezas = parseInt(avanceContadorHora) * avanceModal.cav
-      await avanzarPlanInyeccion(
-        token,
-        avanceModal.id,
-        piezas,
-        parseFloat(avanceTiempoCiclo),
-        parseInt(avanceContadorHora)
-      )
-      setAvanceModal(null)
-      setAvanceTiempoCiclo('')
-      setAvanceContadorHora('')
-      cargar()
-    } catch (e: any) {
-      setMensaje({ tipo: 'error', texto: e.message })
-    }
+      await registrarParoPlanInyeccion(token, paroModal.id, { motivo: '', comentarios: '' })
+      showMsg('ok', 'Paro registrado')
+      setParoModal(null); cargar()
+    } catch (e: any) { showMsg('error', e.message) }
   }
 
   const handleReanudar = async () => {
-    if (!token || !reanudarModal) return
-    if (!reanudarMotivo) {
-      setMensaje({ tipo: 'error', texto: 'Selecciona un motivo de paro' })
-      return
-    }
-    if (reanudarMotivo === 'Mantenimiento' && !reanudarMotivoMantenimiento) {
-      setMensaje({ tipo: 'error', texto: 'Selecciona un motivo de mantenimiento' })
-      return
-    }
-
+    if (!token || !reanudarModal || !reanudarMotivo) { showMsg('error', 'Selecciona un motivo'); return }
+    if (reanudarMotivo === 'Mantenimiento' && !reanudarSubMotivo) { showMsg('error', 'Selecciona motivo de mantenimiento'); return }
     try {
       await reanudarPlanInyeccion(token, reanudarModal.id, {
         motivo: reanudarMotivo,
-        motivo_mantenimiento: reanudarMotivo === 'Mantenimiento' ? reanudarMotivoMantenimiento : null,
+        motivo_mantenimiento: reanudarMotivo === 'Mantenimiento' ? reanudarSubMotivo : null,
         comentarios: reanudarComentarios.trim(),
       })
-      setMensaje({ tipo: 'ok', texto: 'Orden reanudada correctamente' })
-      setReanudarModal(null)
-      setReanudarMotivo(''); setReanudarMotivoMantenimiento(''); setReanudarComentarios('')
+      showMsg('ok', 'Orden reanudada')
+      setReanudarModal(null); setReanudarMotivo(''); setReanudarSubMotivo(''); setReanudarComentarios('')
       cargar()
-    } catch (e: any) {
-      setMensaje({ tipo: 'error', texto: e.message })
-    }
-  }
-
-  const handleClickFinalizar = (id: number, numeroParte: string, maquina: string) => {
-    setFinalizarModal({ id, numero_parte: numeroParte, maquina })
+    } catch (e: any) { showMsg('error', e.message) }
   }
 
   const handleConfirmarFinalizar = async () => {
     if (!token || !finalizarModal) return
     try {
       const res = await finalizarPlanInyeccion(token, finalizarModal.id)
-      let texto = res.message
-      if (res.siguiente_iniciado) {
-        texto += ` → Siguiente iniciado: ${res.siguiente_iniciado.numero_parte}`
-      }
-      setMensaje({ tipo: 'ok', texto })
-      setFinalizarModal(null)
-      cargar()
-    } catch (e: any) {
-      setMensaje({ tipo: 'error', texto: e.message })
-    }
+      showMsg('ok', res.message + (res.siguiente_iniciado ? ` → Siguiente: ${res.siguiente_iniciado.numero_parte}` : ''))
+      setFinalizarModal(null); cargar()
+    } catch (e: any) { showMsg('error', e.message) }
   }
 
-  // ── Computed ──
-  const pendientes = items.filter(i => i.status === 'Pendiente')
-  const enProceso = items.filter(i => i.status === 'En Proceso')
-  const finalizadas = items.filter(i => i.status === 'Finalizado')
-
-  const gruposPendientes = useMemo(() => {
-    const map = new Map<string, PlanInyeccionItem[]>()
-    pendientes.forEach(p => {
-      const key = `${p.maquina}|${p.prioridad}`
-      if (!map.has(key)) map.set(key, [])
-      map.get(key)!.push(p)
-    })
-    map.forEach(arr => arr.sort((a, b) => a.orden_secuencia - b.orden_secuencia))
-    return Array.from(map.entries()).sort((a, b) => a[1][0].prioridad - b[1][0].prioridad)
-  }, [pendientes])
-
-  const calcularTiempoTrabajo = (item: PlanInyeccionItem): number => {
-    let total = item.tiempo_acumulado_seg || 0
-    if (!item.en_paro && item.hora_ultimo_inicio) {
-      const ultimo = parseUTC(item.hora_ultimo_inicio)
-      if (ultimo) {
-        total += Math.floor((nowTick - ultimo.getTime()) / 1000)
-      }
-    }
-    return total
-  }
-
-  const calcularTiempoParoVivo = (item: PlanInyeccionItem): number => {
-    if (!item.en_paro || !item.paros) return 0
-    const paroActivo = [...item.paros].reverse().find(p => p.status === 'Activo')
-    if (!paroActivo) return 0
-    const inicio = parseUTC(paroActivo.inicio)
-    if (!inicio) return 0
-    return Math.floor((nowTick - inicio.getTime()) / 1000)
+  const handleConfirmarEliminar = async () => {
+    if (!token || !eliminarModal) return
+    try {
+      await eliminarPlanInyeccion(token, eliminarModal.id)
+      showMsg('ok', 'Registro eliminado')
+      setEliminarModal(null); cargar()
+    } catch (e: any) { showMsg('error', e.message) }
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-800">🏭 Producción — Inyección</h2>
-        <div className="flex gap-2">
-          <button onClick={() => setShowForm(!showForm)}
-            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
-            {showForm ? '✕ Cancelar' : '➕ Nuevo Plan'}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+      {/* ── Header row ── */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: '#ededed' }}>⚙️ Plan de Inyección</div>
+          <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>
+            {pendientes.length} pendiente · {enProceso.length} en proceso · {finalizados.length} finalizado
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-amber-500 text-black border-amber-500 hover:bg-amber-400" onClick={() => setShowForm(!showForm)}>
+            {showForm ? '✕ Cancelar' : '＋ Nuevo Plan'}
           </button>
-          <button onClick={() => fileRef.current?.click()}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-400 bg-green-600 hover:bg-green-700 active:scale-95 text-white">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6M4 20h16a1 1 0 001-1V5 a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/>
-            </svg>
+          <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-emerald-500/100/10 text-emerald-500 border border-emerald-500/30 hover:bg-emerald-500/100/20" onClick={() => fileRef.current?.click()}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2}><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Importar Excel
           </button>
           <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImportar} />
-          <button onClick={cargar} disabled={loading}
-            className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg text-sm font-medium text-gray-700">
-            🔄
+          <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-transparent text-gray-400 border-gray-800 hover:text-white hover:border-gray-700 hover:bg-gray-800" onClick={cargar} disabled={loading}>
+            {loading ? '⟳' : '↻'} Actualizar
           </button>
         </div>
       </div>
 
-      {mensaje && (
-        <div className={`p-3 rounded-lg text-sm font-medium ${
-          mensaje.tipo === 'ok' ? 'bg-green-50 text-green-700 border border-green-200'
-            : 'bg-red-50 text-red-700 border border-red-200'
-        }`}>{mensaje.texto}</div>
+      {/* Alert */}
+      {msg && (
+        <div className={`px-3.5 py-2.5 rounded-[7px] text-xs font-medium flex items-start gap-2 animate-[slide-in_0.2s_ease] ${msg.tipo === 'ok' ? 'bg-emerald-500/100/10 text-emerald-500 border border-emerald-500/30' : 'bg-red-500/100/10 text-red-500 border border-red-500/30'}`}>
+          {msg.tipo === 'ok' ? '✓' : '⚠'} {msg.texto}
+        </div>
       )}
 
-      {/* ── Formulario ── */}
+      {/* ── Nuevo Plan form ── */}
       {showForm && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
-          <h3 className="font-semibold text-gray-700 flex items-center gap-2">
-            📋 Nuevo Plan de Inyección
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">Máquina</label>
-              <input value={formMaquina} onChange={e => setFormMaquina(e.target.value)}
-                onBlur={validarPrioridad}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm uppercase"
-                placeholder="Ej: INY-01" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">Prioridad</label>
-              <input type="number" value={formPrioridad} onChange={e => setFormPrioridad(e.target.value)}
-                onBlur={validarPrioridad}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                placeholder="1, 2, 3..." min={1} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">Cav</label>
-              <input type="number" value={formCav} onChange={e => setFormCav(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                placeholder="Ej: 4" min={1} />
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-600 mb-1">Silo Aux</label>
-              <select value={formAuxSilo} onChange={e => setFormAuxSilo(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                <option value="">-- Seleccionar AUX --</option>
-                {silosAux.map(s => (
-                  <option key={s.id} value={s.nombre}>{s.nombre}</option>
-                ))}
-              </select>
-            </div>
-            <div className="flex items-end">
-              <span className="text-xs text-gray-400">
-                La prioridad define el orden entre máquinas. No puede repetirse en otra máquina.
-              </span>
-            </div>
+        <div className="bg-gray-900 border border-gray-800 rounded-[10px] overflow-hidden">
+          <div className="px-4 py-3 bg-gray-800 border-b border-gray-800 flex items-center gap-[10px]">
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#f59e0b' }}>NUEVO PLAN</span>
           </div>
-
-          <div className="space-y-4">
-            <div className="border-t pt-4">
-              <label className="block text-sm font-medium text-gray-600 mb-2">Números de Parte</label>
-              <div className="space-y-2">
-                {partes.map((p, idx) => (
-                  <div key={idx} className="flex gap-2 items-center border-b pb-2 last:border-b-0">
-                    <input value={p.numero_parte} onChange={e => actualizarParte(idx, 'numero_parte', e.target.value)}
-                      className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm uppercase"
-                      placeholder="No. de Parte" />
-                    <input type="number" value={p.plan_piezas} onChange={e => actualizarParte(idx, 'plan_piezas', e.target.value)}
-                      className="w-32 border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                      placeholder="Plan" min={1} />
-                    {partes.length > 1 && (
-                      <button onClick={() => quitarParte(idx)}
-                        className="text-red-400 hover:text-red-600 px-2">✕</button>
-                    )}
-                  </div>
-                ))}
-                <div className="pt-4">
-                  <button onClick={agregarParte}
-                    className="flex items-center gap-1 text-sm text-purple-600 hover:text-purple-800 font-medium">
-                    ➕ Agregar otro número de parte
-                  </button>
+          <div className="p-4" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(140px,1fr))', gap: 10 }}>
+              {[
+                { label: 'Máquina', val: formMaquina, set: setFormMaquina, up: true },
+                { label: 'Prioridad', val: formPrioridad, set: setFormPrioridad, num: true },
+                { label: 'Cavidades', val: formCav, set: setFormCav, num: true },
+              ].map(f => (
+                <div key={f.label}>
+                  <label className="block text-[10px] font-bold tracking-[0.08em] uppercase text-gray-400 mb-[5px]">{f.label}</label>
+                  <input
+                    className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none transition-colors duration-150 appearance-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15 placeholder:text-gray-400"
+                    type={f.num ? 'number' : 'text'}
+                    value={f.val}
+                    onChange={e => f.set(f.up ? e.target.value.toUpperCase() : e.target.value)}
+                    min={f.num ? 1 : undefined}
+                  />
                 </div>
+              ))}
+              <div>
+                <label className="block text-[10px] font-bold tracking-[0.08em] uppercase text-gray-400 mb-[5px]">Silo AUX</label>
+                <select className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none transition-colors duration-150 appearance-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15" value={formAuxSilo} onChange={e => setFormAuxSilo(e.target.value)}>
+                  <option value="">— Sin AUX —</option>
+                  {silosAux.map(s => <option key={s.id} value={s.nombre}>{s.nombre}</option>)}
+                </select>
               </div>
             </div>
-          </div>
 
-          <div className="mt-4">
-            <button onClick={handleGuardar}
-              className="w-full bg-purple-600 hover:bg-purple-700 text-white px-6 py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-2">
-              💾 Guardar Plan
-            </button>
+            <div className="h-px bg-gray-800 my-4" style={{ margin: '4px 0' }} />
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#9ca3af', marginBottom: 6 }}>NÚMEROS DE PARTE</div>
+
+            {partes.map((p, idx) => (
+              <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input
+                  className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none transition-colors duration-150 appearance-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15 placeholder:text-gray-400"
+                  style={{ flex: 2 }}
+                  placeholder="No. de Parte"
+                  value={p.numero_parte}
+                  onChange={e => {
+                    const n = [...partes]; n[idx].numero_parte = e.target.value.toUpperCase(); setPartes(n)
+                  }}
+                />
+                <input
+                  className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none transition-colors duration-150 appearance-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15 placeholder:text-gray-400"
+                  style={{ flex: 1 }}
+                  type="number"
+                  placeholder="Plan pzas"
+                  value={p.plan_piezas}
+                  min={1}
+                  onChange={e => {
+                    const n = [...partes]; n[idx].plan_piezas = e.target.value; setPartes(n)
+                  }}
+                />
+                {partes.length > 1 && (
+                  <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-red-500/100/10 text-red-500 border border-red-500/30 hover:bg-red-500/100/20" style={{ padding: '7px 10px' }}
+                    onClick={() => setPartes(partes.filter((_, i) => i !== idx))}>✕</button>
+                )}
+              </div>
+            ))}
+
+            <div style={{ display: 'flex', gap: 8, paddingTop: 4 }}>
+              <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-transparent text-gray-400 border-gray-800 hover:text-white hover:border-gray-700 hover:bg-gray-800"
+                onClick={() => setPartes([...partes, { numero_parte: '', plan_piezas: '' }])}>
+                ＋ Agregar parte
+              </button>
+              <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-amber-500 text-black border-amber-500 hover:bg-amber-400" onClick={handleGuardar}>💾 Guardar Plan</button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* NIVEL 1: PLANIFICACIÓN */}
-      <div>
-        <h3 className="font-semibold text-gray-700 mb-3">📋 Planificación ({pendientes.length})</h3>
-        {gruposPendientes.length === 0 ? (
-          <p className="text-gray-400 text-sm py-4">No hay órdenes pendientes</p>
-        ) : (
-          <div className="space-y-4">
+      {/* ── PENDIENTES ── */}
+      {pendientes.length > 0 && (
+        <div>
+          <div className="text-[10px] font-bold tracking-[0.12em] uppercase text-amber-500 mb-2.5 flex items-center gap-2 after:content-[''] after:flex-1 after:h-px after:bg-gray-800">Planificación · {pendientes.length}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {gruposPendientes.map(([key, grupo]) => (
-              <div key={key} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="font-bold text-gray-800">{grupo[0].maquina}</span>
-                    <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">
-                      Prioridad {grupo[0].prioridad}
-                    </span>
-                    <span className="text-xs text-gray-400">{grupo.length} parte(s)</span>
-                  </div>
+              <div key={key} className="bg-gray-900 border border-gray-800 rounded-[10px] overflow-hidden">
+                <div className="px-4 py-3 bg-gray-800 border-b border-gray-800 flex items-center gap-[10px]">
+                  <span className="font-mono text-[13px] font-semibold text-amber-500 bg-amber-500/10 border border-amber-500/30 px-[10px] py-0.5 rounded">{grupo[0].maquina}</span>
+                  <span className="text-[10px] font-semibold tracking-[0.06em] uppercase px-2 py-0.5 rounded-[20px] inline-flex items-center gap-1 bg-gray-400/10 text-gray-400 border border-gray-400/25">PRIORIDAD {grupo[0].prioridad}</span>
+                  <span style={{ fontSize: 11, color: '#9ca3af', marginLeft: 'auto' }}>{grupo.length} parte(s)</span>
                 </div>
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b">
-                    <tr>
-                      <th className="px-4 py-2 text-left text-gray-600">Sec</th>
-                      <th className="px-4 py-2 text-left text-gray-600">No. de Parte</th>
-                      <th className="px-4 py-2 text-right text-gray-600">Plan</th>
-                      <th className="px-4 py-2 text-left text-gray-600">Silo Aux</th>
-                      <th className="px-4 py-2 text-center text-gray-600">Acción</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {grupo.map(item => (
-                      <tr key={item.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-2 text-gray-400 text-xs">{item.orden_secuencia + 1}</td>
-                        <td className="px-4 py-2 font-medium">{item.numero_parte}</td>
-                        <td className="px-4 py-2 text-right">{item.plan_piezas.toLocaleString()} pz</td>
-                        <td className="px-4 py-2">
-                          <select
-                            value={item.aux_silo || ''}
-                            onChange={e => handleAsignarAuxSilo(item.id, e.target.value)}
-                            className="border border-gray-300 rounded px-2 py-1 text-xs w-full"
-                          >
-                            <option value="">-- AUX --</option>
-                            {silosAux.map(s => (
-                              <option key={s.id} value={s.nombre}>{s.nombre}</option>
-                            ))}
-                          </select>
-                        </td>
-                        <td className="px-4 py-2 text-center">
-                          <div className="flex justify-center gap-2">
-                            <button onClick={() => handleIniciar(item.id)}
-                              className="bg-green-100 hover:bg-green-200 text-green-700 px-3 py-1 rounded-lg text-xs font-medium">
-                              ▶ Iniciar
-                            </button>
-                            {/* FIX: Abrir modal de confirmación en lugar de confirm nativo */}
-                            <button onClick={() => handleClickEliminar(item.id, item.numero_parte, item.maquina)}
-                              className="text-red-400 hover:text-red-600 text-xs">🗑</button>
-                          </div>
-                        </td>
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr>
+                        <th>#</th><th>No. de Parte</th><th className="r">Plan</th>
+                        <th>Silo AUX</th><th className="c">Acciones</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {grupo.map(item => (
+                        <tr key={item.id}>
+                          <td style={{ color: '#9ca3af', fontSize: 11 }}>{item.orden_secuencia + 1}</td>
+                          <td><span className="font-mono text-[13px] font-medium text-cyan-500">{item.numero_parte}</span></td>
+                          <td className="r mono" style={{ color: '#ededed' }}>{item.plan_piezas.toLocaleString()}</td>
+                          <td>
+                            <select className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none transition-colors duration-150 appearance-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15" style={{ fontSize: 11 }}
+                              value={item.aux_silo || ''}
+                              onChange={e => handleAuxSilo(item.id, e.target.value)}>
+                              <option value="">— AUX —</option>
+                              {silosAux.map(s => <option key={s.id} value={s.nombre}>{s.nombre}</option>)}
+                            </select>
+                          </td>
+                          <td className="c">
+                            <div style={{ display: 'flex', justifyContent: 'center', gap: 6 }}>
+                              <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-emerald-500/100/10 text-emerald-500 border border-emerald-500/30 hover:bg-emerald-500/100/20" onClick={() => handleIniciar(item.id)}>▶ Iniciar</button>
+                              <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-red-500/100/10 text-red-500 border border-red-500/30 hover:bg-red-500/100/20" style={{ padding: '7px 10px' }}
+                                onClick={() => setEliminarModal({ id: item.id, numero_parte: item.numero_parte, maquina: item.maquina })}>
+                                🗑
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* NIVEL 2: EN PROCESO (con Paros integrados) */}
-      <div>
-        <h3 className="font-semibold text-gray-700 mb-3">🟢 En Proceso ({enProceso.length})</h3>
-        {enProceso.length === 0 ? (
-          <p className="text-gray-400 text-sm py-4">No hay órdenes en proceso</p>
-        ) : (
-          <div className="space-y-3">
+      {/* ── EN PROCESO ── */}
+      {enProceso.length > 0 && (
+        <div>
+          <div className="text-[10px] font-bold tracking-[0.12em] uppercase text-amber-500 mb-2.5 flex items-center gap-2 after:content-[''] after:flex-1 after:h-px after:bg-gray-800">En Proceso · {enProceso.length}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {enProceso.map(item => {
-              const pct = item.plan_piezas > 0
-                ? Math.min(100, Math.round((item.piezas_producidas / item.plan_piezas) * 100))
-                : 0
-              const tiempoTrabajo = calcularTiempoTrabajo(item)
-              const tiempoParo = calcularTiempoParoVivo(item)
-              const estaEnParo = item.en_paro
+              const pct = item.plan_piezas > 0 ? Math.min(100, Math.round((item.piezas_producidas / item.plan_piezas) * 100)) : 0
+              const trabajo = calcTrabajo(item)
+              const paro   = calcParo(item)
+              const enParo = item.en_paro
+              const puedAv = puedeAvanzar(item)
 
               return (
-                <div key={item.id} className={`rounded-xl border p-4 transition-all ${
-                  estaEnParo 
-                    ? 'border-red-400 bg-red-50 shadow-md' 
-                    : 'border-gray-200 bg-white'
-                }`}>
-                  {/* Header de la tarjeta */}
-                  <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <span className="font-bold text-gray-800">{item.maquina}</span>
-                      <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">
-                        Prio {item.prioridad}
+                <div key={item.id} className={`bg-gray-900 border border-gray-800 rounded-[10px] transition-[border-color] duration-200 ${enParo ? ' border-red-500/50 bg-red-500/100/5': ''}`}>
+                  {/* Top row */}
+                  <div className="px-4 py-3 border-b border-gray-800 flex items-center gap-[10px] flex-wrap">
+                    <span className="font-mono text-[13px] font-semibold text-amber-500 bg-amber-500/10 border border-amber-500/30 px-[10px] py-0.5 rounded">{item.maquina}</span>
+                    <span className="text-[10px] font-semibold tracking-[0.06em] uppercase px-2 py-0.5 rounded-[20px] inline-flex items-center gap-1 bg-gray-400/10 text-gray-400 border border-gray-400/25" style={{ fontSize: 10 }}>P{item.prioridad}</span>
+                    <span className="font-mono text-[13px] font-medium text-cyan-500">{item.numero_parte}</span>
+                    {item.aux_silo && (
+                      <span className="text-[10px] font-semibold tracking-[0.06em] uppercase px-2 py-0.5 rounded-[20px] inline-flex items-center gap-1" style={{ background: 'rgba(6,182,212,0.1)', color: '#06b6d4', border: '1px solid rgba(6,182,212,0.25)', fontSize: 10 }}>
+                        🏭 {item.aux_silo}
                       </span>
-                      <span className="font-mono font-semibold text-purple-600">{item.numero_parte}</span>
-                      {item.aux_silo && (
-                        <span className="text-xs bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded-full font-medium">
-                          🏭 {item.aux_silo}
-                        </span>
-                      )}
-                      {estaEnParo && (
-                        <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-bold animate-pulse">
-                          🛑 EN PARO
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Contadores */}
-                    <div className="flex items-center gap-4">
-                      {estaEnParo ? (
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-red-500 font-medium">Tiempo Paro:</span>
-                          <span className="font-mono text-lg font-bold text-red-600 tracking-wider">
-                            {formatDuration(tiempoParo)}
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="font-mono text-lg font-bold text-gray-800 tracking-wider">
-                          {formatDuration(tiempoTrabajo)}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Barra de progreso */}
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="flex-1 bg-gray-100 rounded-full h-3">
-                      <div 
-                        className={`h-3 rounded-full transition-all ${estaEnParo ? 'bg-red-400' : 'bg-purple-500'}`} 
-                        style={{ width: `${pct}%` }} 
-                      />
-                    </div>
-                    <span className="text-sm font-medium text-gray-700 w-40 text-right">
-                      {item.piezas_producidas.toLocaleString()} / {item.plan_piezas.toLocaleString()} ({pct}%)
+                    )}
+                    <span className={`text-[10px] font-semibold tracking-[0.06em] uppercase px-2 py-0.5 rounded-[20px] inline-flex items-center gap-1 ${enParo ? 'bg-red-500/100/10 text-red-500 border border-red-500/30 animate-[blink-pill_1s_ease-in-out_infinite]' : 'bg-emerald-500/100/10 text-emerald-500 border border-emerald-500/30'}`}>
+                      {enParo ? '⬛ PARO' : '⬤ ACTIVO'}
                     </span>
+                    <div style={{ marginLeft: 'auto' }}>
+                      <span className={`font-mono text-[22px] font-semibold text-white tracking-wide ${enParo ? ' text-red-500': ''}`}>
+                        {fmtDur(enParo ? paro : trabajo)}
+                      </span>
+                    </div>
                   </div>
 
-                  {/* Botones de acción */}
-                  <div className="flex flex-wrap items-center gap-2">
-                    {!estaEnParo ? (
-                      <>
-                        {(() => {
-                          const puedeAvanzar = puedeRegistrarAvance(item)
-                          return (
-                            <button 
-                              onClick={() => puedeAvanzar && setAvanceModal({id: item.id, cav: item.cav, numero_parte: item.numero_parte})}
-                              disabled={!puedeAvanzar}
-                              className={`px-3 py-1.5 rounded-lg text-xs font-medium ${
-                                puedeAvanzar
-                                  ? 'bg-blue-100 hover:bg-blue-200 text-blue-700'
-                                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                              }`}
-                              title={puedeAvanzar ? 'Registrar avance de esta hora' : 'Ya se registró avance en esta hora. Espere la siguiente franja.'}
-                            >
-                              {puedeAvanzar ? '➕ Registrar Avance' : '⏳ Esperar siguiente hora'}
-                            </button>
-                          )
-                        })()}
-                        <button onClick={() => handleClickParo(item.id, item.numero_parte, item.maquina)}
-                          className="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1.5 rounded-lg text-xs font-medium">
-                          🛑 Paro
+                  {/* Body */}
+                  <div className="px-4 py-3.5">
+                    {/* Progress */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                      <div className="h-[6px] bg-gray-800 rounded-[3px] overflow-hidden" style={{ flex: 1 }}>
+                        <div className={`h-full rounded-[3px] transition-[width] duration-[400ms] bg-gradient-to-r from-amber-500 to-amber-400 ${enParo ? ' border-red-500/50 bg-red-500/100/5' : pct >= 100 ? ' bg-gradient-to-r from-emerald-500 to-emerald-400': ''}`} style={{ width: `${pct}%` }} />
+                      </div>
+                      <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace', fontSize: 12, color: '#9ca3af', whiteSpace: 'nowrap' }}>
+                        {item.piezas_producidas.toLocaleString()} / {item.plan_piezas.toLocaleString()}
+                        <span style={{ color: pct >= 100 ? '#10b981' : enParo ? '#ef4444' : '#f59e0b', marginLeft: 6 }}>
+                          {pct}%
+                        </span>
+                      </span>
+                    </div>
+
+                    {/* Actions */}
+                    {!enParo ? (
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <button
+                          className={`inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed ${puedAv ? 'bg-amber-500 text-black border-amber-500 hover:bg-amber-400' : 'bg-transparent text-gray-400 border-gray-800 hover:text-white hover:border-gray-700 hover:bg-gray-800'}`}
+                          disabled={!puedAv}
+                          onClick={() => puedAv && setAvanceModal({ id: item.id, cav: item.cav, numero_parte: item.numero_parte })}
+                          title={puedAv ? '' : 'Ya se registró avance en esta franja horaria'}
+                        >
+                          {puedAv ? '➕ Registrar Avance' : '⏳ Esperar siguiente hora'}
                         </button>
-                        <button onClick={() => handleClickFinalizar(item.id, item.numero_parte, item.maquina)}
-                          className="bg-green-100 hover:bg-green-200 text-green-700 px-3 py-1.5 rounded-lg text-xs font-medium">
-                          ✅ Finalizar
+                        <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-red-500/100/10 text-red-500 border border-red-500/30 hover:bg-red-500/100/20"
+                          onClick={() => setParoModal({ id: item.id, numero_parte: item.numero_parte, maquina: item.maquina })}>
+                          ⏸ Paro
                         </button>
-                      </>
+                        <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-emerald-500/100/10 text-emerald-500 border border-emerald-500/30 hover:bg-emerald-500/100/20"
+                          onClick={() => setFinalizarModal({ id: item.id, numero_parte: item.numero_parte, maquina: item.maquina })}>
+                          ✓ Finalizar
+                        </button>
+                      </div>
                     ) : (
-                      <button onClick={() => setReanudarModal({
-                          id: item.id, 
-                          maquina: item.maquina, 
-                          numero_parte: item.numero_parte
-                        })}
-                        className="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-4 py-2 rounded-lg text-sm font-bold">
-                        ▶ Reanudar
-                      </button>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <div className="bg-red-500/100/10 border border-red-500/25 rounded-[7px] px-3 py-2.5 text-[11px] text-red-400" style={{ flex: 1 }}>
+                          Máquina en paro — registra el motivo para reanudar
+                        </div>
+                        <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-amber-500 text-black border-amber-500 hover:bg-amber-400"
+                          onClick={() => setReanudarModal({ id: item.id, maquina: item.maquina, numero_parte: item.numero_parte })}>
+                          ▶ Reanudar
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
               )
             })}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* NIVEL 3: FINALIZADAS */}
-      {finalizadas.length > 0 && (
+      {pendientes.length === 0 && enProceso.length === 0 && (
+        <div className="bg-gray-900 border border-gray-800 rounded-[10px] overflow-hidden">
+          <div className="px-5 py-10 text-center text-gray-400">
+            <div className="text-[32px] mb-2 opacity-50">⚙️</div>
+            <div className="text-[13px]">No hay órdenes activas. Crea un plan o importa desde Excel.</div>
+          </div>
+        </div>
+      )}
+
+      {/* ── FINALIZADAS ── */}
+      {finalizados.length > 0 && (
         <div>
-          <h3 className="font-semibold text-gray-700 mb-3">✅ Finalizadas ({finalizadas.length})</h3>
-          <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-blue-600 text-white">
+          <div className="text-[10px] font-bold tracking-[0.12em] uppercase text-amber-500 mb-2.5 flex items-center gap-2 after:content-[''] after:flex-1 after:h-px after:bg-gray-800">Finalizadas · {finalizados.length}</div>
+          <div className="bg-gray-900 border border-gray-800 rounded-[10px] overflow-hidden overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
                 <tr>
-                  <th className="px-3 py-2 text-left whitespace-nowrap">Máquina</th>
-                  <th className="px-3 py-2 text-left whitespace-nowrap">Prioridad</th>
-                  <th className="px-3 py-2 text-left whitespace-nowrap">No. de Parte</th>
-                  <th className="px-3 py-2 text-right whitespace-nowrap">Plan</th>
-                  <th className="px-3 py-2 text-right whitespace-nowrap">Producido</th>
-                  <th className="px-3 py-2 text-center whitespace-nowrap">Inicio</th>
-                  <th className="px-3 py-2 text-center whitespace-nowrap">Fin</th>
-                  <th className="px-3 py-2 text-left whitespace-nowrap">Tiempo Total</th>
+                  <th>Máquina</th><th>P</th><th>No. de Parte</th>
+                  <th className="r">Plan</th><th className="r">Producido</th>
+                  <th className="c">Inicio</th><th className="c">Fin</th>
+                  <th className="c">Tiempo</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
-                {finalizadas.map(item => (
-                  <tr key={item.id} className="hover:bg-blue-50/50">
-                    <td className="px-3 py-2 font-medium">{item.maquina}</td>
-                    <td className="px-3 py-2 text-xs">
-                      <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">
-                        {item.prioridad}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 font-mono text-purple-600 font-semibold">{item.numero_parte}</td>
-                    <td className="px-3 py-2 text-right">{item.plan_piezas.toLocaleString()}</td>
-                    <td className="px-3 py-2 text-right font-bold text-emerald-600">{item.piezas_producidas.toLocaleString()}</td>
-                    <td className="px-3 py-2 text-center text-xs text-gray-500 whitespace-nowrap">
-                      {item.hora_inicio ? formatFechaHora(item.hora_inicio) : '—'}
-                    </td>
-                    <td className="px-3 py-2 text-center text-xs text-gray-500 whitespace-nowrap">
-                      {item.hora_fin ? formatFechaHora(item.hora_fin) : '—'}
-                    </td>
-                    <td className="px-3 py-2 font-mono text-xs font-medium text-blue-600">
-                      {formatDuration(item.tiempo_acumulado_seg)}
-                    </td>
+              <tbody>
+                {finalizados.map(item => (
+                  <tr key={item.id}>
+                    <td><span className="font-mono text-[13px] font-semibold text-amber-500 bg-amber-500/10 border border-amber-500/30 px-[10px] py-0.5 rounded">{item.maquina}</span></td>
+                    <td><span className="text-[10px] font-semibold tracking-[0.06em] uppercase px-2 py-0.5 rounded-[20px] inline-flex items-center gap-1 bg-blue-500/100/10 text-blue-500 border border-blue-500/30">{item.prioridad}</span></td>
+                    <td><span className="font-mono text-[13px] font-medium text-cyan-500">{item.numero_parte}</span></td>
+                    <td className="r mono">{item.plan_piezas.toLocaleString()}</td>
+                    <td className="r mono" style={{ color: '#10b981', fontWeight: 600 }}>{item.piezas_producidas.toLocaleString()}</td>
+                    <td className="c" style={{ fontSize: 11, color: '#9ca3af' }}>{fmtDateTime(item.hora_inicio)}</td>
+                    <td className="c" style={{ fontSize: 11, color: '#9ca3af' }}>{fmtDateTime(item.hora_fin)}</td>
+                    <td className="c mono" style={{ color: '#3b82f6', fontSize: 11 }}>{fmtDur(item.tiempo_acumulado_seg)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -967,181 +618,149 @@ function ProduccionSubTab() {
         </div>
       )}
 
-      {/* ════════════════════════════════════════════════════════════════════════
-          MODAL: Confirmar Eliminar
-          ════════════════════════════════════════════════════════════════════════ */}
-      {eliminarModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
-            <h3 className="text-lg font-bold text-gray-800">🗑 Eliminar Registro</h3>
-            <p className="text-sm text-gray-500">
-              ¿Estás seguro de eliminar la orden de la máquina{' '}
-              <span className="font-bold">{eliminarModal.maquina}</span> con la parte{' '}
-              <span className="font-bold">{eliminarModal.numero_parte}</span>?
-            </p>
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-700">
-              ⚠️ Esta acción no se puede deshacer. El registro se eliminará permanentemente del plan.
+      {/* ═══ MODALS ═══ */}
+
+      {/* Avance */}
+      {avanceModal && (
+        <div className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center p-4 backdrop-blur-[3px] animate-[fade-in_0.15s_ease]">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-[480px] shadow-[0_20px_60px_rgba(0,0,0,0.6)] animate-[modal-in_0.2s_ease]">
+            <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
+              <span className="text-sm font-bold text-white">➕ Registrar Avance</span>
+              <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-transparent text-gray-400 border-gray-800 hover:text-white hover:border-gray-700 hover:bg-gray-800" style={{ padding: '4px 10px' }}
+                onClick={() => { setAvanceModal(null); setAvanceCiclo(''); setAvanceContador('') }}>✕</button>
             </div>
-            <div className="flex gap-3 justify-end">
-              <button onClick={() => setEliminarModal(null)}
-                className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Cancelar</button>
-              <button onClick={handleConfirmarEliminar}
-                className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-lg text-sm font-medium">
-                🗑 Confirmar Eliminar
-              </button>
+            <div className="p-5" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ background: '#1f2937', borderRadius: 7, padding: '10px 14px', fontSize: 12 }}>
+                <span className="font-mono text-[13px] font-medium text-cyan-500">{avanceModal.numero_parte}</span>
+                <span style={{ color: '#9ca3af', marginLeft: 10 }}>Cav: {avanceModal.cav}</span>
+              </div>
+              {avanceCiclo && avanceContador && (
+                <div style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 7, padding: '10px 14px', textAlign: 'center' }}>
+                  <span style={{ fontSize: 11, color: '#9ca3af' }}>Piezas a registrar: </span>
+                  <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace', fontSize: 20, fontWeight: 600, color: '#f59e0b', marginLeft: 6 }}>
+                    {(parseInt(avanceContador || '0') * avanceModal.cav).toLocaleString()}
+                  </span>
+                  <span style={{ fontSize: 11, color: '#9ca3af', marginLeft: 6 }}>({avanceContador} × {avanceModal.cav} cav)</span>
+                </div>
+              )}
+              <div><label className="block text-[10px] font-bold tracking-[0.08em] uppercase text-gray-400 mb-[5px]">Tiempo de Ciclo (seg)</label>
+                <input className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none transition-colors duration-150 appearance-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15 placeholder:text-gray-400" type="number" min={0} step={0.1} value={avanceCiclo}
+                  onChange={e => setAvanceCiclo(e.target.value)} autoFocus placeholder="ej: 45" /></div>
+              <div><label className="block text-[10px] font-bold tracking-[0.08em] uppercase text-gray-400 mb-[5px]">Contador por Hora</label>
+                <input className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none transition-colors duration-150 appearance-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15 placeholder:text-gray-400" type="number" min={0} value={avanceContador}
+                  onChange={e => setAvanceContador(e.target.value)} placeholder="ej: 120" /></div>
+            </div>
+            <div className="px-5 py-3.5 border-t border-gray-800 flex gap-2 justify-end">
+              <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-transparent text-gray-400 border-gray-800 hover:text-white hover:border-gray-700 hover:bg-gray-800" onClick={() => { setAvanceModal(null); setAvanceCiclo(''); setAvanceContador('') }}>Cancelar</button>
+              <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-amber-500 text-black border-amber-500 hover:bg-amber-400" disabled={!avanceCiclo || !avanceContador} onClick={handleAvanzar}>Registrar</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ════════════════════════════════════════════════════════════════════════
-          MODAL: Confirmar Paro
-          ════════════════════════════════════════════════════════════════════════ */}
+      {/* Paro */}
       {paroModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
-            <h3 className="text-lg font-bold text-gray-800">🛑 Registrar Paro</h3>
-            <p className="text-sm text-gray-500">
-              ¿Estás seguro de registrar un paro para la máquina{' '}
-              <span className="font-bold">{paroModal.maquina}</span> con la parte{' '}
-              <span className="font-bold">{paroModal.numero_parte}</span>?
-            </p>
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-xs text-yellow-700">
-              ⚠️ El tiempo de paro comenzará a contar inmediatamente. Asegúrate de que la máquina realmente esté detenida.
+        <div className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center p-4 backdrop-blur-[3px] animate-[fade-in_0.15s_ease]">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-[480px] shadow-[0_20px_60px_rgba(0,0,0,0.6)] animate-[modal-in_0.2s_ease]">
+            <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
+              <span className="text-sm font-bold text-white">⏸ Registrar Paro</span>
             </div>
-            <div className="flex gap-3 justify-end">
-              <button onClick={() => setParoModal(null)}
-                className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Cancelar</button>
-              <button onClick={handleConfirmarParo}
-                className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-lg text-sm font-medium">
-                🛑 Confirmar Paro
-              </button>
+            <div className="p-5" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ fontSize: 13, color: '#9ca3af' }}>
+                Máquina <span style={{ color: '#ededed', fontWeight: 600 }}>{paroModal.maquina}</span> · <span className="font-mono text-[13px] font-medium text-cyan-500">{paroModal.numero_parte}</span>
+              </div>
+              <div className="bg-amber-500/10 border border-amber-500/25 rounded-[7px] px-3 py-2.5 text-[11px] text-amber-400">El cronómetro de paro comenzará inmediatamente. El motivo se registra al reanudar.</div>
+            </div>
+            <div className="px-5 py-3.5 border-t border-gray-800 flex gap-2 justify-end">
+              <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-transparent text-gray-400 border-gray-800 hover:text-white hover:border-gray-700 hover:bg-gray-800" onClick={() => setParoModal(null)}>Cancelar</button>
+              <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-red-500/100/10 text-red-500 border border-red-500/30 hover:bg-red-500/100/20" onClick={handleConfirmarParo}>⏸ Confirmar Paro</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL: Confirmar Finalizar */}
-      {finalizarModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
-            <h3 className="text-lg font-bold text-gray-800">✅ Finalizar Orden</h3>
-            <p className="text-sm text-gray-500">
-              ¿Estás seguro de finalizar la orden de la máquina{' '}
-              <span className="font-bold">{finalizarModal.maquina}</span> con la parte{' '}
-              <span className="font-bold">{finalizarModal.numero_parte}</span>?
-            </p>
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-xs text-yellow-700">
-              ⚠️ Esta acción no se puede deshacer. Se creará el lote de inventario y se iniciará la siguiente orden en secuencia si existe.
-            </div>
-            <div className="flex gap-3 justify-end">
-              <button onClick={() => setFinalizarModal(null)}
-                className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Cancelar</button>
-              <button onClick={handleConfirmarFinalizar}
-                className="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg text-sm font-medium">
-                ✅ Confirmar Finalizar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: Reanudar (captura motivo del paro) */}
+      {/* Reanudar */}
       {reanudarModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
-            <h3 className="text-lg font-bold text-gray-800">▶ Reanudar Orden</h3>
-            <p className="text-sm text-gray-500">
-              Máquina: <span className="font-bold">{reanudarModal.maquina}</span> | 
-              Parte: <span className="font-bold">{reanudarModal.numero_parte}</span>
-            </p>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">Motivo del Paro *</label>
-              <select value={reanudarMotivo} onChange={e => setReanudarMotivo(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                <option value="">Seleccionar...</option>
-                {MOTIVOS_PARO.map(m => <option key={m} value={m}>{m}</option>)}
-              </select>
+        <div className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center p-4 backdrop-blur-[3px] animate-[fade-in_0.15s_ease]">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-[480px] shadow-[0_20px_60px_rgba(0,0,0,0.6)] animate-[modal-in_0.2s_ease]">
+            <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
+              <span className="text-sm font-bold text-white">▶ Reanudar — Registrar Motivo de Paro</span>
             </div>
-
-            {reanudarMotivo === 'Mantenimiento' && (
+            <div className="p-5" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ fontSize: 12, color: '#9ca3af' }}>
+                {reanudarModal.maquina} · <span className="font-mono text-[13px] font-medium text-cyan-500">{reanudarModal.numero_parte}</span>
+              </div>
               <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">Motivo del Mantenimiento *</label>
-                <select value={reanudarMotivoMantenimiento} onChange={e => setReanudarMotivoMantenimiento(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                  <option value="">Seleccionar...</option>
-                  {MOTIVOS_MANTENIMIENTO.map(m => <option key={m} value={m}>{m}</option>)}
+                <label className="block text-[10px] font-bold tracking-[0.08em] uppercase text-gray-400 mb-[5px]">Motivo del Paro *</label>
+                <select className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none transition-colors duration-150 appearance-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15" value={reanudarMotivo} onChange={e => setReanudarMotivo(e.target.value)}>
+                  <option value="">— Seleccionar —</option>
+                  {MOTIVOS_PARO.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
-            )}
-
-            <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">Comentarios</label>
-              <textarea value={reanudarComentarios} onChange={e => setReanudarComentarios(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                rows={2} placeholder="Describe lo ocurrido durante el paro..." />
+              {reanudarMotivo === 'Mantenimiento' && (
+                <div>
+                  <label className="block text-[10px] font-bold tracking-[0.08em] uppercase text-gray-400 mb-[5px]">Motivo de Mantenimiento *</label>
+                  <select className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none transition-colors duration-150 appearance-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15" value={reanudarSubMotivo} onChange={e => setReanudarSubMotivo(e.target.value)}>
+                    <option value="">— Seleccionar —</option>
+                    {MOTIVOS_MANTENIMIENTO.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
+              )}
+              <div>
+                <label className="block text-[10px] font-bold tracking-[0.08em] uppercase text-gray-400 mb-[5px]">Comentarios</label>
+                <textarea className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none transition-colors duration-150 appearance-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15" rows={2} value={reanudarComentarios}
+                  onChange={e => setReanudarComentarios(e.target.value)} placeholder="Describe lo ocurrido..." />
+              </div>
             </div>
-
-            <div className="flex gap-3 justify-end">
-              <button onClick={() => {
-                  setReanudarModal(null)
-                  setReanudarMotivo(''); setReanudarMotivoMantenimiento(''); setReanudarComentarios('')
-                }}
-                className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Cancelar</button>
-              <button onClick={handleReanudar}
-                disabled={!reanudarMotivo || (reanudarMotivo === 'Mantenimiento' && !reanudarMotivoMantenimiento)}
-                className={`px-5 py-2 rounded-lg text-sm font-medium ${
-                  reanudarMotivo && (reanudarMotivo !== 'Mantenimiento' || reanudarMotivoMantenimiento)
-                    ? 'bg-green-600 hover:bg-green-700 text-white'
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                }`}>
-                ▶ Reanudar
-              </button>
+            <div className="px-5 py-3.5 border-t border-gray-800 flex gap-2 justify-end">
+              <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-transparent text-gray-400 border-gray-800 hover:text-white hover:border-gray-700 hover:bg-gray-800" onClick={() => {
+                setReanudarModal(null); setReanudarMotivo(''); setReanudarSubMotivo(''); setReanudarComentarios('')
+              }}>Cancelar</button>
+              <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-amber-500 text-black border-amber-500 hover:bg-amber-400"
+                disabled={!reanudarMotivo || (reanudarMotivo === 'Mantenimiento' && !reanudarSubMotivo)}
+                onClick={handleReanudar}>▶ Reanudar</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL: Registrar Avance */}
-      {avanceModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
-            <h3 className="text-lg font-bold text-gray-800">➕ Registrar Avance</h3>
-            <p className="text-sm text-gray-500">
-              Parte: <span className="font-bold">{avanceModal.numero_parte}</span> | Cav: <span className="font-bold">{avanceModal.cav}</span>
-            </p>
+      {/* Finalizar */}
+      {finalizarModal && (
+        <div className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center p-4 backdrop-blur-[3px] animate-[fade-in_0.15s_ease]">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-[480px] shadow-[0_20px_60px_rgba(0,0,0,0.6)] animate-[modal-in_0.2s_ease]">
+            <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
+              <span className="text-sm font-bold text-white">✓ Finalizar Orden</span>
+            </div>
+            <div className="p-5" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ fontSize: 13, color: '#9ca3af' }}>
+                <span style={{ color: '#ededed', fontWeight: 600 }}>{finalizarModal.maquina}</span> · <span className="font-mono text-[13px] font-medium text-cyan-500">{finalizarModal.numero_parte}</span>
+              </div>
+              <div className="bg-amber-500/10 border border-amber-500/25 rounded-[7px] px-3 py-2.5 text-[11px] text-amber-400">Se creará el lote de inventario. Si hay una siguiente parte en secuencia, iniciará automáticamente.</div>
+            </div>
+            <div className="px-5 py-3.5 border-t border-gray-800 flex gap-2 justify-end">
+              <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-transparent text-gray-400 border-gray-800 hover:text-white hover:border-gray-700 hover:bg-gray-800" onClick={() => setFinalizarModal(null)}>Cancelar</button>
+              <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-emerald-500/100/10 text-emerald-500 border border-emerald-500/30 hover:bg-emerald-500/100/20" onClick={handleConfirmarFinalizar}>✓ Confirmar</button>
+            </div>
+          </div>
+        </div>
+      )}
 
-            <div className="bg-blue-50 rounded-lg p-3 text-sm">
-              <span className="text-gray-600">Piezas a registrar: </span>
-              <span className="font-bold text-blue-700">
-                {avanceContadorHora && avanceModal ? (parseInt(avanceContadorHora || '0') * avanceModal.cav).toLocaleString() : '—'} pz
-              </span>
-              <span className="text-xs text-gray-400 ml-2">({avanceContadorHora || 0} × {avanceModal?.cav} cav)</span>
+      {/* Eliminar */}
+      {eliminarModal && (
+        <div className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center p-4 backdrop-blur-[3px] animate-[fade-in_0.15s_ease]">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-[480px] shadow-[0_20px_60px_rgba(0,0,0,0.6)] animate-[modal-in_0.2s_ease]">
+            <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
+              <span className="text-sm font-bold text-white">🗑 Eliminar Registro</span>
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">Tiempo de Ciclo (segundos)</label>
-              <input type="number" value={avanceTiempoCiclo} onChange={e => setAvanceTiempoCiclo(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="Ej: 45" min={0} step={0.1} autoFocus />
+            <div className="p-5" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ fontSize: 13, color: '#9ca3af' }}>
+                <span style={{ color: '#ededed', fontWeight: 600 }}>{eliminarModal.maquina}</span> · <span className="font-mono text-[13px] font-medium text-cyan-500">{eliminarModal.numero_parte}</span>
+              </div>
+              <div className="bg-red-500/100/10 border border-red-500/25 rounded-[7px] px-3 py-2.5 text-[11px] text-red-400">Esta acción no se puede deshacer.</div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">Contador por Hora</label>
-              <input type="number" value={avanceContadorHora} onChange={e => setAvanceContadorHora(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="Ej: 120" min={0} />
-            </div>
-            <div className="flex gap-3 justify-end">
-              <button onClick={() => { setAvanceModal(null); setAvanceTiempoCiclo(''); setAvanceContadorHora('') }}
-                className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Cancelar</button>
-              <button onClick={handleAvanzar}
-                disabled={!avanceTiempoCiclo || !avanceContadorHora}
-                className={`px-5 py-2 rounded-lg text-sm font-medium ${
-                  avanceTiempoCiclo && avanceContadorHora
-                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                }`}>
-                Registrar
-              </button>
+            <div className="px-5 py-3.5 border-t border-gray-800 flex gap-2 justify-end">
+              <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-transparent text-gray-400 border-gray-800 hover:text-white hover:border-gray-700 hover:bg-gray-800" onClick={() => setEliminarModal(null)}>Cancelar</button>
+              <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-red-500/100/10 text-red-500 border border-red-500/30 hover:bg-red-500/100/20" onClick={handleConfirmarEliminar}>🗑 Eliminar</button>
             </div>
           </div>
         </div>
@@ -1150,208 +769,157 @@ function ProduccionSubTab() {
   )
 }
 
-// ══════════════════════════════════════════════════════════════════
-// SUB-TAB: REPORTE — FIX: Turno calculado correctamente con GMT-6
-// ══════════════════════════════════════════════════════════════════
-
+// ═══════════════════════════════════════════════════════════════
+// SUB-TAB: REPORTE
+// ═══════════════════════════════════════════════════════════════
 function ReporteSubTab() {
   const { token } = useAuth()
   const [reporte, setReporte] = useState<ReporteInyeccionGeneral[]>([])
   const [loading, setLoading] = useState(false)
   const [filtroTurno, setFiltroTurno] = useState('')
-  const [fechaFiltro, setFechaFiltro] = useState(() => {
-    return new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString().slice(0, 10)
-  })
+  const [fecha, setFecha] = useState(() => new Date(Date.now() - 6 * 3600000).toISOString().slice(0, 10))
 
   const cargar = async () => {
     if (!token) return
     setLoading(true)
-    try {
-      const data = await getReporteGeneralInyeccion(token, fechaFiltro, filtroTurno || undefined)
-      setReporte(data)
-    } catch (e: any) {
-      console.error(e)
-    } finally {
-      setLoading(false)
-    }
+    try { setReporte(await getReporteGeneralInyeccion(token, fecha, filtroTurno || undefined)) }
+    catch (e) { console.error(e) }
+    finally { setLoading(false) }
   }
 
-  useEffect(() => { cargar() }, [token, fechaFiltro, filtroTurno])
+  useEffect(() => { cargar() }, [token, fecha, filtroTurno])
 
-  const handleDescargarExcel = async () => {
+  const dlExcel = async () => {
     if (!token) return
-    try {
-      const blob = await descargarReporteGeneralInyeccionExcel(token, fechaFiltro, filtroTurno || undefined)
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `reporte_inyeccion_${fechaFiltro}${filtroTurno ? `_${filtroTurno}` : ''}.xlsx`
-      a.click(); URL.revokeObjectURL(url)
-    } catch (e: any) {
-      console.error(e)
-    }
+    const blob = await descargarReporteGeneralInyeccionExcel(token, fecha, filtroTurno || undefined)
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a'); a.href = url
+    a.download = `reporte_inyeccion_ ${fecha} ${filtroTurno ? '_' + filtroTurno : ''}.xlsx`
+    a.click(); URL.revokeObjectURL(url)
   }
 
-  const handleDescargarIndividual = async (ordenId: number, numeroParte: string, maquina: string) => {
+  const dlIndividual = async (id: number, parte: string, maq: string) => {
     if (!token) return
-    try {
-      const blob = await descargarReporteIndividualInyeccionExcel(token, ordenId)
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `reporte_individual_${numeroParte}_${maquina}.xlsx`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-    } catch (e: any) {
-      console.error(e)
-    }
+    const blob = await descargarReporteIndividualInyeccionExcel(token, id)
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a'); a.href = url
+    a.download = `reporte_individual_ ${parte}_ ${maq}.xlsx`
+    document.body.appendChild(a); a.click()
+    document.body.removeChild(a); URL.revokeObjectURL(url)
   }
 
-  const fmtTime = (segundos: number): string => {
-    if (!segundos) return '00:00:00'
-    const h = Math.floor(segundos / 3600)
-    const m = Math.floor((segundos % 3600) / 60)
-    const s = segundos % 60
-    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+  const fmtTime = (s: number) => {
+    if (!s) return '00:00:00'
+    return ` ${String(Math.floor(s/3600)).padStart(2,'0')}: ${String(Math.floor((s%3600)/60)).padStart(2,'0')}: ${String(s%60).padStart(2,'0')}`
   }
 
-  // ══════════════════════════════════════════════════════════════════
-  // FIX: Helper para calcular turno correcto desde UTC con offset GMT-6
-  // ══════════════════════════════════════════════════════════════════
-  const calcularTurnoReal = (iso?: string): 'DIA' | 'NOCHE' | '—' => {
-    if (!iso) return '—'
-    const d = new Date(iso.endsWith('Z') ? iso : iso + 'Z')
-    if (isNaN(d.getTime())) return '—'
-    // Convertir UTC a GMT-6
-    const localMs = d.getTime() - 6 * 60 * 60 * 1000
-    const localDate = new Date(localMs)
-    const hour = localDate.getUTCHours()
-    const minute = localDate.getUTCMinutes()
-    const totalMinutes = hour * 60 + minute
-    
-    // DIA: 07:30 (450 min) hasta 19:29:59 (1169 min)
-    // NOCHE: 19:30 (1170 min) hasta 07:29:59 (449 min del día siguiente)
-    if (totalMinutes >= 450 && totalMinutes < 1170) {
-      return 'DIA'
-    }
-    return 'NOCHE'
-  }
+  // Stats
+  const totalProd = reporte.reduce((a, r) => a + r.produccion_total, 0)
+  const avgPct    = reporte.length ? Math.round(reporte.reduce((a, r) => a + r.percent_prod, 0) / reporte.length) : 0
+  const enParo    = reporte.filter(r => r.tiempo_paro > 0).length
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <h2 className="text-xl font-bold text-gray-800">📋 Reporte de Inyección</h2>
-        <div className="flex items-center gap-3 flex-wrap">
-          <select value={filtroTurno} onChange={e => setFiltroTurno(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: '#ededed' }}>📊 Reporte de Inyección</div>
+          <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>{reporte.length} registros</div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <select className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none transition-colors duration-150 appearance-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15" style={{ width: 'auto' }} value={filtroTurno} onChange={e => setFiltroTurno(e.target.value)}>
             <option value="">Ambos turnos</option>
             <option value="DIA">☀️ DIA</option>
             <option value="NOCHE">🌙 NOCHE</option>
           </select>
-          <input type="date" value={fechaFiltro} onChange={e => setFechaFiltro(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-          <button onClick={handleDescargarExcel}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-400 bg-green-600 hover:bg-green-700 active:scale-95 text-white">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6M4 20h16a1 1 0 001-1V5 a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/>
-            </svg>
+          <input className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none transition-colors duration-150 appearance-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15 placeholder:text-gray-400" style={{ width: 'auto' }} type="date" value={fecha} onChange={e => setFecha(e.target.value)} />
+          <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-emerald-500/100/10 text-emerald-500 border border-emerald-500/30 hover:bg-emerald-500/100/20" onClick={dlExcel}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2}><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Descargar Excel
           </button>
-          <button onClick={cargar} disabled={loading}
-            className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg text-sm font-medium text-gray-700">
-            🔄
-          </button>
+          <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-transparent text-gray-400 border-gray-800 hover:text-white hover:border-gray-700 hover:bg-gray-800" onClick={cargar} disabled={loading}>{loading ? '⟳' : '↻'}</button>
         </div>
       </div>
 
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center justify-between flex-wrap gap-2">
-        <div>
-          <span className="font-bold text-blue-800 text-lg">REPORTE DE INYECCIÓN</span>
-          <span className="ml-4 text-sm text-blue-600">
-            Fecha: {fechaFiltro}{filtroTurno ? ` | Turno: ${filtroTurno}` : ''}
-          </span>
+      {/* Stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(160px,1fr))', gap: 10 }}>
+        <div className="bg-gray-800 border border-gray-800 rounded-lg px-4 py-3">
+          <div className="text-[10px] font-semibold tracking-[0.08em] uppercase text-gray-400">Producción Total</div>
+          <div className="font-mono text-[26px] font-semibold text-white mt-0.5 amber">{totalProd.toLocaleString()}</div>
         </div>
-        <div className="flex gap-4 text-sm text-blue-500">
-          <span>{reporte.length} registros</span>
+        <div className="bg-gray-800 border border-gray-800 rounded-lg px-4 py-3">
+          <div className="text-[10px] font-semibold tracking-[0.08em] uppercase text-gray-400">Eficiencia Promedio</div>
+          <div className={`font-mono text-[26px] font-semibold text-white mt-0.5 ${avgPct >= 90 ? 'green' : avgPct >= 70 ? 'amber' : 'red'}`}>{avgPct}%</div>
+        </div>
+        <div className="bg-gray-800 border border-gray-800 rounded-lg px-4 py-3">
+          <div className="text-[10px] font-semibold tracking-[0.08em] uppercase text-gray-400">Con Paros</div>
+          <div className={`font-mono text-[26px] font-semibold text-white mt-0.5 ${enParo > 0 ? 'red' : 'green'}`}>{enParo}</div>
+        </div>
+        <div className="bg-gray-800 border border-gray-800 rounded-lg px-4 py-3">
+          <div className="text-[10px] font-semibold tracking-[0.08em] uppercase text-gray-400">Registros</div>
+          <div className="font-mono text-[26px] font-semibold text-white mt-0.5">{reporte.length}</div>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
-        <table className="w-full text-xs">
-          <thead className="bg-blue-600 text-white">
+      {/* Table */}
+      <div className="bg-gray-900 border border-gray-800 rounded-[10px] overflow-hidden overflow-x-auto">
+        <table className="w-full border-collapse">
+          <thead>
             <tr>
-              <th className="px-2 py-2 text-left whitespace-nowrap">Lote</th>
-              <th className="px-2 py-2 text-left whitespace-nowrap">Fecha</th>
-              <th className="px-2 py-2 text-center whitespace-nowrap">Turno</th>
-              <th className="px-2 py-2 text-left whitespace-nowrap">No. de Parte</th>
-              <th className="px-2 py-2 text-left whitespace-nowrap">Máquina</th>
-              <th className="px-2 py-2 text-center whitespace-nowrap">Cav</th>
-              <th className="px-2 py-2 text-center whitespace-nowrap">Ciclo</th>
-              <th className="px-2 py-2 text-center whitespace-nowrap">Tiempo Trabajo</th>
-              <th className="px-2 py-2 text-right whitespace-nowrap">Meta Plan</th>
-              <th className="px-2 py-2 text-right whitespace-nowrap">Prod. Total</th>
-              <th className="px-2 py-2 text-center whitespace-nowrap">% Prod</th>
-              <th className="px-2 py-2 text-center whitespace-nowrap">Descargar</th>
+              <th>Lote</th><th>Fecha</th><th className="c">Turno</th>
+              <th>No. de Parte</th><th>Máquina</th>
+              <th className="c">Cav</th><th className="c">Ciclo</th>
+              <th className="c">T. Trabajo</th>
+              <th className="r">Meta</th><th className="r">Producido</th>
+              <th className="c">%</th><th className="c">T. Paro</th>
+              <th className="c">DL</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody>
             {reporte.length === 0 ? (
-              <tr>
-                <td colSpan={12} className="px-4 py-8 text-center text-gray-400">
-                  No hay registros para el filtro seleccionado
-                </td>
-              </tr>
-            ) : (
-              reporte.map((row, idx) => {
-                // FIX: Calcular turno real con GMT-6
-                const turnoReal = calcularTurnoReal(row.fecha)
-                // Si el backend ya envía turno_real, usarlo; si no, usar el calculado
-                const turnoDisplay = row.turno_real || turnoReal
-                
-                return (
-                  <tr key={idx} className="hover:bg-blue-50/50">
-                    <td className="px-2 py-2 font-mono text-xs">{row.lote}</td>
-                    <td className="px-2 py-2">{row.fecha}</td>
-                    <td className="px-2 py-2 text-center">
-                      <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
-                        turnoDisplay === 'DIA'
-                          ? 'bg-yellow-100 text-yellow-700'
-                          : 'bg-indigo-100 text-indigo-700'
-                      }`}>
-                        {turnoDisplay === 'DIA' ? '☀️' : '🌙'} {turnoDisplay}
-                      </span>
-                    </td>
-                    <td className="px-2 py-2 font-medium">{row.numero_parte}</td>
-                    <td className="px-2 py-2">{row.maquina}</td>
-                    <td className="px-2 py-2 text-center">{row.cav}</td>
-                    <td className="px-2 py-2 text-center">{row.ciclo || '—'}</td>
-                    <td className="px-2 py-2 text-center font-mono">{fmtTime(row.tiempo_trabajo)}</td>
-                    <td className="px-2 py-2 text-right">{row.meta_plan.toLocaleString()}</td>
-                    <td className="px-2 py-2 text-right font-bold text-emerald-600">{row.produccion_total.toLocaleString()}</td>
-                    <td className="px-2 py-2 text-center">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                        row.percent_prod >= 100 ? 'bg-green-100 text-green-700'
-                          : row.percent_prod >= 80 ? 'bg-yellow-100 text-yellow-700'
-                          : 'bg-red-100 text-red-700'
-                      }`}>
-                        {row.percent_prod}%
-                      </span>
-                    </td>
-                    <td className="px-2 py-2 text-center">
-                      <button onClick={() => handleDescargarIndividual(row.orden_id, row.numero_parte, row.maquina)}
-                        className="inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-400 bg-green-600 hover:bg-green-700 active:scale-95 text-white"
-                        title="Descargar Reporte Individual">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6M4 20h16a1 1 0 001-1V5 a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/>
-                        </svg>
-                      </button>
-                    </td>
-                  </tr>
-                )
-              })
-            )}
+              <tr><td colSpan={13} style={{ textAlign: 'center', padding: '32px 0', color: '#9ca3af', fontSize: 13 }}>
+                No hay registros para el filtro seleccionado
+              </td></tr>
+            ) : reporte.map((row, idx) => {
+              const turno = row.turno_real || getTurnoFromISO(row.fecha)
+              return (
+                <tr key={idx}>
+                  <td className="mono" style={{ fontSize: 11 }}>{row.lote}</td>
+                  <td style={{ fontSize: 11, color: '#9ca3af' }}>{row.fecha}</td>
+                  <td className="c">
+                    <span className="text-[10px] font-semibold tracking-[0.06em] uppercase px-2 py-0.5 rounded-[20px] inline-flex items-center gap-1" style={{
+                      background: turno === 'DIA' ? 'rgba(245,158,11,0.1)' : 'rgba(139,92,246,0.1)',
+                      color: turno === 'DIA' ? '#f59e0b' : '#8b5cf6',
+                      border: `1px solid ${turno === 'DIA' ? 'rgba(245,158,11,0.25)' : 'rgba(139,92,246,0.25)'}`,
+                    }}>
+                      {turno === 'DIA' ? '☀' : '☾'} {turno}
+                    </span>
+                  </td>
+                  <td><span className="font-mono text-[13px] font-medium text-cyan-500">{row.numero_parte}</span></td>
+                  <td><span className="font-mono text-[13px] font-semibold text-amber-500 bg-amber-500/10 border border-amber-500/30 px-[10px] py-0.5 rounded" style={{ fontSize: 11 }}>{row.maquina}</span></td>
+                  <td className="c mono" style={{ fontSize: 11 }}>{row.cav}</td>
+                  <td className="c mono" style={{ fontSize: 11 }}>{row.ciclo ?? '—'}</td>
+                  <td className="c mono" style={{ fontSize: 11 }}>{fmtTime(row.tiempo_trabajo)}</td>
+                  <td className="r mono" style={{ fontSize: 11 }}>{row.meta_plan.toLocaleString()}</td>
+                  <td className="r mono" style={{ fontSize: 11, color: '#10b981', fontWeight: 600 }}>{row.produccion_total.toLocaleString()}</td>
+                  <td className="c">
+                    <span className={`font-mono text-[11px] font-semibold px-[7px] py-0.5 rounded ${row.percent_prod >= 90 ? 'bg-emerald-500/100/10 text-emerald-500' : row.percent_prod >= 70 ? 'bg-amber-500/10 text-amber-500' : 'bg-red-500/100/10 text-red-500'}`}>
+                      {row.percent_prod}%
+                    </span>
+                  </td>
+                  <td className="c mono" style={{ fontSize: 11, color: row.tiempo_paro > 0 ? '#ef4444' : '#9ca3af' }}>
+                    {fmtTime(row.tiempo_paro)}
+                  </td>
+                  <td className="c">
+                    <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-emerald-500/100/10 text-emerald-500 border border-emerald-500/30 hover:bg-emerald-500/100/20" style={{ padding: '5px 8px' }}
+                      onClick={() => dlIndividual(row.orden_id, row.numero_parte, row.maquina)}>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2}><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    </button>
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>
@@ -1359,687 +927,473 @@ function ReporteSubTab() {
   )
 }
 
-// ══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 // SUB-TAB: REPORTE MANUAL
-// ══════════════════════════════════════════════════════════════════
-
+// ═══════════════════════════════════════════════════════════════
 const MOTIVOS_PARO_LIST = [
-  'Cambio de Molde',
-  'Ajustes',
-  'Arranque',
-  'Mantenimiento',
-  'Molde Danado',
-  'Falta Personal',
-  'Falta Material',
-  'Otro',
+  'Cambio de Molde','Ajustes','Arranque','Mantenimiento',
+  'Molde Danado','Falta Personal','Falta Material','Otro',
 ]
-
-const MOTIVOS_MANTENIMIENTO_LIST = [
-  'Soldar Puerta Ejector',
-  'Estopero',
-  'Bomba Hidraulica',
-  'Motor Hidraulico',
-  'Manguera Hidraulica',
-  'Valvula Hidraulica',
-  'Reloj',
-  'Caldera',
-  'Sensor Seguridad',
-  'Falta Aire',
-  'Fuga Aceite',
-  'Electrico',
-  'Tolva Tapada',
-  'Extra',
+const MOTIVOS_MANT_LIST = [
+  'Soldar Puerta Ejector','Estopero','Bomba Hidraulica','Motor Hidraulico',
+  'Manguera Hidraulica','Valvula Hidraulica','Reloj','Caldera',
+  'Sensor Seguridad','Falta Aire','Fuga Aceite','Electrico','Tolva Tapada','Extra',
 ]
-
 const MOTIVOS_SCRAP_LIST = [
-  'Falta Llenado',
-  'Cruda',
-  'Quebrada',
-  'Hinchada',
-  'Arranque',
-  'Fuera de Dimension',
-  'Pandeada',
-  'Aplastada por Molde',
+  'Falta Llenado','Cruda','Quebrada','Hinchada','Arranque',
+  'Fuera de Dimension','Pandeada','Aplastada por Molde',
 ]
 
-interface ParoRow {
-  id: number
-  motivo: string
-  tiempoParo: string
-  subMotivo: string
-  subTiempoParo: string
-}
-
-interface ScrapRow {
-  id: number
-  motivo: string
-  cantidad: string
-}
+interface ParoRow { id: number; motivo: string; tiempo: string; subMotivo: string; subTiempo: string }
+interface ScrapRow { id: number; motivo: string; cantidad: string }
 
 function ReporteManualSubTab() {
   const { token } = useAuth()
-  const [items, setItems] = useState<ReporteManualInyeccion[]>([])
+  const [items, setItems]     = useState<ReporteManualInyeccion[]>([])
   const [loading, setLoading] = useState(false)
-  const [mensaje, setMensaje] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null)
-
-  const [prod, setProd] = useState({
-    turno: '',
-    numero_parte: '',
-    descripcion: '',
-    cliente: '',
-    resina: '',
-    proceso: '',
-    peso: '',
-    cav_bom: '',
-    ciclo: '',
-    type: '',
-    maquina: '',
-    cav_real: '',
-    ciclo_real: '',
-    tiempo_trabajo: '',
-    produccion_total: '',
-  })
-
-  const [parosRows, setParosRows] = useState<ParoRow[]>([
-    { id: 1, motivo: '', tiempoParo: '', subMotivo: '', subTiempoParo: '' }
-  ])
-
-  const [scrapRows, setScrapRows] = useState<ScrapRow[]>([
-    { id: 1, motivo: '', cantidad: '' }
-  ])
-
-  const [detalleModal, setDetalleModal] = useState<ReporteManualInyeccion | null>(null)
-  const [eliminarModal, setEliminarModal] = useState<ReporteManualInyeccion | null>(null)
+  const [msg, setMsg]         = useState<{tipo:'ok'|'error';texto:string}|null>(null)
+  const [detalleModal, setDetalleModal] = useState<ReporteManualInyeccion|null>(null)
+  const [eliminarModal, setEliminarModal] = useState<ReporteManualInyeccion|null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  const PROD_INIT = {
+    turno:'', numero_parte:'', descripcion:'', cliente:'', resina:'', proceso:'',
+    peso:'', cav_bom:'', ciclo:'', type:'', maquina:'', cav_real:'', ciclo_real:'',
+    tiempo_trabajo:'', produccion_total:'',
+  }
+  const [prod, setProd] = useState({ ...PROD_INIT })
+  const [parosRows, setParosRows] = useState<ParoRow[]>([{ id: 1, motivo: '', tiempo: '', subMotivo: '', subTiempo: '' }])
+  const [scrapRows, setScrapRows] = useState<ScrapRow[]>([{ id: 1, motivo: '', cantidad: '' }])
 
   const cargar = async () => {
     if (!token) return
     setLoading(true)
-    try {
-      const data = await getReportesManualesInyeccion(token)
-      setItems(data)
-    } catch (e: any) {
-      setMensaje({ tipo: 'error', texto: e.message })
-    } finally {
-      setLoading(false)
-    }
+    try { setItems(await getReportesManualesInyeccion(token)) }
+    catch (e: any) { showMsg('error', e.message) }
+    finally { setLoading(false) }
   }
 
   useEffect(() => { cargar() }, [token])
+  useEffect(() => { if (!msg) return; const t = setTimeout(() => setMsg(null), 7000); return () => clearTimeout(t) }, [msg])
 
-  useEffect(() => {
-    if (!mensaje) return
-    const t = setTimeout(() => setMensaje(null), 8000)
-    return () => clearTimeout(t)
-  }, [mensaje])
+  const showMsg = (tipo:'ok'|'error', texto:string) => setMsg({ tipo, texto })
 
   const buildPayload = () => {
-    const payload: any = { ...prod }
-    payload.peso = parseFloat(prod.peso || '0')
-    payload.cav_bom = parseInt(prod.cav_bom || '0')
-    payload.ciclo = parseFloat(prod.ciclo || '0')
-    payload.cav_real = parseInt(prod.cav_real || '0')
-    payload.ciclo_real = parseFloat(prod.ciclo_real || '0')
-    payload.tiempo_trabajo = parseFloat(prod.tiempo_trabajo || '0')
-    payload.produccion_total = parseInt(prod.produccion_total || '0')
-
-    payload.cambio_molde = 0
-    payload.ajustes = 0
-    payload.arranque_paro = 0
-    payload.mantenimiento = 0
-    payload.molde_danado = 0
-    payload.falta_personal = 0
-    payload.falta_material = 0
-    payload.otro_paro = 0
-
-    payload.soldar_puerta_ejector = 0
-    payload.estopero = 0
-    payload.bomba_hidraulica = 0
-    payload.motor_hidraulico = 0
-    payload.manguera_hidraulica = 0
-    payload.valvula_hidraulica = 0
-    payload.reloj = 0
-    payload.caldera = 0
-    payload.sensor_seguridad = 0
-    payload.falta_aire = 0
-    payload.fuga_aceite = 0
-    payload.electrico = 0
-    payload.tolva_tapada = 0
-    payload.extra = 0
-
-    parosRows.forEach(row => {
-      const t = parseFloat(row.tiempoParo || '0')
-      const st = parseFloat(row.subTiempoParo || '0')
-      switch (row.motivo) {
-        case 'Cambio de Molde': payload.cambio_molde += t; break
-        case 'Ajustes': payload.ajustes += t; break
-        case 'Arranque': payload.arranque_paro += t; break
-        case 'Mantenimiento': payload.mantenimiento += t; break
-        case 'Molde Danado': payload.molde_danado += t; break
-        case 'Falta Personal': payload.falta_personal += t; break
-        case 'Falta Material': payload.falta_material += t; break
-        case 'Otro': payload.otro_paro += t; break
+    const p: any = {
+      ...prod,
+      peso: parseFloat(prod.peso||'0'),
+      cav_bom: parseInt(prod.cav_bom||'0'),
+      ciclo: parseFloat(prod.ciclo||'0'),
+      cav_real: parseInt(prod.cav_real||'0'),
+      ciclo_real: parseFloat(prod.ciclo_real||'0'),
+      tiempo_trabajo: parseFloat(prod.tiempo_trabajo||'0'),
+      produccion_total: parseInt(prod.produccion_total||'0'),
+      cambio_molde:0, ajustes:0, arranque_paro:0, mantenimiento:0, molde_danado:0,
+      falta_personal:0, falta_material:0, otro_paro:0,
+      soldar_puerta_ejector:0, estopero:0, bomba_hidraulica:0, motor_hidraulico:0,
+      manguera_hidraulica:0, valvula_hidraulica:0, reloj:0, caldera:0, sensor_seguridad:0,
+      falta_aire:0, fuga_aceite:0, electrico:0, tolva_tapada:0, extra:0,
+      scrap_falta_llenado:0, scrap_cruda:0, scrap_quebrada:0, scrap_hinchada:0,
+      scrap_arranque:0, scrap_fuera_dimension:0, scrap_pandeada:0, scrap_aplastada_molde:0,
+    }
+    parosRows.forEach(r => {
+      const t = parseFloat(r.tiempo||'0'), st = parseFloat(r.subTiempo||'0')
+      const map: Record<string,string> = {
+        'Cambio de Molde':'cambio_molde','Ajustes':'ajustes','Arranque':'arranque_paro',
+        'Mantenimiento':'mantenimiento','Molde Danado':'molde_danado','Falta Personal':'falta_personal',
+        'Falta Material':'falta_material','Otro':'otro_paro',
       }
-      switch (row.subMotivo) {
-        case 'Soldar Puerta Ejector': payload.soldar_puerta_ejector += st; break
-        case 'Estopero': payload.estopero += st; break
-        case 'Bomba Hidraulica': payload.bomba_hidraulica += st; break
-        case 'Motor Hidraulico': payload.motor_hidraulico += st; break
-        case 'Manguera Hidraulica': payload.manguera_hidraulica += st; break
-        case 'Valvula Hidraulica': payload.valvula_hidraulica += st; break
-        case 'Reloj': payload.reloj += st; break
-        case 'Caldera': payload.caldera += st; break
-        case 'Sensor Seguridad': payload.sensor_seguridad += st; break
-        case 'Falta Aire': payload.falta_aire += st; break
-        case 'Fuga Aceite': payload.fuga_aceite += st; break
-        case 'Electrico': payload.electrico += st; break
-        case 'Tolva Tapada': payload.tolva_tapada += st; break
-        case 'Extra': payload.extra += st; break
+      if (map[r.motivo]) p[map[r.motivo]] += t
+      const submap: Record<string,string> = {
+        'Soldar Puerta Ejector':'soldar_puerta_ejector','Estopero':'estopero','Bomba Hidraulica':'bomba_hidraulica',
+        'Motor Hidraulico':'motor_hidraulico','Manguera Hidraulica':'manguera_hidraulica',
+        'Valvula Hidraulica':'valvula_hidraulica','Reloj':'reloj','Caldera':'caldera',
+        'Sensor Seguridad':'sensor_seguridad','Falta Aire':'falta_aire','Fuga Aceite':'fuga_aceite',
+        'Electrico':'electrico','Tolva Tapada':'tolva_tapada','Extra':'extra',
       }
+      if (submap[r.subMotivo]) p[submap[r.subMotivo]] += st
     })
-
-    payload.scrap_falta_llenado = 0
-    payload.scrap_cruda = 0
-    payload.scrap_quebrada = 0
-    payload.scrap_hinchada = 0
-    payload.scrap_arranque = 0
-    payload.scrap_fuera_dimension = 0
-    payload.scrap_pandeada = 0
-    payload.scrap_aplastada_molde = 0
-
-    scrapRows.forEach(row => {
-      const c = parseInt(row.cantidad || '0')
-      switch (row.motivo) {
-        case 'Falta Llenado': payload.scrap_falta_llenado += c; break
-        case 'Cruda': payload.scrap_cruda += c; break
-        case 'Quebrada': payload.scrap_quebrada += c; break
-        case 'Hinchada': payload.scrap_hinchada += c; break
-        case 'Arranque': payload.scrap_arranque += c; break
-        case 'Fuera de Dimension': payload.scrap_fuera_dimension += c; break
-        case 'Pandeada': payload.scrap_pandeada += c; break
-        case 'Aplastada por Molde': payload.scrap_aplastada_molde += c; break
+    scrapRows.forEach(r => {
+      const c = parseInt(r.cantidad||'0')
+      const map: Record<string,string> = {
+        'Falta Llenado':'scrap_falta_llenado','Cruda':'scrap_cruda','Quebrada':'scrap_quebrada',
+        'Hinchada':'scrap_hinchada','Arranque':'scrap_arranque','Fuera de Dimension':'scrap_fuera_dimension',
+        'Pandeada':'scrap_pandeada','Aplastada por Molde':'scrap_aplastada_molde',
       }
+      if (map[r.motivo]) p[map[r.motivo]] += c
     })
-
-    return payload
+    return p
   }
 
-  const validar = (): string | null => {
-    if (!prod.turno) return 'Turno es obligatorio'
-    if (!prod.numero_parte.trim()) return 'No. Parte es obligatorio'
-    if (!prod.descripcion.trim()) return 'Descripcion es obligatorio'
-    if (!prod.cliente.trim()) return 'Cliente es obligatorio'
-    if (!prod.resina) return 'Resina es obligatoria'
-    if (!prod.proceso) return 'Proceso es obligatorio'
-    if (!prod.peso) return 'Peso es obligatorio'
-    if (!prod.cav_bom) return 'Cav BOM es obligatorio'
-    if (!prod.ciclo) return 'Ciclo es obligatorio'
-    if (!prod.type.trim()) return 'Type es obligatorio'
-    if (!prod.maquina.trim()) return 'Maquina es obligatoria'
-    if (!prod.cav_real) return 'Cav Real es obligatorio'
-    if (!prod.ciclo_real) return 'Ciclo Real es obligatorio'
-    if (!prod.tiempo_trabajo) return 'Tiempo Trabajo es obligatorio'
-    if (!prod.produccion_total) return 'Produccion Total es obligatoria'
+  const validar = (): string|null => {
+    const req: [string,string][] = [
+      ['turno','Turno'],['numero_parte','No. Parte'],['descripcion','Descripcion'],
+      ['cliente','Cliente'],['resina','Resina'],['proceso','Proceso'],
+      ['peso','Peso'],['cav_bom','Cav BOM'],['ciclo','Ciclo'],['type','Type'],
+      ['maquina','Maquina'],['cav_real','Cav Real'],['ciclo_real','Ciclo Real'],
+      ['tiempo_trabajo','Tiempo Trabajo'],['produccion_total','Produccion Total'],
+    ]
+    for (const [k, label] of req) {
+      if (!(prod as any)[k]?.toString().trim()) return ` ${label} es obligatorio`
+    }
     return null
   }
 
   const handleConfirmar = async () => {
     if (!token) return
-    const error = validar()
-    if (error) {
-      setMensaje({ tipo: 'error', texto: error })
-      return
-    }
+    const err = validar(); if (err) { showMsg('error', err); return }
     try {
-      const payload = buildPayload()
-      await crearReporteManualInyeccion(token, payload)
-      setMensaje({ tipo: 'ok', texto: 'Reporte guardado correctamente' })
-      setProd({
-        turno: '', numero_parte: '', descripcion: '', cliente: '', resina: '', proceso: '',
-        peso: '', cav_bom: '', ciclo: '', type: '', maquina: '', cav_real: '', ciclo_real: '',
-        tiempo_trabajo: '', produccion_total: ''
-      })
-      setParosRows([{ id: 1, motivo: '', tiempoParo: '', subMotivo: '', subTiempoParo: '' }])
+      await crearReporteManualInyeccion(token, buildPayload())
+      showMsg('ok', 'Reporte guardado correctamente')
+      setProd({ ...PROD_INIT })
+      setParosRows([{ id: 1, motivo: '', tiempo: '', subMotivo: '', subTiempo: '' }])
       setScrapRows([{ id: 1, motivo: '', cantidad: '' }])
       cargar()
-    } catch (e: any) {
-      setMensaje({ tipo: 'error', texto: e.message })
-    }
+    } catch (e: any) { showMsg('error', e.message) }
   }
 
   const handleImportar = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!token || !e.target.files?.[0]) return
     try {
       const res = await importarReporteManualInyeccionExcel(token, e.target.files[0])
-      let texto = `${res.message} — ${res.creados} registros creados.`
-      if (res.errores && res.errores.length > 0) texto += ` Errores: ${res.errores.length}`
-      setMensaje({ tipo: res.errores?.length ? 'error' : 'ok', texto })
+      showMsg(res.errores?.length ? 'error' : 'ok', ` ${res.message} — ${res.creados} registros`)
       cargar()
-    } catch (err: any) {
-      setMensaje({ tipo: 'error', texto: err.message })
-    } finally {
-      if (fileRef.current) fileRef.current.value = ''
-    }
+    } catch (e: any) { showMsg('error', e.message) }
+    finally { if (fileRef.current) fileRef.current.value = '' }
   }
 
   const handleEliminar = async () => {
     if (!token || !eliminarModal) return
     try {
       await eliminarReporteManualInyeccion(token, eliminarModal.id)
-      setMensaje({ tipo: 'ok', texto: 'Registro eliminado correctamente' })
-      setEliminarModal(null)
-      cargar()
-    } catch (e: any) {
-      setMensaje({ tipo: 'error', texto: e.message })
-    }
+      showMsg('ok', 'Registro eliminado')
+      setEliminarModal(null); cargar()
+    } catch (e: any) { showMsg('error', e.message) }
   }
 
+  const Campo = ({ label, campo, type='text', opts }: { label:string; campo:string; type?:string; opts?:string[] }) => (
+    <div>
+      <label className="block text-[10px] font-bold tracking-[0.08em] uppercase text-gray-400 mb-[5px]">{label}</label>
+      {opts ? (
+        <select className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none transition-colors duration-150 appearance-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15" value={(prod as any)[campo]}
+          onChange={e => setProd({ ...prod, [campo]: e.target.value })}>
+          <option value="">— Seleccionar —</option>
+          {opts.map(o => <option key={o} value={o}>{o}</option>)}
+        </select>
+      ) : (
+        <input className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none transition-colors duration-150 appearance-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15 placeholder:text-gray-400" type={type} step={type==='number'?'any':undefined}
+          value={(prod as any)[campo]}
+          onChange={e => setProd({ ...prod, [campo]: type!=='text' ? e.target.value : e.target.value.toUpperCase() })} />
+      )}
+    </div>
+  )
+
   return (
-    <div className="space-y-6">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-800">📝 Reporte Manual — Inyeccion</h2>
-        <div className="flex gap-2">
-          <button onClick={() => fileRef.current?.click()}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-400 bg-green-600 hover:bg-green-700 active:scale-95 text-white">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6M4 20h16a1 1 0 001-1V5 a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/>
-            </svg>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+        <div style={{ fontSize: 18, fontWeight: 700, color: '#ededed' }}>📝 Reporte Manual — Inyección</div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-emerald-500/100/10 text-emerald-500 border border-emerald-500/30 hover:bg-emerald-500/100/20" onClick={() => fileRef.current?.click()}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2}><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Importar Excel
           </button>
-          <button onClick={cargar} disabled={loading}
-            className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg text-sm font-medium text-gray-700">
-            🔄
-          </button>
+          <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-transparent text-gray-400 border-gray-800 hover:text-white hover:border-gray-700 hover:bg-gray-800" onClick={cargar} disabled={loading}>{loading ? '⟳' : '↻'}</button>
+          <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImportar} />
         </div>
       </div>
-      <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImportar} />
 
-      {mensaje && (
-        <div className={`p-3 rounded-lg text-sm font-medium ${
-          mensaje.tipo === 'ok' ? 'bg-green-50 text-green-700 border border-green-200'
-            : 'bg-red-50 text-red-700 border border-red-200'
-        }`}>{mensaje.texto}</div>
-      )}
+      {msg && <div className={`px-3.5 py-2.5 rounded-[7px] text-xs font-medium flex items-start gap-2 animate-[slide-in_0.2s_ease] ${msg.tipo==='ok'?'bg-emerald-500/100/10 text-emerald-500 border border-emerald-500/30':'bg-red-500/100/10 text-red-500 border border-red-500/30'}`}>{msg.tipo==='ok'?'✓':'⚠'} {msg.texto}</div>}
 
-      {/* Produccion */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
-        <h3 className="font-semibold text-gray-700">🏭 Produccion</h3>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1">Turno *</label>
-            <select value={prod.turno} onChange={e => setProd({ ...prod, turno: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-              <option value="">-- Seleccionar --</option>
-              <option value="DIA">DIA</option>
-              <option value="NOCHE">NOCHE</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1">No. Parte *</label>
-            <input value={prod.numero_parte} onChange={e => setProd({ ...prod, numero_parte: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm uppercase" />
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-600 mb-1">Descripcion *</label>
-            <input value={prod.descripcion} onChange={e => setProd({ ...prod, descripcion: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-600 mb-1">Cliente *</label>
-            <input value={prod.cliente} onChange={e => setProd({ ...prod, cliente: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1">Resina *</label>
-            <select value={prod.resina} onChange={e => setProd({ ...prod, resina: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-              <option value="">-- Seleccionar --</option>
-              <option value="EPS">EPS</option>
-              <option value="EPP">EPP</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1">Proceso *</label>
-            <select value={prod.proceso} onChange={e => setProd({ ...prod, proceso: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-              <option value="">-- Seleccionar --</option>
-              <option value="ASSY">ASSY</option>
-              <option value="PACKING">PACKING</option>
-              <option value="BLOCK">BLOCK</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1">Peso *</label>
-            <input type="number" step="0.01" value={prod.peso} onChange={e => setProd({ ...prod, peso: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1">Cav BOM *</label>
-            <input type="number" value={prod.cav_bom} onChange={e => setProd({ ...prod, cav_bom: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1">Ciclo *</label>
-            <input type="number" step="0.1" value={prod.ciclo} onChange={e => setProd({ ...prod, ciclo: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1">Type *</label>
-            <input value={prod.type} onChange={e => setProd({ ...prod, type: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm uppercase" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1">Maquina *</label>
-            <input value={prod.maquina} onChange={e => setProd({ ...prod, maquina: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm uppercase" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1">Cav Real *</label>
-            <input type="number" value={prod.cav_real} onChange={e => setProd({ ...prod, cav_real: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1">Ciclo Real *</label>
-            <input type="number" step="0.1" value={prod.ciclo_real} onChange={e => setProd({ ...prod, ciclo_real: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1">Tiempo Trabajo (hrs) *</label>
-            <input type="number" step="0.1" value={prod.tiempo_trabajo} onChange={e => setProd({ ...prod, tiempo_trabajo: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1">Produccion Total *</label>
-            <input type="number" value={prod.produccion_total} onChange={e => setProd({ ...prod, produccion_total: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+      {/* ── SECCIÓN PRODUCCIÓN ── */}
+      <div className="bg-gray-900 border border-gray-800 rounded-[10px] overflow-hidden">
+        <div className="px-4 py-3 bg-gray-800 border-b border-gray-800 flex items-center gap-[10px]">
+          <span style={{ fontSize: 11, fontWeight: 700, color: '#f59e0b', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Datos de Producción</span>
+        </div>
+        <div className="p-4">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(170px,1fr))', gap: 12 }}>
+            <Campo label="Turno *" campo="turno" opts={['DIA','NOCHE']} />
+            <Campo label="No. de Parte *" campo="numero_parte" />
+            <div style={{ gridColumn: 'span 2' }}><Campo label="Descripción *" campo="descripcion" /></div>
+            <div style={{ gridColumn: 'span 2' }}><Campo label="Cliente *" campo="cliente" /></div>
+            <Campo label="Resina *" campo="resina" opts={['EPS','EPP']} />
+            <Campo label="Proceso *" campo="proceso" opts={['ASSY','PACKING','BLOCK']} />
+            <Campo label="Peso *" campo="peso" type="number" />
+            <Campo label="Cav BOM *" campo="cav_bom" type="number" />
+            <Campo label="Ciclo *" campo="ciclo" type="number" />
+            <Campo label="Type *" campo="type" />
+            <Campo label="Máquina *" campo="maquina" />
+            <Campo label="Cav Real *" campo="cav_real" type="number" />
+            <Campo label="Ciclo Real *" campo="ciclo_real" type="number" />
+            <Campo label="Tiempo Trabajo (hrs) *" campo="tiempo_trabajo" type="number" />
+            <Campo label="Producción Total *" campo="produccion_total" type="number" />
           </div>
         </div>
       </div>
 
-      {/* Paros */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
-        <h3 className="font-semibold text-gray-700">🛑 Paros</h3>
-        <div className="space-y-3">
+      {/* ── PAROS ── */}
+      <div className="bg-gray-900 border border-gray-800 rounded-[10px] overflow-hidden">
+        <div className="px-4 py-3 bg-gray-800 border-b border-gray-800 flex items-center gap-[10px]">
+          <span style={{ fontSize: 11, fontWeight: 700, color: '#ef4444', letterSpacing: '0.1em', textTransform: 'uppercase' }}>⏸ Paros</span>
+        </div>
+        <div className="p-4" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {parosRows.map((row, idx) => (
-            <div key={row.id} className="space-y-2 border-b border-gray-100 pb-3 last:border-0">
-              <div className="flex gap-2 items-end">
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-600 mb-1">Motivo Paro</label>
-                  <select value={row.motivo} onChange={e => {
-                    const newRows = [...parosRows]
-                    newRows[idx].motivo = e.target.value
-                    setParosRows(newRows)
-                  }}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                    <option value="">-- Seleccionar --</option>
+            <div key={row.id} style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingBottom: 10, borderBottom: idx < parosRows.length-1 ? '1px solid #1f2937' : 'none' }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+                <div style={{ flex: 2 }}>
+                  <label className="block text-[10px] font-bold tracking-[0.08em] uppercase text-gray-400 mb-[5px]">Motivo</label>
+                  <select className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none transition-colors duration-150 appearance-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15" value={row.motivo}
+                    onChange={e => { const r = [...parosRows]; r[idx].motivo = e.target.value; setParosRows(r) }}>
+                    <option value="">— Seleccionar —</option>
                     {MOTIVOS_PARO_LIST.map(m => <option key={m} value={m}>{m}</option>)}
                   </select>
                 </div>
-                <div className="w-32">
-                  <label className="block text-sm font-medium text-gray-600 mb-1">Tiempo Paro (hrs)</label>
-                  <input type="number" step="0.1" value={row.tiempoParo} onChange={e => {
-                    const newRows = [...parosRows]
-                    newRows[idx].tiempoParo = e.target.value
-                    setParosRows(newRows)
-                  }}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                <div style={{ width: 120 }}>
+                  <label className="block text-[10px] font-bold tracking-[0.08em] uppercase text-gray-400 mb-[5px]">Tiempo (hrs)</label>
+                  <input className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none transition-colors duration-150 appearance-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15 placeholder:text-gray-400" type="number" step="0.1" min={0} value={row.tiempo}
+                    onChange={e => { const r = [...parosRows]; r[idx].tiempo = e.target.value; setParosRows(r) }} />
                 </div>
                 {parosRows.length > 1 && (
-                  <button onClick={() => setParosRows(parosRows.filter((_, i) => i !== idx))}
-                    className="text-red-400 hover:text-red-600 px-2 mb-2">✕</button>
+                  <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-red-500/100/10 text-red-500 border border-red-500/30 hover:bg-red-500/100/20" style={{ padding: '7px 10px', marginBottom: 0 }}
+                    onClick={() => setParosRows(parosRows.filter((_,i) => i !== idx))}>✕</button>
                 )}
               </div>
               {row.motivo === 'Mantenimiento' && (
-                <div className="flex gap-2 items-end pl-4">
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-gray-600 mb-1">Motivo Mantenimiento</label>
-                    <select value={row.subMotivo} onChange={e => {
-                      const newRows = [...parosRows]
-                      newRows[idx].subMotivo = e.target.value
-                      setParosRows(newRows)
-                    }}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                      <option value="">-- Seleccionar --</option>
-                      {MOTIVOS_MANTENIMIENTO_LIST.map(m => <option key={m} value={m}>{m}</option>)}
+                <div style={{ display: 'flex', gap: 8, paddingLeft: 16 }}>
+                  <div style={{ flex: 2 }}>
+                    <label className="block text-[10px] font-bold tracking-[0.08em] uppercase text-gray-400 mb-[5px]">Motivo Mantenimiento</label>
+                    <select className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none transition-colors duration-150 appearance-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15" value={row.subMotivo}
+                      onChange={e => { const r = [...parosRows]; r[idx].subMotivo = e.target.value; setParosRows(r) }}>
+                      <option value="">— Seleccionar —</option>
+                      {MOTIVOS_MANT_LIST.map(m => <option key={m} value={m}>{m}</option>)}
                     </select>
                   </div>
-                  <div className="w-32">
-                    <label className="block text-sm font-medium text-gray-600 mb-1">Tiempo Paro (hrs)</label>
-                    <input type="number" step="0.1" value={row.subTiempoParo} onChange={e => {
-                      const newRows = [...parosRows]
-                      newRows[idx].subTiempoParo = e.target.value
-                      setParosRows(newRows)
-                    }}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                  <div style={{ width: 120 }}>
+                    <label className="block text-[10px] font-bold tracking-[0.08em] uppercase text-gray-400 mb-[5px]">Tiempo (hrs)</label>
+                    <input className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none transition-colors duration-150 appearance-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15 placeholder:text-gray-400" type="number" step="0.1" min={0} value={row.subTiempo}
+                      onChange={e => { const r = [...parosRows]; r[idx].subTiempo = e.target.value; setParosRows(r) }} />
                   </div>
                 </div>
               )}
             </div>
           ))}
+          <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-transparent text-gray-400 border-gray-800 hover:text-white hover:border-gray-700 hover:bg-gray-800" style={{ alignSelf: 'flex-start' }}
+            onClick={() => setParosRows([...parosRows, { id: Date.now(), motivo: '', tiempo: '', subMotivo: '', subTiempo: '' }])}>
+            ＋ Agregar paro
+          </button>
         </div>
-        <button onClick={() => setParosRows([...parosRows, { id: Date.now(), motivo: '', tiempoParo: '', subMotivo: '', subTiempoParo: '' }])}
-          className="flex items-center gap-1 text-sm text-purple-600 hover:text-purple-800 font-medium">
-          ➕ Agregar otro motivo de paro
-        </button>
       </div>
 
-      {/* Scrap */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
-        <h3 className="font-semibold text-gray-700">♻️ Scrap</h3>
-        <div className="space-y-3">
+      {/* ── SCRAP ── */}
+      <div className="bg-gray-900 border border-gray-800 rounded-[10px] overflow-hidden">
+        <div className="px-4 py-3 bg-gray-800 border-b border-gray-800 flex items-center gap-[10px]">
+          <span style={{ fontSize: 11, fontWeight: 700, color: '#f97316', letterSpacing: '0.1em', textTransform: 'uppercase' }}>♻️ Scrap</span>
+        </div>
+        <div className="p-4" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {scrapRows.map((row, idx) => (
-            <div key={row.id} className="flex gap-2 items-end border-b border-gray-100 pb-3 last:border-0">
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-600 mb-1">Motivo Scrap</label>
-                <select value={row.motivo} onChange={e => {
-                  const newRows = [...scrapRows]
-                  newRows[idx].motivo = e.target.value
-                  setScrapRows(newRows)
-                }}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                  <option value="">-- Seleccionar --</option>
+            <div key={row.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-end', paddingBottom: 8, borderBottom: idx < scrapRows.length-1 ? '1px solid #1f2937' : 'none' }}>
+              <div style={{ flex: 2 }}>
+                <label className="block text-[10px] font-bold tracking-[0.08em] uppercase text-gray-400 mb-[5px]">Motivo</label>
+                <select className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none transition-colors duration-150 appearance-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15" value={row.motivo}
+                  onChange={e => { const r = [...scrapRows]; r[idx].motivo = e.target.value; setScrapRows(r) }}>
+                  <option value="">— Seleccionar —</option>
                   {MOTIVOS_SCRAP_LIST.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
-              <div className="w-32">
-                <label className="block text-sm font-medium text-gray-600 mb-1">Cantidad</label>
-                <input type="number" value={row.cantidad} onChange={e => {
-                  const newRows = [...scrapRows]
-                  newRows[idx].cantidad = e.target.value
-                  setScrapRows(newRows)
-                }}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+              <div style={{ width: 120 }}>
+                <label className="block text-[10px] font-bold tracking-[0.08em] uppercase text-gray-400 mb-[5px]">Cantidad</label>
+                <input className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none transition-colors duration-150 appearance-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15 placeholder:text-gray-400" type="number" min={0} value={row.cantidad}
+                  onChange={e => { const r = [...scrapRows]; r[idx].cantidad = e.target.value; setScrapRows(r) }} />
               </div>
               {scrapRows.length > 1 && (
-                <button onClick={() => setScrapRows(scrapRows.filter((_, i) => i !== idx))}
-                  className="text-red-400 hover:text-red-600 px-2 mb-2">✕</button>
+                <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-red-500/100/10 text-red-500 border border-red-500/30 hover:bg-red-500/100/20" style={{ padding: '7px 10px' }}
+                  onClick={() => setScrapRows(scrapRows.filter((_,i) => i !== idx))}>✕</button>
               )}
             </div>
           ))}
+          <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-transparent text-gray-400 border-gray-800 hover:text-white hover:border-gray-700 hover:bg-gray-800" style={{ alignSelf: 'flex-start' }}
+            onClick={() => setScrapRows([...scrapRows, { id: Date.now(), motivo: '', cantidad: '' }])}>
+            ＋ Agregar scrap
+          </button>
         </div>
-        <button onClick={() => setScrapRows([...scrapRows, { id: Date.now(), motivo: '', cantidad: '' }])}
-          className="flex items-center gap-1 text-sm text-purple-600 hover:text-purple-800 font-medium">
-          ➕ Agregar otro motivo de scrap
-        </button>
       </div>
 
-      {/* Confirmar */}
-      <button onClick={handleConfirmar}
-        className="w-full bg-purple-600 hover:bg-purple-700 text-white px-6 py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-2">
-        💾 Confirmar
+      <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-amber-500 text-black border-amber-500 hover:bg-amber-400" style={{ width: '100%', justifyContent: 'center', padding: '11px 0', fontSize: 13 }}
+        onClick={handleConfirmar}>
+        💾 Confirmar y Guardar Reporte
       </button>
 
-      {/* Tabla */}
+      {/* ── HISTORIAL ── */}
       <div>
-        <h3 className="font-semibold text-gray-700 mb-3">📋 Registros ({items.length})</h3>
-        <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-blue-600 text-white">
+        <div className="text-[10px] font-bold tracking-[0.12em] uppercase text-amber-500 mb-2.5 flex items-center gap-2 after:content-[''] after:flex-1 after:h-px after:bg-gray-800">Historial · {items.length}</div>
+        <div className="bg-gray-900 border border-gray-800 rounded-[10px] overflow-hidden overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead>
               <tr>
-                <th className="px-3 py-2 text-left whitespace-nowrap">Fecha</th>
-                <th className="px-3 py-2 text-center whitespace-nowrap">Turno</th>
-                <th className="px-3 py-2 text-left whitespace-nowrap">No. Parte</th>
-                <th className="px-3 py-2 text-left whitespace-nowrap">Descripcion</th>
-                <th className="px-3 py-2 text-left whitespace-nowrap">Cliente</th>
-                <th className="px-3 py-2 text-center whitespace-nowrap">Accion</th>
+                <th>Fecha</th><th className="c">Turno</th><th>No. Parte</th>
+                <th>Descripción</th><th>Cliente</th>
+                <th className="r">Prod. Total</th><th className="r">Prod. Buena</th>
+                <th className="c">%</th><th className="c">Scrap</th>
+                <th className="c">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody>
               {items.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
-                    No hay registros
+                <tr><td colSpan={10} style={{ textAlign: 'center', padding: '32px 0', color: '#9ca3af', fontSize: 13 }}>No hay registros</td></tr>
+              ) : items.map(item => (
+                <tr key={item.id}>
+                  <td style={{ fontSize: 11, color: '#9ca3af' }}>{item.fecha?.slice(0,10) || '—'}</td>
+                  <td className="c">
+                    <span className="text-[10px] font-semibold tracking-[0.06em] uppercase px-2 py-0.5 rounded-[20px] inline-flex items-center gap-1" style={{
+                      background: item.turno==='DIA'?'rgba(245,158,11,0.1)':'rgba(139,92,246,0.1)',
+                      color: item.turno==='DIA'?'#f59e0b':'#8b5cf6',
+                      border: `1px solid ${item.turno==='DIA'?'rgba(245,158,11,0.25)':'rgba(139,92,246,0.25)'}`,
+                    }}>
+                      {item.turno==='DIA'?'☀':'☾'} {item.turno}
+                    </span>
+                  </td>
+                  <td><span className="font-mono text-[13px] font-medium text-cyan-500">{item.numero_parte}</span></td>
+                  <td style={{ fontSize: 11, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.descripcion}</td>
+                  <td style={{ fontSize: 11, color: '#9ca3af' }}>{item.cliente}</td>
+                  <td className="r mono" style={{ fontSize: 11 }}>{item.produccion_total.toLocaleString()}</td>
+                  <td className="r mono" style={{ fontSize: 11, color: '#10b981', fontWeight: 600 }}>{item.produccion_buena.toLocaleString()}</td>
+                  <td className="c">
+                    <span className={`font-mono text-[11px] font-semibold px-[7px] py-0.5 rounded ${item.produccion_porcentaje>=90?'bg-emerald-500/100/10 text-emerald-500':item.produccion_porcentaje>=70?'bg-amber-500/10 text-amber-500':'bg-red-500/100/10 text-red-500'}`}>
+                      {(item.produccion_porcentaje??0).toFixed(1)}%
+                    </span>
+                  </td>
+                  <td className="c mono" style={{ fontSize: 11, color: item.scrap_total>0?'#f97316':'#9ca3af' }}>
+                    {item.scrap_total}
+                  </td>
+                  <td className="c">
+                    <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
+                      <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-blue-500/100/10 text-blue-500 border border-blue-500/30 hover:bg-blue-500/100/20" style={{ padding: '5px 8px', fontSize: 11 }}
+                        onClick={() => setDetalleModal(item)}>👁 Ver</button>
+                      <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-red-500/100/10 text-red-500 border border-red-500/30 hover:bg-red-500/100/20" style={{ padding: '5px 8px', fontSize: 11 }}
+                        onClick={() => setEliminarModal(item)}>🗑</button>
+                    </div>
                   </td>
                 </tr>
-              ) : (
-                items.map(item => (
-                  <tr key={item.id} className="hover:bg-blue-50/50">
-                    <td className="px-3 py-2">{item.fecha?.slice(0, 10) || '—'}</td>
-                    <td className="px-3 py-2 text-center">
-                      <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${item.turno === 'DIA' ? 'bg-yellow-100 text-yellow-700' : 'bg-indigo-100 text-indigo-700'}`}>
-                        {item.turno === 'DIA' ? '☀️' : '🌙'} {item.turno}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 font-medium">{item.numero_parte}</td>
-                    <td className="px-3 py-2">{item.descripcion}</td>
-                    <td className="px-3 py-2">{item.cliente}</td>
-                    <td className="px-3 py-2 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <button onClick={() => setDetalleModal(item)}
-                          className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded-lg text-xs font-medium">
-                          👁️ Ver
-                        </button>
-                        <button onClick={() => setEliminarModal(item)}
-                          className="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded-lg text-xs font-medium"
-                          title="Eliminar registro">
-                          🗑️
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
+              ))}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Modal Detalle */}
+      {/* Modal: Detalle */}
       {detalleModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6 space-y-6">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-gray-800">📋 Detalle: {detalleModal.numero_parte}</h3>
-              <button onClick={() => setDetalleModal(null)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+        <div className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center p-4 backdrop-blur-[3px] animate-[fade-in_0.15s_ease]">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-[480px] shadow-[0_20px_60px_rgba(0,0,0,0.6)] animate-[modal-in_0.2s_ease] wide" style={{ maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+            <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
+              <span className="text-sm font-bold text-white">📋 {detalleModal.numero_parte} — {detalleModal.cliente}</span>
+              <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-transparent text-gray-400 border-gray-800 hover:text-white hover:border-gray-700 hover:bg-gray-800" style={{ padding: '4px 10px' }} onClick={() => setDetalleModal(null)}>✕</button>
             </div>
+            <div className="p-5" style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-            {/* Produccion */}
-            <div className="space-y-2">
-              <h4 className="font-semibold text-gray-700">🏭 Produccion</h4>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-                <div className="bg-gray-50 rounded p-2"><span className="text-gray-500">Turno:</span> {detalleModal.turno}</div>
-                <div className="bg-gray-50 rounded p-2"><span className="text-gray-500">No. Parte:</span> {detalleModal.numero_parte}</div>
-                <div className="bg-gray-50 rounded p-2"><span className="text-gray-500">Descripcion:</span> {detalleModal.descripcion}</div>
-                <div className="bg-gray-50 rounded p-2"><span className="text-gray-500">Cliente:</span> {detalleModal.cliente}</div>
-                <div className="bg-gray-50 rounded p-2"><span className="text-gray-500">Resina:</span> {detalleModal.resina}</div>
-                <div className="bg-gray-50 rounded p-2"><span className="text-gray-500">Proceso:</span> {detalleModal.proceso}</div>
-                <div className="bg-gray-50 rounded p-2"><span className="text-gray-500">Peso:</span> {detalleModal.peso}</div>
-                <div className="bg-gray-50 rounded p-2"><span className="text-gray-500">Cav BOM:</span> {detalleModal.cav_bom}</div>
-                <div className="bg-gray-50 rounded p-2"><span className="text-gray-500">Ciclo:</span> {detalleModal.ciclo}</div>
-                <div className="bg-gray-50 rounded p-2"><span className="text-gray-500">Type:</span> {detalleModal.type}</div>
-                <div className="bg-gray-50 rounded p-2"><span className="text-gray-500">Maquina:</span> {detalleModal.maquina}</div>
-                <div className="bg-gray-50 rounded p-2"><span className="text-gray-500">Cav Real:</span> {detalleModal.cav_real}</div>
-                <div className="bg-gray-50 rounded p-2"><span className="text-gray-500">Ciclo Real:</span> {detalleModal.ciclo_real}</div>
-                <div className="bg-gray-50 rounded p-2"><span className="text-gray-500">Tiempo Trabajo:</span> {detalleModal.tiempo_trabajo} hrs</div>
-                <div className="bg-gray-50 rounded p-2"><span className="text-gray-500">Produccion Total:</span> {detalleModal.produccion_total}</div>
-                <div className="bg-green-50 rounded p-2"><span className="text-gray-500">Produccion Buena:</span> <span className="font-bold text-green-700">{detalleModal.produccion_buena}</span></div>
-                <div className="bg-green-50 rounded p-2"><span className="text-gray-500">Produccion Kg:</span> <span className="font-bold text-green-700">{(detalleModal.produccion_kg ?? 0).toFixed(2)}</span></div>
-                <div className="bg-green-50 rounded p-2"><span className="text-gray-500">Produccion Meta Total:</span> <span className="font-bold text-green-700">{(detalleModal.produccion_meta_total ?? 0).toFixed(2)}</span></div>
-                <div className="bg-green-50 rounded p-2"><span className="text-gray-500">Produccion Meta Kg:</span> <span className="font-bold text-green-700">{(detalleModal.produccion_meta_kg ?? 0).toFixed(2)}</span></div>
-                <div className="bg-green-50 rounded p-2"><span className="text-gray-500">Produccion %:</span> <span className="font-bold text-green-700">{(detalleModal.produccion_porcentaje ?? 0).toFixed(1)}%</span></div>
+              {/* Produccion chips */}
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#f59e0b', marginBottom: 8 }}>Producción</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(160px,1fr))', gap: 8 }}>
+                  {[
+                    ['Turno', detalleModal.turno],
+                    ['Maquina', detalleModal.maquina],
+                    ['Resina', detalleModal.resina],
+                    ['Proceso', detalleModal.proceso],
+                    ['Peso', detalleModal.peso],
+                    ['Cav BOM', detalleModal.cav_bom],
+                    ['Ciclo', detalleModal.ciclo],
+                    ['Cav Real', detalleModal.cav_real],
+                    ['Ciclo Real', detalleModal.ciclo_real],
+                    ['T. Trabajo', ` ${detalleModal.tiempo_trabajo} hrs`],
+                    ['Prod. Total', detalleModal.produccion_total],
+                    ['Prod. Buena', detalleModal.produccion_buena],
+                    ['Prod. Kg', (detalleModal.produccion_kg??0).toFixed(2)],
+                    ['Meta Total', (detalleModal.produccion_meta_total??0).toFixed(0)],
+                    ['Eficiencia', `${(detalleModal.produccion_porcentaje??0).toFixed(1)}%`],
+                    ['C/M', detalleModal.cm ?? 0],
+                  ].map(([k,v]) => (
+                    <div key={k as string} style={{ background: '#1f2937', borderRadius: 6, padding: '8px 10px' }}>
+                      <div style={{ fontSize: 10, color: '#9ca3af', marginBottom: 2 }}>{k}</div>
+                      <div style={{ fontSize: 13, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace', color: '#ededed', fontWeight: 500 }}>{v}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
 
-            {/* Paros */}
-            <div className="space-y-2">
-              <h4 className="font-semibold text-gray-700">🛑 Paros</h4>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-                {detalleModal.cambio_molde > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Cambio de Molde:</span> {detalleModal.cambio_molde} hrs</div>}
-                {detalleModal.ajustes > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Ajustes:</span> {detalleModal.ajustes} hrs</div>}
-                {detalleModal.arranque_paro > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Arranque:</span> {detalleModal.arranque_paro} hrs</div>}
-                {detalleModal.mantenimiento > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Mantenimiento:</span> {detalleModal.mantenimiento} hrs</div>}
-                {detalleModal.molde_danado > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Molde Danado:</span> {detalleModal.molde_danado} hrs</div>}
-                {detalleModal.falta_personal > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Falta Personal:</span> {detalleModal.falta_personal} hrs</div>}
-                {detalleModal.falta_material > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Falta Material:</span> {detalleModal.falta_material} hrs</div>}
-                {detalleModal.otro_paro > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Otro:</span> {detalleModal.otro_paro} hrs</div>}
-                {detalleModal.soldar_puerta_ejector > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Soldar Puerta Ejector:</span> {detalleModal.soldar_puerta_ejector} hrs</div>}
-                {detalleModal.estopero > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Estopero:</span> {detalleModal.estopero} hrs</div>}
-                {detalleModal.bomba_hidraulica > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Bomba Hidraulica:</span> {detalleModal.bomba_hidraulica} hrs</div>}
-                {detalleModal.motor_hidraulico > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Motor Hidraulico:</span> {detalleModal.motor_hidraulico} hrs</div>}
-                {detalleModal.manguera_hidraulica > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Manguera Hidraulica:</span> {detalleModal.manguera_hidraulica} hrs</div>}
-                {detalleModal.valvula_hidraulica > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Valvula Hidraulica:</span> {detalleModal.valvula_hidraulica} hrs</div>}
-                {detalleModal.reloj > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Reloj:</span> {detalleModal.reloj} hrs</div>}
-                {detalleModal.caldera > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Caldera:</span> {detalleModal.caldera} hrs</div>}
-                {detalleModal.sensor_seguridad > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Sensor Seguridad:</span> {detalleModal.sensor_seguridad} hrs</div>}
-                {detalleModal.falta_aire > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Falta Aire:</span> {detalleModal.falta_aire} hrs</div>}
-                {detalleModal.fuga_aceite > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Fuga Aceite:</span> {detalleModal.fuga_aceite} hrs</div>}
-                {detalleModal.electrico > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Electrico:</span> {detalleModal.electrico} hrs</div>}
-                {detalleModal.tolva_tapada > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Tolva Tapada:</span> {detalleModal.tolva_tapada} hrs</div>}
-                {detalleModal.extra > 0 && <div className="bg-red-50 rounded p-2"><span className="text-gray-500">Extra:</span> {detalleModal.extra} hrs</div>}
-                <div className="bg-red-100 rounded p-2 font-bold"><span className="text-gray-700">Tiempo Paro Total:</span> {(detalleModal.tiempo_paro_total ?? 0).toFixed(2)} hrs</div>
-                <div className="bg-red-100 rounded p-2 font-bold"><span className="text-gray-700">C/M:</span> {detalleModal.cm ?? 0}</div>
-              </div>
-            </div>
+              {/* Paros */}
+              {detalleModal.tiempo_paro_total > 0 && (
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#ef4444', marginBottom: 8 }}>Paros · {(detalleModal.tiempo_paro_total??0).toFixed(2)} hrs</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(160px,1fr))', gap: 8 }}>
+                    {[
+                      ['Cambio Molde', detalleModal.cambio_molde],
+                      ['Ajustes', detalleModal.ajustes],
+                      ['Arranque', detalleModal.arranque_paro],
+                      ['Mantenimiento', detalleModal.mantenimiento],
+                      ['Molde Danado', detalleModal.molde_danado],
+                      ['Falta Personal', detalleModal.falta_personal],
+                      ['Falta Material', detalleModal.falta_material],
+                      ['Otro', detalleModal.otro_paro],
+                    ].filter(([,v]) => (v as number) > 0).map(([k,v]) => (
+                      <div key={k as string} style={{ background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: 6, padding: '8px 10px' }}>
+                        <div style={{ fontSize: 10, color: '#9ca3af', marginBottom: 2 }}>{k}</div>
+                        <div style={{ fontSize: 13, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace', color: '#ef4444' }}>{v} hrs</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
-            {/* Scrap */}
-            <div className="space-y-2">
-              <h4 className="font-semibold text-gray-700">♻️ Scrap</h4>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-                {detalleModal.scrap_falta_llenado > 0 && <div className="bg-orange-50 rounded p-2"><span className="text-gray-500">Falta Llenado:</span> {detalleModal.scrap_falta_llenado}</div>}
-                {detalleModal.scrap_cruda > 0 && <div className="bg-orange-50 rounded p-2"><span className="text-gray-500">Cruda:</span> {detalleModal.scrap_cruda}</div>}
-                {detalleModal.scrap_quebrada > 0 && <div className="bg-orange-50 rounded p-2"><span className="text-gray-500">Quebrada:</span> {detalleModal.scrap_quebrada}</div>}
-                {detalleModal.scrap_hinchada > 0 && <div className="bg-orange-50 rounded p-2"><span className="text-gray-500">Hinchada:</span> {detalleModal.scrap_hinchada}</div>}
-                {detalleModal.scrap_arranque > 0 && <div className="bg-orange-50 rounded p-2"><span className="text-gray-500">Arranque:</span> {detalleModal.scrap_arranque}</div>}
-                {detalleModal.scrap_fuera_dimension > 0 && <div className="bg-orange-50 rounded p-2"><span className="text-gray-500">Fuera Dimension:</span> {detalleModal.scrap_fuera_dimension}</div>}
-                {detalleModal.scrap_pandeada > 0 && <div className="bg-orange-50 rounded p-2"><span className="text-gray-500">Pandeada:</span> {detalleModal.scrap_pandeada}</div>}
-                {detalleModal.scrap_aplastada_molde > 0 && <div className="bg-orange-50 rounded p-2"><span className="text-gray-500">Aplastada Molde:</span> {detalleModal.scrap_aplastada_molde}</div>}
-                <div className="bg-orange-100 rounded p-2 font-bold"><span className="text-gray-700">Scrap Total:</span> {detalleModal.scrap_total ?? 0}</div>
-                <div className="bg-orange-100 rounded p-2 font-bold"><span className="text-gray-700">Scrap Kg:</span> {(detalleModal.scrap_kg ?? 0).toFixed(2)}</div>
-                <div className="bg-orange-100 rounded p-2 font-bold"><span className="text-gray-700">Scrap %:</span> {(detalleModal.scrap_porcentaje ?? 0).toFixed(1)}%</div>
-              </div>
+              {/* Scrap */}
+              {detalleModal.scrap_total > 0 && (
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#f97316', marginBottom: 8 }}>
+                    Scrap · {detalleModal.scrap_total} pzas · {(detalleModal.scrap_porcentaje??0).toFixed(1)}%
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(160px,1fr))', gap: 8 }}>
+                    {[
+                      ['Falta Llenado', detalleModal.scrap_falta_llenado],
+                      ['Cruda', detalleModal.scrap_cruda],
+                      ['Quebrada', detalleModal.scrap_quebrada],
+                      ['Hinchada', detalleModal.scrap_hinchada],
+                      ['Arranque', detalleModal.scrap_arranque],
+                      ['Fuera Dim.', detalleModal.scrap_fuera_dimension],
+                      ['Pandeada', detalleModal.scrap_pandeada],
+                      ['Aplastada', detalleModal.scrap_aplastada_molde],
+                    ].filter(([,v]) => (v as number) > 0).map(([k,v]) => (
+                      <div key={k as string} style={{ background: 'rgba(249,115,22,0.07)', border: '1px solid rgba(249,115,22,0.15)', borderRadius: 6, padding: '8px 10px' }}>
+                        <div style={{ fontSize: 10, color: '#9ca3af', marginBottom: 2 }}>{k}</div>
+                        <div style={{ fontSize: 13, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace', color: '#f97316' }}>{v} pzas</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-
-            <div className="flex justify-end">
-              <button onClick={() => setDetalleModal(null)}
-                className="bg-gray-700 hover:bg-gray-600 text-white px-6 py-2 rounded-lg text-sm transition-colors">
-                Cerrar
-              </button>
+            <div className="px-5 py-3.5 border-t border-gray-800 flex gap-2 justify-end">
+              <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-transparent text-gray-400 border-gray-800 hover:text-white hover:border-gray-700 hover:bg-gray-800" onClick={() => setDetalleModal(null)}>Cerrar</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal Confirmar Eliminar */}
+      {/* Modal: Eliminar */}
       {eliminarModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
-            <h3 className="text-lg font-bold text-gray-800">🗑️ Eliminar Registro</h3>
-            <p className="text-sm text-gray-500">
-              ¿Estás seguro de eliminar el registro de la parte{' '}
-              <span className="font-bold">{eliminarModal.numero_parte}</span> del cliente{' '}
-              <span className="font-bold">{eliminarModal.cliente}</span>?
-            </p>
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-700">
-              ⚠️ Esta acción no se puede deshacer. El registro se eliminará permanentemente.
+        <div className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center p-4 backdrop-blur-[3px] animate-[fade-in_0.15s_ease]">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-[480px] shadow-[0_20px_60px_rgba(0,0,0,0.6)] animate-[modal-in_0.2s_ease]">
+            <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
+              <span className="text-sm font-bold text-white">🗑 Eliminar Registro</span>
             </div>
-            <div className="flex gap-3 justify-end">
-              <button onClick={() => setEliminarModal(null)}
-                className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Cancelar</button>
-              <button onClick={handleEliminar}
-                className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-lg text-sm font-medium">
-                🗑️ Confirmar Eliminar
-              </button>
+            <div className="p-5" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ fontSize: 13, color: '#9ca3af' }}>
+                <span className="font-mono text-[13px] font-medium text-cyan-500">{eliminarModal.numero_parte}</span> · {eliminarModal.cliente}
+              </div>
+              <div className="bg-red-500/100/10 border border-red-500/25 rounded-[7px] px-3 py-2.5 text-[11px] text-red-400">Esta acción no se puede deshacer.</div>
+            </div>
+            <div className="px-5 py-3.5 border-t border-gray-800 flex gap-2 justify-end">
+              <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-transparent text-gray-400 border-gray-800 hover:text-white hover:border-gray-700 hover:bg-gray-800" onClick={() => setEliminarModal(null)}>Cancelar</button>
+              <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-red-500/100/10 text-red-500 border border-red-500/30 hover:bg-red-500/100/20" onClick={handleEliminar}>🗑 Eliminar</button>
             </div>
           </div>
         </div>

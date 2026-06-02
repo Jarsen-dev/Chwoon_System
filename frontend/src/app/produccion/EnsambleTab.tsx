@@ -144,7 +144,7 @@ export default function EnsambleTab() {
             {showForm ? '✕ Cancelar' : '➕ Nueva Orden'}
           </button>
           <button onClick={cargar} disabled={loading}
-            className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg text-sm font-medium text-gray-700">
+            className="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg text-sm font-medium text-gray-300">
             🔄
           </button>
         </div>
@@ -152,20 +152,20 @@ export default function EnsambleTab() {
 
       {mensaje && (
         <div className={`p-3 rounded-lg text-sm font-medium ${
-          mensaje.tipo === 'ok' ? 'bg-green-50 text-green-700 border border-green-200'
-            : 'bg-red-50 text-red-700 border border-red-200'
+          mensaje.tipo === 'ok' ? 'bg-green-500/10 text-green-400 border border-green-500/30'
+            : 'bg-red-500/10 text-red-400 border border-red-500/30'
         }`}>{mensaje.texto}</div>
       )}
 
       {/* Formulario */}
       {showForm && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
-          <h3 className="font-semibold text-gray-700">Nueva Orden de Ensamble</h3>
+        <div className="bg-gray-900 rounded-xl border border-gray-700 p-6 space-y-4">
+          <h3 className="font-semibold text-gray-300">Nueva Orden de Ensamble</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">Producto Final</label>
+              <label className="block text-sm font-medium text-gray-400 mb-1">Producto Final</label>
               <select value={formSku} onChange={e => setFormSku(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                className="w-full border border-gray-600 rounded-lg px-3 py-2 text-sm">
                 <option value="">Seleccionar...</option>
                 {productos.map(p => (
                   <option key={p.sku} value={p.sku}>{p.sku} — {p.modelo}</option>
@@ -173,32 +173,32 @@ export default function EnsambleTab() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">Cantidad a Producir</label>
+              <label className="block text-sm font-medium text-gray-400 mb-1">Cantidad a Producir</label>
               <input type="number" value={formCantidad} onChange={e => setFormCantidad(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" min="1" />
+                className="w-full border border-gray-600 rounded-lg px-3 py-2 text-sm" min="1" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">Cantidad por Carrito</label>
+              <label className="block text-sm font-medium text-gray-400 mb-1">Cantidad por Carrito</label>
               <input type="number" value={formCarrito} onChange={e => setFormCarrito(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" min="0"
+                className="w-full border border-gray-600 rounded-lg px-3 py-2 text-sm" min="0"
                 placeholder="0 = sin carritos" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">Línea Producción</label>
+              <label className="block text-sm font-medium text-gray-400 mb-1">Línea Producción</label>
               <input value={formLinea} onChange={e => setFormLinea(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                className="w-full border border-gray-600 rounded-lg px-3 py-2 text-sm"
                 placeholder="Ej: LINEA-A1" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">UPH Esperado</label>
+              <label className="block text-sm font-medium text-gray-400 mb-1">UPH Esperado</label>
               <input type="number" value={formUPH} onChange={e => setFormUPH(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" min="0"
+                className="w-full border border-gray-600 rounded-lg px-3 py-2 text-sm" min="0"
                 placeholder="Unidades/hora" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">Método de Conteo</label>
+              <label className="block text-sm font-medium text-gray-400 mb-1">Método de Conteo</label>
               <select value={formMetodo} onChange={e => setFormMetodo(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                className="w-full border border-gray-600 rounded-lg px-3 py-2 text-sm">
                 <option value="">Seleccionar...</option>
                 <option value="Scanner">Scanner</option>
                 <option value="Manual">Manual</option>
@@ -209,11 +209,11 @@ export default function EnsambleTab() {
 
           {/* BOM Preview */}
           {productoSeleccionado && productoSeleccionado.bom && productoSeleccionado.bom.length > 0 && (
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h4 className="text-sm font-semibold text-gray-600 mb-2">📋 BOM — Lista de Materiales</h4>
+            <div className="bg-gray-800 rounded-lg p-4">
+              <h4 className="text-sm font-semibold text-gray-400 mb-2">📋 BOM — Lista de Materiales</h4>
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-gray-500 text-xs">
+                  <tr className="text-gray-400 text-xs">
                     <th className="text-left pb-1">SKU Componente</th>
                     <th className="text-right pb-1">Cantidad/Unidad</th>
                     {formCantidad && <th className="text-right pb-1">Total Requerido</th>}
@@ -221,7 +221,7 @@ export default function EnsambleTab() {
                 </thead>
                 <tbody>
                   {productoSeleccionado.bom.map((b, i) => (
-                    <tr key={i} className="border-t border-gray-200">
+                    <tr key={i} className="border-t border-gray-700">
                       <td className="py-1 font-mono">{b.sku_componente}</td>
                       <td className="py-1 text-right">{b.cantidad}</td>
                       {formCantidad && (
@@ -238,11 +238,11 @@ export default function EnsambleTab() {
 
           {/* Faltantes */}
           {faltantes && faltantes.length > 0 && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <h4 className="text-sm font-semibold text-yellow-800 mb-2">⚠️ Componentes Faltantes</h4>
+            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+              <h4 className="text-sm font-semibold text-yellow-300 mb-2">⚠️ Componentes Faltantes</h4>
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-yellow-700 text-xs">
+                  <tr className="text-yellow-400 text-xs">
                     <th className="text-left pb-1">SKU</th>
                     <th className="text-right pb-1">Requerido</th>
                     <th className="text-right pb-1">Disponible</th>
@@ -251,16 +251,16 @@ export default function EnsambleTab() {
                 </thead>
                 <tbody>
                   {faltantes.map((f: any, i: number) => (
-                    <tr key={i} className="border-t border-yellow-200">
+                    <tr key={i} className="border-t border-yellow-500/30">
                       <td className="py-1 font-mono">{f.sku}</td>
                       <td className="py-1 text-right">{f.requerido}</td>
                       <td className="py-1 text-right">{f.disponible}</td>
-                      <td className="py-1 text-right font-bold text-red-600">{f.faltante}</td>
+                      <td className="py-1 text-right font-bold text-red-400">{f.faltante}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              <p className="text-xs text-yellow-700 mt-2">La orden fue creada como "Pendiente Material".</p>
+              <p className="text-xs text-yellow-400 mt-2">La orden fue creada como "Pendiente Material".</p>
             </div>
           )}
 
@@ -273,7 +273,7 @@ export default function EnsambleTab() {
 
       {/* Órdenes Activas */}
       <div>
-        <h3 className="font-semibold text-gray-700 mb-3">🟢 Activas ({activas.length})</h3>
+        <h3 className="font-semibold text-gray-300 mb-3">🟢 Activas ({activas.length})</h3>
         {activas.length === 0 ? (
           <p className="text-gray-400 text-sm py-4">No hay órdenes activas</p>
         ) : (
@@ -286,22 +286,22 @@ export default function EnsambleTab() {
               const tieneParo = (op.paros || []).some((p: any) => p.status === 'Activo')
 
               return (
-                <div key={op.op_id} className={`bg-white rounded-xl border p-4 ${
-                  isPendiente ? 'border-yellow-300 bg-yellow-50/50'
-                    : tieneParo ? 'border-red-300 bg-red-50/30'
-                    : 'border-gray-200'
+                <div key={op.op_id} className={`bg-gray-900 rounded-xl border p-4 ${
+                  isPendiente ? 'border-yellow-500/40 bg-yellow-500/10'
+                    : tieneParo ? 'border-red-500/40 bg-red-500/10'
+                    : 'border-gray-700'
                 }`}>
                   <div className="flex items-center justify-between mb-3">
                     <div>
-                      <span className="font-mono font-bold text-blue-600">{op.op_id}</span>
-                      <span className="ml-3 text-sm text-gray-600">{op.nombre_producto || op.sku_producto}</span>
+                      <span className="font-mono font-bold text-blue-400">{op.op_id}</span>
+                      <span className="ml-3 text-sm text-gray-400">{op.nombre_producto || op.sku_producto}</span>
                       {isPendiente && (
-                        <span className="ml-2 px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-xs font-semibold">
+                        <span className="ml-2 px-2 py-0.5 bg-yellow-500/20 text-yellow-400 rounded-full text-xs font-semibold">
                           ⏳ Pendiente Material
                         </span>
                       )}
                       {tieneParo && (
-                        <span className="ml-2 px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-semibold">
+                        <span className="ml-2 px-2 py-0.5 bg-red-500/20 text-red-400 rounded-full text-xs font-semibold">
                           ⏸️ En Paro
                         </span>
                       )}
@@ -309,18 +309,18 @@ export default function EnsambleTab() {
                     <div className="flex gap-2">
                       {isPendiente ? (
                         <button onClick={() => handleSurtir(op.op_id)}
-                          className="bg-green-100 hover:bg-green-200 text-green-700 px-3 py-1.5 rounded-lg text-xs font-medium">
+                          className="bg-green-500/20 hover:bg-green-500/30 text-green-400 px-3 py-1.5 rounded-lg text-xs font-medium">
                           ✅ Surtir Material
                         </button>
                       ) : (
                         <>
                           <button onClick={() => handlePieza(op.op_id)}
-                            className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-medium"
+                            className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 px-3 py-1.5 rounded-lg text-xs font-medium"
                             disabled={tieneParo}>
                             ➕ Pieza
                           </button>
                           <button onClick={() => handleFinalizar(op.op_id)}
-                            className="bg-green-100 hover:bg-green-200 text-green-700 px-3 py-1.5 rounded-lg text-xs font-medium">
+                            className="bg-green-500/20 hover:bg-green-500/30 text-green-400 px-3 py-1.5 rounded-lg text-xs font-medium">
                             ✅ Finalizar
                           </button>
                         </>
@@ -330,17 +330,17 @@ export default function EnsambleTab() {
 
                   {/* Barra progreso */}
                   <div className="flex items-center gap-3">
-                    <div className="flex-1 bg-gray-100 rounded-full h-3">
+                    <div className="flex-1 bg-gray-800 rounded-full h-3">
                       <div className={`h-3 rounded-full transition-all ${
                         pct >= 100 ? 'bg-green-500' : 'bg-blue-500'
                       }`} style={{ width: `${pct}%` }} />
                     </div>
-                    <span className="text-sm font-medium text-gray-700 w-36 text-right">
+                    <span className="text-sm font-medium text-gray-300 w-36 text-right">
                       {Math.round(op.cantidad_producida)} / {Math.round(op.cantidad_a_producir)} ({pct}%)
                     </span>
                   </div>
 
-                  <div className="mt-2 text-xs text-gray-500 flex gap-4 flex-wrap">
+                  <div className="mt-2 text-xs text-gray-400 flex gap-4 flex-wrap">
                     <span>Línea: {op.linea_produccion || '—'}</span>
                     <span>Operador: {op.operador || '—'}</span>
                     {op.cantidad_carrito > 0 && (
@@ -363,28 +363,28 @@ export default function EnsambleTab() {
       {/* Finalizadas */}
       {finalizadas.length > 0 && (
         <div>
-          <h3 className="font-semibold text-gray-700 mb-3">✅ Finalizadas ({finalizadas.length})</h3>
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <h3 className="font-semibold text-gray-300 mb-3">✅ Finalizadas ({finalizadas.length})</h3>
+          <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b">
+              <thead className="bg-gray-800 border-b">
                 <tr>
-                  <th className="px-4 py-2 text-left text-gray-600">OP ID</th>
-                  <th className="px-4 py-2 text-left text-gray-600">Producto</th>
-                  <th className="px-4 py-2 text-left text-gray-600">Línea</th>
-                  <th className="px-4 py-2 text-right text-gray-600">Producido</th>
-                  <th className="px-4 py-2 text-left text-gray-600">Lote Inventario</th>
-                  <th className="px-4 py-2 text-left text-gray-600">Fecha</th>
+                  <th className="px-4 py-2 text-left text-gray-400">OP ID</th>
+                  <th className="px-4 py-2 text-left text-gray-400">Producto</th>
+                  <th className="px-4 py-2 text-left text-gray-400">Línea</th>
+                  <th className="px-4 py-2 text-right text-gray-400">Producido</th>
+                  <th className="px-4 py-2 text-left text-gray-400">Lote Inventario</th>
+                  <th className="px-4 py-2 text-left text-gray-400">Fecha</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {finalizadas.slice(0, 20).map(op => (
-                  <tr key={op.op_id} className="hover:bg-gray-50">
-                    <td className="px-4 py-2 font-mono text-blue-600">{op.op_id}</td>
+                  <tr key={op.op_id} className="hover:bg-gray-800">
+                    <td className="px-4 py-2 font-mono text-blue-400">{op.op_id}</td>
                     <td className="px-4 py-2">{op.nombre_producto || op.sku_producto}</td>
-                    <td className="px-4 py-2 text-gray-600">{op.linea_produccion || '—'}</td>
+                    <td className="px-4 py-2 text-gray-400">{op.linea_produccion || '—'}</td>
                     <td className="px-4 py-2 text-right font-medium">{Math.round(op.cantidad_producida)} pz</td>
                     <td className="px-4 py-2 font-mono text-xs">{op.lote_inventario_generado || '—'}</td>
-                    <td className="px-4 py-2 text-xs text-gray-500">
+                    <td className="px-4 py-2 text-xs text-gray-400">
                       {op.fecha_fin ? new Date(op.fecha_fin).toLocaleString('es-MX') : '—'}
                     </td>
                   </tr>

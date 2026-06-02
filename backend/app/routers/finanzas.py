@@ -21,6 +21,8 @@ from app.services.proveedor_score import recalcular_score, registrar_evento
 from app.models.orden_venta import OrdenVenta, OrdenVentaItem, EnvioVenta
 from app.models.devolucion import Devolucion
 from app.models.plan_ventas import PlanVentas
+from app.models.empresa  import ConfiguracionEmpresa, ContactoEmpresa
+from app.services.pdf_generator import generar_pdf_orden_compra
 from app.schemas.finanzas import (
     OrdenCompraCreate, OrdenCompraUpdate, OrdenCompraResponse, ProveedorCreate, ProveedorResponse, ProveedorUpdate,
     RecepcionCompraCreate, RecepcionCompraResponse,
@@ -227,6 +229,7 @@ async def crear_orden_compra(
         origen="FINANZAS",
         notas=data.notas,
         creado_por=current_user.username,
+        iva=data.iva,
     )
     db.add(orden)
     await db.flush()

@@ -30,12 +30,20 @@ function today(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
-function KpiCard({ title, value, sub, color = 'bg-white' }: { title: string; value: string; sub?: string; color?: string }) {
+function KpiCard({ title, value, sub, color = 'var(--inj-surface2)' }: { title: string; value: string; sub?: string; color?: string }) {
   return (
-    <div className={`${color} rounded-xl border border-gray-200 p-4 shadow-sm`}>
-      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{title}</p>
-      <p className="text-2xl font-bold text-gray-800 mt-1">{value}</p>
-      {sub && <p className="text-xs text-gray-400 mt-1">{sub}</p>}
+    <div
+      style={{
+        background: color,
+        border: '1px solid var(--inj-border)',
+        borderRadius: 12,
+        padding: 16,
+        boxShadow: '0 1px 0 rgba(255,255,255,0.02) inset',
+      }}
+    >
+      <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--inj-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{title}</p>
+      <p style={{ fontSize: 28, fontWeight: 700, color: 'var(--inj-text)', marginTop: 6 }}>{value}</p>
+      {sub && <p style={{ fontSize: 11, color: 'var(--inj-muted)', marginTop: 6 }}>{sub}</p>}
     </div>
   )
 }
@@ -56,17 +64,38 @@ function GaugeChart({ value, label }: { value: number; label: string }) {
             <stop offset="100%" stopColor={color} />
           </linearGradient>
         </defs>
-        <path d={`M 20 100 A ${r} ${r} 0 0 1 180 100`} fill="none" stroke="#e5e7eb" strokeWidth={stroke} strokeLinecap="round" />
-        <path d={`M 20 100 A ${r} ${r} 0 0 1 180 100`} fill="none" stroke="url(#gaugeGrad)" strokeWidth={stroke} strokeLinecap="round"
-          strokeDasharray={`${dash} ${circ}`} strokeDashoffset={0} />
-        <text x="100" y="95" textAnchor="middle" fontSize="22" fontWeight="bold" fill="#1f2937">{pct.toFixed(1)}%</text>
+        <path d={`M 20 100 A ${r} ${r} 0 0 1 180 100`} fill="none" stroke="#253041" strokeWidth={stroke} strokeLinecap="round" />
+        <path
+          d={`M 20 100 A ${r} ${r} 0 0 1 180 100`}
+          fill="none"
+          stroke="url(#gaugeGrad)"
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={`${dash} ${circ}`}
+          strokeDashoffset={0}
+        />
+        <text x="100" y="95" textAnchor="middle" fontSize="22" fontWeight="bold" fill="#e2e8f0">
+          {pct.toFixed(1)}%
+        </text>
       </svg>
-      <p className="text-sm font-medium text-gray-600 -mt-2">{label}</p>
+      <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--inj-muted)', marginTop: -8 }}>{label}</p>
     </div>
   )
 }
 
+function chartTheme() {
+  return {
+    grid: '#243041',
+    axis: '#8b9ab2',
+    text: '#e2e8f0',
+    tooltipBg: '#161b22',
+    tooltipBorder: '#2d3748',
+  }
+}
+
 function ParetoChart({ data, xKey, yKey, title }: { data: any[]; xKey: string; yKey: string; title: string }) {
+  const theme = chartTheme()
+
   const sorted = useMemo(() => {
     const s = [...data].sort((a, b) => b[yKey] - a[yKey])
     let acc = 0
@@ -78,16 +107,19 @@ function ParetoChart({ data, xKey, yKey, title }: { data: any[]; xKey: string; y
   }, [data, yKey])
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4">
-      <h4 className="text-sm font-semibold text-gray-700 mb-3">{title}</h4>
+    <div style={{ background: 'var(--inj-surface)', border: '1px solid var(--inj-border)', borderRadius: 12, padding: 16 }}>
+      <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--inj-text)', marginBottom: 12 }}>{title}</h4>
       <ResponsiveContainer width="100%" height={280}>
         <ComposedChart data={sorted} margin={{ top: 10, right: 20, bottom: 30, left: 10 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-          <XAxis dataKey={xKey} angle={-30} textAnchor="end" height={60} tick={{ fontSize: 11 }} />
-          <YAxis yAxisId="left" tick={{ fontSize: 11 }} />
-          <YAxis yAxisId="right" orientation="right" unit="%" tick={{ fontSize: 11 }} domain={[0, 100]} />
-          <Tooltip formatter={(v: any, n: any) => n === 'acumulado' ? [`${Number(v).toFixed(1)}%`, 'Acumulado'] : [v, n]} />
-          <Legend />
+          <CartesianGrid strokeDasharray="3 3" stroke={theme.grid} />
+          <XAxis dataKey={xKey} angle={-30} textAnchor="end" height={60} tick={{ fontSize: 11, fill: theme.axis }} />
+          <YAxis yAxisId="left" tick={{ fontSize: 11, fill: theme.axis }} />
+          <YAxis yAxisId="right" orientation="right" unit="%" tick={{ fontSize: 11, fill: theme.axis }} domain={[0, 100]} />
+          <Tooltip
+            contentStyle={{ background: theme.tooltipBg, border: `1px solid ${theme.tooltipBorder}`, color: theme.text, borderRadius: 8 }}
+            formatter={(v: any, n: any) => n === 'acumulado' ? [`${Number(v).toFixed(1)}%`, 'Acumulado'] : [v, n]}
+          />
+          <Legend wrapperStyle={{ color: theme.text }} />
           <Bar yAxisId="left" dataKey={yKey} name="Cantidad" fill="#6366f1" radius={[4, 4, 0, 0]} />
           <Line yAxisId="right" type="monotone" dataKey="acumulado" name="Acumulado %" stroke="#ef4444" strokeWidth={2} dot={false} />
         </ComposedChart>
@@ -142,7 +174,8 @@ export default function DashboardInyeccionTab() {
       setFechaDesde(hoy.toISOString().slice(0, 10))
       setFechaHasta(hoy.toISOString().slice(0, 10))
     } else if (tipo === 'semana') {
-      const inicio = new Date(hoy); inicio.setDate(d - inicio.getDay())
+      const inicio = new Date(hoy)
+      inicio.setDate(d - inicio.getDay())
       setFechaDesde(inicio.toISOString().slice(0, 10))
       setFechaHasta(hoy.toISOString().slice(0, 10))
     } else if (tipo === 'mes') {
@@ -154,14 +187,12 @@ export default function DashboardInyeccionTab() {
   const exportarPDF = async () => {
     if (!dashboardRef.current) return
     try {
-      // html-to-image soporta colores modernos (lab, oklch, etc.)
       const imgData = await toPng(dashboardRef.current, {
         pixelRatio: 2,
         cacheBust: true,
-        backgroundColor: '#ffffff',
+        backgroundColor: '#0d1117',
       })
 
-      // Obtener dimensiones reales de la imagen generada
       const img = new Image()
       img.src = imgData
       await new Promise<void>((resolve, reject) => {
@@ -180,7 +211,6 @@ export default function DashboardInyeccionTab() {
       const imgX = (pdfWidth - scaledWidth) / 2
       const margin = 10
 
-      // Si la imagen es más alta que una página, dividir en varias páginas
       if (scaledHeight > pdfHeight - margin * 2) {
         let heightLeft = scaledHeight
         let srcY = 0
@@ -222,119 +252,124 @@ export default function DashboardInyeccionTab() {
     porcentaje: p.produccion_porcentaje,
   })), [porPeriodo])
 
+  const theme = chartTheme()
+
   return (
-    <div className="space-y-4">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <h2 className="text-xl font-bold text-gray-800">📊 Dashboard — Inyección</h2>
+        <h2 style={{ fontSize: 22, fontWeight: 700, color: 'var(--inj-text)' }}>📊 Dashboard — Inyección</h2>
         <div className="flex gap-2">
-          <button onClick={exportarPDF}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm bg-red-600 hover:bg-red-700 active:scale-95 text-white transition-all">
+          <button
+            onClick={exportarPDF}
+            className="inj-btn inj-btn-red"
+          >
             📄 Exportar PDF
           </button>
-          <button onClick={cargar} disabled={loading}
-            className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg text-sm font-medium text-gray-700">
+          <button
+            onClick={cargar}
+            disabled={loading}
+            className="inj-btn inj-btn-ghost"
+          >
             🔄
           </button>
         </div>
       </div>
 
       {/* Filtros */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+      <div style={{ background: 'var(--inj-surface)', border: '1px solid var(--inj-border)', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-semibold text-gray-500 uppercase">Rápido:</span>
+          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--inj-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Rápido:</span>
           {(['hoy', 'semana', 'mes'] as const).map(r => (
-            <button key={r} onClick={() => setRango(r)}
-              className="px-3 py-1 rounded-lg text-xs font-medium bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 transition-colors capitalize">
+            <button
+              key={r}
+              onClick={() => setRango(r)}
+              className="inj-btn inj-btn-ghost"
+              style={{ padding: '6px 10px' }}
+            >
               {r === 'hoy' ? 'Hoy' : r === 'semana' ? 'Esta semana' : 'Este mes'}
             </button>
           ))}
         </div>
+
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Agrupar</label>
-            <select value={groupBy} onChange={e => setGroupBy(e.target.value as any)}
-              className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm">
+            <label className="inj-label">Agrupar</label>
+            <select value={groupBy} onChange={e => setGroupBy(e.target.value as any)} className="inj-select">
               <option value="day">Día</option>
               <option value="week">Semana</option>
               <option value="month">Mes</option>
             </select>
           </div>
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Desde</label>
-            <input type="date" value={fechaDesde} onChange={e => setFechaDesde(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm" />
+            <label className="inj-label">Desde</label>
+            <input type="date" value={fechaDesde} onChange={e => setFechaDesde(e.target.value)} className="inj-input" />
           </div>
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Hasta</label>
-            <input type="date" value={fechaHasta} onChange={e => setFechaHasta(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm" />
+            <label className="inj-label">Hasta</label>
+            <input type="date" value={fechaHasta} onChange={e => setFechaHasta(e.target.value)} className="inj-input" />
           </div>
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Turno</label>
-            <select value={filtroTurno} onChange={e => setFiltroTurno(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm">
+            <label className="inj-label">Turno</label>
+            <select value={filtroTurno} onChange={e => setFiltroTurno(e.target.value)} className="inj-select">
               <option value="">Todos</option>
               <option value="DIA">DIA</option>
               <option value="NOCHE">NOCHE</option>
             </select>
           </div>
           <div>
-            <label className="block text-xs text-gray-500 mb-1">No. Parte</label>
-            <input value={filtroParte} onChange={e => setFiltroParte(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm uppercase" placeholder="Filtrar..." />
+            <label className="inj-label">No. Parte</label>
+            <input value={filtroParte} onChange={e => setFiltroParte(e.target.value)} className="inj-input uppercase" placeholder="Filtrar..." />
           </div>
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Cliente</label>
-            <input value={filtroCliente} onChange={e => setFiltroCliente(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm" placeholder="Filtrar..." />
+            <label className="inj-label">Cliente</label>
+            <input value={filtroCliente} onChange={e => setFiltroCliente(e.target.value)} className="inj-input" placeholder="Filtrar..." />
           </div>
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Máquina</label>
-            <input value={filtroMaquina} onChange={e => setFiltroMaquina(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm uppercase" placeholder="Filtrar..." />
+            <label className="inj-label">Máquina</label>
+            <input value={filtroMaquina} onChange={e => setFiltroMaquina(e.target.value)} className="inj-input uppercase" placeholder="Filtrar..." />
           </div>
         </div>
       </div>
 
       {loading && (
         <div className="flex justify-center py-8">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-600" />
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-amber-500" />
         </div>
       )}
 
       {!loading && data && (
-        <div ref={dashboardRef} className="space-y-6 bg-white p-4 rounded-xl">
+        <div ref={dashboardRef} style={{ display: 'flex', flexDirection: 'column', gap: 24, background: '#0d1117', padding: 4, borderRadius: 12 }}>
           {/* KPIs */}
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-            <KpiCard title="Producción Total" value={formatNumber(totales.produccion_total)} color="bg-blue-50" />
-            <KpiCard title="Producción Buena" value={formatNumber(totales.produccion_buena)} color="bg-emerald-50" />
-            <KpiCard title="Scrap Total" value={formatNumber(totales.scrap_total)} color="bg-orange-50" />
-            <KpiCard title="Tiempo Paro" value={`${totales.tiempo_paro_total || 0} hrs`} color="bg-red-50" />
-            <KpiCard title="Prod. % Prom." value={`${(totales.produccion_porcentaje_promedio || 0).toFixed(1)}%`} color="bg-indigo-50" />
-            <KpiCard title="Scrap % Prom." value={`${(totales.scrap_porcentaje_promedio || 0).toFixed(1)}%`} color="bg-amber-50" />
-            <KpiCard title="Registros" value={formatNumber(totales.cantidad_registros)} color="bg-gray-50" />
+            <KpiCard title="Producción Total" value={formatNumber(totales.produccion_total)} color="rgba(59,130,246,0.12)" />
+            <KpiCard title="Producción Buena" value={formatNumber(totales.produccion_buena)} color="rgba(16,185,129,0.12)" />
+            <KpiCard title="Scrap Total" value={formatNumber(totales.scrap_total)} color="rgba(249,115,22,0.12)" />
+            <KpiCard title="Tiempo Paro" value={`${totales.tiempo_paro_total || 0} hrs`} color="rgba(239,68,68,0.12)" />
+            <KpiCard title="Prod. % Prom." value={`${(totales.produccion_porcentaje_promedio || 0).toFixed(1)}%`} color="rgba(99,102,241,0.12)" />
+            <KpiCard title="Scrap % Prom." value={`${(totales.scrap_porcentaje_promedio || 0).toFixed(1)}%`} color="rgba(245,158,11,0.12)" />
+            <KpiCard title="Registros" value={formatNumber(totales.cantidad_registros)} color="rgba(139,154,178,0.12)" />
           </div>
 
           {/* Gauges */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-center">
+            <div style={{ background: 'var(--inj-surface)', border: '1px solid var(--inj-border)', borderRadius: 12, padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <GaugeChart value={totales.produccion_porcentaje_promedio || 0} label="Producción % vs Meta" />
             </div>
-            <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-center">
+            <div style={{ background: 'var(--inj-surface)', border: '1px solid var(--inj-border)', borderRadius: 12, padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <GaugeChart value={totales.scrap_porcentaje_promedio || 0} label="Scrap % vs Producción" />
             </div>
           </div>
 
-          {/* MODULO PRODUCCION */}
+          {/* PRODUCCIÓN */}
           <div className="space-y-4">
-            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-              <span className="w-2 h-6 bg-emerald-500 rounded-full inline-block" /> 🏭 Producción
+            <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--inj-text)', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span className="inline-block w-2 h-6 rounded-full" style={{ background: '#10b981' }} /> 🏭 Producción
             </h3>
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* Produccion vs Meta */}
-              <div className="bg-white rounded-xl border border-gray-200 p-4">
-                <h4 className="text-sm font-semibold text-gray-700 mb-3">Producción vs Meta por Período</h4>
+              <div style={{ background: 'var(--inj-surface)', border: '1px solid var(--inj-border)', borderRadius: 12, padding: 16 }}>
+                <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--inj-text)', marginBottom: 12 }}>Producción vs Meta por Período</h4>
                 <ResponsiveContainer width="100%" height={300}>
                   <AreaChart data={prodMetaData} margin={{ top: 10, right: 20, bottom: 30, left: 10 }}>
                     <defs>
@@ -347,177 +382,194 @@ export default function DashboardInyeccionTab() {
                         <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                    <XAxis dataKey="periodo" angle={-30} textAnchor="end" height={50} tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 11 }} />
-                    <Tooltip formatter={(v: any) => formatNumber(Number(v))} />
-                    <Legend />
+                    <CartesianGrid strokeDasharray="3 3" stroke={theme.grid} />
+                    <XAxis dataKey="periodo" angle={-30} textAnchor="end" height={50} tick={{ fontSize: 11, fill: theme.axis }} />
+                    <YAxis tick={{ fontSize: 11, fill: theme.axis }} />
+                    <Tooltip contentStyle={{ background: theme.tooltipBg, border: `1px solid ${theme.tooltipBorder}`, borderRadius: 8 }} formatter={(v: any) => formatNumber(Number(v))} />
+                    <Legend wrapperStyle={{ color: theme.text }} />
                     <Area type="monotone" dataKey="produccion" name="Producción Buena" stroke="#10b981" fill="url(#colorProd)" strokeWidth={2} />
                     <Area type="monotone" dataKey="meta" name="Meta" stroke="#6366f1" fill="url(#colorMeta)" strokeWidth={2} strokeDasharray="5 5" />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
 
-              {/* Produccion % */}
-              <div className="bg-white rounded-xl border border-gray-200 p-4">
-                <h4 className="text-sm font-semibold text-gray-700 mb-3">Producción % por Período</h4>
+              <div style={{ background: 'var(--inj-surface)', border: '1px solid var(--inj-border)', borderRadius: 12, padding: 16 }}>
+                <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--inj-text)', marginBottom: 12 }}>Producción % por Período</h4>
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={prodMetaData} margin={{ top: 10, right: 20, bottom: 30, left: 10 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                    <XAxis dataKey="periodo" angle={-30} textAnchor="end" height={50} tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 11 }} unit="%" />
-                    <Tooltip formatter={(v: any) => `${v}%`} />
-                    <Legend />
-                    <ReferenceLine y={100} stroke="#ef4444" strokeDasharray="3 3" label="Meta 100%" />
+                    <CartesianGrid strokeDasharray="3 3" stroke={theme.grid} />
+                    <XAxis dataKey="periodo" angle={-30} textAnchor="end" height={50} tick={{ fontSize: 11, fill: theme.axis }} />
+                    <YAxis tick={{ fontSize: 11, fill: theme.axis }} unit="%" />
+                    <Tooltip contentStyle={{ background: theme.tooltipBg, border: `1px solid ${theme.tooltipBorder}`, borderRadius: 8 }} formatter={(v: any) => `${v}%`} />
+                    <Legend wrapperStyle={{ color: theme.text }} />
+                    <ReferenceLine y={100} stroke="#ef4444" strokeDasharray="3 3" label={{ value: 'Meta 100%', fill: theme.axis, fontSize: 10 }} />
                     <Line type="monotone" dataKey="porcentaje" name="Producción %" stroke="#6366f1" strokeWidth={2} dot={{ r: 4 }} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
 
-              {/* Produccion por Maquina */}
-              <div className="bg-white rounded-xl border border-gray-200 p-4">
-                <h4 className="text-sm font-semibold text-gray-700 mb-3">Producción por Máquina</h4>
+              <div style={{ background: 'var(--inj-surface)', border: '1px solid var(--inj-border)', borderRadius: 12, padding: 16 }}>
+                <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--inj-text)', marginBottom: 12 }}>Producción por Máquina</h4>
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={porMaquina} layout="vertical" margin={{ top: 10, right: 20, bottom: 10, left: 10 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                    <XAxis type="number" tick={{ fontSize: 11 }} />
-                    <YAxis dataKey="maquina" type="category" width={80} tick={{ fontSize: 11 }} />
-                    <Tooltip formatter={(v: any) => formatNumber(Number(v))} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={theme.grid} />
+                    <XAxis type="number" tick={{ fontSize: 11, fill: theme.axis }} />
+                    <YAxis dataKey="maquina" type="category" width={80} tick={{ fontSize: 11, fill: theme.axis }} />
+                    <Tooltip contentStyle={{ background: theme.tooltipBg, border: `1px solid ${theme.tooltipBorder}`, borderRadius: 8 }} formatter={(v: any) => formatNumber(Number(v))} />
                     <Bar dataKey="produccion_total" name="Producción Total" fill="#6366f1" radius={[0, 4, 4, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
 
-              {/* Distribucion Turno */}
-              <div className="bg-white rounded-xl border border-gray-200 p-4">
-                <h4 className="text-sm font-semibold text-gray-700 mb-3">Distribución por Turno</h4>
+              <div style={{ background: 'var(--inj-surface)', border: '1px solid var(--inj-border)', borderRadius: 12, padding: 16 }}>
+                <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--inj-text)', marginBottom: 12 }}>Distribución por Turno</h4>
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
-                    <Pie data={pieTurnoData} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={3}
-                      dataKey="value" nameKey="name" label={({ name, percent }: any) => `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`}>
+                    <Pie
+                      data={pieTurnoData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={100}
+                      paddingAngle={3}
+                      dataKey="value"
+                      nameKey="name"
+                      label={({ name, percent }: any) => `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`}
+                    >
                       {pieTurnoData.map((_: any, i: number) => (
                         <Cell key={`cell-${i}`} fill={COLORS[i % COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(v: any) => formatNumber(Number(v))} />
-                    <Legend />
+                    <Tooltip contentStyle={{ background: theme.tooltipBg, border: `1px solid ${theme.tooltipBorder}`, borderRadius: 8 }} formatter={(v: any) => formatNumber(Number(v))} />
+                    <Legend wrapperStyle={{ color: theme.text }} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
             </div>
           </div>
 
-          {/* MODULO PAROS */}
+          {/* PAROS */}
           <div className="space-y-4">
-            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-              <span className="w-2 h-6 bg-red-500 rounded-full inline-block" /> 🛑 Paros
+            <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--inj-text)', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span className="inline-block w-2 h-6 rounded-full" style={{ background: '#ef4444' }} /> 🛑 Paros
             </h3>
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* Tiempo Paro por Periodo */}
-              <div className="bg-white rounded-xl border border-gray-200 p-4">
-                <h4 className="text-sm font-semibold text-gray-700 mb-3">Tiempo Paro por Período</h4>
+              <div style={{ background: 'var(--inj-surface)', border: '1px solid var(--inj-border)', borderRadius: 12, padding: 16 }}>
+                <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--inj-text)', marginBottom: 12 }}>Tiempo Paro por Período</h4>
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={porPeriodo} margin={{ top: 10, right: 20, bottom: 30, left: 10 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                    <XAxis dataKey="periodo" angle={-30} textAnchor="end" height={50} tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 11 }} unit=" hrs" />
-                    <Tooltip formatter={(v: any) => `${v} hrs`} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={theme.grid} />
+                    <XAxis dataKey="periodo" angle={-30} textAnchor="end" height={50} tick={{ fontSize: 11, fill: theme.axis }} />
+                    <YAxis tick={{ fontSize: 11, fill: theme.axis }} unit=" hrs" />
+                    <Tooltip contentStyle={{ background: theme.tooltipBg, border: `1px solid ${theme.tooltipBorder}`, borderRadius: 8 }} formatter={(v: any) => `${v} hrs`} />
                     <Bar dataKey="tiempo_paro_total" name="Tiempo Paro" fill="#ef4444" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
 
-              {/* Paros por Maquina */}
-              <div className="bg-white rounded-xl border border-gray-200 p-4">
-                <h4 className="text-sm font-semibold text-gray-700 mb-3">Tiempo Paro por Máquina</h4>
+              <div style={{ background: 'var(--inj-surface)', border: '1px solid var(--inj-border)', borderRadius: 12, padding: 16 }}>
+                <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--inj-text)', marginBottom: 12 }}>Tiempo Paro por Máquina</h4>
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={porMaquina} layout="vertical" margin={{ top: 10, right: 20, bottom: 10, left: 10 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                    <XAxis type="number" tick={{ fontSize: 11 }} />
-                    <YAxis dataKey="maquina" type="category" width={80} tick={{ fontSize: 11 }} />
-                    <Tooltip formatter={(v: any) => `${v} hrs`} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={theme.grid} />
+                    <XAxis type="number" tick={{ fontSize: 11, fill: theme.axis }} />
+                    <YAxis dataKey="maquina" type="category" width={80} tick={{ fontSize: 11, fill: theme.axis }} />
+                    <Tooltip contentStyle={{ background: theme.tooltipBg, border: `1px solid ${theme.tooltipBorder}`, borderRadius: 8 }} formatter={(v: any) => `${v} hrs`} />
                     <Bar dataKey="tiempo_paro_total" name="Tiempo Paro" fill="#ef4444" radius={[0, 4, 4, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
 
-              {/* Distribucion Paros */}
-              <div className="bg-white rounded-xl border border-gray-200 p-4">
-                <h4 className="text-sm font-semibold text-gray-700 mb-3">Distribución de Paros por Motivo</h4>
+              <div style={{ background: 'var(--inj-surface)', border: '1px solid var(--inj-border)', borderRadius: 12, padding: 16 }}>
+                <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--inj-text)', marginBottom: 12 }}>Distribución de Paros por Motivo</h4>
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
-                    <Pie data={pieParoData} cx="50%" cy="50%" outerRadius={100} paddingAngle={2}
-                      dataKey="value" nameKey="name" label={({ name, percent }: any) => `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`}>
+                    <Pie
+                      data={pieParoData}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={100}
+                      paddingAngle={2}
+                      dataKey="value"
+                      nameKey="name"
+                      label={({ name, percent }: any) => `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`}
+                    >
                       {pieParoData.map((_: any, i: number) => (
                         <Cell key={`cell-${i}`} fill={COLORS[i % COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(v: any) => `${v} hrs`} />
-                    <Legend />
+                    <Tooltip contentStyle={{ background: theme.tooltipBg, border: `1px solid ${theme.tooltipBorder}`, borderRadius: 8 }} formatter={(v: any) => `${v} hrs`} />
+                    <Legend wrapperStyle={{ color: theme.text }} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
 
-              {/* Pareto Paros */}
               <ParetoChart data={porMotivoParo} xKey="motivo" yKey="valor" title="Pareto: Motivos de Paro" />
             </div>
           </div>
 
-          {/* MODULO SCRAP */}
+          {/* SCRAP */}
           <div className="space-y-4">
-            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-              <span className="w-2 h-6 bg-orange-500 rounded-full inline-block" /> ♻️ Scrap
+            <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--inj-text)', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span className="inline-block w-2 h-6 rounded-full" style={{ background: '#f97316' }} /> ♻️ Scrap
             </h3>
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* Scrap por Periodo */}
-              <div className="bg-white rounded-xl border border-gray-200 p-4">
-                <h4 className="text-sm font-semibold text-gray-700 mb-3">Scrap por Período</h4>
+              <div style={{ background: 'var(--inj-surface)', border: '1px solid var(--inj-border)', borderRadius: 12, padding: 16 }}>
+                <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--inj-text)', marginBottom: 12 }}>Scrap por Período</h4>
                 <ResponsiveContainer width="100%" height={300}>
                   <ComposedChart data={porPeriodo} margin={{ top: 10, right: 20, bottom: 30, left: 10 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                    <XAxis dataKey="periodo" angle={-30} textAnchor="end" height={50} tick={{ fontSize: 11 }} />
-                    <YAxis yAxisId="left" tick={{ fontSize: 11 }} />
-                    <YAxis yAxisId="right" orientation="right" unit="%" tick={{ fontSize: 11 }} />
-                    <Tooltip />
-                    <Legend />
+                    <CartesianGrid strokeDasharray="3 3" stroke={theme.grid} />
+                    <XAxis dataKey="periodo" angle={-30} textAnchor="end" height={50} tick={{ fontSize: 11, fill: theme.axis }} />
+                    <YAxis yAxisId="left" tick={{ fontSize: 11, fill: theme.axis }} />
+                    <YAxis yAxisId="right" orientation="right" unit="%" tick={{ fontSize: 11, fill: theme.axis }} />
+                    <Tooltip contentStyle={{ background: theme.tooltipBg, border: `1px solid ${theme.tooltipBorder}`, borderRadius: 8 }} />
+                    <Legend wrapperStyle={{ color: theme.text }} />
                     <Bar yAxisId="left" dataKey="scrap_total" name="Scrap Total" fill="#f97316" radius={[4, 4, 0, 0]} />
                     <Line yAxisId="right" type="monotone" dataKey="scrap_porcentaje" name="Scrap %" stroke="#ef4444" strokeWidth={2} dot={{ r: 3 }} />
                   </ComposedChart>
                 </ResponsiveContainer>
               </div>
 
-              {/* Scrap por Motivo */}
-              <div className="bg-white rounded-xl border border-gray-200 p-4">
-                <h4 className="text-sm font-semibold text-gray-700 mb-3">Scrap por Motivo</h4>
+              <div style={{ background: 'var(--inj-surface)', border: '1px solid var(--inj-border)', borderRadius: 12, padding: 16 }}>
+                <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--inj-text)', marginBottom: 12 }}>Scrap por Motivo</h4>
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={porMotivoScrap} margin={{ top: 10, right: 20, bottom: 30, left: 10 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                    <XAxis dataKey="motivo" angle={-30} textAnchor="end" height={60} tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 11 }} />
-                    <Tooltip />
+                    <CartesianGrid strokeDasharray="3 3" stroke={theme.grid} />
+                    <XAxis dataKey="motivo" angle={-30} textAnchor="end" height={60} tick={{ fontSize: 11, fill: theme.axis }} />
+                    <YAxis tick={{ fontSize: 11, fill: theme.axis }} />
+                    <Tooltip contentStyle={{ background: theme.tooltipBg, border: `1px solid ${theme.tooltipBorder}`, borderRadius: 8 }} />
                     <Bar dataKey="valor" name="Cantidad" fill="#f97316" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
 
-              {/* Distribucion Scrap */}
-              <div className="bg-white rounded-xl border border-gray-200 p-4">
-                <h4 className="text-sm font-semibold text-gray-700 mb-3">Distribución de Scrap</h4>
+              <div style={{ background: 'var(--inj-surface)', border: '1px solid var(--inj-border)', borderRadius: 12, padding: 16 }}>
+                <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--inj-text)', marginBottom: 12 }}>Distribución de Scrap</h4>
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
-                    <Pie data={pieScrapData} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={2}
-                      dataKey="value" nameKey="name" label={({ name, percent }: any) => `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`}>
+                    <Pie
+                      data={pieScrapData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={100}
+                      paddingAngle={2}
+                      dataKey="value"
+                      nameKey="name"
+                      label={({ name, percent }: any) => `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`}
+                    >
                       {pieScrapData.map((_: any, i: number) => (
                         <Cell key={`cell-${i}`} fill={COLORS[i % COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(v: any) => formatNumber(Number(v))} />
-                    <Legend />
+                    <Tooltip contentStyle={{ background: theme.tooltipBg, border: `1px solid ${theme.tooltipBorder}`, borderRadius: 8 }} formatter={(v: any) => formatNumber(Number(v))} />
+                    <Legend wrapperStyle={{ color: theme.text }} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
 
-              {/* Pareto Scrap */}
               <ParetoChart data={porMotivoScrap} xKey="motivo" yKey="valor" title="Pareto: Motivos de Scrap" />
             </div>
           </div>
@@ -525,10 +577,10 @@ export default function DashboardInyeccionTab() {
           {/* Tabla Resumen */}
           {data?.registros_detalle?.length > 0 && (
             <div className="space-y-2">
-              <h3 className="text-lg font-bold text-gray-800">📋 Registros Detalle</h3>
-              <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto max-h-[500px] overflow-y-auto">
-                <table className="w-full text-xs">
-                  <thead className="bg-gray-50 sticky top-0">
+              <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--inj-text)' }}>📋 Registros Detalle</h3>
+              <div style={{ background: 'var(--inj-surface)', border: '1px solid var(--inj-border)', borderRadius: 12, overflowX: 'auto', maxHeight: 500, overflowY: 'auto' }}>
+                <table className="w-full text-xs" style={{ color: 'var(--inj-text)' }}>
+                  <thead style={{ background: 'var(--inj-surface2)', position: 'sticky', top: 0 }}>
                     <tr>
                       <th className="px-3 py-2 text-left">Fecha</th>
                       <th className="px-3 py-2 text-left">Turno</th>
@@ -543,18 +595,18 @@ export default function DashboardInyeccionTab() {
                       <th className="px-3 py-2 text-right">Scrap %</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody>
                     {data.registros_detalle.map((r: any) => (
-                      <tr key={r.id} className="hover:bg-gray-50">
-                        <td className="px-3 py-2">{r.fecha?.slice(0, 10) || '—'}</td>
+                      <tr key={r.id} style={{ borderTop: '1px solid var(--inj-border)' }}>
+                        <td className="px-3 py-2" style={{ color: 'var(--inj-muted)' }}>{r.fecha?.slice(0, 10) || '—'}</td>
                         <td className="px-3 py-2">{r.turno}</td>
-                        <td className="px-3 py-2 font-medium">{r.numero_parte}</td>
+                        <td className="px-3 py-2" style={{ fontWeight: 600 }}>{r.numero_parte}</td>
                         <td className="px-3 py-2">{r.cliente}</td>
                         <td className="px-3 py-2">{r.maquina}</td>
                         <td className="px-3 py-2 text-right">{formatNumber(r.produccion_total)}</td>
-                        <td className="px-3 py-2 text-right text-emerald-600 font-medium">{formatNumber(r.produccion_buena)}</td>
-                        <td className="px-3 py-2 text-right text-orange-600">{formatNumber(r.scrap_total)}</td>
-                        <td className="px-3 py-2 text-right text-red-600">{r.tiempo_paro_total}</td>
+                        <td className="px-3 py-2 text-right" style={{ color: '#10b981', fontWeight: 600 }}>{formatNumber(r.produccion_buena)}</td>
+                        <td className="px-3 py-2 text-right" style={{ color: '#f97316' }}>{formatNumber(r.scrap_total)}</td>
+                        <td className="px-3 py-2 text-right" style={{ color: '#ef4444' }}>{r.tiempo_paro_total}</td>
                         <td className="px-3 py-2 text-right">{r.produccion_porcentaje}%</td>
                         <td className="px-3 py-2 text-right">{r.scrap_porcentaje}%</td>
                       </tr>
@@ -568,9 +620,9 @@ export default function DashboardInyeccionTab() {
       )}
 
       {!loading && !data && (
-        <div className="bg-gray-50 rounded-xl border border-gray-200 p-12 text-center">
-          <p className="text-4xl mb-3">📊</p>
-          <p className="text-gray-400">No hay datos para mostrar. Ajusta los filtros.</p>
+        <div style={{ background: 'var(--inj-surface)', border: '1px solid var(--inj-border)', borderRadius: 12, padding: 48, textAlign: 'center' }}>
+          <p style={{ fontSize: 40, marginBottom: 12 }}>📊</p>
+          <p style={{ color: 'var(--inj-muted)' }}>No hay datos para mostrar. Ajusta los filtros.</p>
         </div>
       )}
     </div>

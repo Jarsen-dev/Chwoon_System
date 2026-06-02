@@ -19,6 +19,10 @@ interface Proveedor {
   condiciones_pago: string;
   dias_credito: number;
   estatus_calidad: string;
+  direccion?: string;
+  nombre_contacto?: string;
+  numero_contacto?: string;
+  correo_contacto?: string;
   notas: string;
   score_calidad?: number;
   score_detalle?: Record<string, any>;
@@ -55,9 +59,13 @@ export default function ProveedoresTab({ token }: { token: string }) {
   const [razonSocial, setRazonSocial] = useState('');
   const [rfc, setRfc] = useState('');
   const [leadTime, setLeadTime] = useState(7);
-  const [condiciones, setCondiciones] = useState('30 días');
+  const [condiciones, setCondiciones] = useState('Crédito');
   const [diasCredito, setDiasCredito] = useState(30);
   const [estatusCalidad, setEstatusCalidad] = useState('Aprobado');
+  const [direccion, setDireccion] = useState('');
+  const [nombreContacto, setNombreContacto] = useState('');
+  const [numeroContacto, setNumeroContacto] = useState('');
+  const [correoContacto, setCorreoContacto] = useState('');
   const [notas, setNotas] = useState('');
   
   // Matriz de materiales dinámica dentro del form
@@ -146,9 +154,13 @@ export default function ProveedoresTab({ token }: { token: string }) {
     setRazonSocial('');
     setRfc('');
     setLeadTime(7);
-    setCondiciones('30 días');
+    setCondiciones('Crédito');
     setDiasCredito(30);
     setEstatusCalidad('Aprobado');
+    setDireccion('');
+    setNombreContacto('');
+    setNumeroContacto('');
+    setCorreoContacto('');
     setNotas('');
     setMaterialesForm([]);
     setModalOpen(true);
@@ -161,11 +173,15 @@ export default function ProveedoresTab({ token }: { token: string }) {
     setRazonSocial(proveedor.razon_social);
     setRfc(proveedor.rfc);
     setLeadTime(proveedor.lead_time_dias);
-    setCondiciones(proveedor.condiciones_pago || '');
+    setCondiciones(proveedor.condiciones_pago || 'Crédito');
     setDiasCredito(proveedor.dias_credito || 30);
     setEstatusCalidad(proveedor.estatus_calidad);
+    setDireccion(proveedor.direccion || '');
+    setNombreContacto(proveedor.nombre_contacto || '');
+    setNumeroContacto(proveedor.numero_contacto || '');
+    setCorreoContacto(proveedor.correo_contacto || '');
     setNotas(proveedor.notas || '');
-    setMaterialesForm([...proveedor.materiales]); // Clonar materiales existentes
+    setMaterialesForm([...proveedor.materiales]);
     setModalOpen(true);
   };
 
@@ -217,6 +233,10 @@ export default function ProveedoresTab({ token }: { token: string }) {
         condiciones_pago: condiciones,
         dias_credito: Number(diasCredito),
         estatus_calidad: estatusCalidad,
+        direccion: direccion || undefined,
+        nombre_contacto: nombreContacto || undefined,
+        numero_contacto: numeroContacto || undefined,
+        correo_contacto: correoContacto || undefined,
         notas: notas,
         materiales: materialesForm
     };
@@ -532,14 +552,18 @@ export default function ProveedoresTab({ token }: { token: string }) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-4 gap-4">
+<div className="grid grid-cols-4 gap-4">
                 <div className="flex flex-col gap-1">
                   <label className="text-xs text-gray-400">Lead Time (Días)</label>
                   <input type="number" min="0" value={leadTime} onChange={(e) => setLeadTime(Number(e.target.value))} className="bg-gray-950 border border-gray-800 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500"/>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs text-gray-400">Condiciones Pago (Texto)</label>
-                  <input type="text" value={condiciones} onChange={(e) => setCondiciones(e.target.value)} className="bg-gray-950 border border-gray-800 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500"/>
+                  <label className="text-xs text-gray-400">Condiciones Pago</label>
+                  <select value={condiciones} onChange={(e) => setCondiciones(e.target.value)} className="bg-gray-950 border border-gray-800 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+                    <option value="Crédito">Crédito</option>
+                    <option value="Contado Efectivo">Contado Efectivo</option>
+                    <option value="Contado Transferencia">Contado Transferencia</option>
+                  </select>
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-xs text-gray-400">Días Crédito</label>
@@ -552,6 +576,28 @@ export default function ProveedoresTab({ token }: { token: string }) {
                     <option value="Condicional">Condicional</option>
                     <option value="Suspendido">Suspendido</option>
                   </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-gray-400">Dirección</label>
+                  <input type="text" value={direccion} onChange={(e) => setDireccion(e.target.value)} className="bg-gray-950 border border-gray-800 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500" placeholder="Calle, número, colonia, ciudad, CP"/>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-gray-400">Nombre Contacto</label>
+                  <input type="text" value={nombreContacto} onChange={(e) => setNombreContacto(e.target.value)} className="bg-gray-950 border border-gray-800 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500" placeholder="Nombre del contacto"/>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-gray-400">Número Contacto</label>
+                  <input type="text" value={numeroContacto} onChange={(e) => setNumeroContacto(e.target.value)} className="bg-gray-950 border border-gray-800 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500" placeholder="Teléfono fijo o móvil"/>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-gray-400">Correo Contacto</label>
+                  <input type="email" value={correoContacto} onChange={(e) => setCorreoContacto(e.target.value)} className="bg-gray-950 border border-gray-800 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500" placeholder="correo@ejemplo.com"/>
                 </div>
               </div>
 

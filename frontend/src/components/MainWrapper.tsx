@@ -9,10 +9,17 @@ export default function MainWrapper({
 }) {
   const pathname = usePathname()
 
-  // Admin y login ocupan toda la pantalla sin padding
   const fullScreen = pathname?.startsWith('/admin') ||
                      pathname === '/login' ||
-                     pathname === '/unauthorized'
+                     pathname === '/unauthorized' ||
+                     pathname?.startsWith('/compras') ||
+                     pathname?.startsWith('/ventas') ||
+                     pathname?.startsWith('/calidad') ||
+                     pathname?.startsWith('/produccion') ||
+                     pathname?.startsWith('/partes') ||
+                     pathname?.startsWith('/etiquetas') ||
+                     pathname?.startsWith('/almacen') ||
+                     pathname?.startsWith('/logistica')
 
   if (fullScreen) return <>{children}</>
 
