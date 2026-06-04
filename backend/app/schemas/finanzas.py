@@ -39,6 +39,7 @@ class OrdenCompraUpdate(BaseModel):
     nombre_proveedor: Optional[str] = None
     status: Optional[str] = None
     notas: Optional[str] = None
+    iva: Optional[float] = None
     items: Optional[List[OrdenCompraItemCreate]] = None
 
 
@@ -53,6 +54,12 @@ class OrdenCompraResponse(BaseModel):
     notas: Optional[str] = None
     creado_por: Optional[str] = None
     iva: float = 0.0
+    firma_compras: Optional[str] = None
+    fecha_firma_compras: Optional[datetime] = None
+    firma_finanzas: Optional[str] = None
+    fecha_firma_finanzas: Optional[datetime] = None
+    motivo_rechazo: Optional[str] = None
+    
     items: List[OrdenCompraItemResponse] = []
 
     class Config:
@@ -81,6 +88,10 @@ class RecepcionCompraResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class ValidarFinanzasRequest(BaseModel):
+    accion: str  # Puede ser "aprobar" o "rechazar"
+    motivo: Optional[str] = None
 
 
 # ========================
@@ -266,7 +277,7 @@ class ProveedorCreate(BaseModel):
     dias_credito: int = Field(default=30, ge=0)
     estatus_calidad: str = "Aprobado"
     direccion: Optional[str] = None
-    nombre_ventas: Optional[str] = None
+    nombre_contacto: Optional[str] = None
     numero_contacto: Optional[str] = None
     correo_contacto: Optional[str] = None
     notas: Optional[str] = None
@@ -280,7 +291,7 @@ class ProveedorUpdate(BaseModel):
     dias_credito: Optional[int] = None
     estatus_calidad: Optional[str] = None
     direccion: Optional[str] = None
-    nombre_ventas: Optional[str] = None
+    nombre_contacto: Optional[str] = None
     numero_contacto: Optional[str] = None
     correo_contacto: Optional[str] = None
     notas: Optional[str] = None
@@ -296,7 +307,7 @@ class ProveedorResponse(BaseModel):
     dias_credito: Optional[int] = None
     estatus_calidad: str
     direccion: Optional[str] = None
-    nombre_ventas: Optional[str] = None
+    nombre_contacto: Optional[str] = None
     numero_contacto: Optional[str] = None
     correo_contacto: Optional[str] = None
     notas: Optional[str]

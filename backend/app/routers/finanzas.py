@@ -9,10 +9,12 @@ from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from datetime import datetime, timezone, timedelta, date
 from fastapi.responses import StreamingResponse
-from reportlab.pdfgen import canvas as pdf_canvas
-from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image as RLImage
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
 from reportlab.lib.units import inch
-from reportlab.lib.utils import ImageReader
+from reportlab.lib.enums import TA_RIGHT, TA_CENTER, TA_LEFT
+from reportlab.lib.pagesizes import letter
 
 from app.core.deps import get_db
 from app.core.deps import get_current_user
@@ -23,6 +25,8 @@ from app.models.devolucion import Devolucion
 from app.models.plan_ventas import PlanVentas
 from app.models.empresa  import ConfiguracionEmpresa, ContactoEmpresa
 from app.services.pdf_generator import generar_pdf_orden_compra
+from app.core.deps import get_db, get_current_user, get_current_compras, get_current_finanzas
+from app.schemas.finanzas import ValidarFinanzasRequest
 from app.schemas.finanzas import (
     OrdenCompraCreate, OrdenCompraUpdate, OrdenCompraResponse, ProveedorCreate, ProveedorResponse, ProveedorUpdate,
     RecepcionCompraCreate, RecepcionCompraResponse,
@@ -225,7 +229,7 @@ async def crear_orden_compra(
         oc_id=oc_id,
         id_proveedor=data.id_proveedor,
         nombre_proveedor=data.nombre_proveedor,
-        status="Creada",
+        status="Pendiente de Firma",
         origen="FINANZAS",
         notas=data.notas,
         creado_por=current_user.username,
@@ -248,6 +252,75 @@ async def crear_orden_compra(
 
     await db.commit()
     return {"message": f"Orden de compra {oc_id} creada", "oc_id": oc_id, "id": orden.id}
+
+# ==========================================
+# FIRMA DE COMPRAS
+# ==========================================
+@router.post("/compras/{oc_id}/firmar-compras")
+async def firmar_orden_compras(
+    oc_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user = Depends(get_current_compras)  # <-- Validación automática de rol Compras
+):
+    result = await db.execute(select(OrdenCompra).where(OrdenCompra.oc_id == oc_id))
+    orden = result.scalar_one_or_none()
+    
+    if not orden:
+        raise HTTPException(status_code=404, detail="Orden no encontrada")
+        
+    if orden.status not in ["Pendiente de Firma", "Rechazada"]:
+        raise HTTPException(status_code=400, detail=f"No se puede firmar una orden en estado: {orden.status}")
+
+    # Estampar firma digital
+    orden.firma_compras = current_user.username
+    orden.fecha_firma_compras = func.now()
+    orden.status = "Pendiente de Firma" # Aseguramos estado si venía de Rechazada
+    orden.motivo_rechazo = None # Limpiamos motivos anteriores
+    
+    await db.commit()
+    return {"message": "Firma de Compras registrada exitosamente"}
+
+
+# ==========================================
+# VALIDACIÓN DE FINANZAS
+# ==========================================
+@router.post("/compras/{oc_id}/validar-finanzas")
+async def validar_orden_finanzas(
+    oc_id: str,
+    payload: ValidarFinanzasRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user = Depends(get_current_finanzas)  # <-- Validación automática de rol Finanzas
+):
+    result = await db.execute(select(OrdenCompra).where(OrdenCompra.oc_id == oc_id))
+    orden = result.scalar_one_or_none()
+    
+    if not orden:
+        raise HTTPException(status_code=404, detail="Orden no encontrada")
+        
+    if not orden.firma_compras:
+        raise HTTPException(status_code=400, detail="La orden debe ser firmada por Compras primero")
+
+    if payload.accion == "aprobar":
+        orden.firma_finanzas = current_user.username
+        orden.fecha_firma_finanzas = func.now()
+        orden.status = "Autorizada"
+        mensaje = "Orden Autorizada exitosamente"
+        
+    elif payload.accion == "rechazar":
+        if not payload.motivo:
+            raise HTTPException(status_code=400, detail="Debe proporcionar un motivo para el rechazo")
+        
+        orden.status = "Rechazada"
+        orden.motivo_rechazo = payload.motivo
+        # BORRAMOS la firma de compras para obligar a re-revisión
+        orden.firma_compras = None
+        orden.fecha_firma_compras = None
+        mensaje = "Orden Rechazada. Se ha devuelto a Compras."
+    else:
+        raise HTTPException(status_code=400, detail="Acción no válida")
+
+    await db.commit()
+    return {"message": mensaje, "nuevo_status": orden.status}
 
 
 @router.post("/compras/{oc_id}/aprobar")
@@ -374,6 +447,9 @@ async def generar_pdf_orden_compra(
 ):
     require_compras_role(current_user)
 
+    # ==========================================
+    # 1. EXTRACCIÓN Y PREPARACIÓN DE DATOS
+    # ==========================================
     result = await db.execute(select(OrdenCompra).where(OrdenCompra.oc_id == oc_id))
     orden = result.scalar_one_or_none()
     if not orden:
@@ -384,80 +460,232 @@ async def generar_pdf_orden_compra(
     )
     items = items_result.scalars().all()
 
-    buffer = io.BytesIO()
-    c = pdf_canvas.Canvas(buffer, pagesize=letter)
-    width, height = letter
+    # Obtener datos del proveedor (receptor)
+    # Validamos si el id_proveedor guardado es un entero o un UUID string (ej. 'PROV-C7BE10')
+    if isinstance(orden.id_proveedor, int) or str(orden.id_proveedor).isdigit():
+        prov_result = await db.execute(select(Proveedor).where(Proveedor.id == int(orden.id_proveedor)))
+    else:
+        prov_result = await db.execute(select(Proveedor).where(Proveedor.uuid == str(orden.id_proveedor)))
+        
+    proveedor = prov_result.scalar_one_or_none()
 
+    # Obtener datos de la empresa (emisor)
+    empresa_result = await db.execute(select(ConfiguracionEmpresa).limit(1))
+    empresa = empresa_result.scalar_one_or_none()
+
+    # Cálculos financieros
+    subtotal = sum(i.cantidad_requerida * i.precio_unitario for i in items)
+    
+    # Manejo robusto del IVA
+    raw_iva = orden.iva if orden.iva is not None else 0.0
+    try:
+        val_iva = float(raw_iva)
+    except (ValueError, TypeError):
+        val_iva = 0.0
+        
+    if val_iva >= 1.0:
+        porcentaje_iva = val_iva
+        monto_iva = subtotal * (porcentaje_iva / 100.0)
+    else:
+        porcentaje_iva = val_iva * 100.0
+        monto_iva = subtotal * val_iva
+
+    total = subtotal + monto_iva
+    moneda_oc = items[0].moneda if items else "MXN"
+
+    # ==========================================
+    # 2. CONFIGURACIÓN DEL DOCUMENTO (PLATYPUS)
+    # ==========================================
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer, pagesize=letter,
+        rightMargin=30, leftMargin=30,
+        topMargin=30, bottomMargin=30,
+        title=f"Orden de Compra {oc_id}",
+        author="Cheong Woon Mexico"
+    )
+    elements = []
+    styles = getSampleStyleSheet()
+
+    # Estilos de texto personalizados
+    title_style = ParagraphStyle(name="TitleStyle", parent=styles["Heading1"], fontSize=16, textColor=colors.HexColor("#333333"))
+    normal_style = styles["Normal"]
+    right_style = ParagraphStyle(name="RightStyle", parent=styles["Normal"], alignment=TA_RIGHT)
+
+    # ==========================================
+    # 3. ENCABEZADO (Logo y Folio)
+    # ==========================================
     logo_path = os.path.join("static", "Logo.png")
     if os.path.exists(logo_path):
-        c.drawImage(
-            logo_path, inch, height - 1.5 * inch,
-            width=1.5 * inch, height=0.75 * inch,
-            preserveAspectRatio=True, mask="auto",
-        )
+        logo = RLImage(logo_path, width=1.5 * inch, height=0.75 * inch)
+    else:
+        logo = Paragraph("<b>Cheong Woon</b>", title_style)
 
+    fecha_str = orden.fecha_creacion.strftime("%Y-%m-%d") if orden.fecha_creacion else "N/A"
+
+    header_data = [
+        [logo, Paragraph(f"<b>ORDEN DE COMPRA</b><br/>Folio: <b>{oc_id}</b><br/>Fecha: {fecha_str}", right_style)]
+    ]
+    
+    header_table = Table(header_data, colWidths=[3 * inch, 4.5 * inch])
+    header_table.setStyle(TableStyle([
+        ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+    ]))
+    elements.append(header_table)
+    elements.append(Spacer(1, 20))
+
+    # ==========================================
+    # 4. BLOQUE DE INFORMACIÓN (Emisor / Receptor)
+    # ==========================================
+    # Extraer datos exactos basados en el modelo ConfiguracionEmpresa
+    if empresa:
+        razon_social_empresa = empresa.nombre
+        rfc_empresa = empresa.rfc or "N/A"
+        
+        # Armar la dirección completa omitiendo campos vacíos
+        direccion_empresa = empresa.direccion if empresa.direccion else "N/A"
+    else:
+        razon_social_empresa = "Cheong Woon Mexico"
+        rfc_empresa = "N/A"
+        direccion_empresa = "N/A"
+
+    # Datos del Proveedor
+    razon_social_prov = proveedor.razon_social if proveedor else orden.nombre_proveedor
+    rfc_prov = proveedor.rfc if proveedor else "N/A"
+
+    # Usamos getattr por seguridad si la columna llega a estar vacía
+    direccion_prov = getattr(proveedor, 'direccion', None) or "N/A"
+    cond_pago_prov = proveedor.condiciones_pago if proveedor else "N/A"
+    dias_credito = getattr(proveedor, 'dias_credito', None) or 0
+
+    emisor_text = f"""
+    <b>Facturar y Entregar a:</b><br/>
+    Razón Social: {razon_social_empresa}<br/>
+    RFC: {rfc_empresa}<br/>
+    Dirección: {direccion_empresa}
+    """
+
+    receptor_text = f"""
+    <b>Datos del Proveedor:</b><br/>
+    Razón Social: {razon_social_prov}<br/>
+    RFC: {rfc_prov}<br/>
+    Dirección: {direccion_prov}<br/>
+    Condiciones de Pago: {cond_pago_prov} ({dias_credito} días)
+    """
+
+    info_data = [[Paragraph(emisor_text, normal_style), Paragraph(receptor_text, normal_style)]]
+    info_table = Table(info_data, colWidths=[3.75 * inch, 3.75 * inch])
+    info_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor("#f9f9f9")),
+        ('BOX', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('PADDING', (0, 0), (-1, -1), 10),
+    ]))
+    elements.append(info_table)
+    elements.append(Spacer(1, 20))
+
+    # ==========================================
+    # 5. TABLA DE PARTIDAS (ITEMS)
+    # ==========================================
+    items_data = [["Partida", "SKU", "Descripción", "Cantidad", "P. Unitario", "Importe"]]
+    for idx, item in enumerate(items, 1):
+        importe = item.cantidad_requerida * item.precio_unitario
+        items_data.append([
+            str(idx),
+            item.sku_producto,
+            Paragraph(item.nombre_producto, normal_style),
+            str(item.cantidad_requerida),
+            f"${item.precio_unitario:,.2f}",
+            f"${importe:,.2f}"
+        ])
+
+    items_table = Table(items_data, colWidths=[0.6 * inch, 1.2 * inch, 2.7 * inch, 0.8 * inch, 1 * inch, 1.2 * inch])
+    items_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#333333")),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('ALIGN', (2, 1), (2, -1), 'LEFT'),  # Descripción alineada a la izquierda
+        ('ALIGN', (4, 1), (5, -1), 'RIGHT'), # Precios alineados a la derecha
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    ]))
+    elements.append(items_table)
+    elements.append(Spacer(1, 15))
+
+    # ==========================================
+    # 6. RESUMEN FINANCIERO
+    # ==========================================
+    summary_data = [
+        ["Subtotal:", f"${subtotal:,.2f} {moneda_oc}"],
+        [f"IVA ({porcentaje_iva:g}%):", f"${monto_iva:,.2f} {moneda_oc}"],
+        ["Total:", f"${total:,.2f} {moneda_oc}"]
+    ]
+    summary_table = Table(summary_data, colWidths=[1.5 * inch, 1.5 * inch])
+    summary_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
+        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'), # Total en negritas
+        ('LINEABOVE', (0, -1), (-1, -1), 1, colors.black),
+    ]))
+
+    # Envolvemos la tabla resumen en una tabla invisible para alinearla a la derecha
+    container_data = [["", summary_table]]
+    container_table = Table(container_data, colWidths=[4.5 * inch, 3 * inch])
+    container_table.setStyle(TableStyle([('ALIGN', (1, 0), (1, 0), 'RIGHT')]))
+    elements.append(container_table)
+    elements.append(Spacer(1, 50)) # Espacio antes de las firmas
+
+    # ==========================================
+    # 7. PIE DE PÁGINA (QR y Firmas)
+    # ==========================================
+    # Generar código QR con el folio de la OC
     qr_img = qrcode.make(oc_id)
     qr_buffer = io.BytesIO()
     qr_img.save(qr_buffer, format="PNG")
     qr_buffer.seek(0)
-    c.drawImage(
-        ImageReader(qr_buffer),
-        width - 1.75 * inch, height - 1.5 * inch,
-        width=1.2 * inch, height=1.2 * inch,
-    )
+    qr_rl = RLImage(qr_buffer, width=1.2 * inch, height=1.2 * inch)
 
-    c.setFont("Helvetica-Bold", 18)
-    c.drawString(inch, height - 2.25 * inch, f"Orden de Compra: {oc_id}")
+    # Estilo centrado para las firmas
+    center_style = ParagraphStyle(name="CenterStyle", parent=styles["Normal"], alignment=TA_CENTER)
 
-    c.setFont("Helvetica", 12)
-    y = height - 2.6 * inch
-    fecha_str = orden.fecha_creacion.strftime("%Y-%m-%d") if orden.fecha_creacion else "N/A"
-    c.drawString(inch, y, f"Fecha de Creación: {fecha_str}")
-    y -= 0.25 * inch
-    c.drawString(inch, y, f"Proveedor: {orden.nombre_proveedor}")
-    y -= 0.25 * inch
-    c.drawString(inch, y, f"Estado: {orden.status}")
+    # Función para dibujar la firma o dejar la línea en blanco
+    def formatear_firma(nombre, fecha):
+        linea_blanco = "_________________________"
+        if nombre and fecha:
+            fecha_str = fecha.strftime("%Y-%m-%d %H:%M")
+            # Agregamos un <br/> y la línea debajo del texto
+            return Paragraph(
+                f"<font size=8 color='#10b981'><b>Firmado digitalmente por:</b></font><br/>"
+                f"<b>{nombre}</b><br/>"
+                f"<font size=8>{fecha_str}</font><br/>"
+                f"{linea_blanco}", 
+                center_style
+            )
+        return linea_blanco
 
-    y -= 0.7 * inch
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(inch, y, "Productos Solicitados")
-    y -= 0.3 * inch
+    # Extraemos las firmas del objeto orden
+    firma_compras_rl = formatear_firma(getattr(orden, 'firma_compras', None), getattr(orden, 'fecha_firma_compras', None))
+    firma_finanzas_rl = formatear_firma(getattr(orden, 'firma_finanzas', None), getattr(orden, 'fecha_firma_finanzas', None))
 
-    for item in items:
-        c.setStrokeColorRGB(0.8, 0.8, 0.8)
-        c.line(inch, y, width - inch, y)
-        y -= 0.25 * inch
+    firmas_data = [
+        [qr_rl, firma_compras_rl, firma_finanzas_rl],
+        ["", "Compras", "Finanzas"]
+    ]
+    firmas_table = Table(firmas_data, colWidths=[2.5 * inch, 2.5 * inch, 2.5 * inch])
+    firmas_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (0, -1), 'LEFT'),      # QR centrado/izq
+        ('ALIGN', (1, 0), (-1, -1), 'CENTER'),   # Firmas centradas
+        ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),  # Alineado a la base
+    ]))
+    elements.append(firmas_table)
 
-        c.setFont("Helvetica-Bold", 11)
-        c.drawString(inch, y, f"SKU: {item.sku_producto}")
-        y -= 0.2 * inch
-
-        c.setFont("Helvetica", 11)
-        c.drawString(inch + 0.2 * inch, y, f"Nombre: {item.nombre_producto}")
-        y -= 0.2 * inch
-        c.drawString(inch + 0.2 * inch, y, f"Cantidad Requerida: {item.cantidad_requerida}")
-        y -= 0.2 * inch
-        c.drawString(inch + 0.2 * inch, y, f"Cantidad Recibida: {item.cantidad_recibida}")
-        y -= 0.2 * inch
-        c.drawString(inch + 0.2 * inch, y, f"Precio Unitario: ${item.precio_unitario:,.2f} {item.moneda}")
-        y -= 0.4 * inch
-
-        if y < inch:
-            c.showPage()
-            c.setFont("Helvetica-Bold", 12)
-            c.drawString(inch, height - inch, f"Orden de Compra: {oc_id} (Continuación)")
-            y = height - 1.5 * inch
-            c.setFont("Helvetica", 11)
-
-    valor_total = sum(i.cantidad_requerida * i.precio_unitario for i in items)
-    y -= 0.2 * inch
-    c.setStrokeColorRGB(0.3, 0.3, 0.3)
-    c.line(inch, y, width - inch, y)
-    y -= 0.3 * inch
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(inch, y, f"Valor Total: ${valor_total:,.2f} MXN")
-
-    c.save()
+    # ==========================================
+    # 8. CONSTRUCCIÓN Y RETORNO DEL PDF
+    # ==========================================
+    doc.build(elements)
     buffer.seek(0)
 
     return StreamingResponse(
@@ -1210,6 +1438,10 @@ async def crear_proveedor(
         condiciones_pago=data.condiciones_pago,
         dias_credito=data.dias_credito,
         estatus_calidad=data.estatus_calidad,
+        direccion=data.direccion,
+        nombre_ventas=data.nombre_contacto,
+        numero_contacto=data.numero_contacto,
+        correo_contacto=data.correo_contacto,
         notas=data.notas,
     )
     db.add(proveedor)
@@ -1263,6 +1495,14 @@ async def actualizar_proveedor(
         proveedor.dias_credito = data.dias_credito
     if data.estatus_calidad is not None:
         proveedor.estatus_calidad = data.estatus_calidad
+    if data.direccion is not None:
+        proveedor.direccion = data.direccion
+    if data.nombre_contacto is not None:
+        proveedor.nombre_ventas = data.nombre_contacto
+    if data.numero_contacto is not None:
+        proveedor.numero_contacto = data.numero_contacto
+    if data.correo_contacto is not None:
+        proveedor.correo_contacto = data.correo_contacto
     if data.notas is not None:
         proveedor.notas = data.notas
 

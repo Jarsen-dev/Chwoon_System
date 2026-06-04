@@ -105,7 +105,7 @@ export default function OrdenesProduccionTab() {
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-800">📋 Órdenes de Producción</h2>
+        <h2 className="text-2xl font-bold text-white">📋 Órdenes de Producción</h2>
         <button onClick={cargar} disabled={loading}
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
           {loading ? '⏳ Cargando...' : '🔄 Actualizar'}
@@ -115,8 +115,8 @@ export default function OrdenesProduccionTab() {
       {/* Mensaje */}
       {mensaje && (
         <div className={`p-3 rounded-lg text-sm font-medium ${
-          mensaje.tipo === 'ok' ? 'bg-green-500/10 text-green-400 border border-green-200'
-            : 'bg-red-500/100/10 text-red-400 border border-red-200'
+          mensaje.tipo === 'ok' ? 'bg-green-500/10 text-green-400 border border-green-500/30'
+            : 'bg-red-500/100/10 text-red-400 border border-red-500/30'
         }`}>
           {mensaje.texto}
         </div>
@@ -170,7 +170,7 @@ export default function OrdenesProduccionTab() {
                 <th className="px-4 py-3 text-center font-semibold text-gray-400">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-gray-700">
               {ordenesFiltradas.map(op => {
                 const tipoBadge = TIPO_BADGES[op.tipo] || { icon: '📄', color: 'text-gray-400' }
                 const statusBadge = STATUS_BADGES[op.status] || { bg: 'bg-gray-800', text: 'text-gray-800' }
@@ -222,7 +222,7 @@ export default function OrdenesProduccionTab() {
           <div className="bg-gray-900 rounded-2xl shadow-xl w-full max-w-3xl max-h-[85vh] overflow-y-auto m-4" onClick={e => e.stopPropagation()}>
             <div className="sticky top-0 bg-gray-900 border-b border-gray-700 px-6 py-4 flex items-center justify-between rounded-t-2xl">
               <div>
-                <h3 className="text-lg font-bold text-gray-800">Orden: {detalle.op_id}</h3>
+                <h3 className="text-lg font-bold text-white">Orden: {detalle.op_id}</h3>
                 <p className="text-sm text-gray-400">{detalle.clase_produccion} — {detalle.nombre_producto || detalle.sku_producto}</p>
               </div>
               <button onClick={() => setShowDetalle(false)} className="text-gray-400 hover:text-gray-400 text-2xl">×</button>
@@ -262,7 +262,7 @@ export default function OrdenesProduccionTab() {
                           <th className="px-3 py-2 text-right text-gray-400">Cantidad</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-200">
+                      <tbody className="divide-y divide-gray-700">
                         {detalle.material_consumido.map((m: any, i: number) => (
                           <tr key={i}>
                             <td className="px-3 py-2 font-mono text-xs">{m.lote_id}</td>
@@ -301,7 +301,7 @@ export default function OrdenesProduccionTab() {
                   <div className="space-y-2">
                     {detalle.paros.map((p: any, i: number) => (
                       <div key={i} className={`rounded-lg p-3 text-sm flex justify-between items-center ${
-                        p.status === 'Activo' ? 'bg-red-500/100/10 border border-red-200' : 'bg-gray-800'
+                        p.status === 'Activo' ? 'bg-red-500/100/10 border border-red-500/30' : 'bg-gray-800'
                       }`}>
                         <span className="font-medium">{p.motivo}</span>
                         <span className="text-gray-400">
@@ -352,7 +352,7 @@ function InfoCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="bg-gray-800 rounded-lg p-3">
       <p className="text-xs text-gray-400 mb-1">{label}</p>
-      <p className="font-medium text-gray-800 text-sm truncate">{value}</p>
+      <p className="font-medium text-gray-200 text-sm truncate">{value}</p>
     </div>
   )
 }

@@ -271,6 +271,8 @@ export const TABS_POR_MODULO: Record<string, { id: string; label: string }[]> = 
   compras: [
     { id: 'dashboard', label: '📊 Dashboard' },
     { id: 'compras',   label: '🛒 Compras'   },
+    { id: 'proveedores', label: '🤝 Proveedores' },
+    { id: 'validacion',  label: '⚖️ Validación'  },
   ],
   ventas: [
     { id: 'dashboard',   label: '📊 Dashboard'   },
@@ -332,6 +334,12 @@ export interface OrdenCompra {
   aprobado_por?:       string
   items:               OrdenCompraItem[]
   recepciones?:        RecepcionCompra[]
+  motivo_rechazo?:     string
+  iva?:               number
+  firma_compras?:     string
+  fecha_firma_compras?: string
+  firma_finanzas?:     string
+  fecha_firma_finanzas?: string
 }
 
 export interface ProveedorMaterialItem {
@@ -353,7 +361,7 @@ export interface ProveedorItem {
   dias_credito?: number
   estatus_calidad: string
   direccion?: string
-  nombre_ventas?: string
+  nombre_contacto?: string
   numero_contacto?: string
   correo_contacto?: string
   notas?: string

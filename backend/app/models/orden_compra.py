@@ -19,6 +19,11 @@ class Proveedor(Base):
     estatus_calidad = Column(String(50), default="Aprobado")  # Aprobado | Condicional | Suspendido
     direccion = Column(String(300), nullable=True)
     nombre_ventas = Column(String(100), nullable=True)
+
+    @property
+    def nombre_contacto(self):
+        return self.nombre_ventas
+
     numero_contacto = Column(String(20), nullable=True)
     correo_contacto = Column(String(100), nullable=True)
     notas = Column(Text, nullable=True)
@@ -80,6 +85,11 @@ class OrdenCompra(Base):
     creado_por = Column(String(100), nullable=True)
     aprobado_por = Column(String(100), nullable=True)
     iva = Column(Float, default=0.0)
+    firma_compras = Column(String(200), nullable=True)
+    fecha_firma_compras = Column(DateTime(timezone=True), nullable=True)
+    firma_finanzas = Column(String(200), nullable=True)
+    fecha_firma_finanzas = Column(DateTime(timezone=True), nullable=True)
+    motivo_rechazo = Column(Text, nullable=True)
 
     rel_proveedor = relationship("Proveedor", back_populates="ordenes_compra")
     items = relationship("OrdenCompraItem", back_populates="orden_compra", cascade="all, delete-orphan")

@@ -62,7 +62,7 @@ function getBarColor(pct: number): string {
 function getTipoBadge(tipo: string): string {
   switch (tipo) {
     case 'FRAUDE':        return 'bg-red-500/20 text-red-300 border-red-500/40'
-    case 'MANTENIMIENTO': return 'bg-orange-500/20 text-orange-800 border-orange-500/40'
+    case 'MANTENIMIENTO': return 'bg-orange-500/20 text-orange-300 border-orange-500/40'
     case 'LENTITUD_PLAN': return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40'
     default:              return 'bg-gray-800 text-gray-300 border-gray-600'
   }
@@ -241,7 +241,7 @@ export default function HomeDashboardTab({ token, rol }: Props) {
       {/* ═══ REPORTES ═══ */}
       {showReportes && (
         <div className="bg-gray-900 rounded-xl shadow-sm border border-gray-700 overflow-hidden mb-6">
-          <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between bg-gradient-to-r from-purple-50 to-white">
+          <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between bg-gradient-to-r from-purple-500/10 to-gray-900">
             <div>
               <h3 className="text-base font-bold text-white flex items-center gap-2">📈 Reportes por Turno</h3>
               <p className="text-xs text-gray-400 mt-0.5">Historial — últimos {reportes.length} turnos</p>

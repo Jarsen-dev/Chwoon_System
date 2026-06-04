@@ -378,14 +378,14 @@ export default function PartesTab() {
                 min="1"
                 value={queueQty}
                 onChange={(e) => setQueueQty(e.target.value)}
-                className="w-full border-2 border-gray-600 p-3 rounded-lg focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none text-2xl text-center font-bold mb-4 transition-all"
+                className="w-full bg-gray-800 text-white border-2 border-gray-600 p-3 rounded-lg focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none text-2xl text-center font-bold mb-4 transition-all"
                 required
               />
               <label className="block text-sm font-semibold text-gray-300 mb-1">Turno</label>
               <select
                 value={turnoQueue}
                 onChange={(e) => setTurnoQueue(e.target.value as 'Día' | 'Noche')}
-                className="w-full border-2 border-gray-600 p-2.5 rounded-lg focus:border-blue-500 outline-none mb-6"
+                className="w-full bg-gray-800 text-gray-200 border-2 border-gray-600 p-2.5 rounded-lg focus:border-blue-500 outline-none mb-6"
               >
                 <option value="Día">Día</option>
                 <option value="Noche">Noche</option>
@@ -425,7 +425,7 @@ export default function PartesTab() {
               type="text"
               value={formData.codigo}
               onChange={(e) => setFormData({ ...formData, codigo: e.target.value })}
-              className="w-full border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+              className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
               required
               disabled={!!editing}
             />
@@ -436,7 +436,7 @@ export default function PartesTab() {
               type="text"
               value={formData.descripcion}
               onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-              className="w-full border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+              className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
               required
             />
           </div>
@@ -448,7 +448,7 @@ export default function PartesTab() {
               type="text"
               value={formData.linea}
               onChange={(e) => setFormData({ ...formData, linea: e.target.value })}
-              className="w-full border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+              className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
             />
           </div>
           <div>
@@ -456,7 +456,7 @@ export default function PartesTab() {
             <select
               value={formData.tipo}
               onChange={(e) => setFormData({ ...formData, tipo: e.target.value })}
-              className="w-full border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+              className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
             >
               <option value="assy">assy</option>
               <option value="Packing">Packing</option>
@@ -473,7 +473,7 @@ export default function PartesTab() {
               onChange={(e) =>
                 setFormData({ ...formData, qtu: parseInt(e.target.value) || 1 })
               }
-              className="w-full border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+              className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
             />
           </div>
           <div>
@@ -481,7 +481,7 @@ export default function PartesTab() {
             <select
               value={formData.linea_lg}
               onChange={(e) => setFormData({ ...formData, linea_lg: e.target.value })}
-              className="w-full border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+              className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
             >
               <option value="R1">R1</option>
               <option value="R2">R2</option>
@@ -498,7 +498,7 @@ export default function PartesTab() {
               placeholder="https://..."
               value={formData.ayuda_visual}
               onChange={(e) => setFormData({ ...formData, ayuda_visual: e.target.value })}
-              className="w-full border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+              className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
             />
           </div>
         </div>
@@ -662,7 +662,7 @@ export default function PartesTab() {
                         ? 'bg-purple-500/20 text-purple-300'
                         : item.linea_lg === 'R2'
                         ? 'bg-green-500/20 text-green-400'
-                        : 'bg-gray-800 text-gray-800'
+                        : 'bg-gray-700 text-gray-300'
                     }`}
                   >
                     {item.linea_lg}

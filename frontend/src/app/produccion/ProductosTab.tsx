@@ -556,14 +556,14 @@ export default function ProductosTab() {
   // ── Badges de controles ──
   const controlBadge = (control: string) => {
     const colors: Record<string, string> = {
-      IQC: 'bg-orange-500/20 text-orange-800',
+      IQC: 'bg-orange-500/20 text-orange-400',
       LQC: 'bg-blue-500/20 text-blue-300',
       OQC: 'bg-green-500/20 text-green-400',
     }
     return (
       <span
         key={control}
-        className={`px-2 py-0.5 rounded-full text-xs font-bold ${colors[control] || 'bg-gray-800 text-gray-800'}`}
+        className={`px-2 py-0.5 rounded-full text-xs font-bold ${colors[control] || 'bg-gray-800 text-gray-400'}`}
       >
         {control}
       </span>
@@ -716,7 +716,7 @@ export default function ProductosTab() {
                     onChange={(e) =>
                       setNewBomItem({ ...newBomItem, sku_componente: e.target.value })
                     }
-                    className="w-full border border-gray-600 p-2 rounded text-sm focus:ring-2 focus:ring-indigo-200 focus:outline-none"
+                    className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded text-sm focus:ring-2 focus:ring-indigo-200 focus:outline-none"
                     placeholder="Ej: COMP-001"
                   />
                 </div>
@@ -735,7 +735,7 @@ export default function ProductosTab() {
                         cantidad: parseFloat(e.target.value) || 0,
                       })
                     }
-                    className="w-full border border-gray-600 p-2 rounded text-sm focus:ring-2 focus:ring-indigo-200 focus:outline-none"
+                    className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded text-sm focus:ring-2 focus:ring-indigo-200 focus:outline-none"
                   />
                 </div>
                 <button
@@ -816,7 +816,7 @@ export default function ProductosTab() {
                     type="text"
                     value={newPuntoInspeccion.nombre}
                     onChange={(e) => setNewPuntoInspeccion({ ...newPuntoInspeccion, nombre: e.target.value })}
-                    className="w-full border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+                    className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
                     required
                     placeholder="Ej: Dimensional"
                   />
@@ -834,7 +834,7 @@ export default function ProductosTab() {
                         especificacion: e.target.value,
                       })
                     }
-                    className="w-full border border-gray-600 p-2 rounded text-sm focus:ring-2 focus:ring-teal-200 focus:outline-none"
+                    className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded text-sm focus:ring-2 focus:ring-teal-200 focus:outline-none"
                     placeholder="10mm ± 0.5"
                   />
                 </div>
@@ -849,7 +849,7 @@ export default function ProductosTab() {
                       onChange={(e) =>
                         setNewPuntoInspeccion({ ...newPuntoInspeccion, metodo: e.target.value })
                       }
-                      className="w-full border border-gray-600 p-2 rounded text-sm focus:ring-2 focus:ring-teal-200 focus:outline-none"
+                      className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded text-sm focus:ring-2 focus:ring-teal-200 focus:outline-none"
                       placeholder="Calibrador"
                     />
                   </div>
@@ -984,8 +984,8 @@ export default function ProductosTab() {
 
               {/* BOM */}
               {detalleModal.bom && detalleModal.bom.length > 0 && (
-                <div className="mt-4 p-3 bg-indigo-50 rounded-lg">
-                  <h4 className="font-semibold text-indigo-800 text-sm mb-2">
+                <div className="mt-4 p-3 bg-indigo-500/10 rounded-lg">
+                  <h4 className="font-semibold text-indigo-300 text-sm mb-2">
                     📋 BOM ({detalleModal.bom.length} componentes)
                   </h4>
                   <div className="grid grid-cols-2 gap-1 text-xs">
@@ -1018,7 +1018,7 @@ export default function ProductosTab() {
               type="text"
               value={formData.sku}
               onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-              className="w-full border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+              className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
               required
               disabled={!!editing}
               placeholder="Ej: PROD-001"
@@ -1030,7 +1030,7 @@ export default function ProductosTab() {
               type="text"
               value={formData.modelo}
               onChange={(e) => setFormData({ ...formData, modelo: e.target.value })}
-              className="w-full border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+              className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
               required
               placeholder="Modelo del producto"
             />
@@ -1040,7 +1040,7 @@ export default function ProductosTab() {
             <select
               value={formData.tipo}
               onChange={(e) => setFormData({ ...formData, tipo: e.target.value })}
-              className="w-full border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+              className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
               required
             >
               <option value="">-- Seleccionar --</option>
@@ -1076,7 +1076,7 @@ export default function ProductosTab() {
             <select
               value={formData.clase_producto}
               onChange={(e) => setFormData({ ...formData, clase_producto: e.target.value })}
-              className="w-full border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+              className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
             >
               <option value="">-- Seleccionar --</option>
               {CLASES_PRODUCTO.map((c) => (
@@ -1093,7 +1093,7 @@ export default function ProductosTab() {
             <select
               value={formData.unidad_de_medida}
               onChange={(e) => setFormData({ ...formData, unidad_de_medida: e.target.value })}
-              className="w-full border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+              className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
             >
               <option value="">-- Seleccionar --</option>
               {UNIDADES_MEDIDA.map((u) => (
@@ -1110,7 +1110,7 @@ export default function ProductosTab() {
                 inputMode="numeric"
                 value={formData.cantidad_carrito}
                 onChange={(e) => setFormData({ ...formData, cantidad_carrito: e.target.value })}
-                className="w-full border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+                className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
                 placeholder="0"
             />
           </div>
@@ -1119,7 +1119,7 @@ export default function ProductosTab() {
             <select
                 value={formData.proveedor}
                 onChange={(e) => setFormData({ ...formData, proveedor: e.target.value })}
-                className="w-full border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+                className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
             >
                 <option value="">-- Seleccionar --</option>
                 {PROVEEDORES.map((p) => <option key={p} value={p}>{p}</option>)}
@@ -1131,7 +1131,7 @@ export default function ProductosTab() {
               type="text"
               value={formData.cliente}
               onChange={(e) => setFormData({ ...formData, cliente: e.target.value })}
-              className="w-full border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+              className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
             />
           </div>
           <div>
@@ -1140,7 +1140,7 @@ export default function ProductosTab() {
               type="text"
               value={formData.cliente_id}
               onChange={(e) => setFormData({ ...formData, cliente_id: e.target.value })}
-              className="w-full border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+              className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
             />
           </div>
           <div>
@@ -1151,7 +1151,7 @@ export default function ProductosTab() {
               type="text"
               value={formData.linea_produccion}
               onChange={(e) => setFormData({ ...formData, linea_produccion: e.target.value })}
-              className="w-full border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+              className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
             />
           </div>
           <div>
@@ -1160,7 +1160,7 @@ export default function ProductosTab() {
               type="text"
               value={formData.ubicacion}
               onChange={(e) => setFormData({ ...formData, ubicacion: e.target.value })}
-              className="w-full border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+              className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
             />
           </div>
           <div className="md:col-span-3">
@@ -1169,7 +1169,7 @@ export default function ProductosTab() {
               type="text"
               value={formData.descripcion}
               onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-              className="w-full border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+              className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
               placeholder="Descripción del producto..."
             />
           </div>
@@ -1177,7 +1177,7 @@ export default function ProductosTab() {
 
         {/* Características de Inyección */}
         {showInyeccion && (
-          <div className="mt-4 p-4 bg-blue-500/10 rounded-lg border border-blue-200">
+          <div className="mt-4 p-4 bg-blue-500/10 rounded-lg border border-blue-500/30">
             <h3 className="text-sm font-bold text-blue-300 mb-3">
               🏭 Características de Inyección
             </h3>
@@ -1187,7 +1187,7 @@ export default function ProductosTab() {
                 <select
                     value={inyeccionData.id_proceso}
                     onChange={(e) => setInyeccionData({ ...inyeccionData, id_proceso: e.target.value })}
-                    className="w-full border border-gray-600 p-1.5 rounded text-sm focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+                    className="w-full bg-gray-800 text-white border border-gray-600 p-1.5 rounded text-sm focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
                 >
                     <option value="">-- Seleccionar --</option>
                     {ID_PROCESOS.map((p) => <option key={p} value={p}>{p}</option>)}
@@ -1198,7 +1198,7 @@ export default function ProductosTab() {
                 <select
                     value={inyeccionData.tipo_resina}
                     onChange={(e) => setInyeccionData({ ...inyeccionData, tipo_resina: e.target.value })}
-                    className="w-full border border-gray-600 p-1.5 rounded text-sm focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+                    className="w-full bg-gray-800 text-white border border-gray-600 p-1.5 rounded text-sm focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
                 >
                     <option value="">-- Seleccionar --</option>
                     {TIPOS_RESINA.map((t) => <option key={t} value={t}>{t}</option>)}
@@ -1212,7 +1212,7 @@ export default function ProductosTab() {
                   onChange={(e) =>
                     setInyeccionData({ ...inyeccionData, resina: e.target.value })
                   }
-                  className="w-full border border-gray-600 p-1.5 rounded text-sm"
+                  className="w-full bg-gray-800 text-white border border-gray-600 p-1.5 rounded text-sm"
                 />
               </div>
               <div>
@@ -1222,7 +1222,7 @@ export default function ProductosTab() {
                     inputMode="decimal"
                     value={inyeccionData.densidad}
                     onChange={(e) => setInyeccionData({ ...inyeccionData, densidad: e.target.value })}
-                    className="w-full border border-gray-600 p-1.5 rounded text-sm"
+                    className="w-full bg-gray-800 text-white border border-gray-600 p-1.5 rounded text-sm"
                     placeholder="0.00"
                 />
               </div>
@@ -1233,7 +1233,7 @@ export default function ProductosTab() {
                     inputMode="decimal"
                     value={inyeccionData.peso}
                     onChange={(e) => setInyeccionData({ ...inyeccionData, peso: e.target.value })}
-                    className="w-full border border-gray-600 p-1.5 rounded text-sm"
+                    className="w-full bg-gray-800 text-white border border-gray-600 p-1.5 rounded text-sm"
                     placeholder="0.00"
                 />
               </div>
@@ -1244,7 +1244,7 @@ export default function ProductosTab() {
                     inputMode="decimal"
                     value={inyeccionData.peso_seco}
                     onChange={(e) => setInyeccionData({ ...inyeccionData, peso_seco: e.target.value })}
-                    className="w-full border border-gray-600 p-1.5 rounded text-sm"
+                    className="w-full bg-gray-800 text-white border border-gray-600 p-1.5 rounded text-sm"
                     placeholder="0.00"
                 />
               </div>
@@ -1255,7 +1255,7 @@ export default function ProductosTab() {
                     inputMode="numeric"
                     value={inyeccionData.cav}
                     onChange={(e) => setInyeccionData({ ...inyeccionData, cav: e.target.value })}
-                    className="w-full border border-gray-600 p-1.5 rounded text-sm"
+                    className="w-full bg-gray-800 text-white border border-gray-600 p-1.5 rounded text-sm"
                     placeholder="0"
                 />
               </div>
@@ -1266,7 +1266,7 @@ export default function ProductosTab() {
                     inputMode="decimal"
                     value={inyeccionData.ciclo}
                     onChange={(e) => setInyeccionData({ ...inyeccionData, ciclo: e.target.value })}
-                    className="w-full border border-gray-600 p-1.5 rounded text-sm"
+                    className="w-full bg-gray-800 text-white border border-gray-600 p-1.5 rounded text-sm"
                     placeholder="0.00"
                 />
               </div>
@@ -1491,12 +1491,12 @@ export default function ProductosTab() {
                   <span
                     className={`px-2 py-0.5 rounded-full text-xs font-bold ${
                       item.tipo === 'PRODUCTO FINAL'
-                        ? 'bg-emerald-500/20 text-emerald-800'
+                        ? 'bg-emerald-500/20 text-emerald-400'
                         : item.tipo === 'COMPONENTE'
-                        ? 'bg-sky-100 text-sky-800'
+                        ? 'bg-sky-500/20 text-sky-300'
                         : item.tipo === 'RESINA'
-                        ? 'bg-amber-100 text-amber-800'
-                        : 'bg-gray-800 text-gray-800'
+                        ? 'bg-amber-500/20 text-amber-300'
+                        : 'bg-gray-800 text-gray-400'
                     }`}
                   >
                     {item.tipo}
@@ -1531,7 +1531,7 @@ export default function ProductosTab() {
                     onClick={() => openBomModal(item)}
                     className={`px-2 py-1 rounded text-xs font-medium transition ${
                       item.bom && item.bom.length > 0
-                        ? 'bg-indigo-100 text-indigo-800 hover:bg-indigo-200'
+                        ? 'bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30'
                         : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
                     }`}
                     title="Editar BOM"

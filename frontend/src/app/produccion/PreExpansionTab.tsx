@@ -324,7 +324,7 @@ function LotesSubTab() {
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-800">🔥 Lotes de Pre-Expansión</h2>
+        <h2 className="text-xl font-bold text-white">🔥 Lotes de Pre-Expansión</h2>
         <div className="flex gap-2">
           <button onClick={() => setShowForm(!showForm)}
             className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
@@ -592,10 +592,10 @@ function LotesSubTab() {
                   {finalizadas.map(op => (
                     <tr key={op.op_id} className="hover:bg-gray-800">
                       <td className="px-3 py-2">
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                           getTurno(op.fecha_inicio) === 'DIA'
                             ? 'bg-yellow-500/20 text-yellow-400'
-                            : 'bg-indigo-100 text-indigo-700'
+                            : 'bg-indigo-500/20 text-indigo-300'
                         }`}>
                           {getTurno(op.fecha_inicio) === 'DIA' ? '☀️' : '🌙'} {getTurno(op.fecha_inicio)}
                         </span>
@@ -634,7 +634,7 @@ function LotesSubTab() {
       {showDatosModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-gray-900 rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
-            <h3 className="text-lg font-bold text-gray-800">📊 Datos de Proceso</h3>
+            <h3 className="text-lg font-bold text-white">📊 Datos de Proceso</h3>
             <p className="text-sm text-gray-400">
               Primer parcial registrado para{' '}
               <span className="font-mono font-semibold">{datosOpId}</span>.
@@ -674,7 +674,7 @@ function LotesSubTab() {
       {showFinalizarModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-gray-900 rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
-            <h3 className="text-lg font-bold text-gray-800">✅ Finalizar Lote</h3>
+            <h3 className="text-lg font-bold text-white">✅ Finalizar Lote</h3>
             <p className="text-sm text-gray-400">
               Finalizando <span className="font-mono font-semibold">{finalizarOpId}</span>
             </p>
@@ -772,14 +772,14 @@ function SilosSubTab() {
       <div key={s.nombre_silo}
         className={`rounded-xl border-2 p-4 transition-all h-full ${
           s.vacio ? 'border-dashed border-gray-600 bg-gray-800'
-            : isAux ? 'border-cyan-300 bg-cyan-50'
+            : isAux ? 'border-cyan-500/30 bg-cyan-500/10'
             : 'border-orange-500/40 bg-orange-500/10'
         }`}>
         <div className="flex items-center justify-between mb-3">
-          <h4 className="font-bold text-lg text-gray-800">{s.nombre_silo}</h4>
+          <h4 className="font-bold text-lg text-white">{s.nombre_silo}</h4>
           {s.vacio
             ? <span className="text-xs bg-gray-700 text-gray-400 px-2 py-1 rounded-full">Vacío</span>
-            : <span className={`text-xs px-2 py-1 rounded-full font-semibold ${isAux ? 'bg-cyan-200 text-cyan-700' : 'bg-orange-200 text-orange-400'}`}>
+            : <span className={`text-xs px-2 py-1 rounded-full font-semibold ${isAux ? 'bg-cyan-500/20 text-cyan-300' : 'bg-orange-500/20 text-orange-400'}`}>
                 {s.kg_totales} kg
               </span>}
         </div>
@@ -802,7 +802,7 @@ function SilosSubTab() {
                 <span className="text-gray-400 text-xs">Máquinas:</span>
                 <div className="flex flex-wrap gap-1 mt-1">
                   {s.suministro.maquinas_inyeccion.map((m, i) => (
-                    <span key={i} className="text-xs bg-gray-900 border border-cyan-500/30 text-cyan-700 px-2 py-0.5 rounded-full">{m}</span>
+                    <span key={i} className="text-xs bg-gray-900 border border-cyan-500/30 text-cyan-300 px-2 py-0.5 rounded-full">{m}</span>
                   ))}
                 </div>
               </div>
@@ -837,7 +837,7 @@ function SilosSubTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-800">🏗️ Estado de Silos</h2>
+        <h2 className="text-xl font-bold text-white">🏗️ Estado de Silos</h2>
         <div className="flex gap-2">
           <button onClick={handleDescargarExcel}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-400 bg-green-600 hover:bg-green-700 active:scale-95 text-white">
@@ -973,7 +973,7 @@ function SuministroSubTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-800">🚚 Suministro a AUX</h2>
+        <h2 className="text-xl font-bold text-white">🚚 Suministro a AUX</h2>
         <div className="flex gap-2">
           <button onClick={() => setShowForm(!showForm)}
             className="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
@@ -987,8 +987,8 @@ function SuministroSubTab() {
       {mensaje && (
         <div className={`p-3 rounded-lg text-sm font-medium ${
           mensaje.tipo === 'ok'
-            ? 'bg-green-500/10 text-green-400 border border-green-200'
-            : 'bg-red-500/100/10 text-red-400 border border-red-200'
+            ? 'bg-green-500/10 text-green-400 border border-green-500/30'
+            : 'bg-red-500/100/10 text-red-400 border border-red-500/30'
         }`}>{mensaje.texto}</div>
       )}
 
@@ -1094,7 +1094,7 @@ function SuministroSubTab() {
                   <th className="px-3 py-2 text-left text-gray-400">Usuario</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-700">
                 {suministrosFiltrados.map((s: SuministroSilo) => (
                   <tr key={s.id} className="hover:bg-gray-800">
                     <td className="px-3 py-2 font-mono text-xs text-cyan-400">{s.suministro_id}</td>
@@ -1104,7 +1104,7 @@ function SuministroSubTab() {
                       </span>
                     </td>
                     <td className="px-3 py-2">
-                      <span className="bg-cyan-50 text-cyan-400 px-2 py-0.5 rounded-full text-xs font-medium">
+                      <span className="bg-cyan-500/10 text-cyan-400 px-2 py-0.5 rounded-full text-xs font-medium">
                         {s.aux_destino}
                       </span>
                     </td>
@@ -1256,7 +1256,7 @@ function ReporteSubTab() {
     <div className="space-y-4">
       {/* Header + controles */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h2 className="text-xl font-bold text-gray-800">📋 Reporte de Pre-Expansión</h2>
+        <h2 className="text-xl font-bold text-white">📋 Reporte de Pre-Expansión</h2>
         <div className="flex items-center gap-3 flex-wrap">
           {/* Filtro Turno */}
           <select value={filtroTurno} onChange={e => setFiltroTurno(e.target.value)}
@@ -1282,7 +1282,7 @@ function ReporteSubTab() {
       </div>
 
       {/* Encabezado info */}
-      <div className="bg-blue-500/10 border border-blue-200 rounded-lg p-3 flex items-center justify-between flex-wrap gap-2">
+      <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 flex items-center justify-between flex-wrap gap-2">
         <div>
           <span className="font-bold text-blue-300 text-lg">REPORTE DE PREEXPANSIÓN</span>
           <span className="ml-4 text-sm text-blue-400">
@@ -1327,7 +1327,7 @@ function ReporteSubTab() {
                 <th className="px-2 py-2 text-left whitespace-nowrap">Usuario</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-gray-700">
               {filas.map((fila, idx) => {
                 const { op, suministro: sum, esFilaPrincipal } = fila
                 const turno = getTurno(op.fecha_inicio)
@@ -1417,7 +1417,7 @@ function ReporteSubTab() {
                     {/* Silo de Salida (AUX destino) */}
                     <td className="px-2 py-2">
                       {sum ? (
-                        <span className="bg-cyan-100 text-cyan-700 px-1.5 py-0.5 rounded text-xs font-medium">
+                        <span className="bg-cyan-500/20 text-cyan-300 px-1.5 py-0.5 rounded text-xs font-medium">
                           {sum.aux_destino}
                         </span>
                       ) : '—'}
@@ -1455,7 +1455,7 @@ function ReporteSubTab() {
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
             <div>
               <span className="text-gray-400">Total Lotes:</span>
-              <span className="ml-2 font-bold text-gray-800">{ordenes.length}</span>
+              <span className="ml-2 font-bold text-white">{ordenes.length}</span>
             </div>
             <div>
               <span className="text-gray-400">Finalizados:</span>
@@ -1465,7 +1465,7 @@ function ReporteSubTab() {
             </div>
             <div>
               <span className="text-gray-400">Total Producido:</span>
-              <span className="ml-2 font-bold text-gray-800">
+              <span className="ml-2 font-bold text-white">
                 {ordenes.reduce((s, o) => s + o.cantidad_producida, 0).toFixed(2)} kg
               </span>
             </div>
@@ -1475,7 +1475,7 @@ function ReporteSubTab() {
             </div>
             <div>
               <span className="text-gray-400">Total Suministrado:</span>
-              <span className="ml-2 font-bold text-cyan-800">
+              <span className="ml-2 font-bold text-cyan-300">
                 {kgTotalSuministrado.toFixed(2)} kg
               </span>
             </div>

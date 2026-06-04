@@ -9,11 +9,13 @@ import { getModuleTheme, ROLE_BADGE } from '@/lib/theme';
 import DashboardTab from './DashboardTab';
 import ComprasTab from './ComprasTab';
 import ProveedoresTab from './ProveedoresTab';
+import ValidacionTab from './ValidacionTab';
 
 const ALL_TABS = [
   { id: 'dashboard',   label: '📊 Dashboard' },
   { id: 'compras',     label: '🛒 Compras'   },
   { id: 'proveedores', label: '🤝 Proveedores' },
+  { id: 'validacion',  label: '⚖️ Validación'  },
 ];
 
 const THEME = getModuleTheme('compras');
@@ -88,6 +90,7 @@ export default function ComprasPage() {
       {activeTab === 'dashboard'   && <DashboardTab token={token} />}
       {activeTab === 'compras'   && <ComprasTab   token={token} />}
       {activeTab === 'proveedores' && <ProveedoresTab token={token} />}
+      {activeTab === 'validacion'  && <ValidacionTab  token={token} />}
     </ModuleShell>
   );
 }

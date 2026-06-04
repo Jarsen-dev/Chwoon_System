@@ -10,6 +10,7 @@ import {
   aprobarOrdenCompra,
   getProveedores,
   getProducto,
+  firmarOrdenCompras,
   type ProveedorItem,
 } from '@/lib/api'
 import type { OrdenCompra } from '@/types'
@@ -27,13 +28,15 @@ type FormItem = {
 
 // ── constantes ───────────────────────────────────────────────────────────────
 const STATUS_COLORS: Record<string, string> = {
-  'Creada':               'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  'Pendiente de Firma':   'bg-gray-500/20 text-gray-400 border-gray-500/30',
+  'Pendiente Aprobación': 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+  'Autorizada':           'bg-blue-500/20 text-blue-400 border-blue-500/30',
   'Parcial':              'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
   'Completada':           'bg-green-500/20 text-green-400 border-green-500/30',
-  'Cancelada':            'bg-red-500/20 text-red-400 border-red-500/30',
-  'Pendiente Aprobación': 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+  'Rechazada':            'bg-red-500/20 text-red-400 border-red-500/30',
+  'Cancelada':            'bg-red-900/20 text-red-600 border-red-900/30',
 }
-const STATUS_OPTIONS = ['Todos', 'Creada', 'Parcial', 'Completada', 'Cancelada', 'Pendiente Aprobación']
+const STATUS_OPTIONS = ['Todos', 'Pendiente de Firma', 'Pendiente Aprobación', 'Autorizada', 'Parcial', 'Completada', 'Rechazada', 'Cancelada']
 
 const ITEM_VACIO: FormItem = { sku_producto: '', nombre_producto: '', cantidad_requerida: '', precio_unitario: '' }
 
@@ -285,6 +288,7 @@ export default function ComprasTab({ token }: Props) {
         nombre_proveedor: formProveedorNombre.trim(),
         items,
         notas: formNotas || undefined,
+        iva: formIva,
       })
       setSuccessMsg('Orden de compra creada exitosamente')
       setShowCreateModal(false); resetForm(); fetchOrdenes()
@@ -301,6 +305,15 @@ export default function ComprasTab({ token }: Props) {
       setSuccessMsg(`Orden ${deleteTarget.oc_id} eliminada`)
       setShowDeleteModal(false); setDeleteTarget(null); fetchOrdenes()
     } catch (err: any) { setErrorMsg(err.message); setShowDeleteModal(false) }
+  }
+
+  const handleFirmar = async (oc: any) => {
+    clearMessages()
+    try {
+      await firmarOrdenCompras(token, oc.oc_id)
+      setSuccessMsg(`Firma estampada en la orden ${oc.oc_id}. Enviada a Finanzas.`)
+      fetchOrdenes()
+    } catch (err: any) { setErrorMsg(err.message) }
   }
 
   // ════════════════════════════════════════════════════════════════════════
@@ -341,6 +354,7 @@ export default function ComprasTab({ token }: Props) {
         nombre_proveedor: formProveedorNombre.trim(),
         items,
         notas: formNotas || undefined,
+        iva: formIva,
       })
       setSuccessMsg(`Orden ${editOC.oc_id} aprobada exitosamente`)
       setShowEditModal(false); setEditOC(null); resetForm(); fetchOrdenes()
@@ -666,13 +680,19 @@ export default function ComprasTab({ token }: Props) {
             )},
             { key: 'status', header: 'Status', render: (oc) => {
               const map: Record<string, any> = {
-                'Creada': 'info',
-                'Parcial': 'warning',
-                'Completada': 'success',
-                'Cancelada': 'error',
-                'Pendiente Aprobación': 'warning',
+                'Pendiente de Firma': 'muted', 'Pendiente Aprobación': 'warning', 'Autorizada': 'info',
+                'Parcial': 'warning', 'Completada': 'success', 'Rechazada': 'error', 'Cancelada': 'error',
               };
-              return <Badge variant={map[oc.status] || 'muted'}>{oc.status}</Badge>;
+              return (
+                <div className="flex flex-col gap-1 items-start">
+                  <Badge variant={map[oc.status] || 'muted'}>{oc.status}</Badge>
+                  {oc.status === 'Rechazada' && oc.motivo_rechazo && (
+                    <span className="text-[10px] text-red-400 max-w-[150px] truncate" title={oc.motivo_rechazo}>
+                      Motivo: {oc.motivo_rechazo}
+                    </span>
+                  )}
+                </div>
+              );
             }},
             { key: 'origen', header: 'Origen', render: (oc) =>
               oc.origen === 'PRODUCCION'
@@ -689,14 +709,23 @@ export default function ComprasTab({ token }: Props) {
               <div className="flex justify-center gap-1">
                 <button onClick={() => handleVerDetalle(oc.oc_id)}
                   className="bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 px-2 py-1 rounded text-xs transition-colors" title="Ver detalle">👁️</button>
+                
+                {(oc.status === 'Pendiente de Firma' || oc.status === 'Rechazada') && !oc.firma_compras && (
+                  <button onClick={() => handleFirmar(oc)}
+                    className="bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 px-2 py-1 rounded text-xs transition-colors" title="Firmar Orden (Enviar a Finanzas)">✍️</button>
+                )}
+
                 {isPendienteAprobacion(oc) && (
                   <button onClick={() => handleOpenEdit(oc)}
                     className="bg-orange-600/20 hover:bg-orange-600/40 text-orange-400 px-2 py-1 rounded text-xs transition-colors" title="Editar y Aprobar">✏️</button>
                 )}
-                {oc.status === 'Creada' && (
+                
+                {/* PDF solo visible si está Autorizada, Parcial o Completada */}
+                {['Autorizada', 'Parcial', 'Completada'].includes(oc.status) && (
                   <button onClick={() => handleDescargarPdf(oc.oc_id)}
                     className="bg-purple-600/20 hover:bg-purple-600/40 text-purple-400 px-2 py-1 rounded text-xs transition-colors" title="Descargar PDF">📄</button>
                 )}
+                
                 {canDelete(oc) && (
                   <button onClick={() => { setDeleteTarget(oc); setShowDeleteModal(true) }}
                     className="bg-red-600/20 hover:bg-red-600/40 text-red-400 px-2 py-1 rounded text-xs transition-colors" title="Eliminar">🗑️</button>

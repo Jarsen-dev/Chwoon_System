@@ -552,11 +552,37 @@ export async function crearOrdenCompra(token: string, data: {
   return res.json()
 }
 
+export async function firmarOrdenCompras(token: string, ocId: string): Promise<{ message: string }> {
+  const res = await fetch(`${API_URL}/finanzas/compras/${ocId}/firmar-compras`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al firmar orden')
+  }
+  return res.json()
+}
+
+export async function validarOrdenFinanzas(token: string, ocId: string, data: { accion: string; motivo?: string }): Promise<{ message: string; nuevo_status: string }> {
+  const res = await fetch(`${API_URL}/finanzas/compras/${ocId}/validar-finanzas`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al validar orden')
+  }
+  return res.json()
+}
+
 export async function aprobarOrdenCompra(token: string, ocId: string, data: {
   id_proveedor?: string
   nombre_proveedor?: string
   items?: { sku_producto: string; nombre_producto: string; cantidad_requerida: number; precio_unitario: number; moneda?: string }[]
   notas?: string
+  iva?: number
 }): Promise<{ message: string }> {
   const res = await fetch(`${API_URL}/finanzas/compras/${ocId}/aprobar`, {
     method: 'POST',

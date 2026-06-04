@@ -444,8 +444,8 @@ export default function ScannerTab({
             placeholder="Esperando lectura de código QR..."
             className="flex-1 text-center text-2xl p-4 border-2 border-blue-400
                        rounded-lg shadow-inner focus:outline-none focus:ring-4
-                       focus:ring-blue-500/40 uppercase tracking-widest
-                       placeholder:text-gray-300 placeholder:text-lg"
+                       focus:ring-blue-500/40 uppercase tracking-widest bg-gray-900 text-white
+                       placeholder:text-gray-400 placeholder:text-lg"
             autoComplete="off"
             autoFocus
           />
@@ -703,7 +703,7 @@ export default function ScannerTab({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
           <div className="bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-gray-800">📷 Escanear QR</h3>
+              <h3 className="text-base font-bold text-white">📷 Escanear QR</h3>
               <button
                 onClick={cerrarScanner}
                 className="text-gray-400 hover:text-gray-300 text-xl leading-none"

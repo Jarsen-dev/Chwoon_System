@@ -388,7 +388,7 @@ export default function EtiquetasTab() {
                               <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
                                 turnoNorm === 'Día'
                                   ? 'bg-yellow-500/20 text-yellow-300'
-                                  : 'bg-indigo-100 text-indigo-800'
+                                  : 'bg-indigo-500/20 text-indigo-300'
                               }`}>
                                 {turnoNorm === 'Día' ? '☀️' : '🌙'} {turnoNorm}
                               </span>

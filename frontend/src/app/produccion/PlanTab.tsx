@@ -328,7 +328,7 @@ export default function PlanTab({ planes, onRefresh, onGoToTab }: Props) {
       {/* ======================================================= */}
       {/* HINT                                                     */}
       {/* ======================================================= */}
-      <div className="bg-blue-500/10 border border-blue-200 rounded-lg px-4 py-3 text-xs text-blue-400 flex items-start gap-2">
+      <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg px-4 py-3 text-xs text-blue-400 flex items-start gap-2">
         <span className="text-base">ℹ️</span>
         <div>
           <p className="font-semibold mb-1">Formato esperado del Excel:</p>
@@ -354,7 +354,7 @@ export default function PlanTab({ planes, onRefresh, onGoToTab }: Props) {
       {/* ======================================================= */}
       <div className="overflow-x-auto border rounded-lg">
         <table className="w-full text-sm">
-          <thead className="bg-slate-100 text-gray-200 border-b">
+          <thead className="bg-gray-800 text-gray-300 border-b border-gray-700">
             <tr>
               <th className="p-3 text-center font-semibold">No. de Parte</th>
               <th className="p-3 text-center font-semibold">Proceso</th>
@@ -406,7 +406,7 @@ export default function PlanTab({ planes, onRefresh, onGoToTab }: Props) {
                           <span className={`px-2 py-1 rounded-full text-xs font-bold ${
                             turnoNorm === 'Día'
                               ? 'bg-yellow-500/20 text-yellow-300'
-                              : 'bg-indigo-100 text-indigo-800'
+                              : 'bg-indigo-500/20 text-indigo-300'
                           }`}>
                             {turnoNorm === 'Día' ? '☀️' : '🌙'} {turnoNorm}
                           </span>

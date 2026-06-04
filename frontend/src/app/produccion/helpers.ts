@@ -2,10 +2,10 @@ import { RegistroProduccion } from '@/types'
 
 export function getTipoBadge(tipo: string): string {
   switch (tipo) {
-    case 'FRAUDE':        return 'bg-red-100    text-red-800    border border-red-300'
-    case 'MANTENIMIENTO': return 'bg-orange-100 text-orange-800 border border-orange-300'
-    case 'LENTITUD_PLAN': return 'bg-yellow-100 text-yellow-800 border border-yellow-300'
-    default:              return 'bg-gray-100   text-gray-700   border border-gray-300'
+    case 'FRAUDE':        return 'bg-red-500/10    text-red-400    border border-red-500/30'
+    case 'MANTENIMIENTO': return 'bg-orange-500/10 text-orange-400 border border-orange-500/30'
+    case 'LENTITUD_PLAN': return 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/30'
+    default:              return 'bg-gray-500/10   text-gray-400   border border-gray-500/30'
   }
 }
 
