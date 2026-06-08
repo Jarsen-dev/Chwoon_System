@@ -14,7 +14,7 @@ Cambios:
 from alembic import op
 import sqlalchemy as sa
 
-revision = "a1b2c3d4e5f6"
+revision = "20260608_add_no_departure"
 down_revision = "actualizacion_pipeline_ventas"
 branch_labels = None
 depends_on = None

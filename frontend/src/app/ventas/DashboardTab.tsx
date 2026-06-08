@@ -1,21 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getFinanzasDashboard, getOrdenesVenta } from '@/lib/api';
+import { getFinanzasDashboard, getOrdenesVenta, ESTADO_COLORS } from '@/lib/api';
 import type { FinanzasDashboard, OrdenVenta } from '@/types';
+import { semaforoCoverage, colorClasesSemaforo } from '@/types';
 
 interface Props {
   token: string;
 }
-
-const ESTADO_COLORS: Record<string, string> = {
-  'Pendiente de Envío':  'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-  'Stock Insuficiente':  'bg-red-500/20 text-red-400 border-red-500/30',
-  'Enviado':             'bg-green-500/20 text-green-400 border-green-500/30',
-  'Embarque Parcial':    'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  'Devolución Parcial':  'bg-purple-500/20 text-purple-400 border-purple-500/30',
-  'Cancelada':           'bg-gray-500/20 text-gray-400 border-gray-500/30',
-};
 
 function StatCard({
   icon,
@@ -46,8 +38,21 @@ function StatCard({
 
 function ProgBar({ pct, color = 'bg-blue-500' }: { pct: number; color?: string }) {
   return (
-    <div className="h-1 bg-gray-700 rounded-full overflow-hidden mt-1 w-16 inline-block align-middle ml-2">
-      <div className={`h-full ${color} rounded-full`} style={{ width: `${Math.min(pct, 100)}%` }} />
+    <div className="h-2 bg-gray-700 rounded-full overflow-hidden w-full mt-1">
+      <div className={`h-full ${color} rounded-full transition-all`} style={{ width: `${Math.min(pct, 100)}%` }} />
+    </div>
+  );
+}
+
+function CoverageCell({ label, value }: { label: string; value: number }) {
+  const cls = colorClasesSemaforo(value);
+  const pct = Math.round(Math.min(value, 2) * 50);
+  const color = semaforoCoverage(value) === 'green' ? 'bg-green-500' : semaforoCoverage(value) === 'yellow' ? 'bg-yellow-500' : 'bg-red-500';
+  return (
+    <div className={`rounded-lg border p-3 ${cls}`}>
+      <p className="text-xs text-gray-400 mb-1">{label}</p>
+      <p className="text-xl font-bold">{(value * 100).toFixed(0)}%</p>
+      <ProgBar pct={pct} color={color} />
     </div>
   );
 }
@@ -104,6 +109,9 @@ export default function DashboardTab({ token }: Props) {
   if (!data) return null;
 
   const pctInsuf = data.total_ov > 0 ? Math.round((data.ov_stock_insuficiente / data.total_ov) * 100) : 0;
+  const pctCumpl = data.pct_cumplimiento ?? 0;
+  const cumplColor = pctCumpl >= 90 ? 'text-green-400' : pctCumpl >= 60 ? 'text-yellow-400' : 'text-red-400';
+  const cumplBar   = pctCumpl >= 90 ? 'bg-green-500' : pctCumpl >= 60 ? 'bg-yellow-500' : 'bg-red-500';
 
   return (
     <div className="space-y-6">
@@ -120,25 +128,64 @@ export default function DashboardTab({ token }: Props) {
         </button>
       </div>
 
-      {/* KPIs — Órdenes de Venta */}
+      {/* KPIs del día */}
       <div>
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">💵 Órdenes de venta</p>
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">📦 KPIs del día</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-gray-900 rounded-xl border border-blue-500/30 p-5">
+            <p className="text-2xl mb-1">📋</p>
+            <p className={`text-3xl font-bold ${cumplColor}`}>{pctCumpl.toFixed(1)}%</p>
+            <p className="text-sm text-gray-400 mt-1">Cumplimiento del día</p>
+            <ProgBar pct={pctCumpl} color={cumplBar} />
+          </div>
+          <StatCard
+            icon="🚛"
+            label="Programado hoy"
+            value={data.programado_hoy}
+            sub="pzas del plan activo"
+            valueColor="text-blue-400"
+            borderColor="border-blue-500/30"
+          />
+          <StatCard
+            icon="✅"
+            label="Embarcado hoy"
+            value={data.embarcado_hoy}
+            sub="pzas con status OK"
+            valueColor="text-green-400"
+            borderColor="border-green-500/30"
+          />
+          <StatCard
+            icon="⚠️"
+            label="SKUs DIF negativa"
+            value={data.skus_dif_negativa}
+            sub="stock LG < plan acumulado"
+            subColor={data.skus_dif_negativa > 0 ? 'text-red-400' : 'text-gray-500'}
+            valueColor={data.skus_dif_negativa > 0 ? 'text-red-400' : 'text-gray-400'}
+            borderColor={data.skus_dif_negativa > 0 ? 'border-red-500/30' : 'border-gray-800'}
+          />
+        </div>
+      </div>
+
+      {/* PSI Coverage */}
+      <div>
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">🔬 PSI Coverage</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <CoverageCell label="REF — D-Day" value={data.coverage_ref_dday} />
+          <CoverageCell label="REF — D+1"   value={data.coverage_ref_d1} />
+          <CoverageCell label="OVEN — D-Day" value={data.coverage_oven_dday} />
+          <CoverageCell label="OVEN — D+1"   value={data.coverage_oven_d1} />
+        </div>
+      </div>
+
+      {/* Flujo de OVs */}
+      <div>
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">🔄 Flujo de órdenes de venta</p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard
             icon="🧾"
             label="Total órdenes"
             value={data.total_ov}
-            sub={`${data.ov_pendientes} pendientes de envío`}
-            subColor="text-yellow-500"
-            borderColor="border-blue-500/30"
-          />
-          <StatCard
-            icon="✅"
-            label="Enviadas"
-            value={data.ov_enviadas}
-            sub="Entregadas al cliente"
-            valueColor="text-green-400"
-            borderColor="border-green-500/30"
+            borderColor="border-gray-700"
           />
           <StatCard
             icon="⏳"
@@ -148,18 +195,42 @@ export default function DashboardTab({ token }: Props) {
             borderColor="border-yellow-500/30"
           />
           <StatCard
-            icon="⚠️"
+            icon="🔧"
+            label="En preparación"
+            value={data.ov_en_preparacion}
+            valueColor="text-orange-400"
+            borderColor="border-orange-500/30"
+          />
+          <StatCard
+            icon="🏁"
+            label="Lista para carga"
+            value={data.ov_lista_para_carga}
+            valueColor="text-cyan-400"
+            borderColor="border-cyan-500/30"
+          />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-2 gap-4 mt-4">
+          <StatCard
+            icon="✅"
+            label="Enviadas (mes)"
+            value={data.ov_enviadas}
+            sub="Enviado + Embarque Parcial"
+            valueColor="text-green-400"
+            borderColor="border-green-500/30"
+          />
+          <StatCard
+            icon="❌"
             label="Stock insuficiente"
             value={data.ov_stock_insuficiente}
             sub={`${pctInsuf}% del total`}
-            subColor="text-red-500"
-            valueColor="text-red-400"
-            borderColor="border-red-500/30"
+            subColor={data.ov_stock_insuficiente > 0 ? 'text-red-400' : 'text-gray-500'}
+            valueColor={data.ov_stock_insuficiente > 0 ? 'text-red-400' : 'text-gray-400'}
+            borderColor={data.ov_stock_insuficiente > 0 ? 'border-red-500/30' : 'border-gray-800'}
           />
         </div>
       </div>
 
-      {/* KPIs — Devoluciones y Plan */}
+      {/* Devoluciones y plan */}
       <div>
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">🔄 Devoluciones y plan</p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
