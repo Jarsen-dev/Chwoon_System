@@ -13,6 +13,9 @@ import UbicacionesTab  from './UbicacionesTab';
 import TrasladosTab    from './TrasladosTab';
 import EPSTab          from './EPSTab';
 import TrazabilidadTab from './TrazabilidadTab';
+import ConteoFisicoTab from './ConteoFisicoTab';
+import PickingTab from './PickingTab';
+import ConfiguracionTab from './ConfiguracionTab';
 
 const ALL_TABS = [
   { id: 'dashboard',    label: '📊 Dashboard'   },
@@ -22,6 +25,9 @@ const ALL_TABS = [
   { id: 'traslados',    label: '🔄 Traslados'   },
   { id: 'eps',          label: '🏭 Almacén EPS' },
   { id: 'trazabilidad', label: '🔍 Trazabilidad'},
+  { id: 'conteo-fisico', label: '📏 Conteo Físico'},
+  { id: 'picking', label: '🎨 Picking'},
+  { id: 'configuracion', label: '⚙️ Configuración'},
 ];
 
 const THEME = getModuleTheme('almacen');
@@ -102,6 +108,9 @@ export default function AlmacenPage() {
       {activeTab === 'traslados'    && <TrasladosTab    token={token} />}
       {activeTab === 'eps'          && <EPSTab          token={token} />}
       {activeTab === 'trazabilidad' && <TrazabilidadTab token={token} />}
+      {activeTab === 'conteo-fisico' && <ConteoFisicoTab token={token} />}
+      {activeTab === 'picking' && <PickingTab token={token} />}
+      {activeTab === 'configuracion' && <ConfiguracionTab token={token} />}
     </ModuleShell>
   );
 }

@@ -2,11 +2,12 @@ import os
 import io
 import qrcode
 import pandas as pd
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query, Path
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, delete, and_, extract
 from sqlalchemy.orm import selectinload
-from typing import List, Optional
+from pydantic import BaseModel
+from typing import List, Optional, Any
 from datetime import datetime, timezone, timedelta, date
 from fastapi.responses import StreamingResponse
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image as RLImage
@@ -16,8 +17,7 @@ from reportlab.lib.units import inch
 from reportlab.lib.enums import TA_RIGHT, TA_CENTER, TA_LEFT
 from reportlab.lib.pagesizes import letter
 
-from app.core.deps import get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, get_db
 from app.models.orden_compra import OrdenCompra, OrdenCompraItem, Proveedor, ProveedorMaterial, RecepcionCompra, ProveedorEvento
 from app.services.proveedor_score import recalcular_score, registrar_evento
 from app.models.orden_venta import OrdenVenta, OrdenVentaItem, EnvioVenta
@@ -26,7 +26,6 @@ from app.models.plan_ventas import PlanVentas
 from app.models.empresa  import ConfiguracionEmpresa, ContactoEmpresa
 from app.services.pdf_generator import generar_pdf_orden_compra
 from app.core.deps import get_db, get_current_user, get_current_compras, get_current_finanzas
-from app.schemas.finanzas import ValidarFinanzasRequest
 from app.schemas.finanzas import (
     OrdenCompraCreate, OrdenCompraUpdate, OrdenCompraResponse, ProveedorCreate, ProveedorResponse, ProveedorUpdate,
     RecepcionCompraCreate, RecepcionCompraResponse,
@@ -36,12 +35,50 @@ from app.schemas.finanzas import (
     PlanVentasImport, PlanVentasResponse, AutorizarVentasMasivo,
     FinanzasDashboardResponse,
     AprobarOrdenCompraRequest,
-    ProveedorScoreResponse, ProveedorEventoCreate, ProveedorEventoResponse,
+    ProveedorScoreResponse, ProveedorEventoCreate, ProveedorEventoResponse, 
+    EnvioLogisticoCreate, ValidarFinanzasRequest,
+    CambiarEstadoRequest, DespacharRequest
 )
 
 TZ_LOCAL = timezone(timedelta(hours=-6))
 
 router = APIRouter(prefix="/finanzas", tags=["Finanzas"])
+
+
+# ─── Máquina de estados ───────────────────────────────────────────────────────
+#
+# Transiciones válidas y quién puede ejecutarlas.
+# Cualquier intento de transición fuera de esta tabla devuelve 422.
+#
+TRANSICIONES: dict[str, dict[str, list[str]]] = {
+    "En Preparación": {
+        "desde":   ["Pendiente de Envío", "Stock Insuficiente"],
+        "roles":   ["admin", "almacen", "logistica"],
+    },
+    "Lista para Carga": {
+        "desde":   ["En Preparación"],
+        "roles":   ["admin", "almacen"],
+    },
+    # Rollback explícito: Almacén detecta problema en el andén
+    "En Preparación_rollback": {
+        "desde":   ["Lista para Carga"],
+        "roles":   ["admin", "almacen"],
+    },
+    "Cancelada": {
+        # Puede cancelarse desde cualquier estado pre-despacho
+        "desde":   [
+            "Pendiente de Envío",
+            "Stock Insuficiente",
+            "En Preparación",
+            "Lista para Carga",
+        ],
+        "roles":   ["admin", "finanzas", "ventas"],
+    },
+}
+ 
+# Estados terminales — no se puede hacer nada desde ellos
+ESTADOS_TERMINALES = {"Enviado", "Cancelada"}
+
 
 
 # ========================
@@ -71,89 +108,275 @@ def require_ventas_role(current_user):
         raise HTTPException(status_code=403, detail="Acceso denegado. Se requiere rol admin, finanzas o ventas.")
     return current_user
 
+async def _get_ov(db: AsyncSession, ov_id: str) -> OrdenVenta:
+    result = await db.execute(
+        select(OrdenVenta).where(OrdenVenta.ov_id == ov_id)
+    )
+    ov = result.scalar_one_or_none()
+    if not ov:
+        raise HTTPException(404, f"Orden de venta {ov_id!r} no encontrada")
+    return ov
+ 
+ 
+def _assert_transicion(ov: OrdenVenta, nuevo_estado: str, rol: str) -> None:
+    """Valida que la transición sea legal. Lanza 422 si no lo es."""
+ 
+    if ov.estado in ESTADOS_TERMINALES:
+        raise HTTPException(
+            422,
+            f"La OV {ov.ov_id} está en estado terminal '{ov.estado}' "
+            f"y no puede cambiar de estado.",
+        )
+ 
+    regla = TRANSICIONES.get(nuevo_estado) or TRANSICIONES.get(f"{nuevo_estado}_rollback")
+    if not regla:
+        raise HTTPException(422, f"Estado destino '{nuevo_estado}' no es válido.")
+ 
+    if ov.estado not in regla["desde"]:
+        raise HTTPException(
+            422,
+            f"No se puede pasar de '{ov.estado}' a '{nuevo_estado}'. "
+            f"Estados permitidos como origen: {regla['desde']}",
+        )
+ 
+    if rol not in regla["roles"]:
+        raise HTTPException(
+            403,
+            f"El rol '{rol}' no tiene permiso para mover a '{nuevo_estado}'. "
+            f"Roles permitidos: {regla['roles']}",
+        )
+
 
 # ========================
 # DASHBOARD
 # ========================
 @router.get("/dashboard", response_model=FinanzasDashboardResponse)
 @router.get("/dashboard/", response_model=FinanzasDashboardResponse)
-async def get_finanzas_dashboard(
-    db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user),
-):
-    if current_user.rol not in ("admin", "finanzas", "compras", "ventas"):
-        raise HTTPException(status_code=403, detail="Acceso denegado.")
-
-    ahora = ahora_local()
-    primer_dia_mes = ahora.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-
-    # ── Compras (visible para admin, finanzas, compras) ──────────────
-    total_oc = 0
-    oc_pendientes = 0
-    oc_completadas = 0
-    valor_compras_mes = 0.0
-
-    if current_user.rol in ("admin", "finanzas", "compras"):
-        total_oc = (await db.execute(select(func.count(OrdenCompra.id)))).scalar() or 0
-        oc_pendientes = (await db.execute(
-            select(func.count(OrdenCompra.id)).where(OrdenCompra.status.in_(["Creada", "Parcial"]))
-        )).scalar() or 0
-        oc_completadas = (await db.execute(
-            select(func.count(OrdenCompra.id)).where(OrdenCompra.status == "Completada")
-        )).scalar() or 0
-        valor_compras_result = await db.execute(
-            select(func.sum(OrdenCompraItem.cantidad_requerida * OrdenCompraItem.precio_unitario))
-            .join(OrdenCompra, OrdenCompraItem.orden_compra_id == OrdenCompra.id)
-            .where(OrdenCompra.fecha_creacion >= primer_dia_mes)
+async def calcular_finanzas_dashboard(db: AsyncSession) -> FinanzasDashboardResponse:
+    """
+    Calcula todos los KPIs del dashboard de ventas/finanzas.
+    Cada sección está aislada en su propio bloque — añade o quita sin tocar el resto.
+    """
+    hoy      = date.today()
+    mes_ini  = hoy.replace(day=1)
+    ahora_tz = datetime.now(TZ_LOCAL)
+ 
+    # ── 1. OVs por estado ────────────────────────────────────────────────────
+    ov_por_estado = (
+        await db.execute(
+            select(OrdenVenta.estado, func.count(OrdenVenta.id).label("cnt"))
+            .group_by(OrdenVenta.estado)
         )
-        valor_compras_mes = valor_compras_result.scalar() or 0
-
-    # ── Ventas (visible para admin, finanzas, ventas) ─────────────────
-    total_ov = 0
-    ov_pendientes = 0
-    ov_enviadas = 0
-    ov_stock_insuficiente = 0
-    total_devoluciones = 0
-    devoluciones_pendientes = 0
-    valor_ventas_mes = 0.0
-    planes_activos = 0
-
-    if current_user.rol in ("admin", "finanzas", "ventas"):
-        total_ov = (await db.execute(select(func.count(OrdenVenta.id)))).scalar() or 0
-        ov_pendientes = (await db.execute(
-            select(func.count(OrdenVenta.id)).where(OrdenVenta.estado == "Pendiente de Envío")
-        )).scalar() or 0
-        ov_enviadas = (await db.execute(
-            select(func.count(OrdenVenta.id)).where(OrdenVenta.estado == "Enviado")
-        )).scalar() or 0
-        ov_stock_insuficiente = (await db.execute(
-            select(func.count(OrdenVenta.id)).where(OrdenVenta.estado == "Stock Insuficiente")
-        )).scalar() or 0
-        total_devoluciones = (await db.execute(select(func.count(Devolucion.id)))).scalar() or 0
-        devoluciones_pendientes = (await db.execute(
-            select(func.count(Devolucion.id)).where(Devolucion.estado_inspeccion == "Pendiente")
-        )).scalar() or 0
-        valor_ventas_result = await db.execute(
-            select(func.sum(OrdenVentaItem.cantidad * OrdenVentaItem.precio_unitario))
-            .join(OrdenVenta, OrdenVentaItem.orden_venta_id == OrdenVenta.id)
-            .where(OrdenVenta.fecha_creacion >= primer_dia_mes)
+    ).all()
+    estado_map: dict[str, int] = {row.estado: row.cnt for row in ov_por_estado}
+ 
+    total_ov              = sum(estado_map.values())
+    ov_pendientes         = estado_map.get("Pendiente de Envío", 0)
+    ov_en_preparacion     = estado_map.get("En Preparación", 0)
+    ov_lista_para_carga   = estado_map.get("Lista para Carga", 0)
+    ov_enviadas           = estado_map.get("Enviado", 0) + estado_map.get("Embarque Parcial", 0)
+    ov_stock_insuficiente = estado_map.get("Stock Insuficiente", 0)
+ 
+    # ── 2. Devoluciones ───────────────────────────────────────────────────────
+    # Importa Devolucion desde app.models si existe; ajusta el nombre si es diferente
+    try:
+        from app.models.devolucion import Devolucion
+        dev_rows = (
+            await db.execute(
+                select(Devolucion.estado_inspeccion, func.count(Devolucion.id).label("cnt"))
+                .group_by(Devolucion.estado_inspeccion)
+            )
+        ).all()
+        dev_map               = {r.estado_inspeccion: r.cnt for r in dev_rows}
+        total_devoluciones    = sum(dev_map.values())
+        devoluciones_pendientes = dev_map.get("Pendiente", 0)
+    except ImportError:
+        total_devoluciones = devoluciones_pendientes = 0
+ 
+    # ── 3. Plan de ventas activos ─────────────────────────────────────────────
+    planes_activos_row = (
+        await db.execute(
+            select(func.count(PlanVentas.id))
+            .where(PlanVentas.fecha_inicio_semana >= mes_ini)
         )
-        valor_ventas_mes = valor_ventas_result.scalar() or 0
-        planes_activos = (await db.execute(select(func.count(PlanVentas.id)))).scalar() or 0
-
+    ).scalar_one()
+    planes_venta_activos = planes_activos_row or 0
+ 
+    # ── 4. Valor ventas del mes ───────────────────────────────────────────────
+    # Suma precio_unitario × cantidad_enviada de items en OVs enviadas este mes
+    valor_mes_row = (
+        await db.execute(
+            select(
+                func.coalesce(
+                    func.sum(OrdenVentaItem.precio_unitario * OrdenVentaItem.cantidad_enviada),
+                    0,
+                )
+            )
+            .join(OrdenVenta, OrdenVenta.id == OrdenVentaItem.orden_venta_id)
+            .where(
+                and_(
+                    OrdenVenta.estado.in_(["Enviado", "Embarque Parcial"]),
+                    cast(OrdenVenta.fecha_actualizacion, Date) >= mes_ini,
+                )
+            )
+        )
+    ).scalar_one()
+    valor_ventas_mes = float(valor_mes_row or 0)
+ 
+    # ── 5. KPIs operativos del día ────────────────────────────────────────────
+    programado_hoy    = 0
+    embarcado_hoy     = 0
+    skus_dif_negativa = 0
+ 
+    # 5a. Programado hoy — buscar el plan de la semana activa y sumar el día de hoy
+    dia_hoy = ["LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES", "SABADO", "DOMINGO"][hoy.weekday()]
+ 
+    plan_activo = (
+        await db.execute(
+            select(PlanVentas)
+            .where(PlanVentas.fecha_inicio_semana <= hoy)
+            .order_by(PlanVentas.fecha_inicio_semana.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+ 
+    if plan_activo and plan_activo.items:
+        for item in plan_activo.items:
+            dia_data  = (item.get("dias") or {}).get(dia_hoy, {})
+            programado_hoy += dia_data.get("plan", 0)
+ 
+            # DIF negativa: stock_lg < plan acumulado hasta hoy
+            stock_lg = item.get("stock_lg", 0) or 0
+            ORDEN_DIAS = ["VIERNES", "LUNES", "MARTES", "MIERCOLES", "JUEVES"]
+            acumulado = 0
+            for dia in ORDEN_DIAS:
+                acumulado += (item.get("dias") or {}).get(dia, {}).get("plan", 0)
+                if dia == dia_hoy:
+                    break
+            if stock_lg - acumulado < 0:
+                skus_dif_negativa += 1
+ 
+    # 5b. Embarcado hoy — suma de envíos con fecha = hoy y status_salida = OK
+    embarcado_row = (
+        await db.execute(
+            select(
+                func.coalesce(
+                    func.sum(
+                        func.jsonb_array_length(EnvioVenta.items_enviados)
+                        # ↑ Aproximación: si necesitas sumar cantidades exactas,
+                        #   usa una subquery que expande el JSON.
+                        #   Por ahora, cuenta el número de líneas enviadas hoy.
+                    ),
+                    0,
+                )
+            )
+            .where(
+                and_(
+                    cast(EnvioVenta.fecha_envio, Date) == hoy,
+                    EnvioVenta.status_salida == "OK",
+                )
+            )
+        )
+    ).scalar_one()
+ 
+    # ── Cálculo exacto de embarcado_hoy (suma de cantidades en el JSON) ──────
+    # El approach con jsonb_array_length solo cuenta líneas, no cantidades.
+    # Para cantidades exactas hacemos una query más directa:
+    envios_hoy = (
+        await db.execute(
+            select(EnvioVenta.items_enviados)
+            .where(
+                and_(
+                    cast(EnvioVenta.fecha_envio, Date) == hoy,
+                    EnvioVenta.status_salida == "OK",
+                )
+            )
+        )
+    ).scalars().all()
+ 
+    for items_json in envios_hoy:
+        if isinstance(items_json, list):
+            for ie in items_json:
+                embarcado_hoy += ie.get("cantidad", 0)
+ 
+    # ── 6. PSI Coverage ───────────────────────────────────────────────────────
+    # La cobertura PSI se calcula como:
+    #   coverage = stock_lg / demanda_diaria
+    # agrupada por categoría (Ref = línea R1/R2, Oven = línea R3 u otro indicador
+    # en tu Excel). Ajusta el filtro según cómo distingues Ref vs Oven en tus datos.
+    #
+    # D-Day  = hoy
+    # D+1    = mañana
+ 
+    coverage_ref_dday  = 0.0
+    coverage_ref_d1    = 0.0
+    coverage_oven_dday = 0.0
+    coverage_oven_d1   = 0.0
+ 
+    if plan_activo and plan_activo.items:
+        ORDEN_DIAS    = ["VIERNES", "LUNES", "MARTES", "MIERCOLES", "JUEVES"]
+        dia_idx       = ORDEN_DIAS.index(dia_hoy) if dia_hoy in ORDEN_DIAS else -1
+        dia_siguiente = ORDEN_DIAS[dia_idx + 1] if dia_idx >= 0 and dia_idx + 1 < len(ORDEN_DIAS) else None
+ 
+        # Agrupa por categoría — ajusta "linea" o "id1" según tu estructura
+        def _categoria(item: dict) -> str:
+            linea = (item.get("linea") or "").upper()
+            id1   = (item.get("id1")   or "").upper()
+            # Heurística: si la descripción o id1 contiene "OVEN" es Oven; el resto es Ref
+            if "OVEN" in id1 or "OVEN" in item.get("descripcion", "").upper():
+                return "OVEN"
+            return "REF"
+ 
+        stock_ref   = stock_plan_ref_hoy   = stock_plan_ref_d1   = 0
+        stock_oven  = stock_plan_oven_hoy  = stock_plan_oven_d1  = 0
+ 
+        for item in plan_activo.items:
+            cat      = _categoria(item)
+            stock_lg = item.get("stock_lg", 0) or 0
+            dias     = item.get("dias") or {}
+ 
+            plan_hoy = dias.get(dia_hoy, {}).get("plan", 0) if dia_hoy else 0
+            plan_d1  = dias.get(dia_siguiente, {}).get("plan", 0) if dia_siguiente else 0
+ 
+            if cat == "REF":
+                stock_ref          += stock_lg
+                stock_plan_ref_hoy += plan_hoy
+                stock_plan_ref_d1  += plan_d1
+            else:
+                stock_oven          += stock_lg
+                stock_plan_oven_hoy += plan_hoy
+                stock_plan_oven_d1  += plan_d1
+ 
+        coverage_ref_dday  = round(stock_ref  / stock_plan_ref_hoy,  3) if stock_plan_ref_hoy  > 0 else 1.0
+        coverage_ref_d1    = round(stock_ref  / stock_plan_ref_d1,   3) if stock_plan_ref_d1   > 0 else 1.0
+        coverage_oven_dday = round(stock_oven / stock_plan_oven_hoy, 3) if stock_plan_oven_hoy > 0 else 1.0
+        coverage_oven_d1   = round(stock_oven / stock_plan_oven_d1,  3) if stock_plan_oven_d1  > 0 else 1.0
+ 
+        # Acota a máximo 2.0 (200%) para no inflar KPIs
+        coverage_ref_dday  = min(coverage_ref_dday,  2.0)
+        coverage_ref_d1    = min(coverage_ref_d1,    2.0)
+        coverage_oven_dday = min(coverage_oven_dday, 2.0)
+        coverage_oven_d1   = min(coverage_oven_d1,   2.0)
+ 
+    # ── Ensamblar respuesta ───────────────────────────────────────────────────
     return FinanzasDashboardResponse(
-        total_oc=total_oc,
-        oc_pendientes=oc_pendientes,
-        oc_completadas=oc_completadas,
         total_ov=total_ov,
         ov_pendientes=ov_pendientes,
+        ov_en_preparacion=ov_en_preparacion,
+        ov_lista_para_carga=ov_lista_para_carga,
         ov_enviadas=ov_enviadas,
         ov_stock_insuficiente=ov_stock_insuficiente,
         total_devoluciones=total_devoluciones,
         devoluciones_pendientes=devoluciones_pendientes,
-        valor_compras_mes=round(valor_compras_mes, 2),
-        valor_ventas_mes=round(valor_ventas_mes, 2),
-        planes_venta_activos=planes_activos,
+        planes_venta_activos=planes_venta_activos,
+        valor_ventas_mes=valor_ventas_mes,
+        programado_hoy=programado_hoy,
+        embarcado_hoy=embarcado_hoy,
+        skus_dif_negativa=skus_dif_negativa,
+        coverage_ref_dday=coverage_ref_dday,
+        coverage_ref_d1=coverage_ref_d1,
+        coverage_oven_dday=coverage_oven_dday,
+        coverage_oven_d1=coverage_oven_d1,
     )
 
 
@@ -1105,6 +1328,148 @@ async def enviar_orden_venta(
     return {"message": f"Orden {ov_id} enviada", "envio_id": envio_id}
 
 
+# ─── Endpoint: cambio de estado ───────────────────────────────────────────────
+ 
+@router.patch("/ventas/{ov_id}/estado")
+async def cambiar_estado_ov(
+    ov_id: str = Path(...),
+    body: CambiarEstadoRequest = ...,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """
+    Mueve una OV al estado especificado.
+    Valida la máquina de estados y los permisos por rol.
+ 
+    Uso típico:
+      PATCH /finanzas/ventas/OV-20260608-001/estado
+      { "estado": "En Preparación" }           ← Almacén inicia armado
+      { "estado": "Lista para Carga" }          ← Almacén valida cajas en andén
+      { "estado": "En Preparación" }            ← Rollback: problema en andén
+      { "estado": "Cancelada", "notas": "..." } ← Ventas cancela
+    """
+    ov = await _get_ov(db, ov_id)
+    _assert_transicion(ov, body.estado, current_user.rol)
+ 
+    estado_anterior = ov.estado
+    ov.estado = body.estado
+    ov.fecha_actualizacion = datetime.now(TZ_LOCAL)
+ 
+    if body.notas:
+        ov.notas = (ov.notas or "") + f"\n[{body.estado}] {body.notas}"
+ 
+    await db.commit()
+    await db.refresh(ov)
+ 
+    return {
+        "message":          f"OV {ov_id} movida de '{estado_anterior}' a '{body.estado}'",
+        "ov_id":            ov.ov_id,
+        "estado_anterior":  estado_anterior,
+        "estado_nuevo":     ov.estado,
+    }
+ 
+ 
+# ─── Endpoint: despacho físico ────────────────────────────────────────────────
+ 
+@router.post("/ventas/{ov_id}/despachar")
+async def despachar_ov(
+    ov_id: str = Path(...),
+    body: DespacharRequest = ...,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """
+    Registra la salida física del camión.
+    Solo permitido desde estado 'Lista para Carga'.
+ 
+    Lógica de status_salida:
+      "OK"  → OV pasa a 'Enviado' (o 'Embarque Parcial' si cantidades < pedido)
+      "NG"  → OV VUELVE a 'Lista para Carga' — el camión no salió,
+               el envío queda registrado como fallido para trazabilidad
+    """
+    ov = await _get_ov(db, ov_id)
+ 
+    if ov.estado != "Lista para Carga":
+        raise HTTPException(
+            422,
+            f"Solo se puede despachar una OV en estado 'Lista para Carga'. "
+            f"Estado actual: '{ov.estado}'",
+        )
+ 
+    if current_user.rol not in ["admin", "logistica", "ventas"]:
+        raise HTTPException(403, "Solo logística o ventas pueden registrar el despacho.")
+ 
+    # ── Determinar items enviados ──────────────────────────────────────────
+    items_enviados = body.items_enviados or []
+    if not items_enviados:
+        # Si no se especifican items, asumimos envío completo de todos los items
+        items_enviados = [
+            {"sku_producto": item.sku_producto, "cantidad": item.cantidad - item.cantidad_enviada}
+            for item in ov.items
+            if item.cantidad > item.cantidad_enviada
+        ]
+ 
+    # ── Calcular si es envío parcial o completo ────────────────────────────
+    es_completo = True
+    for item_ov in ov.items:
+        enviado_ahora = next(
+            (ie["cantidad"] for ie in items_enviados if ie["sku_producto"] == item_ov.sku_producto),
+            0,
+        )
+        nuevo_total_enviado = item_ov.cantidad_enviada + enviado_ahora
+        if nuevo_total_enviado < item_ov.cantidad:
+            es_completo = False
+ 
+    # ── Crear registro de envío (siempre, incluso si NG) ──────────────────
+    import uuid as _uuid
+    envio_id = f"ENV-{datetime.now(TZ_LOCAL).strftime('%Y%m%d%H%M%S')}-{_uuid.uuid4().hex[:4].upper()}"
+ 
+    nuevo_envio = EnvioVenta(
+        envio_id=envio_id,
+        orden_venta_id=ov.id,
+        ov_id=ov.ov_id,
+        autorizado_por=current_user.username,
+        items_enviados=items_enviados,
+        no_camion=body.no_camion,
+        chofer=body.chofer,
+        status_salida=body.status_salida,
+        no_departure=body.no_departure,   # campo nuevo
+        notas=f"status_salida={body.status_salida}",
+    )
+    db.add(nuevo_envio)
+ 
+    # ── Actualizar cantidades y estado de la OV ────────────────────────────
+    if body.status_salida == "OK":
+        # Actualizar cantidad_enviada de cada item
+        for item_ov in ov.items:
+            enviado_ahora = next(
+                (ie["cantidad"] for ie in items_enviados if ie["sku_producto"] == item_ov.sku_producto),
+                0,
+            )
+            item_ov.cantidad_enviada += enviado_ahora
+ 
+        # Actualizar cw_invoice en la OV
+        if body.cw_invoice:
+            ov.cw_invoice = body.cw_invoice
+ 
+        # Nuevo estado según completitud
+        ov.estado = "Enviado" if es_completo else "Embarque Parcial"
+ 
+    else:
+        # NG: el camión no salió — regresa a Lista para Carga para reintentar
+        ov.estado = "Lista para Carga"
+ 
+    ov.fecha_actualizacion = datetime.now(TZ_LOCAL)
+    await db.commit()
+ 
+    return {
+        "message":       f"Despacho registrado. Status: {body.status_salida}",
+        "envio_id":      envio_id,
+        "estado_ov":     ov.estado,
+        "no_departure":  body.no_departure,
+    }
+
+
 # ========================
 # DEVOLUCIONES
 # ========================
@@ -1271,79 +1636,240 @@ async def obtener_plan_ventas(
     }
 
 
+# ------------------------------------------------------------------ #
+# Mapeo timestamp → nombre de día en español (cómo vienen del Excel) #
+# ------------------------------------------------------------------ #
+DIA_MAP = {
+    0: "LUNES",
+    1: "MARTES",
+    2: "MIERCOLES",
+    3: "JUEVES",
+    4: "VIERNES",
+    5: "SABADO",
+    6: "DOMINGO",
+}
+ 
+# Columnas mínimas que deben existir en la fila de headers (fila 4)
+COLS_REQUERIDAS = {"NO. PARTE", "DESCRIPCION", "LINE", "INV. CW", "INV. LG"}
+ 
+ 
+# ------------------------------------------------------------------ #
+# Función principal de parseo                                          #
+# ------------------------------------------------------------------ #
+def parsear_cw_plan(contenido: bytes) -> list[dict[str, Any]]:
+    """
+    Lee la hoja 'CW PLAN' de un Excel y devuelve una lista de items
+    con la estructura extendida de PlanVentas.items.
+ 
+    Estructura de la hoja CW PLAN:
+      Filas 0-3  → metadata (fechas, labels de sección) — se ignoran
+      Fila 4     → headers reales (NO. PARTE, DESCRIPCION, LINE, ...)
+      Filas 5+   → datos. Filas con NO. PARTE vacío son separadores.
+ 
+    Columnas de días: son datetime objects en pandas. Se detectan
+    automáticamente buscando columnas de tipo datetime64.
+    """
+    try:
+        df_raw = pd.read_excel(
+            io.BytesIO(contenido),
+            sheet_name="CW PLAN",
+            header=None,          # leemos sin header para manejar las filas de metadata
+        )
+    except Exception as e:
+        raise HTTPException(400, f"No se pudo leer la hoja 'CW PLAN': {e}")
+ 
+    # ── 1. Extraer headers de la fila 4 (índice 4) ──────────────────
+    header_row = df_raw.iloc[4]
+ 
+    # Los headers de días son objetos datetime (pandas los parsea así)
+    # Los demás son strings. Construimos un dict col_idx → nombre_col
+    col_names: dict[int, str] = {}
+    dia_cols:  dict[int, str] = {}   # col_idx → "LUNES" / "MARTES" / etc.
+ 
+    for idx, val in enumerate(header_row):
+        if pd.isna(val):
+            continue
+        if isinstance(val, (datetime, pd.Timestamp)):
+            # Es una columna de día — la mapeamos por weekday()
+            dia_nombre = DIA_MAP.get(pd.Timestamp(val).weekday())
+            if dia_nombre:
+                dia_cols[idx] = dia_nombre
+                col_names[idx] = dia_nombre
+        else:
+            col_names[idx] = str(val).strip()
+ 
+    # Verificar que las columnas esenciales existen
+    nombres = set(col_names.values())
+    faltantes = COLS_REQUERIDAS - nombres
+    if faltantes:
+        raise HTTPException(
+            400,
+            f"Faltan columnas en CW PLAN: {faltantes}. "
+            f"Columnas encontradas: {nombres}"
+        )
+ 
+    # Índices de columnas clave
+    def _idx(nombre: str) -> int:
+        for k, v in col_names.items():
+            if v == nombre:
+                return k
+        raise HTTPException(400, f"Columna '{nombre}' no encontrada")
+ 
+    idx_sku        = _idx("NO. PARTE")
+    idx_desc       = _idx("DESCRIPCION")
+    idx_linea      = _idx("LINE")
+    idx_stock_cw   = _idx("INV. CW")
+    idx_stock_lg   = _idx("INV. LG")
+ 
+    # Columnas opcionales (pueden no existir en versiones anteriores del Excel)
+    idx_cw_line = next((k for k, v in col_names.items() if v == "CW LINE"), None)
+    idx_model   = next((k for k, v in col_names.items() if v == "MODEL"), None)
+    idx_id1     = next((k for k, v in col_names.items() if v == "ID 1"), None)
+ 
+    # ── 2. Iterar filas de datos (fila 5 en adelante) ───────────────
+    items: list[dict[str, Any]] = []
+    data_rows = df_raw.iloc[5:]
+ 
+    for _, row in data_rows.iterrows():
+        sku = row.iloc[idx_sku]
+ 
+        # Saltar separadores (filas vacías o con SKU nulo)
+        if pd.isna(sku) or str(sku).strip() == "":
+            continue
+ 
+        sku = str(sku).strip()
+ 
+        # Saltar filas de subtotal (tienen SKU numérico o "TOTAL")
+        if sku.upper() in ("TOTAL", "SUBTOTAL") or sku.isdigit():
+            continue
+ 
+        def _val(idx: int | None, default=None):
+            if idx is None:
+                return default
+            v = row.iloc[idx]
+            return None if pd.isna(v) else v
+ 
+        def _int(idx: int | None, default: int = 0) -> int:
+            v = _val(idx)
+            try:
+                return int(v) if v is not None else default
+            except (ValueError, TypeError):
+                return default
+ 
+        # ── Construir dict de días ──────────────────────────────────
+        dias: dict[str, dict] = {}
+        for col_idx, dia_nombre in dia_cols.items():
+            plan_qty = _int(col_idx, 0)
+            dias[dia_nombre] = {
+                "plan":        plan_qty,
+                "status":      "Pendiente",
+                "ov_generada": None,
+            }
+ 
+        item: dict[str, Any] = {
+            "sku":          sku,
+            "descripcion":  str(_val(idx_desc) or "").strip(),
+            "linea":        str(_val(idx_linea) or "").strip(),
+            # ── Campos nuevos ──
+            "cw_line":      str(_val(idx_cw_line) or "").strip() or None,
+            "model":        str(_val(idx_model)   or "").strip() or None,
+            "id1":          str(_val(idx_id1)     or "").strip() or None,
+            # ── Stock ──
+            "stock_actual": _int(idx_stock_cw, 0),   # INV. CW  (stock en planta CW)
+            "stock_lg":     _int(idx_stock_lg, 0),   # INV. LG  (stock en planta LG)
+            # ── Días ──
+            "dias":         dias,
+        }
+        items.append(item)
+ 
+    if not items:
+        raise HTTPException(400, "No se encontraron SKUs válidos en la hoja CW PLAN")
+ 
+    return items
+
+
 @router.post("/plan-ventas/importar")
 @router.post("/plan-ventas/importar/")
 async def importar_plan_ventas(
-    fecha_inicio_semana: str = Query(...),
+    fecha_inicio_semana: date = Query(..., description="Lunes de la semana. Ej: 2026-06-09"),
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    require_ventas_role(current_user)
-
-    try:
-        fecha_semana = date.fromisoformat(fecha_inicio_semana)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Formato de fecha inválido. Use YYYY-MM-DD")
-
-    identificador_semana = fecha_semana.strftime("%Y-%W")
-
-    contents = await file.read()
-    try:
-        if file.filename.endswith(".csv"):
-            df = pd.read_csv(io.BytesIO(contents), dtype=str)
-        else:
-            df = pd.read_excel(io.BytesIO(contents), dtype=str)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error al leer archivo: {str(e)}")
-
-    df.columns = [c.strip().upper() for c in df.columns]
-    df = df.where(pd.notnull(df), "0")
-
-    items = []
-    for _, row in df.iterrows():
-        sku = str(row.get("SKU", "")).strip().upper()
-        if not sku:
-            continue
-        items.append({
-            "sku": sku,
-            "descripcion": str(row.get("DESCRIPCION", row.get("NOMBRE", ""))).strip(),
-            "dias": {
-                "LUNES": {"plan": int(row.get("LUNES", 0) or 0), "status": "Pendiente", "ov_generada": None},
-                "MARTES": {"plan": int(row.get("MARTES", 0) or 0), "status": "Pendiente", "ov_generada": None},
-                "MIERCOLES": {"plan": int(row.get("MIERCOLES", 0) or 0), "status": "Pendiente", "ov_generada": None},
-                "JUEVES": {"plan": int(row.get("JUEVES", 0) or 0), "status": "Pendiente", "ov_generada": None},
-                "VIERNES": {"plan": int(row.get("VIERNES", 0) or 0), "status": "Pendiente", "ov_generada": None},
-            },
-        })
-
+    """
+    Importa la hoja 'CW PLAN' de un Excel y guarda/actualiza el PlanVentas
+    de esa semana. Es idempotente: si ya existe el plan de esa semana,
+    lo reemplaza (upsert por identificador_semana).
+ 
+    Preserva los status "Autorizado" y las ov_generada de días que
+    ya fueron procesados — no los sobreescribe con "Pendiente".
+    """
+    contenido = await file.read()
+    nuevos_items = parsear_cw_plan(contenido)
+ 
+    # Identificador de semana: YYYY-WW (ISO week number)
+    iso_year, iso_week, _ = fecha_inicio_semana.isocalendar()
+    identificador = f"{iso_year}-{iso_week:02d}"
+ 
+    # Buscar si ya existe el plan de esa semana
     result = await db.execute(
-        select(PlanVentas).where(PlanVentas.identificador_semana == identificador_semana)
+        select(PlanVentas).where(PlanVentas.identificador_semana == identificador)
     )
-    plan_existente = result.scalar_one_or_none()
-
+    plan_existente: PlanVentas | None = result.scalar_one_or_none()
+ 
     if plan_existente:
-        items_map_existente = {i["sku"]: i for i in (plan_existente.items or [])}
-        for new_item in items:
-            if new_item["sku"] in items_map_existente:
-                for dia, info in new_item["dias"].items():
-                    if info["plan"] > 0:
-                        items_map_existente[new_item["sku"]]["dias"][dia] = info
-            else:
-                items_map_existente[new_item["sku"]] = new_item
-        plan_existente.items = list(items_map_existente.values())
-        plan_existente.importado_por = current_user.username
-    else:
-        plan = PlanVentas(
-            identificador_semana=identificador_semana,
-            fecha_inicio_semana=fecha_semana,
-            items=items,
-            importado_por=current_user.username,
-        )
-        db.add(plan)
-
+        # ── Upsert: preservar status/ov_generada de días ya autorizados ──
+        items_previos = {item["sku"]: item for item in (plan_existente.items or [])}
+ 
+        for nuevo_item in nuevos_items:
+            sku = nuevo_item["sku"]
+            if sku in items_previos:
+                prev = items_previos[sku]
+                for dia, datos_dia in nuevo_item["dias"].items():
+                    prev_dia = prev.get("dias", {}).get(dia, {})
+                    # Solo preservar si ya fue autorizado o tiene OV generada
+                    if prev_dia.get("status") == "Autorizado" or prev_dia.get("ov_generada"):
+                        datos_dia["status"]      = prev_dia["status"]
+                        datos_dia["ov_generada"] = prev_dia["ov_generada"]
+                # Actualizar stock y campos nuevos (pueden haber cambiado)
+                prev.update({
+                    "stock_actual": nuevo_item["stock_actual"],
+                    "stock_lg":     nuevo_item["stock_lg"],
+                    "cw_line":      nuevo_item.get("cw_line"),
+                    "model":        nuevo_item.get("model"),
+                    "id1":          nuevo_item.get("id1"),
+                    "dias":         nuevo_item["dias"],
+                })
+ 
+        # SQLAlchemy no detecta mutaciones en JSON automáticamente
+        from sqlalchemy.orm.attributes import flag_modified
+        plan_existente.items = nuevos_items
+        flag_modified(plan_existente, "items")
+        await db.commit()
+        await db.refresh(plan_existente)
+ 
+        return {
+            "message":    f"Plan semana {identificador} actualizado",
+            "total_skus": len(nuevos_items),
+            "accion":     "actualizado",
+        }
+ 
+    # ── Crear nuevo plan ──
+    nuevo_plan = PlanVentas(
+        identificador_semana=identificador,
+        fecha_inicio_semana=fecha_inicio_semana,
+        items=nuevos_items,
+        importado_por=current_user.username,
+    )
+    db.add(nuevo_plan)
     await db.commit()
-    return {"message": f"Plan de ventas {identificador_semana} importado", "total_skus": len(items)}
+    await db.refresh(nuevo_plan)
+ 
+    return {
+        "message":    f"Plan semana {identificador} creado",
+        "total_skus": len(nuevos_items),
+        "accion":     "creado",
+    }
 
 
 @router.post("/plan-ventas/autorizar")
@@ -1399,6 +1925,97 @@ async def autorizar_ventas_masivo(
     await db.commit()
 
     return {"resultados": resultados}
+
+
+@router.post("/ventas/{ov_id}/despachar")
+async def despachar_orden_venta(
+    ov_id: str,
+    data: EnvioLogisticoCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    # Se permite a Logística y Ventas
+    if current_user.rol not in ("admin", "finanzas", "ventas", "logistica"):
+        raise HTTPException(status_code=403, detail="Sin permisos de despacho")
+
+    result = await db.execute(select(OrdenVenta).where(OrdenVenta.ov_id == ov_id))
+    orden = result.scalar_one_or_none()
+    if not orden or orden.estado != "Lista para Carga":
+        raise HTTPException(status_code=400, detail="Orden no lista para carga")
+
+    if data.cw_invoice:
+        orden.cw_invoice = data.cw_invoice
+
+    items_result = await db.execute(select(OrdenVentaItem).where(OrdenVentaItem.orden_venta_id == orden.id))
+    items = items_result.scalars().all()
+
+    ahora = ahora_local()
+    envio_id = f"ENV-{ahora.strftime('%Y%m%d%H%M%S')}"
+
+    # Generar el registro físico
+    envio = EnvioVenta(
+        envio_id=envio_id,
+        orden_venta_id=orden.id,
+        ov_id=ov_id,
+        autorizado_por=current_user.username,
+        no_camion=data.no_camion,
+        chofer=data.chofer,
+        status_salida=data.status_salida,
+        items_enviados=[{"sku": i.sku_producto, "qty": i.cantidad} for i in items]
+    )
+    db.add(envio)
+    orden.estado = "Despachada"
+    
+    await db.commit()
+    return {"message": "Despacho registrado exitosamente", "envio_id": envio_id}
+
+# 2. Endpoint para Reporte Diario/Mensual Excel
+@router.get("/ventas/reporte-diario/excel")
+async def descargar_reporte_ventas(
+    fecha: str = Query(..., description="YYYY-MM-DD"),
+    db: AsyncSession = Depends(get_db)
+):
+    # Filtramos envíos de ese día
+    query = select(EnvioVenta, OrdenVenta).join(OrdenVenta).where(
+        func.date(EnvioVenta.fecha_envio) == fecha
+    )
+    result = await db.execute(query)
+    registros = result.all()
+
+    datos_reporte = []
+    for envio, orden in registros:
+        for item in envio.items_enviados:
+            datos_reporte.append({
+                "NO. PARTE": item["sku"],
+                "DESCRIPCION": "Extraer de maestro", # Aquí cruzarías con modelo Producto
+                "LINE": "R1/R2", 
+                "NO. EMB": envio.id,
+                "CANTIDAD": item["qty"],
+                "FECHA": envio.fecha_envio.strftime("%Y-%m-%d"),
+                "NO. DEPARTURE": orden.ov_id,
+                "CW INVOICE": orden.cw_invoice or "NO PO",
+                "HRA DE SALIDA": envio.fecha_envio.strftime("%H:%M:%S"),
+                "SALIDA STATUS": envio.status_salida,
+                "CANTIDAD FINAL": item["qty"],
+                "CAPTURISTA": envio.autorizado_por,
+                "NO. CAMION": envio.no_camion,
+                "CHOFER": envio.chofer,
+                "COMENTARIO": orden.notas
+            })
+
+    df = pd.DataFrame(datos_reporte)
+    
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, sheet_name='VENTA REPORTE(D)', index=False)
+        # Puedes añadir más sheets (BOM, RETURN) aquí.
+    
+    output.seek(0)
+    return StreamingResponse(
+        output, 
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename=CW_Venta_Reporte_{fecha}.xlsx"}
+    )
 
 
 # ========================

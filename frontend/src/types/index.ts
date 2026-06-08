@@ -435,33 +435,75 @@ export interface Devolucion {
 // ==========================================
 // FINANZAS — Plan de Ventas
 // ==========================================
+
 export interface PlanVentasDia {
   plan:          number
-  status:        string
+  status:        'Pendiente' | 'Autorizado' | string
   ov_generada?:  string | null
 }
+
+// Días que el backend puede devolver (depende de cuántos días tenga la semana
+// importada — no todos los planes tienen sábado)
+export type DiaSemana = 'LUNES' | 'MARTES' | 'MIERCOLES' | 'JUEVES' | 'VIERNES' | 'SABADO'
 
 export interface PlanVentasItem {
   sku:           string
   descripcion?:  string
-  stock_actual?: number
-  dias: {
-    LUNES:     PlanVentasDia
-    MARTES:    PlanVentasDia
-    MIERCOLES: PlanVentasDia
-    JUEVES:    PlanVentasDia
-    VIERNES:   PlanVentasDia
-  }
+  linea?:        string        // R1 / R2 / R3 / SVC
+
+  // ── Campos nuevos del CW PLAN ──────────────────────────────────────────
+  cw_line?:      string | null  // L2 / L3 / L5 / L6  (línea de producción CW)
+  model?:        string | null  // QUANTUM-T / MAJESTY / RAPTOR 2 / etc.
+  id1?:          string | null  // agrupación funcional: Control Box / Duct Multi / etc.
+
+  // ── Stock ───────────────────────────────────────────────────────────────
+  stock_actual?: number         // INV. CW — inventario en planta Cheong Woon
+  stock_lg?:     number         // INV. LG — inventario en planta LG (NUEVO)
+
+  // ── Plan por día ────────────────────────────────────────────────────────
+  dias: Partial<Record<DiaSemana, PlanVentasDia>>
 }
 
 export interface PlanVentasSemana {
-  id:                    number
-  identificador_semana:  string
-  fecha_inicio_semana:   string
-  fecha_importacion:     string
-  items:                 PlanVentasItem[]
-  importado_por?:        string
-  total_skus?:           number
+  id:                   number
+  identificador_semana: string       // formato YYYY-WW
+  fecha_inicio_semana:  string       // ISO date del lunes
+  fecha_importacion:    string
+  items:                PlanVentasItem[]
+  importado_por?:       string
+  total_skus?:          number
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper: calcula la DIF acumulada hasta un día dado
+//
+// La DIF NO se almacena en DB — se calcula en frontend para siempre estar fresca.
+//
+// Lógica del CW PLAN:
+//   DIF_dia = stock_lg - sum(plan de este día + días anteriores de la semana)
+//
+// Si DIF es negativa → el plan supera el stock que tiene LG → alerta roja.
+// ─────────────────────────────────────────────────────────────────────────────
+const ORDEN_DIAS: DiaSemana[] = ['VIERNES', 'LUNES', 'MARTES', 'MIERCOLES', 'JUEVES']
+
+export function calcularDIF(item: PlanVentasItem, hastaElDia: DiaSemana): number {
+  const stockLG = item.stock_lg ?? 0
+  let acumulado = 0
+
+  for (const dia of ORDEN_DIAS) {
+    const planDia = item.dias[dia]?.plan ?? 0
+    acumulado += planDia
+    if (dia === hastaElDia) break
+  }
+
+  return stockLG - acumulado
+}
+
+// Retorna el color de badge para una DIF dada
+export function colorDIF(dif: number): 'green' | 'yellow' | 'red' {
+  if (dif > 0)  return 'green'
+  if (dif === 0) return 'yellow'
+  return 'red'
 }
 
 // ==========================================

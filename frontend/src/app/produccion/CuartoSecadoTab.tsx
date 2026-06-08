@@ -364,40 +364,22 @@ export default function CuartoSecadoTab() {
   const carritosAdentro = registros.filter(r => r.estado === 'dentro').length
   const carritosSalidos = registros.filter(r => r.estado === 'salido').length
 
+
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 20,
-        background: 'transparent',
-        color: 'var(--inj-text)',
-        minHeight: '100%',
-      }}
-    >
+    <div className="flex flex-col gap-5">
+
       {/* Header */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'flex-start',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 12,
-        }}
-      >
+      <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--inj-text)' }}>
-            🌡️ Cuarto de Secado
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--inj-muted)', marginTop: 4 }}>
+          <div className="text-lg font-bold text-white">🌡️ Cuarto de Secado</div>
+          <div className="text-xs text-gray-400 mt-1">
             {registros.length} total · {carritosAdentro} en cámara · {carritosSalidos} salidos
           </div>
         </div>
-
         <button
           onClick={handleDescargarExcel}
           disabled={descargando || registros.length === 0}
-          className="inj-btn inj-btn-excel"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {descargando ? (
             <>
@@ -422,46 +404,20 @@ export default function CuartoSecadoTab() {
 
       {/* Error Excel */}
       {errorExcel && (
-        <div className="inj-alert inj-alert-err">
+        <div className="flex items-start gap-2 px-3.5 py-2.5 rounded-lg text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/30">
           <span>⚠</span>
-          <span style={{ flex: 1 }}>
+          <span className="flex-1">
             Error al generar Excel:{' '}
-            <span style={{ fontFamily: 'var(--inj-mono)', fontSize: 11 }}>{errorExcel}</span>
+            <span className="font-mono text-[11px]">{errorExcel}</span>
           </span>
-          <button
-            onClick={() => setErrorExcel(null)}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: 'inherit',
-              cursor: 'pointer',
-              fontSize: 16,
-              padding: 0,
-            }}
-          >
-            ✕
-          </button>
+          <button onClick={() => setErrorExcel(null)} className="text-red-400 hover:text-red-300 text-base leading-none bg-transparent border-none cursor-pointer p-0">✕</button>
         </div>
       )}
 
       {/* Scanner section */}
-      <div
-        className="inj-card"
-        style={{
-          padding: 18,
-          background: 'linear-gradient(180deg, rgba(22,27,34,0.96) 0%, rgba(18,23,31,0.96) 100%)',
-        }}
-      >
-        <div style={{ textAlign: 'center' }}>
-          <div
-            style={{
-              display: 'inline-flex',
-              width: '100%',
-              maxWidth: 620,
-              alignItems: 'center',
-              gap: 10,
-            }}
-          >
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+        <div className="flex flex-col items-center gap-3">
+          <div className="flex w-full max-w-xl items-center gap-2.5">
             <input
               ref={inputRef}
               type="text"
@@ -472,43 +428,13 @@ export default function CuartoSecadoTab() {
               placeholder="Esperando lectura de código QR..."
               autoComplete="off"
               autoFocus
-              style={{
-                flex: 1,
-                background: 'var(--inj-bg)',
-                border: '2px solid var(--inj-amber)',
-                borderRadius: 10,
-                padding: '16px 18px',
-                fontFamily: 'var(--inj-mono)',
-                fontSize: 22,
-                fontWeight: 600,
-                color: 'var(--inj-text)',
-                textAlign: 'center',
-                letterSpacing: '0.08em',
-                outline: 'none',
-                textTransform: 'uppercase',
-                boxShadow: '0 0 0 1px rgba(245,158,11,0.12) inset',
-              }}
-              onFocus={e => {
-                (e.target as HTMLInputElement).style.boxShadow = '0 0 0 3px rgba(245,158,11,0.18)'
-              }}
-              onBlur={e => {
-                (e.target as HTMLInputElement).style.boxShadow = '0 0 0 1px rgba(245,158,11,0.12) inset'
-              }}
+              className="flex-1 bg-gray-950 border-2 border-amber-500 rounded-xl px-4 py-3.5 font-mono text-xl font-semibold text-white text-center tracking-wider outline-none uppercase focus:ring-2 focus:ring-amber-500/30 transition-shadow"
             />
-
             <button
               onClick={abrirScanner}
               type="button"
               title="Escanear con cámara"
-              className="inj-btn inj-btn-amber"
-              style={{
-                width: 56,
-                height: 56,
-                padding: 0,
-                justifyContent: 'center',
-                borderRadius: 10,
-                flexShrink: 0,
-              }}
+              className="w-14 h-14 flex items-center justify-center rounded-xl shrink-0 bg-amber-500/10 text-amber-400 border border-amber-500/30 hover:bg-amber-500/20 transition-colors"
             >
               <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
@@ -516,114 +442,69 @@ export default function CuartoSecadoTab() {
               </svg>
             </button>
           </div>
-
-          <p style={{ fontSize: 11, color: 'var(--inj-muted)', marginTop: 8 }}>
-            1er escaneo → <span style={{ color: 'var(--inj-green)', fontWeight: 600 }}>Entrada</span>
+          <p className="text-xs text-gray-400">
+            1er escaneo → <span className="text-emerald-400 font-semibold">Entrada</span>
             {' · '}
-            2do escaneo → <span style={{ color: 'var(--inj-blue)', fontWeight: 600 }}>Salida</span>
+            2do escaneo → <span className="text-blue-400 font-semibold">Salida</span>
           </p>
         </div>
       </div>
 
       {/* Modal Scanner */}
       {scannerOpen && (
-        <div className="inj-overlay">
-          <div className="inj-modal" style={{ maxWidth: 400 }}>
-            <div className="inj-modal-header">
-              <span className="inj-modal-title">📷 Escanear QR</span>
-              <button className="inj-btn inj-btn-ghost" style={{ padding: '4px 10px' }} onClick={cerrarScanner}>
-                ✕
-              </button>
+        <div className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-sm shadow-2xl">
+            <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
+              <span className="text-sm font-bold text-white">📷 Escanear QR</span>
+              <button className="text-gray-400 hover:text-white transition-colors text-lg leading-none" onClick={cerrarScanner}>✕</button>
             </div>
-            <div className="inj-modal-body">
-              <div
-                ref={scannerContainerRef}
-                id="reader-secado"
-                style={{
-                  width: '100%',
-                  aspectRatio: '1',
-                  borderRadius: 8,
-                  overflow: 'hidden',
-                  background: '#000',
-                }}
-              />
+            <div className="p-5 flex flex-col gap-3">
+              <div ref={scannerContainerRef} id="reader-secado" className="w-full aspect-square rounded-lg overflow-hidden bg-black" />
               {scannerError && (
-                <div className="inj-alert inj-alert-err" style={{ marginTop: 12 }}>
+                <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs bg-red-500/10 text-red-400 border border-red-500/30">
                   <span>⚠️</span> {scannerError}
                 </div>
               )}
-              <p style={{ fontSize: 11, color: 'var(--inj-muted)', textAlign: 'center', marginTop: 10 }}>
-                Apunta el código QR dentro del recuadro
-              </p>
+              <p className="text-xs text-gray-400 text-center">Apunta el código QR dentro del recuadro</p>
             </div>
           </div>
         </div>
       )}
 
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
+      <div className="grid grid-cols-3 gap-3">
         {[
-          { label: 'Total',   value: registros.length, color: 'var(--inj-blue)' },
-          { label: 'Dentro',  value: carritosAdentro,  color: 'var(--inj-amber)' },
-          { label: 'Salidos', value: carritosSalidos,  color: 'var(--inj-green)' },
+          { label: 'Total',   value: registros.length,  colorClass: 'border-blue-500 text-blue-400' },
+          { label: 'Dentro',  value: carritosAdentro,   colorClass: 'border-amber-500 text-amber-400' },
+          { label: 'Salidos', value: carritosSalidos,   colorClass: 'border-emerald-500 text-emerald-400' },
         ].map(s => (
-          <div
-            key={s.label}
-            className="inj-stat"
-            style={{
-              borderLeft: `3px solid ${s.color}`,
-              background: 'linear-gradient(180deg, var(--inj-surface2), rgba(28,35,51,0.88))',
-            }}
-          >
-            <div className="inj-stat-label">{s.label}</div>
-            <div className="inj-stat-value" style={{ fontSize: 28, color: s.color }}>
-              {s.value}
-            </div>
+          <div key={s.label} className={`bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 border-l-[3px] ${s.colorClass.split(' ')[0]}`}>
+            <div className="text-[10px] font-semibold tracking-wider uppercase text-gray-400">{s.label}</div>
+            <div className={`font-mono text-3xl font-semibold mt-0.5 ${s.colorClass.split(' ')[1]}`}>{s.value}</div>
           </div>
         ))}
       </div>
 
       {/* Alertas */}
       {alertas.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div className="flex flex-col gap-2">
           {alertas.slice(0, 5).map(alerta => {
             const st = ALERTA_STYLES[alerta.tipo] ?? DEFAULT_ALERTA
             return (
               <div
                 key={alerta.id}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'flex-start',
-                  padding: '10px 14px',
-                  borderRadius: 8,
-                  gap: 10,
-                  background: st.bg,
-                  border: `1px solid ${st.border}`,
-                  animation: 'inj-slide-in 0.2s ease',
-                }}
+                className="flex justify-between items-start px-3.5 py-2.5 rounded-lg gap-2.5"
+                style={{ background: st.bg, border: `1px solid ${st.border}` }}
               >
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: st.color, marginBottom: 2 }}>
-                    {st.icon} {alerta.tipo}
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--inj-muted)' }}>{alerta.mensaje}</div>
+                  <div className="text-xs font-bold mb-0.5" style={{ color: st.color }}>{st.icon} {alerta.tipo}</div>
+                  <div className="text-xs text-gray-400">{alerta.mensaje}</div>
                 </div>
                 <button
                   onClick={() => setAlertas(prev => prev.filter(a => a.id !== alerta.id))}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: st.color,
-                    cursor: 'pointer',
-                    fontSize: 16,
-                    opacity: 0.7,
-                    padding: 0,
-                    lineHeight: 1,
-                  }}
-                >
-                  ✕
-                </button>
+                  className="bg-transparent border-none cursor-pointer text-base leading-none p-0 opacity-70 hover:opacity-100 transition-opacity"
+                  style={{ color: st.color }}
+                >✕</button>
               </div>
             )
           })}
@@ -631,96 +512,59 @@ export default function CuartoSecadoTab() {
       )}
 
       {/* Filtros */}
-      <div
-        className="inj-card"
-        style={{
-          padding: 14,
-          background: 'rgba(22,27,34,0.88)',
-        }}
-      >
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-3.5">
         <div
           ref={filtrosRef}
           onFocus={handleFiltroFocus}
           onBlur={handleFiltroBlur}
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-            gap: 10,
-            alignItems: 'end',
-          }}
+          className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-2.5 items-end"
         >
-          <div style={{ gridColumn: 'span 1' }}>
-            <label className="inj-label">Buscar</label>
+          <div>
+            <label className="block text-[10px] font-bold tracking-wider uppercase text-gray-400 mb-1">Buscar</label>
             <input
               type="text"
               value={busqueda}
               onChange={e => setBusqueda(e.target.value)}
               placeholder="Buscar máquina, parte o descripción..."
-              className="inj-input"
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-2 text-xs text-white outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-colors placeholder:text-gray-500"
             />
           </div>
 
           <div>
-            <label className="inj-label">Máquina</label>
-            <select value={filtroMaquina} onChange={e => setFiltroMaquina(e.target.value)} className="inj-select">
+            <label className="block text-[10px] font-bold tracking-wider uppercase text-gray-400 mb-1">Máquina</label>
+            <select value={filtroMaquina} onChange={e => setFiltroMaquina(e.target.value)}
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-2 text-xs text-white outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-colors">
               <option value="">Todas las Máquinas</option>
               {maquinasUnicas.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
           </div>
 
           <div>
-            <label className="inj-label">No. de Parte</label>
-            <select value={filtroParte} onChange={e => setFiltroParte(e.target.value)} className="inj-select">
+            <label className="block text-[10px] font-bold tracking-wider uppercase text-gray-400 mb-1">No. de Parte</label>
+            <select value={filtroParte} onChange={e => setFiltroParte(e.target.value)}
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-2 text-xs text-white outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-colors">
               <option value="">Todos los No. de Parte</option>
               {partesUnicas.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
           </div>
 
           <div>
-            <label className="inj-label">Estado</label>
-            <select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)} className="inj-select">
+            <label className="block text-[10px] font-bold tracking-wider uppercase text-gray-400 mb-1">Estado</label>
+            <select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)}
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-2 text-xs text-white outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-colors">
               <option value="">Cualquier Estado</option>
               <option value="dentro">🌡️ Dentro</option>
               <option value="salido">✅ Salido</option>
             </select>
           </div>
 
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              justifyContent: 'flex-end',
-              flexWrap: 'wrap',
-            }}
-          >
+          <div className="flex items-center gap-2 justify-end flex-wrap">
             {hayFiltros && (
-              <button
-                onClick={limpiarFiltros}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: 11,
-                  color: 'var(--inj-red)',
-                  cursor: 'pointer',
-                  textDecoration: 'underline',
-                }}
-              >
+              <button onClick={limpiarFiltros} className="text-xs text-red-400 hover:text-red-300 underline bg-transparent border-none cursor-pointer">
                 Limpiar filtros
               </button>
             )}
-            <span
-              style={{
-                background: 'var(--inj-surface2)',
-                border: '1px solid var(--inj-border)',
-                borderRadius: 6,
-                padding: '4px 10px',
-                fontSize: 11,
-                color: 'var(--inj-muted)',
-                fontFamily: 'var(--inj-mono)',
-                whiteSpace: 'nowrap',
-              }}
-            >
+            <span className="bg-gray-800 border border-gray-700 rounded px-2.5 py-1 text-xs text-gray-400 font-mono whitespace-nowrap">
               {registrosFiltrados.length === registros.length
                 ? `${registros.length} reg.`
                 : `${registrosFiltrados.length} / ${registros.length}`}
@@ -730,50 +574,37 @@ export default function CuartoSecadoTab() {
       </div>
 
       {/* Tabla */}
-      <div className="inj-card inj-table-wrap" style={{ background: 'var(--inj-surface)' }}>
-        <table className="inj-table">
+      <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden overflow-x-auto">
+        <table className="w-full text-sm divide-y divide-gray-800">
           <thead>
-            <tr>
-              {COLUMNAS.map(col => <th key={col} className="c">{col}</th>)}
+            <tr className="bg-gray-800">
+              {COLUMNAS.map(col => (
+                <th key={col} className="px-3 py-3 text-center text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">{col}</th>
+              ))}
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-gray-800">
             {cargando ? (
               <tr>
-                <td colSpan={COLUMNAS.length} style={{ textAlign: 'center', padding: '48px 0', color: 'var(--inj-muted)', fontSize: 13 }}>
-                  <span style={{ animation: 'inj-blink 1s ease-in-out infinite' }}>Cargando registros...</span>
+                <td colSpan={COLUMNAS.length} className="px-4 py-12 text-center text-gray-400 text-sm">
+                  Cargando registros...
                 </td>
               </tr>
             ) : registros.length === 0 ? (
               <tr>
-                <td colSpan={COLUMNAS.length}>
-                  <div className="inj-empty" style={{ padding: '56px 20px' }}>
-                    <div className="inj-empty-icon">🌡️</div>
-                    <div className="inj-empty-text">Esperando escaneo...</div>
-                  </div>
+                <td colSpan={COLUMNAS.length} className="px-4 py-14 text-center">
+                  <div className="text-3xl mb-2">🌡️</div>
+                  <div className="text-sm text-gray-400">Esperando escaneo...</div>
                 </td>
               </tr>
             ) : registrosFiltrados.length === 0 ? (
               <tr>
-                <td colSpan={COLUMNAS.length}>
-                  <div className="inj-empty" style={{ padding: '56px 20px' }}>
-                    <div className="inj-empty-icon">🔍</div>
-                    <div className="inj-empty-text">Sin resultados para los filtros aplicados</div>
-                    <button
-                      onClick={limpiarFiltros}
-                      style={{
-                        marginTop: 8,
-                        background: 'none',
-                        border: 'none',
-                        color: 'var(--inj-blue)',
-                        fontSize: 12,
-                        cursor: 'pointer',
-                        textDecoration: 'underline',
-                      }}
-                    >
-                      Limpiar filtros
-                    </button>
-                  </div>
+                <td colSpan={COLUMNAS.length} className="px-4 py-14 text-center">
+                  <div className="text-3xl mb-2">🔍</div>
+                  <div className="text-sm text-gray-400 mb-2">Sin resultados para los filtros aplicados</div>
+                  <button onClick={limpiarFiltros} className="text-xs text-blue-400 hover:text-blue-300 underline bg-transparent border-none cursor-pointer">
+                    Limpiar filtros
+                  </button>
                 </td>
               </tr>
             ) : (
@@ -782,90 +613,55 @@ export default function CuartoSecadoTab() {
                 return (
                   <tr
                     key={reg.id}
-                    style={esNuevo ? {
-                      background: 'rgba(245,158,11,0.05)',
-                      boxShadow: 'inset 3px 0 0 var(--inj-amber)',
-                    } : undefined}
+                    className={`transition-colors ${esNuevo ? 'bg-amber-500/5 border-l-[3px] border-amber-500' : 'hover:bg-gray-800/50'}`}
                   >
-                    <td
-                      className="c"
-                      style={{
-                        fontSize: 11,
-                        color: esNuevo ? 'var(--inj-text)' : 'var(--inj-muted)',
-                        fontWeight: esNuevo ? 600 : 400,
-                      }}
-                    >
-                      {reg.maquina || '—'}
+                    <td className="px-3 py-2.5 text-center text-xs font-mono whitespace-nowrap">
+                      <span className={esNuevo ? 'text-white font-semibold' : 'text-gray-400'}>{reg.maquina || '—'}</span>
                     </td>
 
-                    <td className="c">
-                      <span className="inj-part">{reg.numero_parte}</span>
+                    <td className="px-3 py-2.5 text-center">
+                      <span className="font-mono text-xs font-medium text-cyan-400">{reg.numero_parte}</span>
                     </td>
 
-                    <td
-                      style={{
-                        fontSize: 11,
-                        color: 'var(--inj-muted)',
-                        maxWidth: 180,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
+                    <td className="px-3 py-2.5 text-xs text-gray-400 max-w-[180px] truncate">
                       <span title={reg.descripcion}>{reg.descripcion || '—'}</span>
                     </td>
 
-                    <td className="c mono" style={{ fontWeight: 700, color: 'var(--inj-text)' }}>
+                    <td className="px-3 py-2.5 text-center font-mono text-xs font-bold text-white whitespace-nowrap">
                       #{reg.carrito}
                     </td>
 
-                    <td className="c mono" style={{ fontSize: 11, color: 'var(--inj-muted)', whiteSpace: 'nowrap' }}>
+                    <td className="px-3 py-2.5 text-center font-mono text-xs text-gray-400 whitespace-nowrap">
                       {reg.hora_entrada}
                     </td>
 
-                    <td className="c mono" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>
+                    <td className="px-3 py-2.5 text-center font-mono text-xs whitespace-nowrap">
                       {reg.hora_salida ?? (
-                        <span style={{ color: 'var(--inj-amber)', fontWeight: 600, animation: 'inj-blink 1s ease-in-out infinite' }}>
-                          En cámara...
-                        </span>
+                        <span className="text-amber-400 font-semibold animate-pulse">En cámara...</span>
                       )}
                     </td>
 
-                    <td className="c mono" style={{ fontSize: 11, fontWeight: 600, color: 'var(--inj-text)', whiteSpace: 'nowrap' }}>
-                      {reg.tiempo_en_camara ?? <span style={{ color: 'var(--inj-border2)' }}>—</span>}
+                    <td className="px-3 py-2.5 text-center font-mono text-xs font-semibold text-white whitespace-nowrap">
+                      {reg.tiempo_en_camara ?? <span className="text-gray-600">—</span>}
                     </td>
 
-                    <td className="c mono" style={{ fontWeight: 700, color: 'var(--inj-green)' }}>
+                    <td className="px-3 py-2.5 text-center font-mono text-xs font-bold text-emerald-400">
                       {reg.qty_total != null ? reg.qty_total : '—'}
                     </td>
 
-                    <td className="c">
+                    <td className="px-3 py-2.5 text-center">
                       {reg.estado === 'dentro' ? (
-                        <span
-                          className="inj-pill"
-                          style={{
-                            background: 'rgba(245,158,11,0.1)',
-                            color: 'var(--inj-amber)',
-                            border: '1px solid rgba(245,158,11,0.3)',
-                          }}
-                        >
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/30">
                           🌡️ Dentro
                         </span>
                       ) : (
-                        <span
-                          className="inj-pill"
-                          style={{
-                            background: 'rgba(16,185,129,0.1)',
-                            color: 'var(--inj-green)',
-                            border: '1px solid rgba(16,185,129,0.3)',
-                          }}
-                        >
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
                           ✓ Salido
                         </span>
                       )}
                     </td>
 
-                    <td className="c" style={{ fontSize: 11, color: 'var(--inj-muted)', whiteSpace: 'nowrap' }}>
+                    <td className="px-3 py-2.5 text-center text-xs text-gray-400 whitespace-nowrap">
                       👤 {reg.usuario || '—'}
                     </td>
                   </tr>
@@ -877,14 +673,7 @@ export default function CuartoSecadoTab() {
       </div>
 
       {registros.length > 0 && (
-        <p
-          style={{
-            textAlign: 'right',
-            fontSize: 11,
-            color: 'var(--inj-muted)',
-            fontFamily: 'var(--inj-mono)',
-          }}
-        >
+        <p className="text-right text-xs text-gray-500 font-mono">
           {registros.length} registro(s) — {carritosAdentro} carrito(s) aún en cámara
         </p>
       )}

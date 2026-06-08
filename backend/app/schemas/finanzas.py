@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
 from typing import Optional, List, Dict, Any
 from datetime import datetime, date
 
@@ -59,7 +59,7 @@ class OrdenCompraResponse(BaseModel):
     firma_finanzas: Optional[str] = None
     fecha_firma_finanzas: Optional[datetime] = None
     motivo_rechazo: Optional[str] = None
-    
+
     items: List[OrdenCompraItemResponse] = []
 
     class Config:
@@ -97,6 +97,20 @@ class ValidarFinanzasRequest(BaseModel):
 # ========================
 # ÓRDENES DE VENTA
 # ========================
+class CambiarEstadoRequest(BaseModel):
+    estado: str
+    notas: Optional[str] = None
+ 
+ 
+class DespacharRequest(BaseModel):
+    no_camion:    str
+    chofer:       str
+    status_salida: str = "OK"           # "OK" | "NG"
+    cw_invoice:   Optional[str] = None
+    no_departure: Optional[str] = None  # folio NPX de LG — ej: NPX26060000025
+    items_enviados: Optional[list[dict]] = None  # [{sku_producto, cantidad}]
+
+
 class OrdenVentaItemCreate(BaseModel):
     sku_producto: str
     nombre_producto: Optional[str] = None
@@ -198,19 +212,19 @@ class DevolucionResponse(BaseModel):
 # ========================
 class PlanVentasImport(BaseModel):
     fecha_inicio_semana: date
-
-
+ 
+ 
 class PlanVentasDiaAutorizar(BaseModel):
     sku: str
     dia: str
     cantidad: int
-
-
+ 
+ 
 class AutorizarVentasMasivo(BaseModel):
     identificador_semana: str
     ventas: List[PlanVentasDiaAutorizar]
-
-
+ 
+ 
 class PlanVentasResponse(BaseModel):
     id: int
     identificador_semana: str
@@ -218,27 +232,75 @@ class PlanVentasResponse(BaseModel):
     fecha_importacion: datetime
     items: list
     importado_por: Optional[str] = None
-
+ 
     class Config:
         from_attributes = True
-
-
+ 
+ 
 # ========================
 # DASHBOARD FINANZAS
 # ========================
 class FinanzasDashboardResponse(BaseModel):
-    total_oc: int = 0
-    oc_pendientes: int = 0
-    oc_completadas: int = 0
-    total_ov: int = 0
-    ov_pendientes: int = 0
-    ov_enviadas: int = 0
-    ov_stock_insuficiente: int = 0
-    total_devoluciones: int = 0
+    # ── Órdenes de compra (sin cambio) ────────────────────────────────────────
+    total_oc:              int   = 0
+    oc_pendientes:         int   = 0
+    oc_completadas:        int   = 0
+ 
+    # ── Órdenes de venta ──────────────────────────────────────────────────────
+    total_ov:              int   = 0
+    ov_pendientes:         int   = 0      # "Pendiente de Envío"
+    ov_en_preparacion:     int   = 0      # NUEVO
+    ov_lista_para_carga:   int   = 0      # NUEVO
+    ov_enviadas:           int   = 0
+    ov_stock_insuficiente: int   = 0
+ 
+    # ── Devoluciones y plan ────────────────────────────────────────────────────
+    total_devoluciones:    int   = 0
     devoluciones_pendientes: int = 0
-    valor_compras_mes: float = 0
-    valor_ventas_mes: float = 0
-    planes_venta_activos: int = 0
+    planes_venta_activos:  int   = 0
+ 
+    # ── Financiero ────────────────────────────────────────────────────────────
+    valor_compras_mes:     float = 0.0
+    valor_ventas_mes:      float = 0.0
+ 
+    # ── KPIs operativos del día (NUEVOS) ──────────────────────────────────────
+    programado_hoy:        int   = 0      # suma del plan del día activo en CW PLAN
+    embarcado_hoy:         int   = 0      # suma de envíos con fecha_envio = hoy
+ 
+    @computed_field
+    @property
+    def pct_cumplimiento(self) -> float:
+        """
+        % de cumplimiento del día: embarcado / programado × 100.
+        Devuelve 0.0 si no hay plan, 100.0 si se programó 0 y se embarcó algo.
+        Siempre acotado a [0, 100].
+        """
+        if self.programado_hoy == 0:
+            return 100.0 if self.embarcado_hoy > 0 else 0.0
+        return min(round(self.embarcado_hoy / self.programado_hoy * 100, 1), 100.0)
+ 
+    skus_dif_negativa:     int   = 0      # SKUs donde stock_lg < plan_acumulado
+ 
+    # ── PSI Coverage — del PSI RESUME del Plan de Embarque (NUEVOS) ───────────
+    # Valores en fracción (0.0–1.0). Frontend los convierte a porcentaje.
+    coverage_ref_dday:     float = 0.0    # cobertura Ref   D-Day
+    coverage_ref_d1:       float = 0.0    # cobertura Ref   D+1
+    coverage_oven_dday:    float = 0.0    # cobertura Oven  D-Day
+    coverage_oven_d1:      float = 0.0    # cobertura Oven  D+1
+ 
+ 
+# ========================
+# ANÁLISIS DE DEMANDA (DemandaTab)
+# ========================
+class AnalisisDemandaItem(BaseModel):
+    sku: str
+    descripcion: str
+    demanda_semanal: float
+    stock_aprobado: float            # stock en almacén con estado_calidad=Aprobado
+    brecha: float                    # stock_aprobado - demanda_semanal (negativo = faltante)
+    status: str                      # "OK" | "FALTANTE" | "CRÍTICO"
+    linea: Optional[str] = None      # R1 / R2 / R3
+    model: Optional[str] = None      # QUANTUM-T, MAJESTY, etc.
 
 
 # ========================
@@ -350,3 +412,17 @@ class ProveedorScoreResponse(BaseModel):
     score_detalle: Dict[str, Any]
     score_updated_at: Optional[datetime] = None
     recomendacion_estatus: Optional[str] = None
+
+class EnvioLogisticoCreate(BaseModel):
+    no_camion: str
+    chofer: str
+    status_salida: str = "OK"
+    cw_invoice: Optional[str] = None
+
+class AnalisisDemandaItem(BaseModel):
+    sku: str
+    descripcion: str
+    demanda_semanal: float
+    stock_aprobado: float
+    brecha: float
+    status: str

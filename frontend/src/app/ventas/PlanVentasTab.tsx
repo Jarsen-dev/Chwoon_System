@@ -1,462 +1,434 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { getPlanesVentas, getPlanVentas, importarPlanVentas, autorizarVentasMasivo } from '@/lib/api'
-import type { PlanVentasSemana, PlanVentasItem } from '@/types'
+import type { PlanVentasSemana, PlanVentasItem, DiaSemana } from '@/types'
+import { calcularDIF, colorDIF } from '@/types'
 
-interface Props {
-  token: string
+// ─── Constantes ──────────────────────────────────────────────────────────────
+
+const DIAS: DiaSemana[] = ['VIERNES', 'LUNES', 'MARTES', 'MIERCOLES', 'JUEVES']
+
+const LABEL_DIA: Record<DiaSemana, string> = {
+  VIERNES:   'Vie',
+  LUNES:     'Lun',
+  MARTES:    'Mar',
+  MIERCOLES: 'Mié',
+  JUEVES:    'Jue',
+  SABADO:    'Sáb',
 }
 
-const DIAS = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES'] as const
-type Dia = typeof DIAS[number]
-
-const DIA_LABELS: Record<Dia, string> = {
-  LUNES: 'Lun', MARTES: 'Mar', MIERCOLES: 'Mié', JUEVES: 'Jue', VIERNES: 'Vie',
+// Agrupar items por id1 (Control Box / Duct Multi / etc.)
+function agruparPorId1(items: PlanVentasItem[]): Map<string, PlanVentasItem[]> {
+  const mapa = new Map<string, PlanVentasItem[]>()
+  for (const item of items) {
+    const grupo = item.id1 || item.linea || 'Otros'
+    if (!mapa.has(grupo)) mapa.set(grupo, [])
+    mapa.get(grupo)!.push(item)
+  }
+  return mapa
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  Pendiente:  'bg-yellow-500/20 text-yellow-400',
-  Autorizado: 'bg-green-500/20 text-green-400',
+// ─── Subcomponentes ──────────────────────────────────────────────────────────
+
+function BadgeDIF({ dif }: { dif: number }) {
+  const color = colorDIF(dif)
+  const cls =
+    color === 'green'  ? 'bg-green-500/15 text-green-400 border-green-500/30' :
+    color === 'yellow' ? 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30' :
+                         'bg-red-500/15 text-red-400 border-red-500/30'
+  return (
+    <span className={`text-xs px-1.5 py-0.5 rounded border font-mono ${cls}`}>
+      {dif > 0 ? '+' : ''}{dif.toLocaleString()}
+    </span>
+  )
 }
 
-export default function PlanVentasTab({ token }: Props) {
-  const [planes, setPlanes] = useState<PlanVentasSemana[]>([])
-  const [planActivo, setPlanActivo] = useState<PlanVentasSemana | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [loadingPlan, setLoadingPlan] = useState(false)
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
+function CeldaDia({
+  item,
+  dia,
+  editando,
+  onEdit,
+}: {
+  item:     PlanVentasItem
+  dia:      DiaSemana
+  editando: boolean
+  onEdit:   (sku: string, dia: DiaSemana, qty: number) => void
+}) {
+  const datosDia = item.dias[dia]
+  const plan     = datosDia?.plan   ?? 0
+  const status   = datosDia?.status ?? 'Pendiente'
+  const ovGen    = datosDia?.ov_generada
+  const dif      = calcularDIF(item, dia)
 
-  // Importar
-  const [showImportModal, setShowImportModal] = useState(false)
-  const [importFecha, setImportFecha] = useState('')
-  const [importLoading, setImportLoading] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const autorizado = status === 'Autorizado'
 
-  // Autorizar
-  const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set())
-  const [autorizarLoading, setAutorizarLoading] = useState(false)
-  const [showResultados, setShowResultados] = useState(false)
-  const [resultados, setResultados] = useState<string[]>([])
+  return (
+    <td className="px-2 py-2 text-center align-middle">
+      <div className="flex flex-col items-center gap-1">
+        {/* Cantidad editable */}
+        {editando && !autorizado ? (
+          <input
+            type="number"
+            defaultValue={plan}
+            onBlur={(e) => {
+              const v = parseInt(e.target.value, 10)
+              if (!isNaN(v) && v !== plan) onEdit(item.sku, dia, v)
+            }}
+            className="w-20 text-center text-sm bg-gray-800 border border-gray-600 rounded px-1 py-0.5 text-white focus:border-blue-500 focus:outline-none"
+          />
+        ) : (
+          <span className={`text-sm font-mono font-medium ${
+            autorizado ? 'text-green-400' : plan === 0 ? 'text-gray-600' : 'text-white'
+          }`}>
+            {plan === 0 ? '—' : plan.toLocaleString()}
+          </span>
+        )}
 
-  const fetchPlanes = useCallback(async () => {
+        {/* DIF acumulada */}
+        {plan > 0 && <BadgeDIF dif={dif} />}
+
+        {/* Badge de estado */}
+        {autorizado && (
+          <span className="text-xs text-green-500 font-medium">✓ Aut.</span>
+        )}
+        {ovGen && (
+          <span className="text-xs text-blue-400 font-mono truncate max-w-[80px]" title={ovGen}>
+            {ovGen.slice(-8)}
+          </span>
+        )}
+      </div>
+    </td>
+  )
+}
+
+// ─── Componente principal ─────────────────────────────────────────────────────
+
+export default function PlanVentasTab({ token }: { token: string }) {
+  const [planes, setPlanes]           = useState<PlanVentasSemana[]>([])
+  const [semanaActiva, setSemanaActiva] = useState<string>('')
+  const [plan, setPlan]               = useState<PlanVentasSemana | null>(null)
+  const [loading, setLoading]         = useState(true)
+  const [importing, setImporting]     = useState(false)
+  const [autorizando, setAutorizando] = useState(false)
+  const [editando, setEditando]       = useState(false)
+  const [error, setError]             = useState('')
+  const [success, setSuccess]         = useState('')
+
+  // Cambios pendientes de edición: { sku|dia: nuevaQty }
+  const [cambios, setCambios] = useState<Record<string, number>>({})
+
+  // ── Carga inicial ──────────────────────────────────────────────────────────
+  const cargarPlanes = useCallback(async () => {
     try {
-      setLoading(true)
-      const res = await getPlanesVentas(token)
-      setPlanes(res)
-    } catch (err: any) {
-      setError(err.message)
+      const lista = await getPlanesVentas(token)
+      setPlanes(lista)
+      if (lista.length > 0 && !semanaActiva) {
+        setSemanaActiva(lista[0].identificador_semana)
+      }
+    } catch {
+      setError('No se pudieron cargar los planes de venta')
+    }
+  }, [token, semanaActiva])
+
+  const cargarPlan = useCallback(async (id: string) => {
+    if (!id) return
+    setLoading(true)
+    try {
+      const data = await getPlanVentas(token, id)
+      setPlan(data)
+    } catch {
+      setError('No se pudo cargar el plan de esta semana')
     } finally {
       setLoading(false)
     }
   }, [token])
 
-  useEffect(() => {
-    fetchPlanes()
-  }, [fetchPlanes])
+  useEffect(() => { cargarPlanes() }, [])
+  useEffect(() => { if (semanaActiva) cargarPlan(semanaActiva) }, [semanaActiva])
 
-  const clearMessages = () => { setError(''); setSuccess('') }
+  // ── Importar Excel ──────────────────────────────────────────────────────────
+  const handleImportar = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
 
-  const handleSelectPlan = async (identificador: string) => {
+    // Pedir la fecha de inicio de semana (lunes)
+    const fechaStr = window.prompt(
+      'Ingresa la fecha del LUNES de esta semana (YYYY-MM-DD):',
+      new Date().toISOString().split('T')[0]
+    )
+    if (!fechaStr) return
+
+    setImporting(true)
+    setError('')
     try {
-      setLoadingPlan(true)
-      setSelectedCells(new Set())
-      const res = await getPlanVentas(token, identificador)
-      setPlanActivo(res)
+      const res = await importarPlanVentas(token, fechaStr, file)
+      setSuccess(`${res.message} — ${res.total_skus} SKUs`)
+      await cargarPlanes()
     } catch (err: any) {
       setError(err.message)
     } finally {
-      setLoadingPlan(false)
+      setImporting(false)
+      e.target.value = ''
     }
   }
 
-  const handleImportar = async () => {
-    clearMessages()
-    if (!importFecha) {
-      setError('Seleccione una fecha de inicio de semana')
-      return
-    }
-    const file = fileInputRef.current?.files?.[0]
-    if (!file) {
-      setError('Seleccione un archivo Excel o CSV')
-      return
-    }
-
-    try {
-      setImportLoading(true)
-      const res = await importarPlanVentas(token, importFecha, file)
-      setSuccess(`Plan importado: ${res.total_skus} SKUs`)
-      setShowImportModal(false)
-      setImportFecha('')
-      if (fileInputRef.current) fileInputRef.current.value = ''
-      fetchPlanes()
-      // Si ya hay un plan activo de esa semana, recargarlo
-      const identificador = new Date(importFecha).toISOString().slice(0, 4) + '-' +
-        String(getWeekNumber(new Date(importFecha))).padStart(2, '0')
-      // Intentar recargar si coincide
-      if (planActivo?.identificador_semana === identificador) {
-        handleSelectPlan(identificador)
-      }
-    } catch (err: any) {
-      setError(err.message)
-    } finally {
-      setImportLoading(false)
-    }
+  // ── Edición inline ─────────────────────────────────────────────────────────
+  const handleEdit = (sku: string, dia: DiaSemana, qty: number) => {
+    setCambios(prev => ({ ...prev, [`${sku}|${dia}`]: qty }))
   }
 
-  const getWeekNumber = (d: Date): number => {
-    const onejan = new Date(d.getFullYear(), 0, 1)
-    const days = Math.floor((d.getTime() - onejan.getTime()) / 86400000)
-    return Math.ceil((days + onejan.getDay() + 1) / 7)
-  }
+  // ── Autorizar todo lo marcado ──────────────────────────────────────────────
+  const handleAutorizar = async () => {
+    if (!plan || Object.keys(cambios).length === 0 && !plan) return
 
-  const toggleCell = (sku: string, dia: Dia) => {
-    const key = `${sku}__${dia}`
-    const newSet = new Set(selectedCells)
-    if (newSet.has(key)) {
-      newSet.delete(key)
-    } else {
-      newSet.add(key)
-    }
-    setSelectedCells(newSet)
-  }
+    // Recolectar todos los días "Pendiente" con plan > 0
+    const ventas: { sku: string; dia: string; cantidad: number }[] = []
 
-  const isCellSelected = (sku: string, dia: Dia) => selectedCells.has(`${sku}__${dia}`)
-
-  const handleAutorizarSeleccionados = async () => {
-    clearMessages()
-    if (!planActivo || selectedCells.size === 0) {
-      setError('Seleccione al menos una celda para autorizar')
-      return
-    }
-
-    const ventas = Array.from(selectedCells).map((key) => {
-      const [sku, dia] = key.split('__')
-      const item = planActivo.items.find((i) => i.sku === sku)
-      const cantidad = item?.dias[dia as Dia]?.plan || 0
-      return { sku, dia, cantidad }
-    }).filter((v) => v.cantidad > 0)
-
-    if (ventas.length === 0) {
-      setError('Las celdas seleccionadas no tienen cantidades planificadas')
-      return
-    }
-
-    try {
-      setAutorizarLoading(true)
-      const res = await autorizarVentasMasivo(token, {
-        identificador_semana: planActivo.identificador_semana,
-        ventas,
-      })
-      setResultados(res.resultados)
-      setShowResultados(true)
-      setSelectedCells(new Set())
-      // Recargar el plan
-      handleSelectPlan(planActivo.identificador_semana)
-    } catch (err: any) {
-      setError(err.message)
-    } finally {
-      setAutorizarLoading(false)
-    }
-  }
-
-  const selectAllPendientes = () => {
-    if (!planActivo) return
-    const newSet = new Set<string>()
-    for (const item of planActivo.items) {
+    for (const item of plan.items) {
       for (const dia of DIAS) {
-        const info = item.dias[dia]
-        if (info && info.plan > 0 && info.status === 'Pendiente') {
-          newSet.add(`${item.sku}__${dia}`)
+        const key = `${item.sku}|${dia}`
+        const qty = cambios[key] ?? item.dias[dia]?.plan ?? 0
+        const status = item.dias[dia]?.status
+        if (qty > 0 && status !== 'Autorizado') {
+          ventas.push({ sku: item.sku, dia, cantidad: qty })
         }
       }
     }
-    setSelectedCells(newSet)
+
+    if (ventas.length === 0) {
+      setError('No hay días pendientes de autorización')
+      return
+    }
+
+    setAutorizando(true)
+    try {
+      const res = await autorizarVentasMasivo(token, {
+        identificador_semana: semanaActiva,
+        ventas,
+      })
+      setSuccess(`${res.resultados.length} órdenes de venta generadas`)
+      setCambios({})
+      await cargarPlan(semanaActiva)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setAutorizando(false)
+    }
   }
 
-  const clearSelection = () => setSelectedCells(new Set())
+  // ── Render ─────────────────────────────────────────────────────────────────
+  const grupos = plan ? agruparPorId1(plan.items) : new Map()
 
-  const formatDate = (iso: string) =>
-    new Date(iso).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })
+  // Días que realmente tienen datos en el plan activo
+  const diasActivos = DIAS.filter(dia =>
+    plan?.items.some(item => (item.dias[dia]?.plan ?? 0) > 0)
+  )
 
   return (
     <div className="space-y-4">
-      {/* Messages */}
+
+      {/* ── Toolbar ── */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          {/* Selector de semana */}
+          <select
+            value={semanaActiva}
+            onChange={e => setSemanaActiva(e.target.value)}
+            className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+          >
+            {planes.map(p => (
+              <option key={p.identificador_semana} value={p.identificador_semana}>
+                Semana {p.identificador_semana} — {p.fecha_inicio_semana}
+              </option>
+            ))}
+          </select>
+
+          {plan && (
+            <span className="text-xs text-gray-500">
+              {plan.items.length} SKUs · importado por {plan.importado_por ?? '—'}
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* Modo edición */}
+          <button
+            onClick={() => { setEditando(e => !e); setCambios({}) }}
+            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              editando
+                ? 'bg-amber-600 hover:bg-amber-700 text-white'
+                : 'bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300'
+            }`}
+          >
+            {editando ? '✎ Editando' : '✎ Editar'}
+          </button>
+
+          {/* Autorizar masivo */}
+          {editando && (
+            <button
+              onClick={handleAutorizar}
+              disabled={autorizando}
+              className="px-3 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 rounded-lg text-sm font-bold transition-colors"
+            >
+              {autorizando ? 'Autorizando...' : '✓ Autorizar Pendientes'}
+            </button>
+          )}
+
+          {/* Importar Excel */}
+          <label className={`cursor-pointer px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+            importing
+              ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+              : 'bg-blue-600 hover:bg-blue-700 text-white'
+          }`}>
+            {importing ? 'Importando...' : '⬆ Importar CW PLAN'}
+            <input
+              type="file"
+              accept=".xlsx,.xls"
+              className="hidden"
+              disabled={importing}
+              onChange={handleImportar}
+            />
+          </label>
+        </div>
+      </div>
+
+      {/* ── Alertas ── */}
       {error && (
-        <div className="bg-red-900/30 border border-red-500/50 rounded-lg px-4 py-3 text-red-400 flex justify-between">
+        <div className="bg-red-900/30 border border-red-500/40 rounded-lg px-4 py-3 text-sm text-red-400 flex justify-between">
           <span>❌ {error}</span>
-          <button onClick={() => setError('')} className="text-red-300 hover:text-white">✕</button>
+          <button onClick={() => setError('')} className="text-red-500 hover:text-red-300">✕</button>
         </div>
       )}
       {success && (
-        <div className="bg-green-900/30 border border-green-500/50 rounded-lg px-4 py-3 text-green-400 flex justify-between">
-          <span>✅ {success}</span>
-          <button onClick={() => setSuccess('')} className="text-green-300 hover:text-white">✕</button>
+        <div className="bg-green-900/30 border border-green-500/40 rounded-lg px-4 py-3 text-sm text-green-400 flex justify-between">
+          <span>✓ {success}</span>
+          <button onClick={() => setSuccess('')} className="text-green-500 hover:text-green-300">✕</button>
         </div>
       )}
 
-      {/* Toolbar */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold">📋 Plan de Ventas Semanal</h2>
-        <div className="flex gap-2">
-          <button onClick={fetchPlanes} className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm transition-colors">
-            🔄 Refrescar
-          </button>
-          <button
-            onClick={() => setShowImportModal(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-400 bg-green-600 hover:bg-green-700 active:scale-95 text-white"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6M4 20h16a1 1 0 001-1V5 a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/>
-            </svg>
-            Importar Plan
-          </button>
+      {/* ── Estado vacío ── */}
+      {!loading && planes.length === 0 && (
+        <div className="text-center py-16 text-gray-500">
+          <p className="text-4xl mb-3">📋</p>
+          <p className="font-medium">Sin planes de venta</p>
+          <p className="text-sm mt-1">Importa un Excel CW PLAN para comenzar</p>
         </div>
-      </div>
+      )}
 
-      {/* Lista de planes */}
-      <div className="flex gap-2 flex-wrap">
-        {loading ? (
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-400" />
-        ) : planes.length === 0 ? (
-          <p className="text-gray-500 text-sm">No hay planes registrados. Importe uno desde Excel.</p>
-        ) : (
-          planes.map((p) => (
-            <button
-              key={p.identificador_semana}
-              onClick={() => handleSelectPlan(p.identificador_semana)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${
-                planActivo?.identificador_semana === p.identificador_semana
-                  ? 'bg-emerald-600 border-emerald-500 text-white'
-                  : 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700'
-              }`}
-            >
-              📅 Semana {p.identificador_semana}
-              <span className="ml-2 text-xs opacity-70">({p.total_skus || 0} SKUs)</span>
-            </button>
-          ))
-        )}
-      </div>
-
-      {/* Tabla del plan activo */}
-      {loadingPlan ? (
-        <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-400" />
-        </div>
-      ) : planActivo ? (
-        <div className="space-y-3">
-          {/* Info del plan */}
-          <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-400">
-                Semana: <span className="text-white font-medium">{planActivo.identificador_semana}</span>
-                {' · '}Inicio: <span className="text-white">{formatDate(planActivo.fecha_inicio_semana)}</span>
-                {' · '}Importado por: <span className="text-emerald-400">{planActivo.importado_por || 'N/A'}</span>
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={selectAllPendientes}
-                className="bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 px-3 py-1.5 rounded-lg text-xs transition-colors"
-              >
-                ☑️ Seleccionar Pendientes
-              </button>
-              {selectedCells.size > 0 && (
+      {/* ── Tabla principal ── */}
+      {plan && !loading && (
+        <div className="overflow-x-auto rounded-xl border border-gray-800">
+          <table className="w-full text-sm text-left">
+            <thead className="bg-gray-900 border-b border-gray-800">
+              <tr>
+                <th className="px-3 py-3 text-gray-400 font-medium text-xs w-36">SKU</th>
+                <th className="px-3 py-3 text-gray-400 font-medium text-xs">Descripción</th>
+                <th className="px-3 py-3 text-gray-400 font-medium text-xs text-center">Línea</th>
+                <th className="px-3 py-3 text-gray-400 font-medium text-xs text-center">
+                  Stock CW
+                  <span className="block text-gray-600 font-normal text-xs">(INV. CW)</span>
+                </th>
+                <th className="px-3 py-3 text-gray-400 font-medium text-xs text-center">
+                  Stock LG
+                  <span className="block text-gray-600 font-normal text-xs">(INV. LG)</span>
+                </th>
+                {diasActivos.map(dia => (
+                  <th key={dia} className="px-2 py-3 text-gray-400 font-medium text-xs text-center min-w-[90px]">
+                    {LABEL_DIA[dia]}
+                    <span className="block text-gray-600 font-normal text-xs">Plan / DIF</span>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-800/60">
+              {Array.from(grupos.entries()).map(([grupo, items]) => (
                 <>
-                  <button
-                    onClick={clearSelection}
-                    className="bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded-lg text-xs transition-colors"
-                  >
-                    ✕ Limpiar ({selectedCells.size})
-                  </button>
-                  <button
-                    onClick={handleAutorizarSeleccionados}
-                    disabled={autorizarLoading}
-                    className="bg-emerald-600 hover:bg-emerald-700 px-4 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:bg-gray-600"
-                  >
-                    {autorizarLoading ? '⏳ Autorizando...' : `✅ Autorizar (${selectedCells.size})`}
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Grid del plan */}
-          <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
-            <div className="overflow-x-auto max-h-[550px] overflow-y-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-800 sticky top-0">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-gray-400 font-medium sticky left-0 bg-gray-800 z-10">SKU</th>
-                    <th className="px-4 py-3 text-left text-gray-400 font-medium">Descripción</th>
-                    {DIAS.map((dia) => (
-                      <th key={dia} className="px-3 py-3 text-center text-gray-400 font-medium min-w-[100px]">
-                        {DIA_LABELS[dia]}
-                      </th>
-                    ))}
-                    <th className="px-4 py-3 text-right text-gray-400 font-medium">Total Sem.</th>
+                  {/* Fila de grupo */}
+                  <tr key={`grupo-${grupo}`} className="bg-gray-900/80">
+                    <td
+                      colSpan={5 + diasActivos.length}
+                      className="px-3 py-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider"
+                    >
+                      {grupo}
+                      <span className="ml-2 text-gray-600 font-normal normal-case">
+                        {items.length} SKUs
+                      </span>
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-800">
-                  {(planActivo.items || []).map((item) => {
-                    const totalSemana = DIAS.reduce((sum, dia) => sum + (item.dias[dia]?.plan || 0), 0)
-                    return (
-                      <tr key={item.sku} className="hover:bg-gray-800/30 transition-colors">
-                        <td className="px-4 py-2 font-mono text-emerald-400 text-xs sticky left-0 bg-gray-900">
-                          {item.sku}
-                        </td>
-                        <td className="px-4 py-2 text-gray-300 text-xs max-w-[200px] truncate">
-                          {item.descripcion || '—'}
-                        </td>
-                        {DIAS.map((dia) => {
-                          const info = item.dias[dia]
-                          if (!info || info.plan === 0) {
-                            return (
-                              <td key={dia} className="px-3 py-2 text-center text-gray-700 text-xs">
-                                —
-                              </td>
-                            )
-                          }
-                          const isAutorizado = info.status === 'Autorizado'
-                          const isSelected = isCellSelected(item.sku, dia)
 
-                          return (
-                            <td key={dia} className="px-1 py-1 text-center">
-                              <button
-                                onClick={() => !isAutorizado && toggleCell(item.sku, dia)}
-                                disabled={isAutorizado}
-                                className={`w-full px-2 py-1.5 rounded-lg text-xs font-medium transition-all border ${
-                                  isAutorizado
-                                    ? 'bg-green-900/30 border-green-700/30 text-green-400 cursor-default'
-                                    : isSelected
-                                      ? 'bg-emerald-600 border-emerald-500 text-white ring-2 ring-emerald-400/50'
-                                      : 'bg-yellow-900/20 border-yellow-700/30 text-yellow-400 hover:bg-yellow-900/40 cursor-pointer'
-                                }`}
-                              >
-                                <span className="block font-bold">{info.plan}</span>
-                                <span className="block text-[10px] opacity-70">
-                                  {isAutorizado ? '✅' : isSelected ? '☑️' : '⏳'}
-                                </span>
-                              </button>
-                            </td>
-                          )
-                        })}
-                        <td className="px-4 py-2 text-right font-bold text-white">{totalSemana}</td>
+                  {/* Filas de SKU */}
+                  {items.map((item: PlanVentasItem) => {
+                    const tieneAlerta = diasActivos.some(dia => calcularDIF(item, dia) < 0)
+                    return (
+                      <tr
+                        key={item.sku}
+                        className={`hover:bg-gray-800/40 transition-colors ${
+                          tieneAlerta ? 'bg-red-950/10' : ''
+                        }`}
+                      >
+                        {/* SKU */}
+                        <td className="px-3 py-2">
+                          <span className="font-mono text-xs text-blue-400">{item.sku}</span>
+                          {item.model && (
+                            <span className="block text-xs text-gray-500 truncate max-w-[130px]">
+                              {item.model}
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Descripción */}
+                        <td className="px-3 py-2">
+                          <span className="text-white text-xs">{item.descripcion}</span>
+                          {item.cw_line && (
+                            <span className="ml-2 text-xs text-gray-500">{item.cw_line}</span>
+                          )}
+                        </td>
+
+                        {/* Línea */}
+                        <td className="px-3 py-2 text-center">
+                          <span className="text-xs font-medium text-gray-300">{item.linea || '—'}</span>
+                        </td>
+
+                        {/* Stock CW */}
+                        <td className="px-3 py-2 text-center">
+                          <span className="font-mono text-sm text-white">
+                            {(item.stock_actual ?? 0).toLocaleString()}
+                          </span>
+                        </td>
+
+                        {/* Stock LG */}
+                        <td className="px-3 py-2 text-center">
+                          <span className={`font-mono text-sm ${
+                            (item.stock_lg ?? 0) === 0 ? 'text-gray-600' : 'text-cyan-400'
+                          }`}>
+                            {(item.stock_lg ?? 0).toLocaleString()}
+                          </span>
+                        </td>
+
+                        {/* Celdas de días */}
+                        {diasActivos.map((dia: DiaSemana) => (
+                          <CeldaDia
+                            key={dia}
+                            item={item}
+                            dia={dia}
+                            editando={editando}
+                            onEdit={handleEdit}
+                          />
+                        ))}
                       </tr>
                     )
                   })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Leyenda */}
-          <div className="flex gap-4 text-xs text-gray-500">
-            <span><span className="inline-block w-3 h-3 rounded bg-yellow-900/40 border border-yellow-700/30 mr-1" /> Pendiente</span>
-            <span><span className="inline-block w-3 h-3 rounded bg-emerald-600 mr-1" /> Seleccionado</span>
-            <span><span className="inline-block w-3 h-3 rounded bg-green-900/30 border border-green-700/30 mr-1" /> Autorizado</span>
-          </div>
-        </div>
-      ) : (
-        !loading && planes.length > 0 && (
-          <div className="bg-gray-900 rounded-xl border border-gray-800 p-12 text-center">
-            <p className="text-4xl mb-3">📅</p>
-            <p className="text-gray-400">Seleccione una semana para ver el plan de ventas</p>
-          </div>
-        )
-      )}
-
-      {/* ============================================ */}
-      {/* Modal: Importar Plan                         */}
-      {/* ============================================ */}
-      {showImportModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 rounded-2xl border border-gray-700 w-full max-w-md">
-            <div className="p-6 border-b border-gray-800 flex items-center justify-between">
-              <h3 className="text-lg font-bold">📥 Importar Plan de Ventas</h3>
-              <button onClick={() => setShowImportModal(false)} className="text-gray-400 hover:text-white text-xl">✕</button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Fecha inicio de semana *</label>
-                <input
-                  type="date"
-                  value={importFecha}
-                  onChange={(e) => setImportFecha(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Archivo Excel/CSV *</label>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".xlsx,.xls,.csv"
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-400 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:bg-emerald-600 file:text-white file:text-xs file:cursor-pointer"
-                />
-              </div>
-
-              <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700">
-                <p className="text-xs text-gray-400 font-semibold mb-1">📄 Formato esperado:</p>
-                <p className="text-xs text-gray-500">
-                  Columnas: <span className="text-gray-300">SKU, DESCRIPCION, LUNES, MARTES, MIERCOLES, JUEVES, VIERNES</span>
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Valores numéricos en cada día representan la cantidad planificada.
-                </p>
-              </div>
-            </div>
-
-            <div className="p-6 border-t border-gray-800 flex justify-end gap-3">
-              <button onClick={() => setShowImportModal(false)} className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm transition-colors">
-                Cancelar
-              </button>
-              <button
-                onClick={handleImportar}
-                disabled={importLoading}
-                className="bg-emerald-600 hover:bg-emerald-700 px-6 py-2 rounded-lg text-sm font-medium transition-colors disabled:bg-gray-600"
-              >
-                {importLoading ? '⏳ Importando...' : '📥 Importar'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ============================================ */}
-      {/* Modal: Resultados de autorización             */}
-      {/* ============================================ */}
-      {showResultados && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 rounded-2xl border border-gray-700 w-full max-w-lg max-h-[80vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-800 flex items-center justify-between">
-              <h3 className="text-lg font-bold">📊 Resultados de Autorización</h3>
-              <button onClick={() => setShowResultados(false)} className="text-gray-400 hover:text-white text-xl">✕</button>
-            </div>
-            <div className="p-6 space-y-2">
-              {resultados.map((r, i) => (
-                <div
-                  key={i}
-                  className={`rounded-lg px-4 py-2 text-sm border ${
-                    r.includes('✅')
-                      ? 'bg-green-900/20 border-green-700/30 text-green-400'
-                      : r.includes('❌')
-                        ? 'bg-red-900/20 border-red-700/30 text-red-400'
-                        : 'bg-yellow-900/20 border-yellow-700/30 text-yellow-400'
-                  }`}
-                >
-                  {r}
-                </div>
+                </>
               ))}
-            </div>
-            <div className="p-6 border-t border-gray-800 flex justify-end">
-              <button onClick={() => setShowResultados(false)} className="bg-gray-700 hover:bg-gray-600 px-6 py-2 rounded-lg text-sm transition-colors">
-                Cerrar
-              </button>
-            </div>
-          </div>
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {loading && (
+        <div className="flex justify-center py-16">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400" />
         </div>
       )}
     </div>

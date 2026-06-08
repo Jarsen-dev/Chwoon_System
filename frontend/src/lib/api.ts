@@ -2373,3 +2373,89 @@ export async function getDashboardInyeccion(token: string, params: {
 }
 
 export type { ProveedorItem }
+
+
+// ─── Cambio de estado ─────────────────────────────────────────────────────────
+ 
+export async function cambiarEstadoOV(
+  token: string,
+  ovId: string,
+  estado: string,
+  notas?: string
+): Promise<{ message: string; ov_id: string; estado_anterior: string; estado_nuevo: string }> {
+  const res = await fetch(`/finanzas/ventas/${ovId}/estado`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ estado, notas }),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al cambiar estado de la OV')
+  }
+  return res.json()
+}
+ 
+// ─── Despacho físico (reemplaza el fetch directo en ControlDespachosTab) ──────
+ 
+export async function despacharOV(
+  token: string,
+  ovId: string,
+  data: {
+    no_camion:      string
+    chofer:         string
+    status_salida:  'OK' | 'NG'
+    cw_invoice?:    string
+    no_departure?:  string            // NUEVO: folio NPX de LG
+    items_enviados?: { sku_producto: string; cantidad: number }[]
+  }
+): Promise<{ message: string; envio_id: string; estado_ov: string; no_departure?: string }> {
+  const res = await fetch(`/finanzas/ventas/${ovId}/despachar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al registrar el despacho')
+  }
+  return res.json()
+}
+ 
+ 
+// ─────────────────────────────────────────────────────────────────────────────
+// Reemplaza ESTADO_COLORS y ESTADO_OPTIONS en VentasTab.tsx y DashboardTab.tsx
+// ─────────────────────────────────────────────────────────────────────────────
+ 
+export const ESTADO_COLORS: Record<string, string> = {
+  'Pendiente de Envío': 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+  'Stock Insuficiente': 'bg-red-500/20    text-red-400    border-red-500/30',
+  'En Preparación':    'bg-blue-500/20   text-blue-400   border-blue-500/30',   // NUEVO
+  'Lista para Carga':  'bg-teal-500/20   text-teal-400   border-teal-500/30',   // NUEVO
+  'Embarque Parcial':  'bg-orange-500/20 text-orange-400 border-orange-500/30',
+  'Enviado':           'bg-green-500/20  text-green-400  border-green-500/30',
+  'Devolución Parcial':'bg-purple-500/20 text-purple-400 border-purple-500/30',
+  'Cancelada':         'bg-gray-500/20   text-gray-400   border-gray-500/30',
+}
+ 
+export const ESTADO_OPTIONS = [
+  'Todos',
+  'Pendiente de Envío',
+  'Stock Insuficiente',
+  'En Preparación',     // NUEVO
+  'Lista para Carga',   // NUEVO
+  'Embarque Parcial',
+  'Enviado',
+  'Devolución Parcial',
+  'Cancelada',
+]
+ 
+// Tipo actualizado para tipado estricto del campo estado
+export type EstadoOV =
+  | 'Pendiente de Envío'
+  | 'Stock Insuficiente'
+  | 'En Preparación'
+  | 'Lista para Carga'
+  | 'Embarque Parcial'
+  | 'Enviado'
+  | 'Devolución Parcial'
+  | 'Cancelada'

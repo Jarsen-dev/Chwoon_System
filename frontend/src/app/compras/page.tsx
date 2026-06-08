@@ -54,7 +54,7 @@ export default function ComprasPage() {
   const headerRight = (
     <>
       {['admin'].includes(rol || '') && (
-        <Link href="/" className={`${THEME.navBg} ${THEME.navHover} px-4 py-2 rounded-lg text-sm font-medium transition-colors`}>
+        <Link href="/" className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
           🏭 Producción
         </Link>
       )}
