@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getFinanzasDashboard, getOrdenesVenta, ESTADO_COLORS } from '@/lib/api';
+import { useRef } from 'react';
+import { getFinanzasDashboard, getOrdenesVenta, ESTADO_COLORS, importarPlanEmbarque } from '@/lib/api';
 import type { FinanzasDashboard, OrdenVenta } from '@/types';
 import { semaforoCoverage, colorClasesSemaforo } from '@/types';
 
@@ -62,6 +63,9 @@ export default function DashboardTab({ token }: Props) {
   const [recientes, setRecientes] = useState<OrdenVenta[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [importMsg, setImportMsg] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const fetchData = async () => {
     try {
@@ -81,6 +85,23 @@ export default function DashboardTab({ token }: Props) {
   };
 
   useEffect(() => { fetchData(); }, [token]);
+
+  const handleImportEmbarque = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setImporting(true);
+      setImportMsg('');
+      const res = await importarPlanEmbarque(token, file);
+      setImportMsg(`✅ PSI importado: Ref ${(res.coverage_ref_dday * 100).toFixed(0)}% / Oven ${(res.coverage_oven_dday * 100).toFixed(0)}%`);
+      await fetchData();
+    } catch (err: any) {
+      setImportMsg(`❌ ${err.message}`);
+    } finally {
+      setImporting(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
 
   const fmtMXN = (v: number) =>
     new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(v);
@@ -123,10 +144,32 @@ export default function DashboardTab({ token }: Props) {
             {new Date().toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </p>
         </div>
-        <button onClick={fetchData} className="bg-gray-800 hover:bg-gray-700 border border-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
-          🔄 Actualizar
-        </button>
+        <div className="flex items-center gap-2">
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".xlsx,.xls"
+            className="hidden"
+            onChange={handleImportEmbarque}
+          />
+          <button
+            onClick={() => fileRef.current?.click()}
+            disabled={importing}
+            className="bg-teal-700 hover:bg-teal-600 disabled:opacity-50 border border-teal-600 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+          >
+            {importing ? '⏳' : '📥'} Plan Embarque
+          </button>
+          <button onClick={fetchData} className="bg-gray-800 hover:bg-gray-700 border border-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+            🔄 Actualizar
+          </button>
+        </div>
       </div>
+
+      {importMsg && (
+        <p className={`text-xs px-1 ${importMsg.startsWith('✅') ? 'text-teal-400' : 'text-red-400'}`}>
+          {importMsg}
+        </p>
+      )}
 
       {/* KPIs del día */}
       <div>

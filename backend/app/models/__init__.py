@@ -28,6 +28,7 @@ from app.models.reporte_manual_inyeccion import ReporteManualInyeccion
 from app.models.orden_picking import OrdenPicking
 from app.models.conteo_fisico import ConteoFisico
 from app.models.config_alerta_stock import ConfigAlertaStock
+from app.models.psi_snapshot import PsiSnapshot
 
 __all__ = [
     "Parte",
@@ -66,4 +67,5 @@ __all__ = [
     "OrdenPicking",
     "ConteoFisico",
     "ConfigAlertaStock",
+    "PsiSnapshot",
 ]

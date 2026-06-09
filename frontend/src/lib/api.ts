@@ -2459,3 +2459,21 @@ export type EstadoOV =
   | 'Enviado'
   | 'Devolución Parcial'
   | 'Cancelada'
+// ─────────────────────────────────────────────────────────────────────────────
+// PLAN EMBARQUE — importar PSI RESUME
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function importarPlanEmbarque(token: string, file: File): Promise<any> {
+  const form = new FormData()
+  form.append('file', file)
+  const res = await fetch(`${API_URL}/api/finanzas/plan-embarque/importar`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Error desconocido' }))
+    throw new Error(err.detail || 'Error al importar Plan Embarque')
+  }
+  return res.json()
+}

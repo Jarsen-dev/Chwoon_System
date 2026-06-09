@@ -4,7 +4,7 @@ import qrcode
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query, Path
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, delete, and_, extract
+from sqlalchemy import select, func, delete, and_, extract, cast, Date
 from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
 from typing import List, Optional, Any
@@ -23,6 +23,7 @@ from app.services.proveedor_score import recalcular_score, registrar_evento
 from app.models.orden_venta import OrdenVenta, OrdenVentaItem, EnvioVenta
 from app.models.devolucion import Devolucion
 from app.models.plan_ventas import PlanVentas
+from app.models.psi_snapshot import PsiSnapshot
 from app.models.empresa  import ConfiguracionEmpresa, ContactoEmpresa
 from app.services.pdf_generator import generar_pdf_orden_compra
 from app.core.deps import get_db, get_current_user, get_current_compras, get_current_finanzas
@@ -152,7 +153,10 @@ def _assert_transicion(ov: OrdenVenta, nuevo_estado: str, rol: str) -> None:
 # ========================
 @router.get("/dashboard", response_model=FinanzasDashboardResponse)
 @router.get("/dashboard/", response_model=FinanzasDashboardResponse)
-async def calcular_finanzas_dashboard(db: AsyncSession) -> FinanzasDashboardResponse:
+async def calcular_finanzas_dashboard(
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+) -> FinanzasDashboardResponse:
     """
     Calcula todos los KPIs del dashboard de ventas/finanzas.
     Cada sección está aislada en su propio bloque — añade o quita sin tocar el resto.
@@ -299,7 +303,13 @@ async def calcular_finanzas_dashboard(db: AsyncSession) -> FinanzasDashboardResp
             for ie in items_json:
                 embarcado_hoy += ie.get("cantidad", 0)
  
-    # ── 6. PSI Coverage ───────────────────────────────────────────────────────
+    # ── 6. PSI Coverage ──────────────────────────────────────────────────────
+    # Primero intentar usar el snapshot oficial del PLAN EMBARQUE para hoy.
+    psi_hoy = (
+        await db.execute(
+            select(PsiSnapshot).where(PsiSnapshot.fecha == hoy)
+        )
+    ).scalar_one_or_none()
     # La cobertura PSI se calcula como:
     #   coverage = stock_lg / demanda_diaria
     # agrupada por categoría (Ref = línea R1/R2, Oven = línea R3 u otro indicador
@@ -312,8 +322,14 @@ async def calcular_finanzas_dashboard(db: AsyncSession) -> FinanzasDashboardResp
     coverage_ref_d1    = 0.0
     coverage_oven_dday = 0.0
     coverage_oven_d1   = 0.0
- 
-    if plan_activo and plan_activo.items:
+
+    if psi_hoy:
+        # Snapshot oficial del PLAN EMBARQUE — tiene prioridad sobre el cálculo
+        coverage_ref_dday  = psi_hoy.coverage_ref_dday
+        coverage_ref_d1    = psi_hoy.coverage_ref_d1
+        coverage_oven_dday = psi_hoy.coverage_oven_dday
+        coverage_oven_d1   = psi_hoy.coverage_oven_d1
+    elif plan_activo and plan_activo.items:
         ORDEN_DIAS    = ["VIERNES", "LUNES", "MARTES", "MIERCOLES", "JUEVES"]
         dia_idx       = ORDEN_DIAS.index(dia_hoy) if dia_hoy in ORDEN_DIAS else -1
         dia_siguiente = ORDEN_DIAS[dia_idx + 1] if dia_idx >= 0 and dia_idx + 1 < len(ORDEN_DIAS) else None
@@ -378,6 +394,106 @@ async def calcular_finanzas_dashboard(db: AsyncSession) -> FinanzasDashboardResp
         coverage_oven_dday=coverage_oven_dday,
         coverage_oven_d1=coverage_oven_d1,
     )
+
+
+# ========================
+# PLAN EMBARQUE — IMPORT
+# ========================
+@router.post("/plan-embarque/importar")
+@router.post("/plan-embarque/importar/")
+async def importar_plan_embarque(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """
+    Importa la hoja PSI RESUME del archivo PLAN EMBARQUE de LG.
+
+    Estructura esperada (hoja 'PSI RESUME'):
+      - Fila 10: Ref  → col C=Need D-Day, col D=Covered D-Day, col E=% D-Day,
+                         col F=Need D+1,  col G=Covered D+1,   col H=% D+1
+      - Fila 11: Oven → misma estructura
+
+    Hace upsert en psi_snapshots por la fecha actual.
+    """
+    if not file.filename.endswith((".xlsx", ".xls")):
+        raise HTTPException(status_code=400, detail="El archivo debe ser .xlsx o .xls")
+
+    content = await file.read()
+    try:
+        import openpyxl, io as _io
+        wb = openpyxl.load_workbook(_io.BytesIO(content), data_only=True)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"No se pudo leer el Excel: {e}")
+
+    if "PSI RESUME" not in wb.sheetnames:
+        raise HTTPException(status_code=400, detail="Hoja 'PSI RESUME' no encontrada en el archivo")
+
+    ws = wb["PSI RESUME"]
+
+    def _float(val) -> float:
+        try:
+            return float(val) if val is not None else 0.0
+        except (TypeError, ValueError):
+            return 0.0
+
+    def _int(val) -> int:
+        try:
+            return int(val) if val is not None else 0
+        except (TypeError, ValueError):
+            return 0
+
+    # Filas 10 y 11 (1-indexed en openpyxl)
+    row_ref  = [c.value for c in ws[10]]
+    row_oven = [c.value for c in ws[11]]
+
+    # Índices (0-based): B=1, C=2, D=3, E=4, F=5, G=6, H=7
+    snap_data = {
+        "ref_need_dday":     _int(row_ref[2]),
+        "ref_covered_dday":  _int(row_ref[3]),
+        "coverage_ref_dday": min(_float(row_ref[4]), 2.0),
+        "ref_need_d1":       _int(row_ref[5]),
+        "ref_covered_d1":    _int(row_ref[6]),
+        "coverage_ref_d1":   min(_float(row_ref[7]), 2.0),
+        "oven_need_dday":    _int(row_oven[2]),
+        "oven_covered_dday": _int(row_oven[3]),
+        "coverage_oven_dday": min(_float(row_oven[4]), 2.0),
+        "oven_need_d1":      _int(row_oven[5]),
+        "oven_covered_d1":   _int(row_oven[6]),
+        "coverage_oven_d1":  min(_float(row_oven[7]), 2.0),
+    }
+
+    hoy_local = datetime.now(TZ_LOCAL).date()
+
+    existing = (
+        await db.execute(select(PsiSnapshot).where(PsiSnapshot.fecha == hoy_local))
+    ).scalar_one_or_none()
+
+    raw_payload = {"row_ref": row_ref[:15], "row_oven": row_oven[:15]}
+
+    if existing:
+        for k, v in snap_data.items():
+            setattr(existing, k, v)
+        existing.importado_por    = current_user.nombre_usuario
+        existing.fecha_importacion = datetime.now(TZ_LOCAL)
+        existing.raw_data          = raw_payload
+    else:
+        snap = PsiSnapshot(
+            fecha=hoy_local,
+            importado_por=current_user.nombre_usuario,
+            fecha_importacion=datetime.now(TZ_LOCAL),
+            raw_data=raw_payload,
+            **snap_data,
+        )
+        db.add(snap)
+
+    await db.commit()
+
+    return {
+        "message": "PSI RESUME importado correctamente",
+        "fecha":   str(hoy_local),
+        **snap_data,
+    }
 
 
 # ========================
