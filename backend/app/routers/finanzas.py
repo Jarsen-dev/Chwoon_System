@@ -268,7 +268,7 @@ async def calcular_finanzas_dashboard(
             select(
                 func.coalesce(
                     func.sum(
-                        func.jsonb_array_length(EnvioVenta.items_enviados)
+                        func.json_array_length(EnvioVenta.items_enviados)
                         # ↑ Aproximación: si necesitas sumar cantidades exactas,
                         #   usa una subquery que expande el JSON.
                         #   Por ahora, cuenta el número de líneas enviadas hoy.
