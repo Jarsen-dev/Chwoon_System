@@ -27,6 +27,7 @@ from app.models.psi_snapshot import PsiSnapshot
 from app.models.lote_inventario import LoteInventario
 from app.models.producto import Producto
 from app.models.empresa  import ConfiguracionEmpresa, ContactoEmpresa
+from app.models.cliente import Cliente, ClienteEvento
 from app.services.pdf_generator import generar_pdf_orden_compra
 from app.core.deps import get_db, get_current_user, get_current_compras, get_current_finanzas
 from app.schemas.finanzas import (
@@ -38,9 +39,10 @@ from app.schemas.finanzas import (
     PlanVentasImport, PlanVentasResponse, AutorizarVentasMasivo,
     FinanzasDashboardResponse,
     AprobarOrdenCompraRequest,
-    ProveedorScoreResponse, ProveedorEventoCreate, ProveedorEventoResponse, 
+    ProveedorScoreResponse, ProveedorEventoCreate, ProveedorEventoResponse,
     EnvioLogisticoCreate, ValidarFinanzasRequest,
-    CambiarEstadoRequest, DespacharRequest
+    CambiarEstadoRequest, DespacharRequest,
+    ClienteCreate, ClienteUpdate, ClienteResponse, ClienteEventoCreate, ClienteEventoResponse,
 )
 
 TZ_LOCAL = timezone(timedelta(hours=-6))
@@ -2509,6 +2511,130 @@ async def ranking_proveedores(
     )
     proveedores = result.scalars().unique().all()
     return proveedores
+
+
+# ========================
+# CLIENTES
+# ========================
+
+@router.get("/clientes", response_model=List[ClienteResponse])
+@router.get("/clientes/")
+async def listar_clientes(
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    require_finanzas_role(current_user)
+    result = await db.execute(select(Cliente).order_by(Cliente.razon_social))
+    return result.scalars().all()
+
+
+@router.post("/clientes", response_model=ClienteResponse)
+@router.post("/clientes/")
+async def crear_cliente(
+    data: ClienteCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    require_finanzas_role(current_user)
+    cliente = Cliente(**data.model_dump())
+    db.add(cliente)
+    await db.commit()
+    await db.refresh(cliente)
+    return cliente
+
+
+@router.put("/clientes/{cliente_id}", response_model=ClienteResponse)
+@router.put("/clientes/{cliente_id}/")
+async def actualizar_cliente(
+    cliente_id: int,
+    data: ClienteUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    require_finanzas_role(current_user)
+    result = await db.execute(select(Cliente).where(Cliente.id == cliente_id))
+    cliente = result.scalar_one_or_none()
+    if not cliente:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado")
+    for field, value in data.model_dump(exclude_unset=True).items():
+        setattr(cliente, field, value)
+    await db.commit()
+    await db.refresh(cliente)
+    return cliente
+
+
+@router.delete("/clientes/{cliente_id}")
+@router.delete("/clientes/{cliente_id}/")
+async def eliminar_cliente(
+    cliente_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    require_finanzas_role(current_user)
+    result = await db.execute(select(Cliente).where(Cliente.id == cliente_id))
+    cliente = result.scalar_one_or_none()
+    if not cliente:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado")
+    # Verificar OVs activas
+    from app.models.orden_venta import OrdenVenta
+    ov_result = await db.execute(
+        select(OrdenVenta).where(
+            OrdenVenta.cliente_id == cliente.cliente_id,
+            ~OrdenVenta.estado.in_(["Enviado", "Cancelada"])
+        ).limit(1)
+    )
+    if ov_result.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="No se puede eliminar: el cliente tiene órdenes de venta activas")
+    await db.delete(cliente)
+    await db.commit()
+    return {"message": f"Cliente {cliente.razon_social} eliminado"}
+
+
+@router.get("/clientes/{cliente_id}/eventos", response_model=List[ClienteEventoResponse])
+@router.get("/clientes/{cliente_id}/eventos/")
+async def listar_eventos_cliente(
+    cliente_id: int,
+    limite: int = Query(20, ge=1, le=200),
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    require_finanzas_role(current_user)
+    result = await db.execute(
+        select(ClienteEvento)
+        .where(ClienteEvento.cliente_id_fk == cliente_id)
+        .order_by(ClienteEvento.fecha.desc())
+        .limit(limite)
+    )
+    return result.scalars().all()
+
+
+@router.post("/clientes/{cliente_id}/eventos", response_model=ClienteEventoResponse)
+@router.post("/clientes/{cliente_id}/eventos/")
+async def crear_evento_cliente(
+    cliente_id: int,
+    data: ClienteEventoCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    require_finanzas_role(current_user)
+    result = await db.execute(select(Cliente).where(Cliente.id == cliente_id))
+    cliente = result.scalar_one_or_none()
+    if not cliente:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado")
+    evento = ClienteEvento(
+        cliente_id_fk=cliente_id,
+        tipo_evento=data.tipo_evento,
+        impacto=data.impacto,
+        referencia_id=data.referencia_id,
+        descripcion=data.descripcion,
+        registrado_por=current_user.username,
+    )
+    db.add(evento)
+    # Ajustar score (clamped 0-100)
+    cliente.score_cliente = max(0.0, min(100.0, (cliente.score_cliente or 100.0) + data.impacto))
+    await db.commit()
+    await db.refresh(evento)
+    return evento
 
 
 # ========================

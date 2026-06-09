@@ -413,6 +413,72 @@ class ProveedorScoreResponse(BaseModel):
     score_updated_at: Optional[datetime] = None
     recomendacion_estatus: Optional[str] = None
 
+# ========================
+# CLIENTES
+# ========================
+class ClienteCreate(BaseModel):
+    razon_social: str = Field(..., min_length=2)
+    rfc: Optional[str] = None
+    contacto_nombre: Optional[str] = None
+    contacto_email: Optional[str] = None
+    contacto_telefono: Optional[str] = None
+    direccion: Optional[str] = None
+    condiciones_pago: Optional[str] = "30 días"
+    dias_credito: int = Field(default=30, ge=0)
+    estatus: str = "Activo"
+    notas: Optional[str] = None
+
+class ClienteUpdate(BaseModel):
+    razon_social: Optional[str] = None
+    rfc: Optional[str] = None
+    contacto_nombre: Optional[str] = None
+    contacto_email: Optional[str] = None
+    contacto_telefono: Optional[str] = None
+    direccion: Optional[str] = None
+    condiciones_pago: Optional[str] = None
+    dias_credito: Optional[int] = None
+    estatus: Optional[str] = None
+    notas: Optional[str] = None
+
+class ClienteResponse(BaseModel):
+    id: int
+    cliente_id: str
+    razon_social: str
+    rfc: Optional[str] = None
+    contacto_nombre: Optional[str] = None
+    contacto_email: Optional[str] = None
+    contacto_telefono: Optional[str] = None
+    direccion: Optional[str] = None
+    condiciones_pago: Optional[str] = None
+    dias_credito: Optional[int] = None
+    estatus: str
+    notas: Optional[str] = None
+    score_cliente: float = 100.0
+    fecha_creacion: datetime
+
+    class Config:
+        from_attributes = True
+
+class ClienteEventoCreate(BaseModel):
+    tipo_evento: str
+    impacto: float
+    referencia_id: Optional[str] = None
+    descripcion: Optional[str] = None
+
+class ClienteEventoResponse(BaseModel):
+    id: int
+    cliente_id_fk: int
+    tipo_evento: str
+    impacto: float
+    referencia_id: Optional[str] = None
+    descripcion: Optional[str] = None
+    fecha: datetime
+    registrado_por: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
 class EnvioLogisticoCreate(BaseModel):
     no_camion: str
     chofer: str

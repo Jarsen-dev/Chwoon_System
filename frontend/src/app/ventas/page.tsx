@@ -13,6 +13,7 @@ import DevolucionesTab from './DevolucionesTab';
 import ControlDespachosTab from './ControlDespachosTab';
 import DemandaTab from './DemandaTab';
 import ReportesTab from './ReportesTab';
+import ClientesTab from './ClientesTab';
 
 const ALL_TABS = [
   { id: 'dashboard',    label: '📊 Dashboard'   },
@@ -22,6 +23,7 @@ const ALL_TABS = [
   { id: 'control-despachos', label: '🚛 Control de Despachos' },
   { id: 'devoluciones', label: '🔄 Devoluciones' },
   { id: 'reportes',     label: '📑 Reportes'     },
+  { id: 'clientes',    label: '👥 Clientes'     },
 ];
 
 const THEME = getModuleTheme('ventas');
@@ -100,6 +102,7 @@ export default function VentasPage() {
       {activeTab === 'control-despachos' && <ControlDespachosTab token={token} />}
       {activeTab === 'devoluciones' && <DevolucionesTab token={token} />}
       {activeTab === 'reportes'     && <ReportesTab     token={token} />}
+      {activeTab === 'clientes'    && <ClientesTab    token={token} />}
     </ModuleShell>
   );
 }

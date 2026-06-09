@@ -2478,6 +2478,65 @@ export type EstadoOV =
 // PLAN EMBARQUE — importar PSI RESUME
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────────────────
+// CLIENTES
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function getClientes(token: string): Promise<any[]> {
+  const res = await fetch(`${API_URL}/finanzas/clientes`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error((await res.json()).detail || 'Error al obtener clientes')
+  return res.json()
+}
+
+export async function crearCliente(token: string, data: any): Promise<any> {
+  const res = await fetch(`${API_URL}/finanzas/clientes`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) throw new Error((await res.json()).detail || 'Error al crear cliente')
+  return res.json()
+}
+
+export async function actualizarCliente(token: string, clienteId: number, data: any): Promise<any> {
+  const res = await fetch(`${API_URL}/finanzas/clientes/${clienteId}`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) throw new Error((await res.json()).detail || 'Error al actualizar cliente')
+  return res.json()
+}
+
+export async function eliminarCliente(token: string, clienteId: number): Promise<any> {
+  const res = await fetch(`${API_URL}/finanzas/clientes/${clienteId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error((await res.json()).detail || 'Error al eliminar cliente')
+  return res.json()
+}
+
+export async function getClienteEventos(token: string, clienteId: number): Promise<any[]> {
+  const res = await fetch(`${API_URL}/finanzas/clientes/${clienteId}/eventos?limite=20`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error((await res.json()).detail || 'Error al obtener eventos')
+  return res.json()
+}
+
+export async function registrarClienteEvento(token: string, clienteId: number, data: any): Promise<any> {
+  const res = await fetch(`${API_URL}/finanzas/clientes/${clienteId}/eventos`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) throw new Error((await res.json()).detail || 'Error al registrar evento')
+  return res.json()
+}
+
 export async function importarPlanEmbarque(token: string, file: File): Promise<any> {
   const form = new FormData()
   form.append('file', file)
