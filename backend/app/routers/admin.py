@@ -350,6 +350,10 @@ async def get_system_status(
         ("lotes_inventario",     "lotes_inventario"),
         ("ordenes_produccion",    "ordenes_produccion"),
         ("plan_inyeccion",        "plan_inyeccion"),
+        ("planes_venta",          "planes_venta"),
+        ("psi_snapshots",         "psi_snapshots"),
+        ("ordenes_venta",         "ordenes_venta"),
+        ("envios_venta",          "envios_venta"),
     ]
 
     for nombre, tabla in tablas:
@@ -678,6 +682,70 @@ async def vaciar_plan_inyeccion_pendientes(
     await db.commit()
     return {
         "message": "Órdenes pendientes de inyección eliminadas",
+        "eliminados": result.rowcount,
+    }
+
+
+# ── POST /api/admin/db/vaciar-plan-ventas ─────────────────────────────
+@router.post("/db/vaciar-plan-ventas")
+@router.post("/db/vaciar-plan-ventas/")
+async def vaciar_plan_ventas(
+    db: AsyncSession = Depends(get_db),
+    _: Usuario = Depends(get_current_admin),
+):
+    """Vacía la tabla de planes de venta (CW PLAN importados)"""
+    result = await db.execute(text("DELETE FROM planes_venta"))
+    await db.commit()
+    return {
+        "message": "Planes de venta eliminados",
+        "eliminados": result.rowcount,
+    }
+
+
+# ── POST /api/admin/db/vaciar-psi-snapshots ──────────────────────────
+@router.post("/db/vaciar-psi-snapshots")
+@router.post("/db/vaciar-psi-snapshots/")
+async def vaciar_psi_snapshots(
+    db: AsyncSession = Depends(get_db),
+    _: Usuario = Depends(get_current_admin),
+):
+    """Vacía la tabla de snapshots PSI (cobertura LG)"""
+    result = await db.execute(text("DELETE FROM psi_snapshots"))
+    await db.commit()
+    return {
+        "message": "Snapshots PSI eliminados",
+        "eliminados": result.rowcount,
+    }
+
+
+# ── POST /api/admin/db/vaciar-ordenes-venta ──────────────────────────
+@router.post("/db/vaciar-ordenes-venta")
+@router.post("/db/vaciar-ordenes-venta/")
+async def vaciar_ordenes_venta(
+    db: AsyncSession = Depends(get_db),
+    _: Usuario = Depends(get_current_admin),
+):
+    """Vacía órdenes de venta (cascade borra items y envíos vía FK)"""
+    result = await db.execute(text("DELETE FROM ordenes_venta"))
+    await db.commit()
+    return {
+        "message": "Órdenes de venta eliminadas (items y envíos incluidos)",
+        "eliminados": result.rowcount,
+    }
+
+
+# ── POST /api/admin/db/vaciar-envios-venta ───────────────────────────
+@router.post("/db/vaciar-envios-venta")
+@router.post("/db/vaciar-envios-venta/")
+async def vaciar_envios_venta(
+    db: AsyncSession = Depends(get_db),
+    _: Usuario = Depends(get_current_admin),
+):
+    """Vacía únicamente la tabla de envíos de venta"""
+    result = await db.execute(text("DELETE FROM envios_venta"))
+    await db.commit()
+    return {
+        "message": "Envíos de venta eliminados",
         "eliminados": result.rowcount,
     }
 

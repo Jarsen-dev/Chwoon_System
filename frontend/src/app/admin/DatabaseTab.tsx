@@ -312,6 +312,79 @@ export default function DatabaseTab({ token }: Props) {
         </div>
       </div>
 
+      {/* ═══ ACCIONES VENTAS ═══ */}
+      <div>
+        <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider mb-1 flex items-center gap-2">
+          🚚 Ventas — Limpieza de Datos
+        </h3>
+        <p className="text-xs text-gray-500 mb-4">
+          Estas acciones eliminan registros del módulo de Ventas (plan semanal, PSI, órdenes y envíos).
+          Son irreversibles.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <DbActionCard
+            icon="📊"
+            title="Vaciar Plan de Ventas (CW PLAN)"
+            description="⚠️ Elimina TODOS los planes semanales importados de CW PLAN"
+            count={getCount('planes_venta')}
+            buttonLabel="Vaciar Plan Ventas"
+            buttonColor="bg-red-600 hover:bg-red-700"
+            loading={dbActionLoading === 'vaciar-plan-ventas'}
+            onClick={() => confirmarAccionDB(
+              'vaciar-plan-ventas',
+              '⚠️ Vaciar Plan de Ventas',
+              '¿ELIMINAR TODOS los planes de ventas importados? Esto borra los datos de CW PLAN y sus programaciones semanales. Acción NO reversible.'
+            )}
+            danger
+          />
+          <DbActionCard
+            icon="📈"
+            title="Vaciar Snapshots PSI"
+            description="⚠️ Elimina TODOS los registros de cobertura PSI importados de LG"
+            count={getCount('psi_snapshots')}
+            buttonLabel="Vaciar PSI"
+            buttonColor="bg-orange-600 hover:bg-orange-700"
+            loading={dbActionLoading === 'vaciar-psi-snapshots'}
+            onClick={() => confirmarAccionDB(
+              'vaciar-psi-snapshots',
+              '⚠️ Vaciar Snapshots PSI',
+              '¿ELIMINAR TODOS los snapshots de cobertura PSI? Los datos de cobertura Ref/Oven desaparecerán. Acción NO reversible.'
+            )}
+            danger
+          />
+          <DbActionCard
+            icon="📋"
+            title="Vaciar Órdenes de Venta (OV)"
+            description="⚠️ Elimina TODAS las órdenes de venta, items y envíos asociados"
+            count={getCount('ordenes_venta')}
+            buttonLabel="Vaciar OVs"
+            buttonColor="bg-red-600 hover:bg-red-700"
+            loading={dbActionLoading === 'vaciar-ordenes-venta'}
+            onClick={() => confirmarAccionDB(
+              'vaciar-ordenes-venta',
+              '⚠️ Vaciar Órdenes de Venta',
+              '¿ELIMINAR TODAS las órdenes de venta? Esto incluye items y envíos asociados. Acción NO reversible.'
+            )}
+            danger
+          />
+          <DbActionCard
+            icon="🚚"
+            title="Vaciar Envíos de Venta"
+            description="⚠️ Elimina TODOS los registros de embarques/envíos realizados"
+            count={getCount('envios_venta')}
+            buttonLabel="Vaciar Envíos"
+            buttonColor="bg-orange-600 hover:bg-orange-700"
+            loading={dbActionLoading === 'vaciar-envios-venta'}
+            onClick={() => confirmarAccionDB(
+              'vaciar-envios-venta',
+              '⚠️ Vaciar Envíos de Venta',
+              '¿ELIMINAR TODOS los envíos de venta registrados? El historial de embarques quedará vacío. Acción NO reversible.'
+            )}
+            danger
+          />
+        </div>
+      </div>
+
       {/* ═══ MODAL CONFIRMAR ═══ */}
       {confirmAction && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">

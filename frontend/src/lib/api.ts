@@ -891,6 +891,21 @@ export async function autorizarVentasMasivo(token: string, data: {
   return res.json()
 }
 
+export async function analizarDemanda(token: string, file: File): Promise<import('@/types').DemandaGapItem[]> {
+  const fd = new FormData()
+  fd.append('file', file)
+  const res = await fetch(`${API_URL}/finanzas/ventas/demanda/analizar`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: fd,
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al analizar demanda')
+  }
+  return res.json()
+}
+
 // ==========================================
 // FINANZAS — Limpieza (solo admin)
 // ==========================================

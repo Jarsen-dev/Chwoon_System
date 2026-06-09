@@ -24,6 +24,8 @@ from app.models.orden_venta import OrdenVenta, OrdenVentaItem, EnvioVenta
 from app.models.devolucion import Devolucion
 from app.models.plan_ventas import PlanVentas
 from app.models.psi_snapshot import PsiSnapshot
+from app.models.lote_inventario import LoteInventario
+from app.models.producto import Producto
 from app.models.empresa  import ConfiguracionEmpresa, ContactoEmpresa
 from app.services.pdf_generator import generar_pdf_orden_compra
 from app.core.deps import get_db, get_current_user, get_current_compras, get_current_finanzas
@@ -2043,68 +2045,31 @@ async def autorizar_ventas_masivo(
     return {"resultados": resultados}
 
 
-@router.post("/ventas/{ov_id}/despachar")
-async def despachar_orden_venta(
-    ov_id: str,
-    data: EnvioLogisticoCreate,
-    db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user),
-):
-    # Se permite a Logística y Ventas
-    if current_user.rol not in ("admin", "finanzas", "ventas", "logistica"):
-        raise HTTPException(status_code=403, detail="Sin permisos de despacho")
-
-    result = await db.execute(select(OrdenVenta).where(OrdenVenta.ov_id == ov_id))
-    orden = result.scalar_one_or_none()
-    if not orden or orden.estado != "Lista para Carga":
-        raise HTTPException(status_code=400, detail="Orden no lista para carga")
-
-    if data.cw_invoice:
-        orden.cw_invoice = data.cw_invoice
-
-    items_result = await db.execute(select(OrdenVentaItem).where(OrdenVentaItem.orden_venta_id == orden.id))
-    items = items_result.scalars().all()
-
-    ahora = ahora_local()
-    envio_id = f"ENV-{ahora.strftime('%Y%m%d%H%M%S')}"
-
-    # Generar el registro físico
-    envio = EnvioVenta(
-        envio_id=envio_id,
-        orden_venta_id=orden.id,
-        ov_id=ov_id,
-        autorizado_por=current_user.username,
-        no_camion=data.no_camion,
-        chofer=data.chofer,
-        status_salida=data.status_salida,
-        items_enviados=[{"sku": i.sku_producto, "qty": i.cantidad} for i in items]
-    )
-    db.add(envio)
-    orden.estado = "Despachada"
-    
-    await db.commit()
-    return {"message": "Despacho registrado exitosamente", "envio_id": envio_id}
-
-# 2. Endpoint para Reporte Diario/Mensual Excel
+# Endpoint para Reporte Diario/Mensual Excel
 @router.get("/ventas/reporte-diario/excel")
 async def descargar_reporte_ventas(
     fecha: str = Query(..., description="YYYY-MM-DD"),
     db: AsyncSession = Depends(get_db)
 ):
-    # Filtramos envíos de ese día
     query = select(EnvioVenta, OrdenVenta).join(OrdenVenta).where(
         func.date(EnvioVenta.fecha_envio) == fecha
     )
     result = await db.execute(query)
     registros = result.all()
 
+    # Precargar descripciones de productos para todos los SKUs presentes
+    skus_en_envios = {item["sku"] for envio, _ in registros for item in envio.items_enviados}
+    prod_result = await db.execute(select(Producto).where(Producto.sku.in_(skus_en_envios)))
+    desc_por_sku = {p.sku: (p.nombre or p.descripcion or "") for p in prod_result.scalars().all()}
+
     datos_reporte = []
     for envio, orden in registros:
         for item in envio.items_enviados:
+            sku = item["sku"]
             datos_reporte.append({
-                "NO. PARTE": item["sku"],
-                "DESCRIPCION": "Extraer de maestro", # Aquí cruzarías con modelo Producto
-                "LINE": "R1/R2", 
+                "NO. PARTE": sku,
+                "DESCRIPCION": desc_por_sku.get(sku, ""),
+                "LINE": "R1/R2",
                 "NO. EMB": envio.id,
                 "CANTIDAD": item["qty"],
                 "FECHA": envio.fecha_envio.strftime("%Y-%m-%d"),
@@ -2120,18 +2085,123 @@ async def descargar_reporte_ventas(
             })
 
     df = pd.DataFrame(datos_reporte)
-    
+
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
         df.to_excel(writer, sheet_name='VENTA REPORTE(D)', index=False)
-        # Puedes añadir más sheets (BOM, RETURN) aquí.
-    
+
     output.seek(0)
     return StreamingResponse(
-        output, 
+        output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f"attachment; filename=CW_Venta_Reporte_{fecha}.xlsx"}
     )
+
+
+# Análisis de brecha demanda vs stock PT aprobado
+@router.post("/ventas/demanda/analizar")
+async def analizar_brecha_demanda(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """
+    Recibe un Excel con el plan de demanda del cliente (LG/GMES).
+    Detecta automáticamente columnas de SKU y cantidad.
+    Cruza contra stock de PRODUCTO FINAL Aprobado en almacén.
+    Devuelve brecha por SKU ordenada de mayor faltante a mayor excedente.
+    """
+    require_ventas_role(current_user)
+
+    contenido = await file.read()
+    try:
+        df_raw = pd.read_excel(io.BytesIO(contenido), header=None)
+    except Exception as e:
+        raise HTTPException(400, f"No se pudo leer el archivo Excel: {e}")
+
+    # ── Detectar fila de encabezados ──────────────────────────────────────────
+    header_row = 0
+    for i, row in df_raw.iterrows():
+        vals = [str(v).strip().upper() for v in row if not pd.isna(v)]
+        if any(k in " ".join(vals) for k in ("PARTE", "PART", "SKU", "NO.")):
+            header_row = i
+            break
+
+    df = pd.read_excel(io.BytesIO(contenido), header=header_row)
+    df.columns = [str(c).strip().upper() for c in df.columns]
+
+    # ── Detectar columna SKU ──────────────────────────────────────────────────
+    sku_aliases = ["NO. PARTE", "NO.PARTE", "PART NO", "PART NUMBER", "SKU", "NO. PART"]
+    col_sku = next((c for c in df.columns if any(a in c for a in sku_aliases)), None)
+    if col_sku is None:
+        col_sku = df.columns[0]
+
+    # ── Detectar columna de cantidad / demanda ────────────────────────────────
+    qty_aliases = ["TOTAL", "CANTIDAD", "QTY", "DEMANDA", "REQUERIMIENTO", "REQ", "PLAN"]
+    col_qty = next((c for c in df.columns if any(a in c for a in qty_aliases) and c != col_sku), None)
+    if col_qty is None:
+        # Fallback: primera columna numérica que no sea SKU
+        for c in df.columns:
+            if c != col_sku and pd.to_numeric(df[c], errors="coerce").notna().sum() > 0:
+                col_qty = c
+                break
+    if col_qty is None:
+        raise HTTPException(400, "No se encontró columna de cantidad en el archivo.")
+
+    # ── Construir mapa demanda por SKU ────────────────────────────────────────
+    demanda_map: dict[str, int] = {}
+    for _, row in df.iterrows():
+        raw_sku = row.get(col_sku)
+        if pd.isna(raw_sku) or str(raw_sku).strip() == "":
+            continue
+        sku = str(raw_sku).strip()
+        try:
+            qty = int(float(str(row.get(col_qty, 0)).replace(",", "")))
+        except (ValueError, TypeError):
+            qty = 0
+        if qty > 0:
+            demanda_map[sku] = demanda_map.get(sku, 0) + qty
+
+    if not demanda_map:
+        raise HTTPException(400, "No se encontraron SKUs con demanda en el archivo.")
+
+    # ── Consultar stock PT Aprobado en almacén ────────────────────────────────
+    stock_result = await db.execute(
+        select(LoteInventario.sku_producto, func.sum(LoteInventario.cantidad_actual).label("stock"))
+        .join(Producto, Producto.sku == LoteInventario.sku_producto)
+        .where(
+            LoteInventario.sku_producto.in_(list(demanda_map.keys())),
+            LoteInventario.estado_calidad == "Aprobado",
+            LoteInventario.cantidad_actual > 0,
+            Producto.tipo == "PRODUCTO FINAL",
+        )
+        .group_by(LoteInventario.sku_producto)
+    )
+    stock_map: dict[str, float] = {row.sku_producto: row.stock for row in stock_result.all()}
+
+    # Precargar descripciones
+    desc_result = await db.execute(
+        select(Producto.sku, Producto.nombre, Producto.descripcion)
+        .where(Producto.sku.in_(list(demanda_map.keys())))
+    )
+    desc_map = {row.sku: (row.nombre or row.descripcion or "") for row in desc_result.all()}
+
+    # ── Construir resultado ───────────────────────────────────────────────────
+    resultado = []
+    for sku, demanda in demanda_map.items():
+        stock = int(stock_map.get(sku, 0))
+        brecha = stock - demanda
+        resultado.append({
+            "sku": sku,
+            "descripcion": desc_map.get(sku, ""),
+            "demanda": demanda,
+            "stock_pt_aprobado": stock,
+            "brecha": brecha,
+            "status": "OK" if brecha >= 0 else "FALTANTE",
+        })
+
+    resultado.sort(key=lambda x: x["brecha"])
+    return resultado
 
 
 # ========================

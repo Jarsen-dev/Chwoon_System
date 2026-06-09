@@ -6,7 +6,7 @@ export default function ReportesTab({ token }: { token: string }) {
 
   const handleDescargarDiario = () => {
     // Al abrir esta URL, el backend devuelve el .xlsx
-    window.open(`/api/finanzas/ventas/reportes/excel-diario?fecha=${fecha}`, '_blank');
+    window.open(`/finanzas/ventas/reporte-diario/excel?fecha=${fecha}`, '_blank');
   };
 
   return (

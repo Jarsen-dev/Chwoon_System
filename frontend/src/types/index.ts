@@ -550,6 +550,15 @@ export interface FinanzasDashboard {
   coverage_oven_d1:        number
 }
 
+export interface DemandaGapItem {
+  sku: string
+  descripcion?: string
+  demanda: number
+  stock_pt_aprobado: number
+  brecha: number
+  status: 'OK' | 'FALTANTE'
+}
+
 // Semáforo PSI: fracción → color tailwind
 export function semaforoCoverage(v: number): 'green' | 'yellow' | 'red' {
   if (v >= 1.0)  return 'green'
