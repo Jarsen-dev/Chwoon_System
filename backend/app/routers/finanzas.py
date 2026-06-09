@@ -1766,56 +1766,76 @@ DIA_MAP = {
     5: "SABADO",
     6: "DOMINGO",
 }
- 
-# Columnas mínimas que deben existir en la fila de headers (fila 4)
+
+# Mapa de nombres de día en español (minúsculas, con/sin tilde) → clave interna
+_DIA_STR_MAP: dict[str, str] = {
+    "lunes":      "LUNES",
+    "martes":     "MARTES",
+    "miercoles":  "MIERCOLES",
+    "miércoles":  "MIERCOLES",
+    "jueves":     "JUEVES",
+    "viernes":    "VIERNES",
+    "sabado":     "SABADO",
+    "sábado":     "SABADO",
+    "domingo":    "DOMINGO",
+}
+
+# Columnas mínimas que deben existir en la fila de headers (fila 5 openpyxl)
 COLS_REQUERIDAS = {"NO. PARTE", "DESCRIPCION", "LINE", "INV. CW", "INV. LG"}
- 
- 
+
+
 # ------------------------------------------------------------------ #
 # Función principal de parseo                                          #
 # ------------------------------------------------------------------ #
 def parsear_cw_plan(contenido: bytes) -> list[dict[str, Any]]:
     """
-    Lee la hoja 'CW PLAN' de un Excel y devuelve una lista de items
-    con la estructura extendida de PlanVentas.items.
- 
-    Estructura de la hoja CW PLAN:
-      Filas 0-3  → metadata (fechas, labels de sección) — se ignoran
-      Fila 4     → headers reales (NO. PARTE, DESCRIPCION, LINE, ...)
-      Filas 5+   → datos. Filas con NO. PARTE vacío son separadores.
- 
-    Columnas de días: son datetime objects en pandas. Se detectan
-    automáticamente buscando columnas de tipo datetime64.
+    Lee la hoja 'CW PLAN' de un Excel (openpyxl data_only=True) y devuelve
+    una lista de items con la estructura extendida de PlanVentas.items.
+
+    Estructura de la hoja CW PLAN (openpyxl base-1):
+      Fila 5  → headers: NO. PARTE, DESCRIPCION, LINE, CW LINE, MODEL, ID 1,
+                         viernes/lunes/martes/miércoles/jueves (strings en minúsculas),
+                         INV. CW, INV. LG ...
+      Filas 6+ → datos. Filas con NO. PARTE vacío son separadores visuales.
+
+    Los días aparecen varias veces en el Excel (columnas duplicadas de acumulados).
+    Solo se toma la PRIMERA aparición de cada día como columna de plan.
+    Los valores de fórmulas se extraen correctamente gracias a data_only=True.
     """
+    import openpyxl as _opxl
+    import io as _io
+
     try:
-        df_raw = pd.read_excel(
-            io.BytesIO(contenido),
-            sheet_name="CW PLAN",
-            header=None,          # leemos sin header para manejar las filas de metadata
-        )
+        wb = _opxl.load_workbook(_io.BytesIO(contenido), data_only=True)
     except Exception as e:
-        raise HTTPException(400, f"No se pudo leer la hoja 'CW PLAN': {e}")
- 
-    # ── 1. Extraer headers de la fila 4 (índice 4) ──────────────────
-    header_row = df_raw.iloc[4]
- 
-    # Los headers de días son objetos datetime (pandas los parsea así)
-    # Los demás son strings. Construimos un dict col_idx → nombre_col
+        raise HTTPException(400, f"No se pudo leer el Excel: {e}")
+
+    if "CW PLAN" not in wb.sheetnames:
+        raise HTTPException(400, "Hoja 'CW PLAN' no encontrada en el archivo")
+
+    ws = wb["CW PLAN"]
+
+    # ── 1. Extraer headers de la fila 5 (base-1 openpyxl) ───────
+    # col_names: índice 0-based → nombre normalizado
+    # dia_cols:  índice 0-based → clave interna ("LUNES", "VIERNES", ...)
+    #            Solo primera aparición de cada día.
+    header_cells = [c.value for c in ws[5]]
     col_names: dict[int, str] = {}
-    dia_cols:  dict[int, str] = {}   # col_idx → "LUNES" / "MARTES" / etc.
- 
-    for idx, val in enumerate(header_row):
-        if pd.isna(val):
+    dia_cols:  dict[int, str] = {}
+    dias_vistos: set[str] = set()
+
+    for idx, val in enumerate(header_cells):
+        if val is None:
             continue
-        if isinstance(val, (datetime, pd.Timestamp)):
-            # Es una columna de día — la mapeamos por weekday()
-            dia_nombre = DIA_MAP.get(pd.Timestamp(val).weekday())
-            if dia_nombre:
-                dia_cols[idx] = dia_nombre
-                col_names[idx] = dia_nombre
-        else:
-            col_names[idx] = str(val).strip()
- 
+        s = str(val).strip()
+        dia = _DIA_STR_MAP.get(s.lower())
+        if dia and dia not in dias_vistos:
+            dia_cols[idx] = dia
+            col_names[idx] = dia
+            dias_vistos.add(dia)
+        elif not dia:
+            col_names[idx] = s
+
     # Verificar que las columnas esenciales existen
     nombres = set(col_names.values())
     faltantes = COLS_REQUERIDAS - nombres
@@ -1823,89 +1843,80 @@ def parsear_cw_plan(contenido: bytes) -> list[dict[str, Any]]:
         raise HTTPException(
             400,
             f"Faltan columnas en CW PLAN: {faltantes}. "
-            f"Columnas encontradas: {nombres}"
+            f"Columnas encontradas: {nombres}",
         )
- 
-    # Índices de columnas clave
-    def _idx(nombre: str) -> int:
+
+    def _col_idx(nombre: str) -> int:
         for k, v in col_names.items():
             if v == nombre:
                 return k
         raise HTTPException(400, f"Columna '{nombre}' no encontrada")
- 
-    idx_sku        = _idx("NO. PARTE")
-    idx_desc       = _idx("DESCRIPCION")
-    idx_linea      = _idx("LINE")
-    idx_stock_cw   = _idx("INV. CW")
-    idx_stock_lg   = _idx("INV. LG")
- 
-    # Columnas opcionales (pueden no existir en versiones anteriores del Excel)
+
+    idx_sku      = _col_idx("NO. PARTE")
+    idx_desc     = _col_idx("DESCRIPCION")
+    idx_linea    = _col_idx("LINE")
+    idx_stock_cw = _col_idx("INV. CW")
+    idx_stock_lg = _col_idx("INV. LG")
+
     idx_cw_line = next((k for k, v in col_names.items() if v == "CW LINE"), None)
-    idx_model   = next((k for k, v in col_names.items() if v == "MODEL"), None)
-    idx_id1     = next((k for k, v in col_names.items() if v == "ID 1"), None)
- 
-    # ── 2. Iterar filas de datos (fila 5 en adelante) ───────────────
+    idx_model   = next((k for k, v in col_names.items() if v == "MODEL"),   None)
+    idx_id1     = next((k for k, v in col_names.items() if v == "ID 1"),    None)
+
+    # ── 2. Iterar filas de datos (fila 6+ en openpyxl base-1) ─────────
+    def _cell(row_vals: list, idx):
+        if idx is None or idx >= len(row_vals):
+            return None
+        return row_vals[idx]
+
+    def _safe_int(v, default: int = 0) -> int:
+        if v is None:
+            return default
+        try:
+            return int(float(v))
+        except (ValueError, TypeError):
+            return default
+
+    def _safe_str(v) -> str:
+        return str(v).strip() if v is not None else ""
+
     items: list[dict[str, Any]] = []
-    data_rows = df_raw.iloc[5:]
- 
-    for _, row in data_rows.iterrows():
-        sku = row.iloc[idx_sku]
- 
-        # Saltar separadores (filas vacías o con SKU nulo)
-        if pd.isna(sku) or str(sku).strip() == "":
+
+    for row_num in range(6, ws.max_row + 1):
+        row_vals = [ws.cell(row=row_num, column=c + 1).value for c in range(len(header_cells))]
+
+        sku_raw = _cell(row_vals, idx_sku)
+        if sku_raw is None or _safe_str(sku_raw) == "":
             continue
- 
-        sku = str(sku).strip()
- 
-        # Saltar filas de subtotal (tienen SKU numérico o "TOTAL")
+
+        sku = _safe_str(sku_raw)
         if sku.upper() in ("TOTAL", "SUBTOTAL") or sku.isdigit():
             continue
- 
-        def _val(idx: int | None, default=None):
-            if idx is None:
-                return default
-            v = row.iloc[idx]
-            return None if pd.isna(v) else v
- 
-        def _int(idx: int | None, default: int = 0) -> int:
-            v = _val(idx)
-            try:
-                return int(v) if v is not None else default
-            except (ValueError, TypeError):
-                return default
- 
-        # ── Construir dict de días ──────────────────────────────────
+
         dias: dict[str, dict] = {}
         for col_idx, dia_nombre in dia_cols.items():
-            plan_qty = _int(col_idx, 0)
             dias[dia_nombre] = {
-                "plan":        plan_qty,
+                "plan":        _safe_int(_cell(row_vals, col_idx), 0),
                 "status":      "Pendiente",
                 "ov_generada": None,
             }
- 
+
         item: dict[str, Any] = {
             "sku":          sku,
-            "descripcion":  str(_val(idx_desc) or "").strip(),
-            "linea":        str(_val(idx_linea) or "").strip(),
-            # ── Campos nuevos ──
-            "cw_line":      str(_val(idx_cw_line) or "").strip() or None,
-            "model":        str(_val(idx_model)   or "").strip() or None,
-            "id1":          str(_val(idx_id1)     or "").strip() or None,
-            # ── Stock ──
-            "stock_actual": _int(idx_stock_cw, 0),   # INV. CW  (stock en planta CW)
-            "stock_lg":     _int(idx_stock_lg, 0),   # INV. LG  (stock en planta LG)
-            # ── Días ──
+            "descripcion":  _safe_str(_cell(row_vals, idx_desc)),
+            "linea":        _safe_str(_cell(row_vals, idx_linea)),
+            "cw_line":      _safe_str(_cell(row_vals, idx_cw_line)) or None,
+            "model":        _safe_str(_cell(row_vals, idx_model))   or None,
+            "id1":          _safe_str(_cell(row_vals, idx_id1))     or None,
+            "stock_actual": _safe_int(_cell(row_vals, idx_stock_cw), 0),
+            "stock_lg":     _safe_int(_cell(row_vals, idx_stock_lg), 0),
             "dias":         dias,
         }
         items.append(item)
- 
+
     if not items:
         raise HTTPException(400, "No se encontraron SKUs válidos en la hoja CW PLAN")
- 
+
     return items
-
-
 @router.post("/plan-ventas/importar")
 @router.post("/plan-ventas/importar/")
 async def importar_plan_ventas(
