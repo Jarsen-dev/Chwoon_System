@@ -393,6 +393,11 @@ export interface EnvioVenta {
   autorizado_por?: string
   items_enviados:  { sku_producto: string; cantidad: number }[]
   notas?:          string
+  no_camion?:      string
+  chofer?:         string
+  status_salida?:  string
+  no_departure?:   string
+  cw_invoice?:     string
 }
 
 export interface OrdenVenta {
@@ -510,18 +515,53 @@ export function colorDIF(dif: number): 'green' | 'yellow' | 'red' {
 // FINANZAS — Dashboard
 // ==========================================
 export interface FinanzasDashboard {
+  // Órdenes de compra
   total_oc:                number
   oc_pendientes:           number
   oc_completadas:          number
+
+  // Órdenes de venta
   total_ov:                number
   ov_pendientes:           number
+  ov_en_preparacion:       number
+  ov_lista_para_carga:     number
   ov_enviadas:             number
   ov_stock_insuficiente:   number
+
+  // Devoluciones y plan
   total_devoluciones:      number
   devoluciones_pendientes: number
+  planes_venta_activos:    number
+
+  // Financiero
   valor_compras_mes:       number
   valor_ventas_mes:        number
-  planes_venta_activos:    number
+
+  // KPIs operativos del día
+  programado_hoy:          number
+  embarcado_hoy:           number
+  pct_cumplimiento:        number
+  skus_dif_negativa:       number
+
+  // PSI Coverage (fracción 0.0–2.0)
+  coverage_ref_dday:       number
+  coverage_ref_d1:         number
+  coverage_oven_dday:      number
+  coverage_oven_d1:        number
+}
+
+// Semáforo PSI: fracción → color tailwind
+export function semaforoCoverage(v: number): 'green' | 'yellow' | 'red' {
+  if (v >= 1.0)  return 'green'
+  if (v >= 0.5)  return 'yellow'
+  return 'red'
+}
+
+export function colorClasesSemaforo(v: number): string {
+  const s = semaforoCoverage(v)
+  if (s === 'green')  return 'text-green-400 border-green-500/30 bg-green-500/10'
+  if (s === 'yellow') return 'text-yellow-400 border-yellow-500/30 bg-yellow-500/10'
+  return 'text-red-400 border-red-500/30 bg-red-500/10'
 }
 
 // ==========================================

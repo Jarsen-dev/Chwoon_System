@@ -3,23 +3,14 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { getOrdenesVenta, crearOrdenVenta, enviarOrdenVenta, getOrdenVenta } from '@/lib/api';
+import { getOrdenesVenta, crearOrdenVenta, enviarOrdenVenta, getOrdenVenta, ESTADO_COLORS } from '@/lib/api';
 import type { OrdenVenta } from '@/types';
 
 interface Props {
   token: string;
 }
 
-const ESTADO_COLORS: Record<string, string> = {
-  'Pendiente de Envío': 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-  'Stock Insuficiente': 'bg-red-500/20 text-red-400 border-red-500/30',
-  'Enviado': 'bg-green-500/20 text-green-400 border-green-500/30',
-  'Embarque Parcial': 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-  'Devolución Parcial': 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-  'Cancelada': 'bg-gray-500/20 text-gray-400 border-gray-500/30',
-};
-
-const ESTADO_OPTIONS = ['Todos', 'Pendiente de Envío', 'Stock Insuficiente', 'Enviado', 'Embarque Parcial', 'Devolución Parcial', 'Cancelada'];
+const ESTADO_OPTIONS = ['Todos', 'Pendiente de Envío', 'En Preparación', 'Lista para Carga', 'Stock Insuficiente', 'Enviado', 'Embarque Parcial', 'Devolución Parcial', 'Cancelada'];
 
 export default function VentasTab({ token }: Props) {
   const [ordenes, setOrdenes] = useState<OrdenVenta[]>([]);
