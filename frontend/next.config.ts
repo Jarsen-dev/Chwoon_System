@@ -92,6 +92,8 @@ const nextConfig: NextConfig = {
         { source: '/finanzas/devoluciones/:id/disposicion/',  destination: `${BACKEND}/finanzas/devoluciones/:id/disposicion/` },
         { source: '/finanzas/devoluciones',                   destination: `${BACKEND}/finanzas/devoluciones` },
         { source: '/finanzas/devoluciones/',                  destination: `${BACKEND}/finanzas/devoluciones/` },
+        { source: '/finanzas/plan-embarque/importar',          destination: `${BACKEND}/finanzas/plan-embarque/importar` },
+        { source: '/finanzas/plan-embarque/importar/',         destination: `${BACKEND}/finanzas/plan-embarque/importar/` },
         { source: '/finanzas/plan-ventas/importar',           destination: `${BACKEND}/finanzas/plan-ventas/importar` },
         { source: '/finanzas/plan-ventas/importar/',          destination: `${BACKEND}/finanzas/plan-ventas/importar/` },
         { source: '/finanzas/plan-ventas/autorizar',          destination: `${BACKEND}/finanzas/plan-ventas/autorizar` },

@@ -2481,7 +2481,7 @@ export type EstadoOV =
 export async function importarPlanEmbarque(token: string, file: File): Promise<any> {
   const form = new FormData()
   form.append('file', file)
-  const res = await fetch(`${API_URL}/api/finanzas/plan-embarque/importar`, {
+  const res = await fetch(`${API_URL}/finanzas/plan-embarque/importar`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
     body: form,
