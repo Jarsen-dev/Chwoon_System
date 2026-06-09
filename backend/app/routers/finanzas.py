@@ -476,13 +476,13 @@ async def importar_plan_embarque(
     if existing:
         for k, v in snap_data.items():
             setattr(existing, k, v)
-        existing.importado_por    = current_user.nombre_usuario
+        existing.importado_por    = current_user.username
         existing.fecha_importacion = datetime.now(TZ_LOCAL)
         existing.raw_data          = raw_payload
     else:
         snap = PsiSnapshot(
             fecha=hoy_local,
-            importado_por=current_user.nombre_usuario,
+            importado_por=current_user.username,
             fecha_importacion=datetime.now(TZ_LOCAL),
             raw_data=raw_payload,
             **snap_data,
