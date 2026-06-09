@@ -62,9 +62,10 @@ function CeldaDia({
   const dif      = calcularDIF(item, dia)
 
   const autorizado = status === 'Autorizado'
+  const difNeg     = dif < 0 && plan > 0
 
   return (
-    <td className="px-2 py-2 text-center align-middle">
+    <td className={`px-2 py-2 text-center align-middle ${difNeg ? 'bg-red-950/30' : ''}`}>
       <div className="flex flex-col items-center gap-1">
         {/* Cantidad editable */}
         {editando && !autorizado ? (
@@ -119,12 +120,27 @@ export default function PlanVentasTab({ token }: { token: string }) {
   const [cambios, setCambios] = useState<Record<string, number>>({})
 
   // ── Carga inicial ──────────────────────────────────────────────────────────
+
+  // Detecta la semana ISO actual (YYYY-WW)
+  const semanaActualISO = (): string => {
+    const now = new Date()
+    const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()))
+    const dayNum = d.getUTCDay() || 7
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum)
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
+    const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)
+    return `${d.getUTCFullYear()}-${String(weekNo).padStart(2, '0')}`
+  }
+
   const cargarPlanes = useCallback(async () => {
     try {
       const lista = await getPlanesVentas(token)
       setPlanes(lista)
       if (lista.length > 0 && !semanaActiva) {
-        setSemanaActiva(lista[0].identificador_semana)
+        // Auto-detectar semana actual; si no existe, usar la más reciente
+        const current = semanaActualISO()
+        const match = lista.find(p => p.identificador_semana === current)
+        setSemanaActiva(match ? match.identificador_semana : lista[0].identificador_semana)
       }
     } catch {
       setError('No se pudieron cargar los planes de venta')

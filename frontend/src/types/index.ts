@@ -559,6 +559,37 @@ export interface DemandaGapItem {
   status: 'OK' | 'FALTANTE'
 }
 
+// ==========================================
+// CLIENTES
+// ==========================================
+export interface Cliente {
+  id: number
+  cliente_id: string
+  razon_social: string
+  rfc?: string
+  contacto_nombre?: string
+  contacto_email?: string
+  contacto_telefono?: string
+  direccion?: string
+  condiciones_pago?: string
+  dias_credito?: number
+  estatus: string
+  notas?: string
+  score_cliente: number
+  fecha_creacion: string
+}
+
+export interface ClienteEvento {
+  id: number
+  cliente_id_fk: number
+  tipo_evento: string
+  impacto: number
+  referencia_id?: string
+  descripcion?: string
+  fecha: string
+  registrado_por?: string
+}
+
 // Semáforo PSI: fracción → color tailwind
 export function semaforoCoverage(v: number): 'green' | 'yellow' | 'red' {
   if (v >= 1.0)  return 'green'

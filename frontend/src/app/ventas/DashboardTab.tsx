@@ -2,6 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { useRef } from 'react';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  PieChart, Pie, Cell, RadialBarChart, RadialBar,
+} from 'recharts';
 import { getFinanzasDashboard, getOrdenesVenta, ESTADO_COLORS, importarPlanEmbarque } from '@/lib/api';
 import type { FinanzasDashboard, OrdenVenta } from '@/types';
 import { semaforoCoverage, colorClasesSemaforo } from '@/types';
@@ -18,6 +22,7 @@ function StatCard({
   subColor = 'text-gray-500',
   valueColor = 'text-white',
   borderColor = 'border-gray-800',
+  trend,
 }: {
   icon: string;
   label: string;
@@ -26,13 +31,19 @@ function StatCard({
   subColor?: string;
   valueColor?: string;
   borderColor?: string;
+  trend?: 'up' | 'down' | 'neutral';
 }) {
+  const trendIcon = trend === 'up' ? '↑' : trend === 'down' ? '↓' : null;
+  const trendColor = trend === 'up' ? 'text-green-400' : trend === 'down' ? 'text-red-400' : '';
   return (
-    <div className={`bg-gray-900 rounded-xl border ${borderColor} p-5`}>
-      <p className="text-2xl mb-1">{icon}</p>
+    <div className={`bg-gray-900 rounded-xl border ${borderColor} p-5 flex flex-col gap-1`}>
+      <div className="flex items-center justify-between">
+        <p className="text-2xl">{icon}</p>
+        {trendIcon && <span className={`text-sm font-bold ${trendColor}`}>{trendIcon}</span>}
+      </div>
       <p className={`text-3xl font-bold ${valueColor}`}>{value}</p>
-      <p className="text-sm text-gray-400 mt-1">{label}</p>
-      {sub && <p className={`text-xs mt-1 ${subColor}`}>{sub}</p>}
+      <p className="text-sm text-gray-400">{label}</p>
+      {sub && <p className={`text-xs ${subColor}`}>{sub}</p>}
     </div>
   );
 }
@@ -45,18 +56,29 @@ function ProgBar({ pct, color = 'bg-blue-500' }: { pct: number; color?: string }
   );
 }
 
-function CoverageCell({ label, value }: { label: string; value: number }) {
-  const cls = colorClasesSemaforo(value);
-  const pct = Math.round(Math.min(value, 2) * 50);
-  const color = semaforoCoverage(value) === 'green' ? 'bg-green-500' : semaforoCoverage(value) === 'yellow' ? 'bg-yellow-500' : 'bg-red-500';
-  return (
-    <div className={`rounded-lg border p-3 ${cls}`}>
-      <p className="text-xs text-gray-400 mb-1">{label}</p>
-      <p className="text-xl font-bold">{(value * 100).toFixed(0)}%</p>
-      <ProgBar pct={pct} color={color} />
-    </div>
-  );
-}
+const PIE_COLORS = {
+  'Pendiente de Envío':  '#eab308',
+  'En Preparación':      '#f97316',
+  'Lista para Carga':    '#06b6d4',
+  'Enviado':             '#22c55e',
+  'Stock Insuficiente':  '#ef4444',
+  'Embarque Parcial':    '#8b5cf6',
+  'Cancelada':           '#6b7280',
+};
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-xs">
+        <p className="text-gray-400 mb-1">{label}</p>
+        {payload.map((p: any, i: number) => (
+          <p key={i} style={{ color: p.color }}>{p.name}: {p.value.toLocaleString()}</p>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
 
 export default function DashboardTab({ token }: Props) {
   const [data, setData] = useState<FinanzasDashboard | null>(null);
@@ -129,10 +151,31 @@ export default function DashboardTab({ token }: Props) {
 
   if (!data) return null;
 
-  const pctInsuf = data.total_ov > 0 ? Math.round((data.ov_stock_insuficiente / data.total_ov) * 100) : 0;
   const pctCumpl = data.pct_cumplimiento ?? 0;
   const cumplColor = pctCumpl >= 90 ? 'text-green-400' : pctCumpl >= 60 ? 'text-yellow-400' : 'text-red-400';
   const cumplBar   = pctCumpl >= 90 ? 'bg-green-500' : pctCumpl >= 60 ? 'bg-yellow-500' : 'bg-red-500';
+
+  // Datos para gráfica de barras (programado vs embarcado)
+  const barData = [
+    { name: 'Hoy', Programado: data.programado_hoy, Embarcado: data.embarcado_hoy },
+  ];
+
+  // Datos para donut de estados OV
+  const pieData = [
+    { name: 'Pendiente de Envío', value: data.ov_pendientes },
+    { name: 'En Preparación',     value: data.ov_en_preparacion },
+    { name: 'Lista para Carga',   value: data.ov_lista_para_carga },
+    { name: 'Enviado',            value: data.ov_enviadas },
+    { name: 'Stock Insuficiente', value: data.ov_stock_insuficiente },
+  ].filter(d => d.value > 0);
+
+  // Datos para radial PSI
+  const psiData = [
+    { name: 'REF D-Day',  value: Math.round(Math.min(data.coverage_ref_dday, 2) * 50),  fill: semaforoCoverage(data.coverage_ref_dday) === 'green' ? '#22c55e' : semaforoCoverage(data.coverage_ref_dday) === 'yellow' ? '#eab308' : '#ef4444' },
+    { name: 'REF D+1',   value: Math.round(Math.min(data.coverage_ref_d1, 2) * 50),    fill: semaforoCoverage(data.coverage_ref_d1) === 'green' ? '#22c55e' : semaforoCoverage(data.coverage_ref_d1) === 'yellow' ? '#eab308' : '#ef4444' },
+    { name: 'OVEN D-Day', value: Math.round(Math.min(data.coverage_oven_dday, 2) * 50), fill: semaforoCoverage(data.coverage_oven_dday) === 'green' ? '#22c55e' : semaforoCoverage(data.coverage_oven_dday) === 'yellow' ? '#eab308' : '#ef4444' },
+    { name: 'OVEN D+1',  value: Math.round(Math.min(data.coverage_oven_d1, 2) * 50),   fill: semaforoCoverage(data.coverage_oven_d1) === 'green' ? '#22c55e' : semaforoCoverage(data.coverage_oven_d1) === 'yellow' ? '#eab308' : '#ef4444' },
+  ];
 
   return (
     <div className="space-y-6">
@@ -145,13 +188,7 @@ export default function DashboardTab({ token }: Props) {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".xlsx,.xls"
-            className="hidden"
-            onChange={handleImportEmbarque}
-          />
+          <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportEmbarque} />
           <button
             onClick={() => fileRef.current?.click()}
             disabled={importing}
@@ -171,12 +208,15 @@ export default function DashboardTab({ token }: Props) {
         </p>
       )}
 
-      {/* KPIs del día */}
+      {/* Fila 1: KPIs del día */}
       <div>
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">📦 KPIs del día</p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-gray-900 rounded-xl border border-blue-500/30 p-5">
-            <p className="text-2xl mb-1">📋</p>
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-2xl">📋</p>
+              <span className={`text-sm font-bold ${cumplColor}`}>{pctCumpl >= 90 ? '↑' : pctCumpl >= 60 ? '→' : '↓'}</span>
+            </div>
             <p className={`text-3xl font-bold ${cumplColor}`}>{pctCumpl.toFixed(1)}%</p>
             <p className="text-sm text-gray-400 mt-1">Cumplimiento del día</p>
             <ProgBar pct={pctCumpl} color={cumplBar} />
@@ -184,7 +224,7 @@ export default function DashboardTab({ token }: Props) {
           <StatCard
             icon="🚛"
             label="Programado hoy"
-            value={data.programado_hoy}
+            value={data.programado_hoy.toLocaleString()}
             sub="pzas del plan activo"
             valueColor="text-blue-400"
             borderColor="border-blue-500/30"
@@ -192,10 +232,11 @@ export default function DashboardTab({ token }: Props) {
           <StatCard
             icon="✅"
             label="Embarcado hoy"
-            value={data.embarcado_hoy}
+            value={data.embarcado_hoy.toLocaleString()}
             sub="pzas con status OK"
             valueColor="text-green-400"
             borderColor="border-green-500/30"
+            trend={data.embarcado_hoy >= data.programado_hoy ? 'up' : 'down'}
           />
           <StatCard
             icon="⚠️"
@@ -205,105 +246,141 @@ export default function DashboardTab({ token }: Props) {
             subColor={data.skus_dif_negativa > 0 ? 'text-red-400' : 'text-gray-500'}
             valueColor={data.skus_dif_negativa > 0 ? 'text-red-400' : 'text-gray-400'}
             borderColor={data.skus_dif_negativa > 0 ? 'border-red-500/30' : 'border-gray-800'}
+            trend={data.skus_dif_negativa === 0 ? 'up' : 'down'}
           />
         </div>
       </div>
 
-      {/* PSI Coverage */}
-      <div>
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">🔬 PSI Coverage</p>
+      {/* Fila 2: Gráfica de barras + Donut OV */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Bar chart: Programado vs Embarcado */}
+        <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">📊 Programado vs Embarcado</p>
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={barData} barGap={8}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+              <XAxis dataKey="name" tick={{ fill: '#9ca3af', fontSize: 12 }} />
+              <YAxis tick={{ fill: '#9ca3af', fontSize: 12 }} />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend wrapperStyle={{ fontSize: 12, color: '#9ca3af' }} />
+              <Bar dataKey="Programado" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="Embarcado"  fill="#22c55e" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+          <div className="mt-3 grid grid-cols-2 gap-2 text-center">
+            <div className="bg-blue-500/10 rounded-lg p-2">
+              <p className="text-xs text-gray-500">Pendiente</p>
+              <p className="text-lg font-bold text-blue-400">{(data.programado_hoy - data.embarcado_hoy).toLocaleString()}</p>
+            </div>
+            <div className="bg-green-500/10 rounded-lg p-2">
+              <p className="text-xs text-gray-500">Completado</p>
+              <p className="text-lg font-bold text-green-400">{pctCumpl.toFixed(0)}%</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Donut: distribución de OVs por estado */}
+        <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">🔄 Distribución de Órdenes de Venta</p>
+          {pieData.length === 0 ? (
+            <div className="flex items-center justify-center h-48 text-gray-600">
+              <p className="text-sm">Sin órdenes activas</p>
+            </div>
+          ) : (
+            <>
+              <ResponsiveContainer width="100%" height={180}>
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={80}
+                    paddingAngle={3}
+                    dataKey="value"
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell key={index} fill={PIE_COLORS[entry.name as keyof typeof PIE_COLORS] || '#6b7280'} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<CustomTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="grid grid-cols-2 gap-1 mt-2">
+                {pieData.map((entry) => (
+                  <div key={entry.name} className="flex items-center gap-1.5 text-xs">
+                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: PIE_COLORS[entry.name as keyof typeof PIE_COLORS] || '#6b7280' }} />
+                    <span className="text-gray-400 truncate">{entry.name}</span>
+                    <span className="text-white font-medium ml-auto">{entry.value}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Fila 3: PSI Coverage con RadialBar */}
+      <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">🔬 PSI Coverage</p>
+          <span className="text-xs text-gray-600">100% = cobertura completa · &gt;100% = excedente</span>
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <CoverageCell label="REF — D-Day" value={data.coverage_ref_dday} />
-          <CoverageCell label="REF — D+1"   value={data.coverage_ref_d1} />
-          <CoverageCell label="OVEN — D-Day" value={data.coverage_oven_dday} />
-          <CoverageCell label="OVEN — D+1"   value={data.coverage_oven_d1} />
+          {[
+            { label: 'REF — D-Day', value: data.coverage_ref_dday },
+            { label: 'REF — D+1',   value: data.coverage_ref_d1 },
+            { label: 'OVEN — D-Day', value: data.coverage_oven_dday },
+            { label: 'OVEN — D+1',   value: data.coverage_oven_d1 },
+          ].map(({ label, value }) => {
+            const sem = semaforoCoverage(value);
+            const barColor = sem === 'green' ? '#22c55e' : sem === 'yellow' ? '#eab308' : '#ef4444';
+            const pct = Math.round(Math.min(value, 2) * 50);
+            const cls = colorClasesSemaforo(value);
+            return (
+              <div key={label} className={`rounded-xl border p-4 flex flex-col items-center gap-2 ${cls}`}>
+                <ResponsiveContainer width={80} height={80}>
+                  <RadialBarChart cx="50%" cy="50%" innerRadius={25} outerRadius={40} startAngle={180} endAngle={0} data={[{ value: pct, fill: barColor }]}>
+                    <RadialBar dataKey="value" cornerRadius={4} background={{ fill: '#374151' }} />
+                  </RadialBarChart>
+                </ResponsiveContainer>
+                <p className="text-xl font-bold">{(value * 100).toFixed(0)}%</p>
+                <p className="text-xs text-center text-gray-400">{label}</p>
+              </div>
+            );
+          })}
         </div>
       </div>
 
-      {/* Flujo de OVs */}
-      <div>
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">🔄 Flujo de órdenes de venta</p>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <StatCard
-            icon="🧾"
-            label="Total órdenes"
-            value={data.total_ov}
-            borderColor="border-gray-700"
-          />
-          <StatCard
-            icon="⏳"
-            label="Pendientes de envío"
-            value={data.ov_pendientes}
-            valueColor="text-yellow-400"
-            borderColor="border-yellow-500/30"
-          />
-          <StatCard
-            icon="🔧"
-            label="En preparación"
-            value={data.ov_en_preparacion}
-            valueColor="text-orange-400"
-            borderColor="border-orange-500/30"
-          />
-          <StatCard
-            icon="🏁"
-            label="Lista para carga"
-            value={data.ov_lista_para_carga}
-            valueColor="text-cyan-400"
-            borderColor="border-cyan-500/30"
-          />
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-2 gap-4 mt-4">
-          <StatCard
-            icon="✅"
-            label="Enviadas (mes)"
-            value={data.ov_enviadas}
-            sub="Enviado + Embarque Parcial"
-            valueColor="text-green-400"
-            borderColor="border-green-500/30"
-          />
-          <StatCard
-            icon="❌"
-            label="Stock insuficiente"
-            value={data.ov_stock_insuficiente}
-            sub={`${pctInsuf}% del total`}
-            subColor={data.ov_stock_insuficiente > 0 ? 'text-red-400' : 'text-gray-500'}
-            valueColor={data.ov_stock_insuficiente > 0 ? 'text-red-400' : 'text-gray-400'}
-            borderColor={data.ov_stock_insuficiente > 0 ? 'border-red-500/30' : 'border-gray-800'}
-          />
-        </div>
+      {/* Fila 4: Resumen financiero */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <StatCard
+          icon="🔄"
+          label="Total devoluciones"
+          value={data.total_devoluciones}
+          sub={`${data.devoluciones_pendientes} pendientes inspección`}
+          subColor={data.devoluciones_pendientes > 0 ? 'text-orange-400' : 'text-gray-500'}
+          borderColor="border-orange-500/30"
+        />
+        <StatCard
+          icon="📋"
+          label="Planes de venta activos"
+          value={data.planes_venta_activos}
+          valueColor="text-violet-400"
+          borderColor="border-violet-500/30"
+        />
+        <StatCard
+          icon="💰"
+          label="Valor ventas (mes)"
+          value={fmtMXN(data.valor_ventas_mes)}
+          sub="Mes en curso"
+          valueColor="text-purple-400"
+          borderColor="border-purple-500/30"
+          trend="up"
+        />
       </div>
 
-      {/* Devoluciones y plan */}
-      <div>
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">🔄 Devoluciones y plan</p>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <StatCard
-            icon="🔄"
-            label="Total devoluciones"
-            value={data.total_devoluciones}
-            sub={`${data.devoluciones_pendientes} pendientes inspección`}
-            subColor={data.devoluciones_pendientes > 0 ? 'text-orange-400' : 'text-gray-500'}
-            borderColor="border-orange-500/30"
-          />
-          <StatCard
-            icon="📋"
-            label="Planes de venta activos"
-            value={data.planes_venta_activos}
-            valueColor="text-violet-400"
-            borderColor="border-violet-500/30"
-          />
-          <StatCard
-            icon="💰"
-            label="Valor ventas (mes)"
-            value={fmtMXN(data.valor_ventas_mes)}
-            sub="Mes en curso"
-            valueColor="text-purple-400"
-            borderColor="border-purple-500/30"
-          />
-        </div>
-      </div>
-
-      {/* Tabla de órdenes recientes */}
+      {/* Fila 5: Tabla de órdenes recientes */}
       {recientes.length > 0 && (
         <div>
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">🕐 Órdenes recientes</p>
@@ -316,7 +393,6 @@ export default function DashboardTab({ token }: Props) {
                   <th className="px-4 py-3 text-left text-gray-400 font-medium text-xs">Estado</th>
                   <th className="px-4 py-3 text-right text-gray-400 font-medium text-xs">Valor</th>
                   <th className="px-4 py-3 text-left text-gray-400 font-medium text-xs">Fecha</th>
-                  <th className="px-4 py-3 text-left text-gray-400 font-medium text-xs">CW Invoice</th>
                   <th className="px-4 py-3 text-left text-gray-400 font-medium text-xs">Progreso</th>
                 </tr>
               </thead>
@@ -330,7 +406,6 @@ export default function DashboardTab({ token }: Props) {
                       <td className="px-4 py-3 font-mono font-medium text-blue-400 text-xs">{ov.ov_id}</td>
                       <td className="px-4 py-3">
                         <p className="text-white text-sm">{ov.nombre_cliente || ov.cliente_id}</p>
-                        {ov.nombre_cliente && <p className="text-xs text-gray-500">{ov.cliente_id}</p>}
                       </td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${ESTADO_COLORS[ov.estado] || 'bg-gray-500/20 text-gray-400 border-gray-500/30'}`}>
@@ -339,13 +414,12 @@ export default function DashboardTab({ token }: Props) {
                       </td>
                       <td className="px-4 py-3 text-right font-medium text-sm">{fmtMXN(ov.valor_total ?? 0)}</td>
                       <td className="px-4 py-3 text-gray-400 text-xs">{fmtDate(ov.fecha_creacion)}</td>
-                      <td className="px-4 py-3 font-mono text-xs text-gray-400">{(ov as any).cw_invoice || '—'}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <span className={`text-xs font-medium ${pct === 100 ? 'text-green-400' : pct > 0 ? 'text-blue-400' : 'text-gray-500'}`}>
                             {pct}%
                           </span>
-                          <div className="h-1 bg-gray-700 rounded-full overflow-hidden w-16">
+                          <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden w-16">
                             <div
                               className={`h-full rounded-full ${pct === 100 ? 'bg-green-500' : 'bg-blue-500'}`}
                               style={{ width: `${pct}%` }}

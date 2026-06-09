@@ -20,6 +20,7 @@ export default function DevolucionesTab({ token }: Props) {
   const [devoluciones, setDevoluciones] = useState<Devolucion[]>([])
   const [loading, setLoading] = useState(true)
   const [filtroEstado, setFiltroEstado] = useState('Todos')
+  const [filtroSku, setFiltroSku] = useState('')
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showDisposicionModal, setShowDisposicionModal] = useState(false)
   const [selectedDev, setSelectedDev] = useState<Devolucion | null>(null)
@@ -129,8 +130,42 @@ export default function DevolucionesTab({ token }: Props) {
   const formatDate = (iso: string) =>
     new Date(iso).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 
+  const devolucionesFiltradas = devoluciones.filter(dev =>
+    !filtroSku || dev.sku_producto.toLowerCase().includes(filtroSku.toLowerCase())
+  )
+
+  // KPIs
+  const totalDev      = devoluciones.length
+  const pendientes    = devoluciones.filter(d => d.estado_inspeccion === 'Pendiente').length
+  const finalizadas   = devoluciones.filter(d => d.estado_inspeccion === 'Finalizado').length
+  const totalScrap    = devoluciones.reduce((s, d) => s + d.cantidad_scrap, 0)
+
   return (
     <div className="space-y-4">
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-gray-900 rounded-xl border border-gray-800 p-4">
+          <p className="text-2xl mb-1">🔄</p>
+          <p className="text-2xl font-bold text-white">{totalDev}</p>
+          <p className="text-xs text-gray-400 mt-1">Total devoluciones</p>
+        </div>
+        <div className="bg-gray-900 rounded-xl border border-yellow-500/30 p-4">
+          <p className="text-2xl mb-1">⏳</p>
+          <p className="text-2xl font-bold text-yellow-400">{pendientes}</p>
+          <p className="text-xs text-gray-400 mt-1">Pendientes inspección</p>
+        </div>
+        <div className="bg-gray-900 rounded-xl border border-green-500/30 p-4">
+          <p className="text-2xl mb-1">✅</p>
+          <p className="text-2xl font-bold text-green-400">{finalizadas}</p>
+          <p className="text-xs text-gray-400 mt-1">Finalizadas</p>
+        </div>
+        <div className="bg-gray-900 rounded-xl border border-red-500/30 p-4">
+          <p className="text-2xl mb-1">🗑️</p>
+          <p className="text-2xl font-bold text-red-400">{totalScrap.toLocaleString()}</p>
+          <p className="text-xs text-gray-400 mt-1">Pzas en scrap</p>
+        </div>
+      </div>
+
       {/* Messages */}
       {error && (
         <div className="bg-red-900/30 border border-red-500/50 rounded-lg px-4 py-3 text-red-400 flex justify-between">
@@ -147,7 +182,7 @@ export default function DevolucionesTab({ token }: Props) {
 
       {/* Toolbar */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <h2 className="text-xl font-bold">🔄 Devoluciones</h2>
           <select
             value={filtroEstado}
@@ -158,6 +193,13 @@ export default function DevolucionesTab({ token }: Props) {
               <option key={s} value={s}>{s}</option>
             ))}
           </select>
+          <input
+            type="text"
+            placeholder="Filtrar por SKU..."
+            value={filtroSku}
+            onChange={e => setFiltroSku(e.target.value)}
+            className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm w-40 focus:border-orange-500 focus:outline-none"
+          />
         </div>
         <div className="flex gap-2">
           <button onClick={fetchDevoluciones} className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm transition-colors">
@@ -201,7 +243,7 @@ export default function DevolucionesTab({ token }: Props) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-800">
-                {devoluciones.map((dev) => (
+                {devolucionesFiltradas.map((dev) => (
                   <tr key={dev.devolucion_id} className="hover:bg-gray-800/50 transition-colors">
                     <td className="px-4 py-3 font-mono font-medium text-orange-400 text-xs">{dev.devolucion_id}</td>
                     <td className="px-4 py-3 font-mono text-blue-400 text-xs">{dev.ov_id}</td>

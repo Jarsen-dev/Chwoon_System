@@ -29,6 +29,7 @@ from app.models.orden_picking import OrdenPicking
 from app.models.conteo_fisico import ConteoFisico
 from app.models.config_alerta_stock import ConfigAlertaStock
 from app.models.psi_snapshot import PsiSnapshot
+from app.models.cliente import Cliente, ClienteEvento
 
 __all__ = [
     "Parte",
@@ -68,4 +69,6 @@ __all__ = [
     "ConteoFisico",
     "ConfigAlertaStock",
     "PsiSnapshot",
+    "Cliente",
+    "ClienteEvento",
 ]

@@ -9,10 +9,22 @@ interface Props { token: string }
 
 const FORM_INICIAL = {
   invoice:    '',
-  departure:  '',   // no_departure: folio NPX de LG
+  departure:  '',   // no_departure: folio NPX de LG  (NPX + 11 dígitos)
   camion:     '',
   chofer:     '',
   status:     'OK' as 'OK' | 'NG',
+}
+
+const NPX_REGEX = /^NPX\d{11}$/i
+
+interface Despacho {
+  envio_id: string
+  ov_id: string
+  chofer: string
+  camion: string
+  departure?: string
+  estado_ov: string
+  hora: string
 }
 
 export default function ControlDespachosTab({ token }: Props) {
@@ -23,6 +35,8 @@ export default function ControlDespachosTab({ token }: Props) {
   const [despachando, setDespachando]   = useState(false)
   const [error, setError]               = useState('')
   const [success, setSuccess]           = useState('')
+  const [historial, setHistorial]       = useState<Despacho[]>([])
+  const [npxError, setNpxError]         = useState('')
 
   const cargarOrdenes = useCallback(async () => {
     setLoading(true)
@@ -48,10 +62,23 @@ export default function ControlDespachosTab({ token }: Props) {
     setSuccess('')
   }
 
+  const handleDepartureChange = (value: string) => {
+    setForm(f => ({ ...f, departure: value }))
+    if (value && !NPX_REGEX.test(value)) {
+      setNpxError('Formato inválido — debe ser NPX + 11 dígitos (ej: NPX26060000025)')
+    } else {
+      setNpxError('')
+    }
+  }
+
   const handleDespachar = async () => {
     if (!seleccionada) return
     if (!form.camion.trim() || !form.chofer.trim()) {
       setError('Placas y chofer son obligatorios')
+      return
+    }
+    if (form.departure && !NPX_REGEX.test(form.departure)) {
+      setError('El No. Departure tiene formato inválido')
       return
     }
 
@@ -66,14 +93,27 @@ export default function ControlDespachosTab({ token }: Props) {
         no_departure:  form.departure.trim() || undefined,
       })
 
+      const msg = form.status === 'OK'
+        ? `✓ Salida registrada. Envío: ${res.envio_id}. OV → ${res.estado_ov}`
+        : `⚠ Salida NG registrada. OV vuelve a "Lista para Carga".`
+      setSuccess(msg)
+
+      // Agregar al historial del día
       if (form.status === 'OK') {
-        setSuccess(`✓ Salida registrada. Envío: ${res.envio_id}. OV → ${res.estado_ov}`)
-      } else {
-        setSuccess(`⚠ Salida NG registrada. OV vuelve a "Lista para Carga".`)
+        setHistorial(prev => [{
+          envio_id: res.envio_id,
+          ov_id: seleccionada.ov_id,
+          chofer: form.chofer.trim(),
+          camion: form.camion.trim(),
+          departure: form.departure.trim() || undefined,
+          estado_ov: res.estado_ov,
+          hora: new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
+        }, ...prev])
       }
 
       setSeleccionada(null)
       setForm(FORM_INICIAL)
+      setNpxError('')
       await cargarOrdenes()
 
     } catch (err: any) {
@@ -220,10 +260,14 @@ export default function ControlDespachosTab({ token }: Props) {
                   </label>
                   <input
                     value={form.departure}
-                    onChange={e => setForm({ ...form, departure: e.target.value })}
+                    onChange={e => handleDepartureChange(e.target.value)}
                     placeholder="Ej: NPX26060000025"
-                    className="w-full mt-1 p-2 bg-gray-800 border border-gray-700 rounded text-white font-mono text-sm focus:border-teal-500 focus:outline-none"
+                    className={`w-full mt-1 p-2 bg-gray-800 border rounded text-white font-mono text-sm focus:outline-none ${
+                      npxError ? 'border-red-500 focus:border-red-400' : 'border-gray-700 focus:border-teal-500'
+                    }`}
                   />
+                  {npxError && <p className="text-xs text-red-400 mt-1">{npxError}</p>}
+                  {form.departure && !npxError && <p className="text-xs text-green-400 mt-1">✓ Formato válido</p>}
                 </div>
 
                 {/* CW Invoice */}
@@ -337,6 +381,40 @@ export default function ControlDespachosTab({ token }: Props) {
           )}
         </div>
       </div>
+      {/* Historial del día */}
+      {historial.length > 0 && (
+        <div className="mt-6 border-t border-gray-800 pt-6">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">📋 Despachos de esta sesión</p>
+          <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+            <table className="w-full text-xs">
+              <thead className="bg-gray-800">
+                <tr>
+                  <th className="px-3 py-2 text-left text-gray-400">Hora</th>
+                  <th className="px-3 py-2 text-left text-gray-400">Envío ID</th>
+                  <th className="px-3 py-2 text-left text-gray-400">OV</th>
+                  <th className="px-3 py-2 text-left text-gray-400">Chofer</th>
+                  <th className="px-3 py-2 text-left text-gray-400">Camión</th>
+                  <th className="px-3 py-2 text-left text-gray-400">No. Departure</th>
+                  <th className="px-3 py-2 text-left text-gray-400">Estado OV</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-800">
+                {historial.map((d, i) => (
+                  <tr key={i} className="hover:bg-gray-800/50">
+                    <td className="px-3 py-2 text-gray-400">{d.hora}</td>
+                    <td className="px-3 py-2 font-mono text-green-400">{d.envio_id}</td>
+                    <td className="px-3 py-2 font-mono text-blue-400">{d.ov_id}</td>
+                    <td className="px-3 py-2 text-white">{d.chofer}</td>
+                    <td className="px-3 py-2 text-gray-300">{d.camion}</td>
+                    <td className="px-3 py-2 font-mono text-teal-400">{d.departure || '—'}</td>
+                    <td className="px-3 py-2 text-gray-300">{d.estado_ov}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
