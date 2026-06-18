@@ -165,29 +165,27 @@ export default function EtiquetasTab() {
 
       {/* MODAL NOTIFICACIÓN */}
       {modalInfo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-gray-900 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
-            <div className={`px-6 py-4 ${
-              modalInfo.type === 'success' ? 'bg-green-600' :
-              modalInfo.type === 'error'   ? 'bg-red-600'   : 'bg-blue-600'
-            }`}>
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                {modalInfo.type === 'success' && '✅ '}
-                {modalInfo.type === 'error'   && '❌ '}
-                {modalInfo.type === 'info'    && 'ℹ️ '}
-                {modalInfo.title}
-              </h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-[3px]">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] w-full max-w-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-800 flex items-center gap-2">
+              <span>
+                {modalInfo.type === 'success' ? '✅' : modalInfo.type === 'error' ? '❌' : 'ℹ️'}
+              </span>
+              <h3 className={`text-base font-bold ${
+                modalInfo.type === 'success' ? 'text-emerald-400' :
+                modalInfo.type === 'error'   ? 'text-red-400'     : 'text-blue-400'
+              }`}>{modalInfo.title}</h3>
             </div>
-            <div className="p-6">
-              <p className="text-gray-300 text-base mb-6">{modalInfo.message}</p>
+            <div className="p-5">
+              <p className="text-gray-300 text-sm mb-5">{modalInfo.message}</p>
               <div className="flex justify-end">
                 <button
                   ref={okButtonRef}
                   onClick={() => setModalInfo(null)}
-                  className={`px-6 py-2.5 rounded-lg font-bold text-white shadow-md transition ${
-                    modalInfo.type === 'success' ? 'bg-green-600 hover:bg-green-700' :
-                    modalInfo.type === 'error'   ? 'bg-red-600   hover:bg-red-700'   :
-                                                   'bg-blue-600  hover:bg-blue-700'
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold border transition-all duration-150 ${
+                    modalInfo.type === 'success' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20' :
+                    modalInfo.type === 'error'   ? 'bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20' :
+                                                   'bg-blue-500/10 text-blue-400 border-blue-500/30 hover:bg-blue-500/20'
                   }`}
                 >
                   Aceptar
@@ -200,25 +198,26 @@ export default function EtiquetasTab() {
 
       {/* MODAL CONFIRMAR LIMPIEZA */}
       {isClearModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-gray-900 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
-            <div className="bg-orange-500 px-6 py-4">
-              <h3 className="text-lg font-bold text-white">⚠️ Confirmar Acción</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-[3px]">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] w-full max-w-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-800 flex items-center gap-2">
+              <span>⚠️</span>
+              <h3 className="text-base font-bold text-orange-400">Confirmar Acción</h3>
             </div>
-            <div className="p-6">
-              <p className="text-gray-300 text-base mb-6">
+            <div className="p-5">
+              <p className="text-gray-300 text-sm mb-5">
                 ¿Estás seguro de que deseas limpiar <strong>TODA</strong> la cola de impresión?
               </p>
-              <div className="flex justify-end gap-3">
+              <div className="flex justify-end gap-2">
                 <button
                   onClick={() => setIsClearModalOpen(false)}
-                  className="px-5 py-2.5 rounded-lg font-medium text-gray-300 bg-gray-800 hover:bg-gray-700 transition"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold border border-gray-800 text-gray-400 hover:text-white hover:border-gray-700 hover:bg-gray-800 transition-all duration-150"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={executeClearQueue}
-                  className="px-5 py-2.5 rounded-lg font-bold text-white bg-red-600 hover:bg-red-700 shadow-md transition"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold border bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20 transition-all duration-150"
                 >
                   Sí, Limpiar Cola
                 </button>
@@ -239,8 +238,8 @@ export default function EtiquetasTab() {
 
         {/* FORMULARIO */}
         <div className="md:col-span-1">
-          <form onSubmit={handleAdd} className="bg-gray-900 p-5 rounded-lg shadow-sm border border-gray-700">
-            <h2 className="text-lg font-bold text-gray-300 mb-4 border-b pb-2">Añadir a la Cola</h2>
+          <form onSubmit={handleAdd} className="bg-gray-900 p-5 rounded-xl border border-gray-800">
+            <h2 className="text-lg font-bold text-gray-300 mb-4 border-b border-gray-800 pb-2">Añadir a la Cola</h2>
 
             <div className="mb-4">
               <label className="block text-sm font-semibold text-gray-300 mb-1">
@@ -253,7 +252,7 @@ export default function EtiquetasTab() {
                   placeholder="Buscar por código, descripción, línea..."
                   value={searchParte}
                   onChange={e => setSearchParte(e.target.value)}
-                  className="w-full border border-gray-600 border-b-0 pl-8 pr-8 py-2 rounded-t-md focus:ring-2 focus:ring-blue-500/40 focus:outline-none bg-gray-800 text-sm"
+                  className="w-full bg-gray-950 border border-gray-800 border-b-0 pl-8 pr-8 py-2 rounded-t-md text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 placeholder:text-gray-400"
                 />
                 {searchParte && (
                   <button
@@ -270,7 +269,7 @@ export default function EtiquetasTab() {
                   const value = (e.target as HTMLSelectElement).value
                   if (value) ejecutarAgregarACola(value)
                 }}
-                className="w-full border border-gray-600 p-2.5 rounded-b-md focus:ring-2 focus:ring-blue-500/40 focus:outline-none bg-gray-800 text-sm cursor-pointer"
+                className="w-full bg-gray-950 border border-gray-800 p-2.5 rounded-b-md text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 cursor-pointer"
                 required
                 size={5}
               >
@@ -304,7 +303,7 @@ export default function EtiquetasTab() {
                 min="1"
                 value={cantidad}
                 onChange={e => setCantidad(e.target.value)}
-                className="w-full border border-gray-600 p-2.5 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none bg-gray-800"
+                className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
                 required
               />
             </div>
@@ -314,7 +313,7 @@ export default function EtiquetasTab() {
               <select
                 value={turno}
                 onChange={e => setTurno(e.target.value as 'Día' | 'Noche')}
-                className="w-full border border-gray-600 p-2.5 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none bg-gray-800"
+                className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
               >
                 <option value="Día">Día</option>
                 <option value="Noche">Noche</option>
@@ -323,7 +322,7 @@ export default function EtiquetasTab() {
 
             <button
               type="submit"
-              className="w-full bg-blue-600 text-white font-medium px-4 py-2.5 rounded hover:bg-blue-700 transition shadow-sm"
+              className="w-full bg-blue-500 text-white font-semibold px-4 py-2.5 rounded-md hover:bg-blue-400 transition border border-blue-500"
             >
               ➡️ Añadir a la Cola
             </button>
@@ -332,8 +331,8 @@ export default function EtiquetasTab() {
 
         {/* TABLA */}
         <div className="md:col-span-3">
-          <div className="bg-gray-900 p-5 rounded-lg shadow-sm border border-gray-700 h-full">
-            <div className="flex justify-between items-center mb-4 border-b pb-3">
+          <div className="bg-gray-900 p-5 rounded-xl border border-gray-800 h-full">
+            <div className="flex justify-between items-center mb-4 border-b border-gray-800 pb-3">
               <h2 className="text-lg font-bold text-gray-300">
                 Etiquetas en Cola ({cola.length})
               </h2>
@@ -355,7 +354,7 @@ export default function EtiquetasTab() {
               </div>
             </div>
 
-            <div className="rounded border border-gray-800">
+            <div className="rounded-xl border border-gray-800 overflow-hidden">
               <table className="w-full text-sm table-fixed">
                 <thead className="bg-gray-800 border-b border-gray-800">
                   <tr>

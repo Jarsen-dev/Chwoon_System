@@ -442,9 +442,9 @@ export default function ScannerTab({
             onKeyDown={handleScannerKeyDown}
             onPaste={handlePaste}
             placeholder="Esperando lectura de código QR..."
-            className="flex-1 text-center text-2xl p-4 border-2 border-blue-400
-                       rounded-lg shadow-inner focus:outline-none focus:ring-4
-                       focus:ring-blue-500/40 uppercase tracking-widest bg-gray-900 text-white
+            className="flex-1 text-center text-2xl p-4 border border-blue-500
+                       rounded-xl shadow-inner outline-none focus:ring-4
+                       focus:ring-blue-500/20 uppercase tracking-widest bg-gray-900 text-white
                        placeholder:text-gray-400 placeholder:text-lg"
             autoComplete="off"
             autoFocus
@@ -454,7 +454,7 @@ export default function ScannerTab({
             type="button"
             title="Escanear con cámara"
             className="shrink-0 inline-flex items-center justify-center
-                       w-14 h-14 rounded-lg border-2 border-blue-400
+                       w-14 h-14 rounded-xl border border-blue-500
                        bg-blue-500/10 text-blue-400 hover:bg-blue-500/20
                        hover:text-blue-400 hover:border-blue-500
                        active:scale-95 transition-all"
@@ -511,18 +511,17 @@ export default function ScannerTab({
           value={busqueda}
           onChange={e => setBusqueda(e.target.value)}
           placeholder="Buscar máquina, parte o descripción..."
-          className="flex-1 min-w-[200px] border border-gray-600 rounded-lg
-                     px-3 py-2 text-sm focus:outline-none focus:ring-2
-                     focus:ring-blue-500/40 focus:border-blue-500
+          className="flex-1 min-w-[200px] bg-gray-950 border border-gray-800 rounded-md
+                     px-2.5 py-2 text-xs text-white outline-none
+                     focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15
                      placeholder:text-gray-400"
         />
 
         <select
           value={filtroMaquina}
           onChange={e => setFiltroMaquina(e.target.value)}
-          className="border border-gray-600 rounded-lg px-3 py-2 text-sm
-                     focus:outline-none focus:ring-2 focus:ring-blue-500/40
-                     focus:border-blue-500 bg-gray-900 text-gray-300"
+          className="bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none
+                     focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
         >
           <option value="">Todas las Máquinas</option>
           {maquinasUnicas.map(m => (
@@ -533,9 +532,8 @@ export default function ScannerTab({
         <select
           value={filtroParte}
           onChange={e => setFiltroParte(e.target.value)}
-          className="border border-gray-600 rounded-lg px-3 py-2 text-sm
-                     focus:outline-none focus:ring-2 focus:ring-blue-500/40
-                     focus:border-blue-500 bg-gray-900 text-gray-300"
+          className="bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none
+                     focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
         >
           <option value="">Todos los No. de Parte</option>
           {partesUnicas.map(p => (
@@ -546,9 +544,8 @@ export default function ScannerTab({
         <select
           value={filtroDesc}
           onChange={e => setFiltroDesc(e.target.value)}
-          className="border border-gray-600 rounded-lg px-3 py-2 text-sm
-                     focus:outline-none focus:ring-2 focus:ring-blue-500/40
-                     focus:border-blue-500 bg-gray-900 text-gray-300"
+          className="bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none
+                     focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
         >
           <option value="">Todas las Descripciones</option>
           {descsUnicas.map(d => (
@@ -577,10 +574,10 @@ export default function ScannerTab({
       </div>
 
       {/* ── Tabla ─────────────────────────────────────────────────── */}
-      <div className="overflow-x-auto border border-gray-700 rounded-lg">
+      <div className="overflow-x-auto border border-gray-800 rounded-xl">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-gray-800 border-b border-gray-700">
+            <tr className="bg-gray-800 border-b border-gray-800">
               {COLUMNAS.map(col => (
                 <th key={col}
                   className="p-3 text-center font-semibold text-gray-300 whitespace-nowrap">
@@ -700,8 +697,8 @@ export default function ScannerTab({
 
       {/* ═── Modal Scanner de Cámara ───═ */}
       {scannerOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
-          <div className="bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md p-4 space-y-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-[3px]">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] w-full max-w-md p-4 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold text-white">📷 Escanear QR</h3>
               <button

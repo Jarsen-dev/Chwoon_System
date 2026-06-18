@@ -286,36 +286,27 @@ export default function PartesTab() {
     <div className="relative">
       {/* MODAL NOTIFICACIÓN */}
       {modalInfo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-gray-900 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
-            <div
-              className={`px-6 py-4 ${
-                modalInfo.type === 'success'
-                  ? 'bg-green-600'
-                  : modalInfo.type === 'error'
-                  ? 'bg-red-600'
-                  : 'bg-blue-600'
-              }`}
-            >
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                {modalInfo.type === 'success' && '✅ '}
-                {modalInfo.type === 'error' && '❌ '}
-                {modalInfo.type === 'info' && 'ℹ️ '}
-                {modalInfo.title}
-              </h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-[3px]">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] w-full max-w-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-800 flex items-center gap-2">
+              <span>
+                {modalInfo.type === 'success' ? '✅' : modalInfo.type === 'error' ? '❌' : 'ℹ️'}
+              </span>
+              <h3 className={`text-base font-bold ${
+                modalInfo.type === 'success' ? 'text-emerald-400' :
+                modalInfo.type === 'error'   ? 'text-red-400'     : 'text-blue-400'
+              }`}>{modalInfo.title}</h3>
             </div>
-            <div className="p-6">
-              <p className="text-gray-300 text-base mb-6">{modalInfo.message}</p>
+            <div className="p-5">
+              <p className="text-gray-300 text-sm mb-5">{modalInfo.message}</p>
               <div className="flex justify-end">
                 <button
                   ref={okButtonRef}
                   onClick={() => setModalInfo(null)}
-                  className={`px-6 py-2.5 rounded-lg font-bold text-white shadow-md transition ${
-                    modalInfo.type === 'success'
-                      ? 'bg-green-600 hover:bg-green-700'
-                      : modalInfo.type === 'error'
-                      ? 'bg-red-600 hover:bg-red-700'
-                      : 'bg-blue-600 hover:bg-blue-700'
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold border transition-all duration-150 ${
+                    modalInfo.type === 'success' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20' :
+                    modalInfo.type === 'error'   ? 'bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20' :
+                                                   'bg-blue-500/10 text-blue-400 border-blue-500/30 hover:bg-blue-500/20'
                   }`}
                 >
                   Aceptar
@@ -328,24 +319,25 @@ export default function PartesTab() {
 
       {/* MODAL CONFIRMAR ELIMINACIÓN */}
       {confirmModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-gray-900 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
-            <div className="bg-red-600 px-6 py-4">
-              <h3 className="text-lg font-bold text-white">🗑️ {confirmModal.title}</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-[3px]">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] w-full max-w-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-800 flex items-center gap-2">
+              <span>🗑️</span>
+              <h3 className="text-base font-bold text-red-400">{confirmModal.title}</h3>
             </div>
-            <div className="p-6">
-              <p className="text-gray-300 text-base mb-6">{confirmModal.message}</p>
-              <div className="flex justify-end gap-3">
+            <div className="p-5">
+              <p className="text-gray-300 text-sm mb-5">{confirmModal.message}</p>
+              <div className="flex justify-end gap-2">
                 <button
                   onClick={() => setConfirmModal(null)}
-                  className="px-5 py-2.5 rounded-lg font-medium text-gray-300 bg-gray-800 hover:bg-gray-700 transition"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold border border-gray-800 text-gray-400 hover:text-white hover:border-gray-700 hover:bg-gray-800 transition-all duration-150"
                 >
                   Cancelar
                 </button>
                 <button
                   ref={confirmButtonRef}
                   onClick={confirmModal.onConfirm}
-                  className="px-5 py-2.5 rounded-lg font-bold text-white bg-red-600 hover:bg-red-700 shadow-md transition"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold border bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20 transition-all duration-150"
                 >
                   Sí, Eliminar
                 </button>
@@ -357,19 +349,20 @@ export default function PartesTab() {
 
       {/* MODAL AÑADIR A COLA */}
       {isQueueModalOpen && itemForQueue && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-gray-900 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
-            <div className="bg-blue-600 px-6 py-4">
-              <h3 className="text-lg font-bold text-white">🖨️ Añadir a Cola</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-[3px]">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] w-full max-w-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-800 flex items-center gap-2">
+              <span>🖨️</span>
+              <h3 className="text-base font-bold text-blue-400">Añadir a Cola</h3>
             </div>
-            <form onSubmit={confirmAddToQueue} className="p-6">
-              <p className="text-gray-400 mb-4">
+            <form onSubmit={confirmAddToQueue} className="p-5">
+              <p className="text-gray-400 text-sm mb-4">
                 Parte:{' '}
                 <strong className="text-blue-400 font-mono bg-blue-500/10 px-1 rounded">
                   {itemForQueue.codigo}
                 </strong>
               </p>
-              <label className="block text-sm font-semibold text-gray-300 mb-1">
+              <label className="block text-xs font-semibold text-gray-300 mb-1">
                 Cantidad de Etiquetas
               </label>
               <input
@@ -378,29 +371,29 @@ export default function PartesTab() {
                 min="1"
                 value={queueQty}
                 onChange={(e) => setQueueQty(e.target.value)}
-                className="w-full bg-gray-800 text-white border-2 border-gray-600 p-3 rounded-lg focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none text-2xl text-center font-bold mb-4 transition-all"
+                className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 text-2xl text-center font-bold mb-4"
                 required
               />
-              <label className="block text-sm font-semibold text-gray-300 mb-1">Turno</label>
+              <label className="block text-xs font-semibold text-gray-300 mb-1">Turno</label>
               <select
                 value={turnoQueue}
                 onChange={(e) => setTurnoQueue(e.target.value as 'Día' | 'Noche')}
-                className="w-full bg-gray-800 text-gray-200 border-2 border-gray-600 p-2.5 rounded-lg focus:border-blue-500 outline-none mb-6"
+                className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 mb-5"
               >
                 <option value="Día">Día</option>
                 <option value="Noche">Noche</option>
               </select>
-              <div className="flex justify-end gap-3">
+              <div className="flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setIsQueueModalOpen(false)}
-                  className="px-5 py-2.5 rounded-lg font-medium text-gray-300 bg-gray-800 hover:bg-gray-700 transition"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold border border-gray-800 text-gray-400 hover:text-white hover:border-gray-700 hover:bg-gray-800 transition-all duration-150"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 rounded-lg font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-md transition"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold border bg-blue-500/10 text-blue-400 border-blue-500/30 hover:bg-blue-500/20 transition-all duration-150"
                 >
                   Añadir e Imprimir
                 </button>
@@ -413,9 +406,9 @@ export default function PartesTab() {
       {/* FORMULARIO */}
       <form
         onSubmit={handleSubmit}
-        className="bg-gray-900 p-6 rounded-lg shadow-sm border border-gray-700 mb-6"
+        className="bg-gray-900 p-6 rounded-xl border border-gray-800 mb-6"
       >
-        <h2 className="text-lg font-bold text-gray-300 mb-4 pb-2 border-b">
+        <h2 className="text-lg font-bold text-gray-300 mb-4 pb-2 border-b border-gray-800">
           {editing ? `✏️ Editar Parte: ${editing}` : '➕ Nueva Parte'}
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -425,7 +418,7 @@ export default function PartesTab() {
               type="text"
               value={formData.codigo}
               onChange={(e) => setFormData({ ...formData, codigo: e.target.value })}
-              className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+              className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
               required
               disabled={!!editing}
             />
@@ -436,7 +429,7 @@ export default function PartesTab() {
               type="text"
               value={formData.descripcion}
               onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-              className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+              className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
               required
             />
           </div>
@@ -448,7 +441,7 @@ export default function PartesTab() {
               type="text"
               value={formData.linea}
               onChange={(e) => setFormData({ ...formData, linea: e.target.value })}
-              className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+              className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
             />
           </div>
           <div>
@@ -456,7 +449,7 @@ export default function PartesTab() {
             <select
               value={formData.tipo}
               onChange={(e) => setFormData({ ...formData, tipo: e.target.value })}
-              className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+              className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
             >
               <option value="assy">assy</option>
               <option value="Packing">Packing</option>
@@ -473,7 +466,7 @@ export default function PartesTab() {
               onChange={(e) =>
                 setFormData({ ...formData, qtu: parseInt(e.target.value) || 1 })
               }
-              className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+              className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
             />
           </div>
           <div>
@@ -481,7 +474,7 @@ export default function PartesTab() {
             <select
               value={formData.linea_lg}
               onChange={(e) => setFormData({ ...formData, linea_lg: e.target.value })}
-              className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+              className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
             >
               <option value="R1">R1</option>
               <option value="R2">R2</option>
@@ -498,11 +491,11 @@ export default function PartesTab() {
               placeholder="https://..."
               value={formData.ayuda_visual}
               onChange={(e) => setFormData({ ...formData, ayuda_visual: e.target.value })}
-              className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+              className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
             />
           </div>
         </div>
-        <div className="mt-5 flex flex-wrap gap-3 border-t pt-4">
+        <div className="mt-5 flex flex-wrap gap-3 border-t border-gray-800 pt-4">
           <button
             type="submit"
             className="bg-blue-600 text-white px-5 py-2.5 rounded font-medium hover:bg-blue-700 transition shadow-sm"
@@ -573,12 +566,12 @@ export default function PartesTab() {
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
           placeholder="Buscar máquina, parte o descripción..."
-          className="flex-1 min-w-[200px] border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 placeholder:text-gray-400"
+          className="flex-1 min-w-[200px] bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 placeholder:text-gray-400"
         />
         <select
           value={filtroMaquina}
           onChange={(e) => setFiltroMaquina(e.target.value)}
-          className="border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 bg-gray-900 text-gray-300"
+          className="bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
         >
           <option value="">Todas las Máquinas</option>
           {maquinasUnicas.map((m) => (
@@ -590,7 +583,7 @@ export default function PartesTab() {
         <select
           value={filtroParte}
           onChange={(e) => setFiltroParte(e.target.value)}
-          className="border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 bg-gray-900 text-gray-300"
+          className="bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
         >
           <option value="">Todos los No. de Parte</option>
           {partesUnicas.map((p) => (
@@ -602,7 +595,7 @@ export default function PartesTab() {
         <select
           value={filtroDesc}
           onChange={(e) => setFiltroDesc(e.target.value)}
-          className="border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 bg-gray-900 text-gray-300"
+          className="bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
         >
           <option value="">Todas las Descripciones</option>
           {descsUnicas.map((d) => (
@@ -629,9 +622,9 @@ export default function PartesTab() {
       </div>
 
       {/* TABLA */}
-      <div className="bg-gray-900 rounded-lg shadow-sm border border-gray-700 overflow-x-auto">
+      <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-gray-800 border-b border-gray-700">
+          <thead className="bg-gray-800 border-b border-gray-800">
             <tr>
               <th className="p-3 text-left font-semibold text-gray-200">No. de Parte</th>
               <th className="p-3 text-left font-semibold text-gray-200">Descripción</th>

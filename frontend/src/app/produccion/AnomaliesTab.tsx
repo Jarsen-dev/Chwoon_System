@@ -44,10 +44,10 @@ export default function AnomaliesTab({ anomalias, cargarAnomalias }: Props) {
         </div>
       </div>
 
-      <div className="overflow-x-auto border border-gray-700 rounded-xl">
+      <div className="overflow-x-auto border border-gray-800 rounded-xl">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-gray-800 border-b border-gray-700">
+            <tr className="bg-gray-800 border-b border-gray-800">
               {['Tipo','Fecha','Hora','No. de Parte'].map(col => (
                 <th key={col} className="p-3 text-center font-semibold text-gray-300">{col}</th>
               ))}

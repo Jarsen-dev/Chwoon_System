@@ -124,7 +124,7 @@ export default function OrdenesProduccionTab() {
 
       {/* Filtros */}
       <div className="flex gap-3 items-center flex-wrap">
-        <div className="flex bg-gray-800 rounded-lg p-1">
+        <div className="flex bg-gray-800 rounded-xl p-1">
           <button onClick={() => setVerActivas(true)}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
               verActivas ? 'bg-gray-900 shadow text-blue-400' : 'text-gray-400 hover:text-gray-300'
@@ -140,7 +140,7 @@ export default function OrdenesProduccionTab() {
         </div>
 
         <select value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)}
-          className="border border-gray-600 rounded-lg px-3 py-2 text-sm">
+          className="bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15">
           <option value="">Todas las clases</option>
           <option value="PRE-EXPANSION">🔥 Pre-Expansión</option>
           <option value="INYECCION">💉 Inyección</option>
@@ -153,10 +153,10 @@ export default function OrdenesProduccionTab() {
       </div>
 
       {/* Tabla */}
-      <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
+      <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-800 border-b border-gray-700">
+            <thead className="bg-gray-800 border-b border-gray-800">
               <tr>
                 <th className="px-4 py-3 text-left font-semibold text-gray-400">OP ID</th>
                 <th className="px-4 py-3 text-left font-semibold text-gray-400">Tipo</th>
@@ -170,7 +170,7 @@ export default function OrdenesProduccionTab() {
                 <th className="px-4 py-3 text-center font-semibold text-gray-400">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-700">
+            <tbody className="divide-y divide-gray-800">
               {ordenesFiltradas.map(op => {
                 const tipoBadge = TIPO_BADGES[op.tipo] || { icon: '📄', color: 'text-gray-400' }
                 const statusBadge = STATUS_BADGES[op.status] || { bg: 'bg-gray-800', text: 'text-gray-800' }
@@ -218,9 +218,9 @@ export default function OrdenesProduccionTab() {
 
       {/* Modal Detalle */}
       {showDetalle && detalle && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowDetalle(false)}>
-          <div className="bg-gray-900 rounded-2xl shadow-xl w-full max-w-3xl max-h-[85vh] overflow-y-auto m-4" onClick={e => e.stopPropagation()}>
-            <div className="sticky top-0 bg-gray-900 border-b border-gray-700 px-6 py-4 flex items-center justify-between rounded-t-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-[3px]" onClick={() => setShowDetalle(false)}>
+          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] w-full max-w-3xl max-h-[85vh] overflow-y-auto m-4" onClick={e => e.stopPropagation()}>
+            <div className="sticky top-0 bg-gray-900 border-b border-gray-800 px-6 py-4 flex items-center justify-between rounded-t-xl">
               <div>
                 <h3 className="text-lg font-bold text-white">Orden: {detalle.op_id}</h3>
                 <p className="text-sm text-gray-400">{detalle.clase_produccion} — {detalle.nombre_producto || detalle.sku_producto}</p>
@@ -262,7 +262,7 @@ export default function OrdenesProduccionTab() {
                           <th className="px-3 py-2 text-right text-gray-400">Cantidad</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-700">
+                      <tbody className="divide-y divide-gray-800">
                         {detalle.material_consumido.map((m: any, i: number) => (
                           <tr key={i}>
                             <td className="px-3 py-2 font-mono text-xs">{m.lote_id}</td>
@@ -316,7 +316,7 @@ export default function OrdenesProduccionTab() {
 
               {/* Acciones */}
               {detalle.status !== 'Finalizado' && (
-                <div className="flex gap-3 pt-4 border-t border-gray-700">
+                <div className="flex gap-3 pt-4 border-t border-gray-800">
                   {detalle.status === 'Pendiente Material' && (
                     <button onClick={() => handleSurtir(detalle.op_id)}
                       className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
