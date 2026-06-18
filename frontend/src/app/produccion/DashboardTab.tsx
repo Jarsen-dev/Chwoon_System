@@ -40,7 +40,7 @@ export default function DashboardTab({ dashPorParte, dashTotalPiezas, cargarDash
 
       {/* Barras */}
       <div className="bg-gray-900 border border-gray-700 rounded-xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+        <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
           <div>
             <h2 className="text-base font-bold text-gray-100">📊 Producción por Número de Parte</h2>
             <p className="text-xs text-gray-400 mt-0.5">Acumulado del turno · ordenado por mayor producción</p>

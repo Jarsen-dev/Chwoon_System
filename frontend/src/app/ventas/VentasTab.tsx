@@ -263,7 +263,7 @@ export default function VentasTab({ token }: Props) {
               <span className="text-amber-400 text-lg">💡</span>
               <span className="font-semibold text-amber-300">Recomendaciones del Plan de Ventas</span>
               <span className="bg-amber-500 text-black text-xs font-bold px-2 py-0.5 rounded-full">{pendientes.length}</span>
-              <span className="text-xs text-amber-500">días pendientes de autorizar</span>
+              <span className="text-xs text-amber-500">ordenes pendientes de autorizar</span>
             </div>
             <span className="text-amber-400 text-sm">{showRecomendaciones ? '▲ Ocultar' : '▼ Ver'}</span>
           </button>
