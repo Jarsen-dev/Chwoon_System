@@ -594,23 +594,13 @@ export default function ProductosTab() {
     <div className="relative">
       {/* ════════════════ MODAL NOTIFICACIÓN ════════════════ */}
       {modalInfo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-gray-900 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
-            <div
-              className={`px-6 py-4 ${
-                modalInfo.type === 'success'
-                  ? 'bg-green-600'
-                  : modalInfo.type === 'error'
-                  ? 'bg-red-600'
-                  : 'bg-blue-600'
-              }`}
-            >
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                {modalInfo.type === 'success' && '✅ '}
-                {modalInfo.type === 'error' && '❌ '}
-                {modalInfo.type === 'info' && 'ℹ️ '}
-                {modalInfo.title}
-              </h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-[3px]">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] w-full max-w-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-800 flex items-center gap-2">
+              <span className={modalInfo.type === 'success' ? 'text-green-400' : modalInfo.type === 'error' ? 'text-red-400' : 'text-blue-400'}>
+                {modalInfo.type === 'success' ? '✅' : modalInfo.type === 'error' ? '❌' : 'ℹ️'}
+              </span>
+              <h3 className="text-sm font-bold text-white">{modalInfo.title}</h3>
             </div>
             <div className="p-6">
               <p className="text-gray-300 text-base mb-6">{modalInfo.message}</p>
@@ -636,10 +626,11 @@ export default function ProductosTab() {
 
       {/* ════════════════ MODAL CONFIRMAR ════════════════ */}
       {confirmModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-gray-900 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
-            <div className="bg-red-600 px-6 py-4">
-              <h3 className="text-lg font-bold text-white">⚠️ {confirmModal.title}</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-[3px]">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] w-full max-w-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-800 flex items-center gap-2">
+              <span className="text-red-400">⚠️</span>
+              <h3 className="text-sm font-bold text-white">{confirmModal.title}</h3>
             </div>
             <div className="p-6">
               <p className="text-gray-300 text-base mb-6">{confirmModal.message}</p>
@@ -665,12 +656,11 @@ export default function ProductosTab() {
 
       {/* ════════════════ MODAL BOM ════════════════ */}
       {bomModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-gray-900 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden max-h-[90vh] flex flex-col">
-            <div className="bg-indigo-600 px-6 py-4">
-              <h3 className="text-lg font-bold text-white">
-                📋 BOM - {bomModal.sku}
-              </h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-[3px]">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] w-full max-w-lg overflow-hidden max-h-[90vh] flex flex-col">
+            <div className="px-5 py-4 border-b border-gray-800 flex items-center gap-2">
+              <span className="text-blue-400">📋</span>
+              <h3 className="text-sm font-bold text-white">BOM - {bomModal.sku}</h3>
             </div>
             <div className="p-6 overflow-y-auto flex-1">
               {/* Lista actual */}
@@ -716,7 +706,7 @@ export default function ProductosTab() {
                     onChange={(e) =>
                       setNewBomItem({ ...newBomItem, sku_componente: e.target.value })
                     }
-                    className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded text-sm focus:ring-2 focus:ring-indigo-200 focus:outline-none"
+                    className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
                     placeholder="Ej: COMP-001"
                   />
                 </div>
@@ -735,27 +725,27 @@ export default function ProductosTab() {
                         cantidad: parseFloat(e.target.value) || 0,
                       })
                     }
-                    className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded text-sm focus:ring-2 focus:ring-indigo-200 focus:outline-none"
+                    className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
                   />
                 </div>
                 <button
                   onClick={addBomItem}
-                  className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 transition text-sm font-medium"
+                  className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-500 transition text-sm font-medium"
                 >
                   ➕
                 </button>
               </div>
             </div>
-            <div className="border-t px-6 py-4 flex justify-end gap-3">
+            <div className="border-t border-gray-800 px-5 py-3.5 flex justify-end gap-3">
               <button
                 onClick={() => setBomModal(null)}
-                className="px-5 py-2.5 rounded-lg font-medium text-gray-300 bg-gray-800 hover:bg-gray-700 transition"
+                className="px-5 py-2 rounded-md text-sm font-medium text-gray-300 bg-gray-800 hover:bg-gray-700 transition"
               >
                 Cancelar
               </button>
               <button
                 onClick={saveBom}
-                className="px-5 py-2.5 rounded-lg font-medium text-white bg-indigo-600 hover:bg-indigo-700 shadow-md transition"
+                className="px-5 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-500 shadow-md transition"
               >
                 💾 Guardar BOM
               </button>
@@ -766,12 +756,12 @@ export default function ProductosTab() {
 
       {/* ════════════════ MODAL INSPECCIÓN ════════════════ */}
       {inspeccionModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-gray-900 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden max-h-[90vh] flex flex-col">
-            <div className="bg-teal-600 px-6 py-4">
-              <h3 className="text-lg font-bold text-white">
-                🔍 Puntos de Inspección {inspeccionModal.tipo_control.toUpperCase()} -{' '}
-                {inspeccionModal.sku}
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-[3px]">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] w-full max-w-lg overflow-hidden max-h-[90vh] flex flex-col">
+            <div className="px-5 py-4 border-b border-gray-800 flex items-center gap-2">
+              <span className="text-blue-400">🔍</span>
+              <h3 className="text-sm font-bold text-white">
+                Puntos de Inspección {inspeccionModal.tipo_control.toUpperCase()} - {inspeccionModal.sku}
               </h3>
             </div>
             <div className="p-6 overflow-y-auto flex-1">
@@ -816,7 +806,7 @@ export default function ProductosTab() {
                     type="text"
                     value={newPuntoInspeccion.nombre}
                     onChange={(e) => setNewPuntoInspeccion({ ...newPuntoInspeccion, nombre: e.target.value })}
-                    className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+                    className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
                     required
                     placeholder="Ej: Dimensional"
                   />
@@ -834,7 +824,7 @@ export default function ProductosTab() {
                         especificacion: e.target.value,
                       })
                     }
-                    className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded text-sm focus:ring-2 focus:ring-teal-200 focus:outline-none"
+                    className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
                     placeholder="10mm ± 0.5"
                   />
                 </div>
@@ -849,29 +839,29 @@ export default function ProductosTab() {
                       onChange={(e) =>
                         setNewPuntoInspeccion({ ...newPuntoInspeccion, metodo: e.target.value })
                       }
-                      className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded text-sm focus:ring-2 focus:ring-teal-200 focus:outline-none"
+                      className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
                       placeholder="Calibrador"
                     />
                   </div>
                   <button
                     onClick={addPuntoInspeccion}
-                    className="bg-teal-600 text-white px-3 py-2 rounded hover:bg-teal-700 transition text-sm font-medium"
+                    className="bg-blue-600 text-white px-3 py-2 rounded-md hover:bg-blue-500 transition text-sm font-medium"
                   >
                     ➕
                   </button>
                 </div>
               </div>
             </div>
-            <div className="border-t px-6 py-4 flex justify-end gap-3">
+            <div className="border-t border-gray-800 px-5 py-3.5 flex justify-end gap-3">
               <button
                 onClick={() => setInspeccionModal(null)}
-                className="px-5 py-2.5 rounded-lg font-medium text-gray-300 bg-gray-800 hover:bg-gray-700 transition"
+                className="px-5 py-2 rounded-md text-sm font-medium text-gray-300 bg-gray-800 hover:bg-gray-700 transition"
               >
                 Cancelar
               </button>
               <button
                 onClick={saveInspeccion}
-                className="px-5 py-2.5 rounded-lg font-medium text-white bg-teal-600 hover:bg-teal-700 shadow-md transition"
+                className="px-5 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-500 shadow-md transition"
               >
                 💾 Guardar Puntos
               </button>
@@ -882,15 +872,16 @@ export default function ProductosTab() {
 
       {/* ════════════════ MODAL DETALLE ════════════════ */}
       {detalleModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-gray-900 rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col">
-            <div className="bg-slate-700 px-6 py-4 flex justify-between items-center">
-              <h3 className="text-lg font-bold text-white">
-                📦 Detalle: {detalleModal.sku}
-              </h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-[3px]">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col">
+            <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-blue-400">📦</span>
+                <h3 className="text-sm font-bold text-white">Detalle: {detalleModal.sku}</h3>
+              </div>
               <button
                 onClick={() => setDetalleModal(null)}
-                className="text-white hover:text-gray-300 text-xl"
+                className="text-gray-400 hover:text-gray-200 text-lg"
               >
                 ✕
               </button>
@@ -1005,7 +996,7 @@ export default function ProductosTab() {
       {/* ════════════════ FORMULARIO ════════════════ */}
       <form
         onSubmit={handleSubmit}
-        className="bg-gray-900 p-6 rounded-lg shadow-sm border border-gray-700 mb-6"
+        className="bg-gray-900 p-6 rounded-xl border border-gray-800 mb-6"
       >
         <h2 className="text-lg font-bold text-gray-300 mb-4 pb-2 border-b">
           {editing ? `✏️ Editar Producto: ${editing}` : '➕ Nuevo Producto'}
@@ -1018,7 +1009,7 @@ export default function ProductosTab() {
               type="text"
               value={formData.sku}
               onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-              className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+              className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
               required
               disabled={!!editing}
               placeholder="Ej: PROD-001"
@@ -1030,7 +1021,7 @@ export default function ProductosTab() {
               type="text"
               value={formData.modelo}
               onChange={(e) => setFormData({ ...formData, modelo: e.target.value })}
-              className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+              className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
               required
               placeholder="Modelo del producto"
             />
@@ -1040,7 +1031,7 @@ export default function ProductosTab() {
             <select
               value={formData.tipo}
               onChange={(e) => setFormData({ ...formData, tipo: e.target.value })}
-              className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+              className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
               required
             >
               <option value="">-- Seleccionar --</option>
@@ -1076,7 +1067,7 @@ export default function ProductosTab() {
             <select
               value={formData.clase_producto}
               onChange={(e) => setFormData({ ...formData, clase_producto: e.target.value })}
-              className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+              className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
             >
               <option value="">-- Seleccionar --</option>
               {CLASES_PRODUCTO.map((c) => (
@@ -1093,7 +1084,7 @@ export default function ProductosTab() {
             <select
               value={formData.unidad_de_medida}
               onChange={(e) => setFormData({ ...formData, unidad_de_medida: e.target.value })}
-              className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+              className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
             >
               <option value="">-- Seleccionar --</option>
               {UNIDADES_MEDIDA.map((u) => (
@@ -1110,7 +1101,7 @@ export default function ProductosTab() {
                 inputMode="numeric"
                 value={formData.cantidad_carrito}
                 onChange={(e) => setFormData({ ...formData, cantidad_carrito: e.target.value })}
-                className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+                className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
                 placeholder="0"
             />
           </div>
@@ -1119,7 +1110,7 @@ export default function ProductosTab() {
             <select
                 value={formData.proveedor}
                 onChange={(e) => setFormData({ ...formData, proveedor: e.target.value })}
-                className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+                className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
             >
                 <option value="">-- Seleccionar --</option>
                 {PROVEEDORES.map((p) => <option key={p} value={p}>{p}</option>)}
@@ -1131,7 +1122,7 @@ export default function ProductosTab() {
               type="text"
               value={formData.cliente}
               onChange={(e) => setFormData({ ...formData, cliente: e.target.value })}
-              className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+              className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
             />
           </div>
           <div>
@@ -1140,7 +1131,7 @@ export default function ProductosTab() {
               type="text"
               value={formData.cliente_id}
               onChange={(e) => setFormData({ ...formData, cliente_id: e.target.value })}
-              className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+              className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
             />
           </div>
           <div>
@@ -1151,7 +1142,7 @@ export default function ProductosTab() {
               type="text"
               value={formData.linea_produccion}
               onChange={(e) => setFormData({ ...formData, linea_produccion: e.target.value })}
-              className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+              className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
             />
           </div>
           <div>
@@ -1160,7 +1151,7 @@ export default function ProductosTab() {
               type="text"
               value={formData.ubicacion}
               onChange={(e) => setFormData({ ...formData, ubicacion: e.target.value })}
-              className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+              className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
             />
           </div>
           <div className="md:col-span-3">
@@ -1169,7 +1160,7 @@ export default function ProductosTab() {
               type="text"
               value={formData.descripcion}
               onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-              className="w-full bg-gray-800 text-white border border-gray-600 p-2 rounded focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+              className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
               placeholder="Descripción del producto..."
             />
           </div>
@@ -1187,7 +1178,7 @@ export default function ProductosTab() {
                 <select
                     value={inyeccionData.id_proceso}
                     onChange={(e) => setInyeccionData({ ...inyeccionData, id_proceso: e.target.value })}
-                    className="w-full bg-gray-800 text-white border border-gray-600 p-1.5 rounded text-sm focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+                    className="w-full bg-gray-950 border border-gray-800 rounded-md px-2 py-1.5 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
                 >
                     <option value="">-- Seleccionar --</option>
                     {ID_PROCESOS.map((p) => <option key={p} value={p}>{p}</option>)}
@@ -1198,7 +1189,7 @@ export default function ProductosTab() {
                 <select
                     value={inyeccionData.tipo_resina}
                     onChange={(e) => setInyeccionData({ ...inyeccionData, tipo_resina: e.target.value })}
-                    className="w-full bg-gray-800 text-white border border-gray-600 p-1.5 rounded text-sm focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+                    className="w-full bg-gray-950 border border-gray-800 rounded-md px-2 py-1.5 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
                 >
                     <option value="">-- Seleccionar --</option>
                     {TIPOS_RESINA.map((t) => <option key={t} value={t}>{t}</option>)}
@@ -1357,12 +1348,12 @@ export default function ProductosTab() {
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
           placeholder="Buscar SKU, nombre, descripción, cliente..."
-          className="flex-1 min-w-[200px] border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 placeholder:text-gray-400"
+          className="flex-1 min-w-[200px] bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 placeholder:text-gray-400"
         />
         <select
           value={filtroTipo}
           onChange={(e) => setFiltroTipo(e.target.value)}
-          className="border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 bg-gray-900 text-gray-300"
+          className="bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
         >
           <option value="">Todos los Tipos</option>
           {tiposUnicos.map((t) => (
@@ -1374,7 +1365,7 @@ export default function ProductosTab() {
         <select
           value={filtroClase}
           onChange={(e) => setFiltroClase(e.target.value)}
-          className="border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 bg-gray-900 text-gray-300"
+          className="bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
         >
           <option value="">Todas las Clases</option>
           {clasesUnicas.map((c) => (
@@ -1386,7 +1377,7 @@ export default function ProductosTab() {
         <select
           value={filtroStatus}
           onChange={(e) => setFiltroStatus(e.target.value)}
-          className="border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 bg-gray-900 text-gray-300"
+          className="bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
         >
           <option value="">Todos los Status</option>
           <option value="Activo">Activo</option>
@@ -1401,7 +1392,7 @@ export default function ProductosTab() {
               Limpiar filtros
             </button>
           )}
-          <span className="bg-gray-800 text-gray-400 text-xs font-semibold px-3 py-2 rounded-lg whitespace-nowrap border border-gray-700">
+          <span className="bg-gray-800 text-gray-400 text-xs font-semibold px-3 py-2 rounded-lg whitespace-nowrap border border-gray-800">
             {productosFiltrados.length === productos.length
               ? `${productos.length} producto${productos.length !== 1 ? 's' : ''}`
               : `${productosFiltrados.length} de ${productos.length} productos`}
@@ -1411,7 +1402,7 @@ export default function ProductosTab() {
 
       {/* ════════════════ ACCIONES BATCH ════════════════ */}
       {selectedSkus.size > 0 && (
-        <div className="flex items-center gap-3 mb-4 p-3 bg-blue-500/10 rounded-lg border border-blue-200">
+        <div className="flex items-center gap-3 mb-4 p-3 bg-blue-500/10 rounded-lg border border-blue-500/30">
           <span className="text-sm font-semibold text-blue-300">
             {selectedSkus.size} seleccionado(s)
           </span>
@@ -1443,9 +1434,9 @@ export default function ProductosTab() {
       )}
 
       {/* ════════════════ TABLA ════════════════ */}
-      <div className="bg-gray-900 rounded-lg shadow-sm border border-gray-700 overflow-x-auto">
+      <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-gray-800 border-b border-gray-700">
+          <thead className="bg-gray-800 border-b border-gray-800">
             <tr>
               <th className="p-3 text-center w-10">
                 <input

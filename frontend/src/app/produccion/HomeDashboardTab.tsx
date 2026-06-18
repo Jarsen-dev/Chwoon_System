@@ -240,7 +240,7 @@ export default function HomeDashboardTab({ token, rol }: Props) {
 
       {/* ═══ REPORTES ═══ */}
       {showReportes && (
-        <div className="bg-gray-900 rounded-xl shadow-sm border border-gray-700 overflow-hidden mb-6">
+        <div className="bg-gray-900 rounded-xl shadow-sm border border-gray-800 overflow-hidden mb-6">
           <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between bg-gradient-to-r from-purple-500/10 to-gray-900">
             <div>
               <h3 className="text-base font-bold text-white flex items-center gap-2">📈 Reportes por Turno</h3>
@@ -363,7 +363,7 @@ export default function HomeDashboardTab({ token, rol }: Props) {
       {/* ═══ PRODUCCIÓN + ALERTAS ═══ */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">
         {/* Producción por parte */}
-        <div className="xl:col-span-2 bg-gray-900 rounded-xl shadow-sm border border-gray-700 overflow-hidden">
+        <div className="xl:col-span-2 bg-gray-900 rounded-xl shadow-sm border border-gray-800 overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
             <div>
               <h3 className="text-base font-bold text-white">📊 Producción por Número de Parte</h3>
@@ -414,7 +414,7 @@ export default function HomeDashboardTab({ token, rol }: Props) {
         </div>
 
         {/* Alertas */}
-        <div className="bg-gray-900 rounded-xl shadow-sm border border-gray-700 overflow-hidden">
+        <div className="bg-gray-900 rounded-xl shadow-sm border border-gray-800 overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
             <div>
               <h3 className="text-base font-bold text-white">🚨 Alertas IA</h3>
@@ -451,7 +451,7 @@ export default function HomeDashboardTab({ token, rol }: Props) {
       </div>
 
       {/* ═══ TABLA PLAN ═══ */}
-      <div className="bg-gray-900 rounded-xl shadow-sm border border-gray-700 overflow-hidden">
+      <div className="bg-gray-900 rounded-xl shadow-sm border border-gray-800 overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
           <div>
             <h3 className="text-base font-bold text-white">📋 Estado del Plan de Producción</h3>

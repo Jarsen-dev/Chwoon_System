@@ -184,22 +184,22 @@ export default function PlanTab({ planes, onRefresh, onGoToTab }: Props) {
       {/* MODAL: NOTIFICACIÓN                                      */}
       {/* ======================================================= */}
       {modalInfo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-gray-900 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
-            <div className={`px-6 py-4 ${
-              modalInfo.type === 'success' ? 'bg-green-600' :
-              modalInfo.type === 'error'   ? 'bg-red-600'   : 'bg-blue-600'
-            }`}>
-              <h3 className="text-lg font-bold text-white">{modalInfo.title}</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-[3px]">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] w-full max-w-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-800 flex items-center gap-2">
+              <h3 className={`text-base font-bold ${
+                modalInfo.type === 'success' ? 'text-emerald-400' :
+                modalInfo.type === 'error'   ? 'text-red-400'     : 'text-blue-400'
+              }`}>{modalInfo.title}</h3>
             </div>
-            <div className="p-6">
+            <div className="p-5">
               <p className="text-gray-300 text-sm whitespace-pre-line mb-4">
                 {modalInfo.message}
               </p>
               {erroresImport.length > 0 && (
                 <button
                   onClick={() => { setModalInfo(null); setIsErrorModalOpen(true) }}
-                  className="w-full mb-3 px-4 py-2 rounded-lg text-sm font-medium bg-yellow-500/10 text-yellow-400 border border-yellow-200 hover:bg-yellow-500/20 transition"
+                  className="w-full mb-3 inline-flex items-center justify-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold border bg-yellow-500/10 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/20 transition"
                 >
                   ⚠️ Ver {erroresImport.length} advertencia(s)
                 </button>
@@ -207,10 +207,10 @@ export default function PlanTab({ planes, onRefresh, onGoToTab }: Props) {
               <div className="flex justify-end">
                 <button
                   onClick={() => setModalInfo(null)}
-                  className={`px-6 py-2.5 rounded-lg font-bold text-white transition ${
-                    modalInfo.type === 'success' ? 'bg-green-600 hover:bg-green-700' :
-                    modalInfo.type === 'error'   ? 'bg-red-600   hover:bg-red-700'   :
-                                                   'bg-blue-600  hover:bg-blue-700'
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold border transition-all duration-150 ${
+                    modalInfo.type === 'success' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20' :
+                    modalInfo.type === 'error'   ? 'bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20' :
+                                                   'bg-blue-500/10 text-blue-400 border-blue-500/30 hover:bg-blue-500/20'
                   }`}
                 >
                   Aceptar
@@ -225,25 +225,24 @@ export default function PlanTab({ planes, onRefresh, onGoToTab }: Props) {
       {/* MODAL: CONFIRMAR ELIMINACIÓN                            */}
       {/* ======================================================= */}
       {confirmModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-gray-900 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
-            <div className="bg-red-600 px-6 py-4">
-              <h3 className="text-lg font-bold text-white">
-                🗑️ {confirmModal.title}
-              </h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-[3px]">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] w-full max-w-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-800 flex items-center gap-2">
+              <span>🗑️</span>
+              <h3 className="text-base font-bold text-red-400">{confirmModal.title}</h3>
             </div>
-            <div className="p-6">
-              <p className="text-gray-300 text-sm mb-6">{confirmModal.message}</p>
-              <div className="flex justify-end gap-3">
+            <div className="p-5">
+              <p className="text-gray-300 text-sm mb-5">{confirmModal.message}</p>
+              <div className="flex justify-end gap-2">
                 <button
                   onClick={() => setConfirmModal(null)}
-                  className="px-5 py-2.5 rounded-lg font-medium text-gray-300 bg-gray-800 hover:bg-gray-700 transition"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold border border-gray-800 text-gray-400 hover:text-white hover:border-gray-700 hover:bg-gray-800 transition-all duration-150"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={confirmModal.onConfirm}
-                  className="px-5 py-2.5 rounded-lg font-bold text-white bg-red-600 hover:bg-red-700 transition"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold border bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20 transition-all duration-150"
                 >
                   Sí, Eliminar
                 </button>
@@ -257,13 +256,14 @@ export default function PlanTab({ planes, onRefresh, onGoToTab }: Props) {
       {/* MODAL: ADVERTENCIAS                                      */}
       {/* ======================================================= */}
       {isErrorModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-gray-900 rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
-            <div className="bg-yellow-500/100 px-6 py-4">
-              <h3 className="text-lg font-bold text-white">⚠️ Advertencias</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-[3px]">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] w-full max-w-md overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-800 flex items-center gap-2">
+              <span>⚠️</span>
+              <h3 className="text-base font-bold text-yellow-400">Advertencias</h3>
             </div>
-            <div className="p-6">
-              <div className="max-h-60 overflow-y-auto space-y-1 bg-gray-800 rounded-lg p-3 border border-gray-700">
+            <div className="p-5">
+              <div className="max-h-60 overflow-y-auto space-y-1 bg-gray-800 rounded-lg p-3 border border-gray-800">
                 {erroresImport.map((err, idx) => (
                   <p key={idx} className="text-xs text-red-400 font-mono">• {err}</p>
                 ))}
@@ -271,7 +271,7 @@ export default function PlanTab({ planes, onRefresh, onGoToTab }: Props) {
               <div className="flex justify-end mt-4">
                 <button
                   onClick={() => { setIsErrorModalOpen(false); setErroresImport([]) }}
-                  className="px-6 py-2.5 rounded-lg font-bold text-white bg-yellow-500/100 hover:bg-yellow-600 transition"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold border bg-yellow-500/10 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/20 transition-all duration-150"
                 >
                   Entendido
                 </button>
@@ -352,9 +352,9 @@ export default function PlanTab({ planes, onRefresh, onGoToTab }: Props) {
       {/* ======================================================= */}
       {/* TABLA                                                    */}
       {/* ======================================================= */}
-      <div className="overflow-x-auto border rounded-lg">
+      <div className="overflow-x-auto border border-gray-800 rounded-xl">
         <table className="w-full text-sm">
-          <thead className="bg-gray-800 text-gray-300 border-b border-gray-700">
+          <thead className="bg-gray-800 text-gray-300 border-b border-gray-800">
             <tr>
               <th className="p-3 text-center font-semibold">No. de Parte</th>
               <th className="p-3 text-center font-semibold">Proceso</th>
@@ -384,7 +384,7 @@ export default function PlanTab({ planes, onRefresh, onGoToTab }: Props) {
                 const estaImprimiendo = isPrinting === p.numero_parte
 
                 return (
-                  <tr key={idx} className="border-t hover:bg-gray-800 transition">
+                  <tr key={idx} className="border-t border-gray-800 hover:bg-gray-800 transition">
 
                     {/* No. de Parte */}
                     <td className="p-3 text-center font-mono font-medium text-blue-300">

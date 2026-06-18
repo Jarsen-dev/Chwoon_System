@@ -15,7 +15,7 @@ export default function PredictionTab({ proyecciones, saludMaquinas }: Props) {
         <h2 className="text-xl font-bold text-gray-200 mb-4 border-b pb-2">
           📊 Proyección de Cierre de Turno
         </h2>
-        <div className="overflow-x-auto border rounded-lg">
+        <div className="overflow-x-auto border border-gray-800 rounded-xl">
           <table className="w-full text-sm">
             <thead className="bg-blue-500/20 text-blue-300 border-b">
               <tr>
@@ -54,7 +54,7 @@ export default function PredictionTab({ proyecciones, saludMaquinas }: Props) {
         <h2 className="text-xl font-bold text-gray-200 mb-4 border-b pb-2">
           ⚙️ Mantenimiento Predictivo
         </h2>
-        <div className="overflow-x-auto border rounded-lg">
+        <div className="overflow-x-auto border border-gray-800 rounded-xl">
           <table className="w-full text-sm">
             <thead className="bg-purple-500/20 text-purple-300 border-b">
               <tr>

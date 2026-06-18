@@ -453,7 +453,7 @@ export default function CuartoSecadoTab() {
       {/* Modal Scanner */}
       {scannerOpen && (
         <div className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-sm shadow-2xl">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] w-full max-w-sm">
             <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
               <span className="text-sm font-bold text-white">📷 Escanear QR</span>
               <button className="text-gray-400 hover:text-white transition-colors text-lg leading-none" onClick={cerrarScanner}>✕</button>
@@ -526,14 +526,14 @@ export default function CuartoSecadoTab() {
               value={busqueda}
               onChange={e => setBusqueda(e.target.value)}
               placeholder="Buscar máquina, parte o descripción..."
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-2 text-xs text-white outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-colors placeholder:text-gray-500"
+              className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15 placeholder:text-gray-400"
             />
           </div>
 
           <div>
             <label className="block text-[10px] font-bold tracking-wider uppercase text-gray-400 mb-1">Máquina</label>
             <select value={filtroMaquina} onChange={e => setFiltroMaquina(e.target.value)}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-2 text-xs text-white outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-colors">
+              className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15">
               <option value="">Todas las Máquinas</option>
               {maquinasUnicas.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
@@ -542,7 +542,7 @@ export default function CuartoSecadoTab() {
           <div>
             <label className="block text-[10px] font-bold tracking-wider uppercase text-gray-400 mb-1">No. de Parte</label>
             <select value={filtroParte} onChange={e => setFiltroParte(e.target.value)}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-2 text-xs text-white outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-colors">
+              className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15">
               <option value="">Todos los No. de Parte</option>
               {partesUnicas.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
@@ -551,7 +551,7 @@ export default function CuartoSecadoTab() {
           <div>
             <label className="block text-[10px] font-bold tracking-wider uppercase text-gray-400 mb-1">Estado</label>
             <select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-2 text-xs text-white outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-colors">
+              className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15">
               <option value="">Cualquier Estado</option>
               <option value="dentro">🌡️ Dentro</option>
               <option value="salido">✅ Salido</option>
@@ -564,7 +564,7 @@ export default function CuartoSecadoTab() {
                 Limpiar filtros
               </button>
             )}
-            <span className="bg-gray-800 border border-gray-700 rounded px-2.5 py-1 text-xs text-gray-400 font-mono whitespace-nowrap">
+            <span className="bg-gray-800 border border-gray-800 rounded px-2.5 py-1 text-xs text-gray-400 font-mono whitespace-nowrap">
               {registrosFiltrados.length === registros.length
                 ? `${registros.length} reg.`
                 : `${registrosFiltrados.length} / ${registros.length}`}

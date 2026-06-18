@@ -361,7 +361,7 @@ function ProduccionSubTab() {
 
       {/* ── Nuevo Plan form ── */}
       {showForm && (
-        <div className="bg-gray-900 border border-gray-800 rounded-[10px] overflow-hidden">
+        <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
           <div className="px-4 py-3 bg-gray-800 border-b border-gray-800 flex items-center gap-[10px]">
             <span className="text-xs font-bold text-amber-400">NUEVO PLAN</span>
           </div>
@@ -439,7 +439,7 @@ function ProduccionSubTab() {
           <div className="text-[10px] font-bold tracking-[0.12em] uppercase text-amber-400 mb-2.5 flex items-center gap-2 after:content-[''] after:flex-1 after:h-px after:bg-gray-800">Planificación · {pendientes.length}</div>
           <div className="flex flex-col gap-2.5">
             {gruposPendientes.map(([, grupo], idx) => (
-              <div key={idx} className="bg-gray-900 border border-gray-800 rounded-[10px] overflow-hidden">
+              <div key={idx} className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
                 <div className="px-4 py-3 bg-gray-800 border-b border-gray-800 flex items-center gap-[10px]">
                   <span className="font-mono text-[13px] font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-[10px] py-0.5 rounded">{grupo[0].maquina}</span>
                   <span className="text-[10px] font-semibold tracking-[0.06em] uppercase px-2 py-0.5 rounded-[20px] inline-flex items-center gap-1 bg-gray-400/10 text-gray-400 border border-gray-400/25">PRIORIDAD {grupo[0].prioridad}</span>
@@ -500,7 +500,7 @@ function ProduccionSubTab() {
               const puedAv = puedeAvanzar(item)
 
               return (
-                <div key={item.id} className={`bg-gray-900 border border-gray-800 rounded-[10px] transition-[border-color] duration-200 ${enParo ? ' border-red-500/50 bg-red-500/5': ''}`}>
+                <div key={item.id} className={`bg-gray-900 border border-gray-800 rounded-xl transition-[border-color] duration-200 ${enParo ? ' border-red-500/50 bg-red-500/5': ''}`}>
                   {/* Top row */}
                   <div className="px-4 py-3 border-b border-gray-800 flex items-center gap-[10px] flex-wrap">
                     <span className="font-mono text-[13px] font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-[10px] py-0.5 rounded">{item.maquina}</span>
@@ -576,7 +576,7 @@ function ProduccionSubTab() {
       )}
 
       {pendientes.length === 0 && enProceso.length === 0 && (
-        <div className="bg-gray-900 border border-gray-800 rounded-[10px] overflow-hidden">
+        <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
           <div className="px-5 py-10 text-center text-gray-400">
             <div className="text-[32px] mb-2 opacity-50">⚙️</div>
             <div className="text-[13px]">No hay órdenes activas. Crea un plan o importa desde Excel.</div>
@@ -588,7 +588,7 @@ function ProduccionSubTab() {
       {finalizados.length > 0 && (
         <div>
           <div className="text-[10px] font-bold tracking-[0.12em] uppercase text-amber-400 mb-2.5 flex items-center gap-2 after:content-[''] after:flex-1 after:h-px after:bg-gray-800">Finalizadas · {finalizados.length}</div>
-          <div className="bg-gray-900 border border-gray-800 rounded-[10px] overflow-hidden overflow-x-auto">
+          <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden overflow-x-auto">
             <table className="w-full border-collapse">
               <thead>
                 <tr>

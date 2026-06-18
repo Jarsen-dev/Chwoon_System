@@ -159,13 +159,13 @@ export default function EnsambleTab() {
 
       {/* Formulario */}
       {showForm && (
-        <div className="bg-gray-900 rounded-xl border border-gray-700 p-6 space-y-4">
+        <div className="bg-gray-900 rounded-xl border border-gray-800 p-6 space-y-4">
           <h3 className="font-semibold text-gray-300">Nueva Orden de Ensamble</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">Producto Final</label>
               <select value={formSku} onChange={e => setFormSku(e.target.value)}
-                className="w-full bg-gray-800 text-white border border-gray-600 rounded-lg px-3 py-2 text-sm">
+                className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15">
                 <option value="">Seleccionar...</option>
                 {productos.map(p => (
                   <option key={p.sku} value={p.sku}>{p.sku} — {p.modelo}</option>
@@ -175,30 +175,30 @@ export default function EnsambleTab() {
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">Cantidad a Producir</label>
               <input type="number" value={formCantidad} onChange={e => setFormCantidad(e.target.value)}
-                className="w-full bg-gray-800 text-white border border-gray-600 rounded-lg px-3 py-2 text-sm" min="1" />
+                className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15" min="1" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">Cantidad por Carrito</label>
               <input type="number" value={formCarrito} onChange={e => setFormCarrito(e.target.value)}
-                className="w-full bg-gray-800 text-white border border-gray-600 rounded-lg px-3 py-2 text-sm" min="0"
+                className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15" min="0"
                 placeholder="0 = sin carritos" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">Línea Producción</label>
               <input value={formLinea} onChange={e => setFormLinea(e.target.value)}
-                className="w-full bg-gray-800 text-white border border-gray-600 rounded-lg px-3 py-2 text-sm"
+                className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
                 placeholder="Ej: LINEA-A1" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">UPH Esperado</label>
               <input type="number" value={formUPH} onChange={e => setFormUPH(e.target.value)}
-                className="w-full bg-gray-800 text-white border border-gray-600 rounded-lg px-3 py-2 text-sm" min="0"
+                className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15" min="0"
                 placeholder="Unidades/hora" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">Método de Conteo</label>
               <select value={formMetodo} onChange={e => setFormMetodo(e.target.value)}
-                className="w-full bg-gray-800 text-white border border-gray-600 rounded-lg px-3 py-2 text-sm">
+                className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15">
                 <option value="">Seleccionar...</option>
                 <option value="Scanner">Scanner</option>
                 <option value="Manual">Manual</option>
@@ -289,7 +289,7 @@ export default function EnsambleTab() {
                 <div key={op.op_id} className={`bg-gray-900 rounded-xl border p-4 ${
                   isPendiente ? 'border-yellow-500/40 bg-yellow-500/10'
                     : tieneParo ? 'border-red-500/40 bg-red-500/10'
-                    : 'border-gray-700'
+                    : 'border-gray-800'
                 }`}>
                   <div className="flex items-center justify-between mb-3">
                     <div>
@@ -364,9 +364,9 @@ export default function EnsambleTab() {
       {finalizadas.length > 0 && (
         <div>
           <h3 className="font-semibold text-gray-300 mb-3">✅ Finalizadas ({finalizadas.length})</h3>
-          <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
+          <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
             <table className="w-full text-sm">
-              <thead className="bg-gray-800 border-b">
+              <thead className="bg-gray-800 border-b border-gray-800">
                 <tr>
                   <th className="px-4 py-2 text-left text-gray-400">OP ID</th>
                   <th className="px-4 py-2 text-left text-gray-400">Producto</th>
@@ -376,7 +376,7 @@ export default function EnsambleTab() {
                   <th className="px-4 py-2 text-left text-gray-400">Fecha</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-700">
+              <tbody className="divide-y divide-gray-800">
                 {finalizadas.slice(0, 20).map(op => (
                   <tr key={op.op_id} className="hover:bg-gray-800">
                     <td className="px-4 py-2 font-mono text-blue-400">{op.op_id}</td>

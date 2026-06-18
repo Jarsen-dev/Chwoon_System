@@ -351,14 +351,14 @@ function LotesSubTab() {
 
       {/* ── Formulario Nuevo Lote ── */}
       {showForm && (
-        <div className="bg-gray-900 rounded-xl border border-gray-700 p-6 space-y-4">
+        <div className="bg-gray-900 rounded-xl border border-gray-800 p-6 space-y-4">
           <h3 className="font-semibold text-gray-300">Iniciar Lote de Pre-Expansión</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">Producto Resina (SKU)</label>
               <select value={formSkuResina} onChange={e => setFormSkuResina(e.target.value)}
-                className="w-full border border-gray-600 rounded-lg px-3 py-2 text-sm">
+                className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15">
                 <option value="">Seleccionar...</option>
                 {productos.map(p => (
                   <option key={p.sku} value={p.sku}>{p.sku} — {p.modelo}</option>
@@ -369,14 +369,14 @@ function LotesSubTab() {
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">Grado</label>
               <input type="text" value={formGrado} onChange={e => setFormGrado(e.target.value)}
-                className="w-full border border-gray-600 rounded-lg px-3 py-2 text-sm"
+                className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15"
                 placeholder="Ej: 350, 450, CHINA..." />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">Número de Costal</label>
               <input type="text" value={formNumeroCostal} onChange={e => setFormNumeroCostal(e.target.value)}
-                className="w-full border border-gray-600 rounded-lg px-3 py-2 text-sm"
+                className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15"
                 placeholder="Ej: 12, X26011741..." />
             </div>
 
@@ -387,7 +387,7 @@ function LotesSubTab() {
                   <span className="ml-2 text-xs text-gray-400">{bomComponentes.length} comp.</span>
                 </label>
                 <select value={formSkuMP} onChange={e => setFormSkuMP(e.target.value)}
-                  className="w-full border border-gray-600 rounded-lg px-3 py-2 text-sm">
+                  className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15">
                   <option value="">Seleccionar...</option>
                   {bomComponentes.map(c => (
                     <option key={c.sku_componente} value={c.sku_componente}>
@@ -403,7 +403,7 @@ function LotesSubTab() {
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">Materia Prima a Usar (kg)</label>
               <input type="number" value={formCantUsada} onChange={e => setFormCantUsada(e.target.value)}
-                className="w-full border border-gray-600 rounded-lg px-3 py-2 text-sm" min="0" step="0.01" />
+                className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15" min="0" step="0.01" />
             </div>
 
             <div>
@@ -415,7 +415,7 @@ function LotesSubTab() {
               </label>
               {ubicacionesSilos.length > 0 ? (
                 <select value={formUbicacion} onChange={e => setFormUbicacion(e.target.value)}
-                  className="w-full border border-gray-600 rounded-lg px-3 py-2 text-sm">
+                  className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15">
                   <option value="">Seleccionar silo...</option>
                   {ubicacionesSilos.map(ub => (
                     <option key={ub.id} value={ub.nombre}>{ub.nombre}</option>
@@ -449,7 +449,7 @@ function LotesSubTab() {
                 ? Math.min(100, Math.round((op.cantidad_total_consumida / op.cantidad_usada_requerida) * 100))
                 : 0
               return (
-                <div key={op.op_id} className="bg-gray-900 rounded-xl border border-gray-700 p-4">
+                <div key={op.op_id} className="bg-gray-900 rounded-xl border border-gray-800 p-4">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-mono font-bold text-blue-400">{op.op_id}</span>
@@ -534,11 +534,11 @@ function LotesSubTab() {
           </h3>
 
           {/* Filtros */}
-          <div className="bg-gray-800 rounded-xl border border-gray-700 p-3 mb-3 grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="bg-gray-800 rounded-xl border border-gray-800 p-3 mb-3 grid grid-cols-2 md:grid-cols-4 gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-400 mb-1">Turno</label>
               <select value={filtroTurno} onChange={e => setFiltroTurno(e.target.value)}
-                className="w-full border border-gray-600 rounded-lg px-2 py-1.5 text-xs">
+                className="w-full bg-gray-950 border border-gray-800 rounded-md px-2 py-1.5 text-xs text-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/15">
                 <option value="">Todos</option>
                 <option value="DIA">☀️ DIA</option>
                 <option value="NOCHE">🌙 NOCHE</option>
@@ -547,18 +547,18 @@ function LotesSubTab() {
             <div>
               <label className="block text-xs font-medium text-gray-400 mb-1">Fecha inicio turno</label>
               <input type="date" value={filtroFecha} onChange={e => setFiltroFecha(e.target.value)}
-                className="w-full border border-gray-600 rounded-lg px-2 py-1.5 text-xs" />
+                className="w-full bg-gray-950 border border-gray-800 rounded-md px-2 py-1.5 text-xs text-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/15" />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-400 mb-1">SKU</label>
               <input type="text" value={filtroSku} onChange={e => setFiltroSku(e.target.value)}
                 placeholder="Buscar SKU..."
-                className="w-full border border-gray-600 rounded-lg px-2 py-1.5 text-xs" />
+                className="w-full bg-gray-950 border border-gray-800 rounded-md px-2 py-1.5 text-xs text-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/15" />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-400 mb-1">Silo</label>
               <select value={filtroSilo} onChange={e => setFiltroSilo(e.target.value)}
-                className="w-full border border-gray-600 rounded-lg px-2 py-1.5 text-xs">
+                className="w-full bg-gray-950 border border-gray-800 rounded-md px-2 py-1.5 text-xs text-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/15">
                 <option value="">Todos</option>
                 {silosUnicos.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
@@ -568,7 +568,7 @@ function LotesSubTab() {
           {finalizadas.length === 0 ? (
             <p className="text-gray-400 text-sm py-4 text-center">Sin resultados con los filtros aplicados</p>
           ) : (
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-x-auto">
+            <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-gray-800 border-b">
                   <tr>
@@ -632,8 +632,8 @@ function LotesSubTab() {
 
       {/* ── MODAL: Datos de Proceso ── */}
       {showDatosModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-900 rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-[3px] z-50 flex items-center justify-center p-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] w-full max-w-md p-6 space-y-4">
             <h3 className="text-lg font-bold text-white">📊 Datos de Proceso</h3>
             <p className="text-sm text-gray-400">
               Primer parcial registrado para{' '}
@@ -644,18 +644,18 @@ function LotesSubTab() {
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-1">Densidad (g/cm³)</label>
                 <input type="number" value={formDensidad} onChange={e => setFormDensidad(e.target.value)}
-                  className="w-full border border-gray-600 rounded-lg px-3 py-2 text-sm"
+                  className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15"
                   min="0" step="0.001" autoFocus />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-1">Pantalla Peso (kg)</label>
                 <input type="number" value={formPantalla} onChange={e => setFormPantalla(e.target.value)}
-                  className="w-full border border-gray-600 rounded-lg px-3 py-2 text-sm" min="0" step="0.01" />
+                  className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15" min="0" step="0.01" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-1">Ciclo (seg)</label>
                 <input type="number" value={formCiclo} onChange={e => setFormCiclo(e.target.value)}
-                  className="w-full border border-gray-600 rounded-lg px-3 py-2 text-sm" min="0" step="1" />
+                  className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15" min="0" step="1" />
               </div>
             </div>
             <div className="flex gap-3 justify-end">
@@ -672,8 +672,8 @@ function LotesSubTab() {
 
       {/* ── MODAL: Finalizar ── */}
       {showFinalizarModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-900 rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-[3px] z-50 flex items-center justify-center p-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] w-full max-w-sm p-6 space-y-4">
             <h3 className="text-lg font-bold text-white">✅ Finalizar Lote</h3>
             <p className="text-sm text-gray-400">
               Finalizando <span className="font-mono font-semibold">{finalizarOpId}</span>
@@ -684,13 +684,13 @@ function LotesSubTab() {
                   Cantidad Producida (kg) <span className="text-red-500">*</span>
                 </label>
                 <input type="number" value={formCantProducida} onChange={e => setFormCantProducida(e.target.value)}
-                  className="w-full border border-gray-600 rounded-lg px-3 py-2 text-sm"
+                  className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15"
                   min="0" step="0.01" autoFocus placeholder="Ingresa kg producidos..." />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-1">Counter Tiro</label>
                 <input type="number" value={formCounterTiro} onChange={e => setFormCounterTiro(e.target.value)}
-                  className="w-full border border-gray-600 rounded-lg px-3 py-2 text-sm"
+                  className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15"
                   min="0" step="1" placeholder="Ingresa el counter tiro..." />
               </div>
             </div>
@@ -994,13 +994,13 @@ function SuministroSubTab() {
 
       {/* ── Formulario nuevo suministro (SIN densidad) ── */}
       {showForm && (
-        <div className="bg-gray-900 rounded-xl border border-gray-700 p-6 space-y-4">
+        <div className="bg-gray-900 rounded-xl border border-gray-800 p-6 space-y-4">
           <h3 className="font-semibold text-gray-300">Registrar Suministro</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">SILO de Salida</label>
               <select value={formSiloOrigen} onChange={e => setFormSiloOrigen(e.target.value)}
-                className="w-full border border-gray-600 rounded-lg px-3 py-2 text-sm">
+                className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15">
                 <option value="">Seleccionar silo...</option>
                 {silosPrincipales.map(s => <option key={s.id} value={s.nombre}>{s.nombre}</option>)}
               </select>
@@ -1008,7 +1008,7 @@ function SuministroSubTab() {
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">AUX de Entrada</label>
               <select value={formAuxDestino} onChange={e => setFormAuxDestino(e.target.value)}
-                className="w-full border border-gray-600 rounded-lg px-3 py-2 text-sm">
+                className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15">
                 <option value="">Seleccionar AUX...</option>
                 {silosAux.map(s => <option key={s.id} value={s.nombre}>{s.nombre}</option>)}
               </select>
@@ -1016,7 +1016,7 @@ function SuministroSubTab() {
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">Kg a Suministrar</label>
               <input type="number" value={formKg} onChange={e => setFormKg(e.target.value)}
-                className="w-full border border-gray-600 rounded-lg px-3 py-2 text-sm"
+                className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15"
                 min="0" step="0.01" placeholder="Ej: 500" />
             </div>
             <div className="md:col-span-2 lg:col-span-3">
@@ -1024,7 +1024,7 @@ function SuministroSubTab() {
                 Máquinas de Inyección <span className="text-xs text-gray-400">separadas por coma</span>
               </label>
               <input type="text" value={formMaquinas} onChange={e => setFormMaquinas(e.target.value)}
-                className="w-full border border-gray-600 rounded-lg px-3 py-2 text-sm"
+                className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15"
                 placeholder="Ej: MAQ-1, MAQ-3, MAQ-7" />
             </div>
           </div>
@@ -1036,11 +1036,11 @@ function SuministroSubTab() {
       )}
 
       {/* ── Filtros historial ── */}
-      <div className="bg-gray-800 rounded-xl border border-gray-700 p-3 grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="bg-gray-800 rounded-xl border border-gray-800 p-3 grid grid-cols-2 md:grid-cols-4 gap-3">
         <div>
           <label className="block text-xs font-medium text-gray-400 mb-1">AUX Destino</label>
           <select value={filtroAux} onChange={e => setFiltroAux(e.target.value)}
-            className="w-full border border-gray-600 rounded-lg px-2 py-1.5 text-xs">
+            className="w-full bg-gray-950 border border-gray-800 rounded-md px-2 py-1.5 text-xs text-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/15">
             <option value="">Todos</option>
             {auxUnicos.map(a => <option key={a} value={a}>{a}</option>)}
           </select>
@@ -1049,18 +1049,18 @@ function SuministroSubTab() {
           <label className="block text-xs font-medium text-gray-400 mb-1">Resina (SKU)</label>
           <input type="text" value={filtroResina} onChange={e => setFiltroResina(e.target.value)}
             placeholder="Buscar SKU..."
-            className="w-full border border-gray-600 rounded-lg px-2 py-1.5 text-xs" />
+            className="w-full bg-gray-950 border border-gray-800 rounded-md px-2 py-1.5 text-xs text-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/15" />
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-400 mb-1">Fecha</label>
           <input type="date" value={filtroFecha} onChange={e => setFiltroFecha(e.target.value)}
-            className="w-full border border-gray-600 rounded-lg px-2 py-1.5 text-xs" />
+            className="w-full bg-gray-950 border border-gray-800 rounded-md px-2 py-1.5 text-xs text-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/15" />
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-400 mb-1">Usuario</label>
           <input type="text" value={filtroUsuario} onChange={e => setFiltroUsuario(e.target.value)}
             placeholder="Buscar usuario..."
-            className="w-full border border-gray-600 rounded-lg px-2 py-1.5 text-xs" />
+            className="w-full bg-gray-950 border border-gray-800 rounded-md px-2 py-1.5 text-xs text-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/15" />
         </div>
       </div>
 
@@ -1077,7 +1077,7 @@ function SuministroSubTab() {
             {suministros.length === 0 ? 'No hay suministros registrados' : 'Sin resultados con los filtros aplicados'}
           </p>
         ) : (
-          <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-x-auto">
+          <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-800 border-b">
                 <tr>
@@ -1260,13 +1260,13 @@ function ReporteSubTab() {
         <div className="flex items-center gap-3 flex-wrap">
           {/* Filtro Turno */}
           <select value={filtroTurno} onChange={e => setFiltroTurno(e.target.value)}
-            className="border border-gray-600 rounded-lg px-3 py-2 text-sm">
+            className="bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15">
             <option value="">Ambos turnos</option>
             <option value="DIA">☀️ DIA</option>
             <option value="NOCHE">🌙 NOCHE</option>
           </select>
           <input type="date" value={fechaFiltro} onChange={e => setFechaFiltro(e.target.value)}
-            className="border border-gray-600 rounded-lg px-3 py-2 text-sm" />
+            className="bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15" />
           <button onClick={handleDescargarExcel}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-400 bg-green-600 hover:bg-green-700 active:scale-95 text-white">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1300,7 +1300,7 @@ function ReporteSubTab() {
       {filas.length === 0 ? (
         <p className="text-gray-400 text-sm py-8 text-center">No hay registros para esta fecha</p>
       ) : (
-        <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-x-auto">
+        <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-x-auto">
           <table className="w-full text-xs">
             <thead className="bg-blue-600 text-white">
               <tr>
@@ -1450,7 +1450,7 @@ function ReporteSubTab() {
 
       {/* Resumen */}
       {(ordenes.length > 0 || suministrosTotal > 0) && (
-        <div className="bg-gray-800 rounded-lg border border-gray-700 p-4">
+        <div className="bg-gray-800 rounded-lg border border-gray-800 p-4">
           <h4 className="font-semibold text-gray-300 text-sm mb-2">📊 Resumen del Día</h4>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
             <div>
