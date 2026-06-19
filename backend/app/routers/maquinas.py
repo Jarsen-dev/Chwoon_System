@@ -17,12 +17,14 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import AsyncSessionLocal
-from app.core.deps import get_db, get_current_user, verify_gateway_key
+from app.core.deps import get_db, get_current_user, get_current_admin, verify_gateway_key
 from app.core.turnos import get_turno_actual, get_fecha_turno, ahora_local
 from app.models.maquina import Maquina
 from app.models.maquina_evento import MaquinaEvento
 from app.models.usuario import Usuario
-from app.schemas.maquina import EventoIn, EventoOut, MaquinaEstadoOut
+from app.schemas.maquina import (
+    EventoIn, EventoOut, MaquinaEstadoOut, MaquinaOut, MaquinaCreate, MaquinaUpdate,
+)
 
 router = APIRouter(prefix="/maquinas", tags=["maquinas"])
 
@@ -162,6 +164,45 @@ async def registrar_evento(
     })
 
     return {"ok": True, "id": evento.id}
+
+
+# ── Alta / edición de máquinas (admin) ────────────────────────────────
+
+@router.post("/", response_model=MaquinaOut, status_code=201)
+async def crear_maquina(
+    body: MaquinaCreate,
+    db: AsyncSession = Depends(get_db),
+    _: Usuario = Depends(get_current_admin),
+):
+    existe = await db.execute(select(Maquina).where(Maquina.codigo == body.codigo))
+    if existe.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail=f"Ya existe una máquina con código '{body.codigo}'")
+
+    maquina = Maquina(**body.model_dump(), activa=True, created_at=ahora_local())
+    db.add(maquina)
+    await db.commit()
+    await db.refresh(maquina)
+    return maquina
+
+
+@router.patch("/{maquina_id}", response_model=MaquinaOut)
+async def actualizar_maquina(
+    maquina_id: int,
+    body: MaquinaUpdate,
+    db: AsyncSession = Depends(get_db),
+    _: Usuario = Depends(get_current_admin),
+):
+    result = await db.execute(select(Maquina).where(Maquina.id == maquina_id))
+    maquina = result.scalar_one_or_none()
+    if not maquina:
+        raise HTTPException(status_code=404, detail="Máquina no encontrada")
+
+    cambios = body.model_dump(exclude_unset=True)
+    for campo, valor in cambios.items():
+        setattr(maquina, campo, valor)
+    await db.commit()
+    await db.refresh(maquina)
+    return maquina
 
 
 # ── Consulta de máquinas + estado en vivo (frontend) ──────────────────

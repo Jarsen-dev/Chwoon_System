@@ -38,7 +38,9 @@ import {
   ReporteManualInyeccion,
   ProveedorItem,
   MaquinaEstado,
-  MaquinaEvento
+  MaquinaEvento,
+  MaquinaCreate,
+  MaquinaUpdate
 } from '@/types'
 
 const API_URL = ''
@@ -2577,5 +2579,35 @@ export async function getMaquinaEventos(
     headers: { Authorization: `Bearer ${token}` },
   })
   if (!res.ok) throw new Error('Error cargando eventos de máquina')
+  return res.json()
+}
+
+export async function crearMaquina(token: string, body: MaquinaCreate): Promise<MaquinaEstado> {
+  const res = await fetch(`${API_URL}/maquinas/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Error desconocido' }))
+    throw new Error(err.detail || 'Error creando máquina')
+  }
+  return res.json()
+}
+
+export async function actualizarMaquina(
+  token: string,
+  id: number,
+  body: MaquinaUpdate,
+): Promise<MaquinaEstado> {
+  const res = await fetch(`${API_URL}/maquinas/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Error desconocido' }))
+    throw new Error(err.detail || 'Error actualizando máquina')
+  }
   return res.json()
 }

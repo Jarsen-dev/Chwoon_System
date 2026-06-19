@@ -148,7 +148,12 @@ export default function MaquinasPage() {
       headerRight={headerRight}
     >
       {activeTab === 'eps' && (
-        <MaquinasEPSTab maquinas={maquinas} onRefresh={cargarMaquinas} />
+        <MaquinasEPSTab
+          maquinas={maquinas}
+          onRefresh={cargarMaquinas}
+          token={token}
+          isAdmin={rol === 'admin'}
+        />
       )}
     </ModuleShell>
   );
