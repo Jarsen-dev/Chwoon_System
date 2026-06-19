@@ -1,4 +1,6 @@
-from fastapi import Depends, HTTPException, status
+import os
+
+from fastapi import Depends, HTTPException, status, Header
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -7,6 +9,24 @@ from app.core.security import decode_token
 from app.models.usuario import Usuario, RolUsuario
 
 security = HTTPBearer()
+
+# Clave compartida que el gateway (script Python en la laptop/mini-PC) usa para
+# autenticar el POST de eventos de máquina. No es un usuario humano, por eso no
+# pasa por el flujo JWT. Se define vía variable de entorno.
+GATEWAY_API_KEY = os.getenv("GATEWAY_API_KEY", "")
+
+
+async def verify_gateway_key(x_api_key: str = Header(None)) -> None:
+    """Valida el header X-API-Key contra GATEWAY_API_KEY.
+
+    Falla si la variable de entorno no está configurada (fail-closed) o si la
+    clave no coincide.
+    """
+    if not GATEWAY_API_KEY or x_api_key != GATEWAY_API_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API key de gateway inválida",
+        )
 
 
 async def get_db():

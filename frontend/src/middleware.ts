@@ -8,6 +8,7 @@ const RUTAS_PROTEGIDAS: Record<string, string[]> = {
   '/calidad':   ['admin', 'calidad'],
   '/almacen':   ['admin', 'almacen'],
   '/logistica': ['admin', 'logistica'],
+  '/maquinas':  ['admin', 'supervisor', 'operador'],
 }
 
 // Prefijos de rutas API que NUNCA deben ser interceptados por el middleware
@@ -29,6 +30,9 @@ const API_PREFIXES = [
   '/logistica/embarques',
   '/logistica/reporte',
   '/logistica/limpiar',
+  // API de máquinas (lista, eventos, websocket). El page route es '/maquinas'
+  // exacto, que NO empieza con '/maquinas/', así que sigue protegido.
+  '/maquinas/',
 ]
 
 export function middleware(request: NextRequest) {
@@ -83,5 +87,7 @@ export const config = {
     '/almacen/:path*',
     '/logistica/:path*',
     '/finanzas/:path*',
+    '/maquinas',
+    '/maquinas/:path*',
   ],
 }

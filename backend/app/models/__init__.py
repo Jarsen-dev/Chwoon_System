@@ -30,6 +30,8 @@ from app.models.conteo_fisico import ConteoFisico
 from app.models.config_alerta_stock import ConfigAlertaStock
 from app.models.psi_snapshot import PsiSnapshot
 from app.models.cliente import Cliente, ClienteEvento
+from app.models.maquina import Maquina
+from app.models.maquina_evento import MaquinaEvento
 
 __all__ = [
     "Parte",
@@ -71,4 +73,6 @@ __all__ = [
     "PsiSnapshot",
     "Cliente",
     "ClienteEvento",
+    "Maquina",
+    "MaquinaEvento",
 ]
