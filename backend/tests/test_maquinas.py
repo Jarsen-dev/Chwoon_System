@@ -79,3 +79,39 @@ def test_api_key_invalida_401(client):
         "tipo_evento": "PIEZA",
     })
     assert resp.status_code == 401, resp.text
+
+
+def test_crear_maquina_y_aparece_en_lista(client):
+    resp = client.post("/maquinas/", json={
+        "codigo": "CK-1820",
+        "nombre": "Cheonkwang CK-1820",
+        "tipo": "EPS",
+        "ip_hmi": "192.168.0.140",
+        "umbral_incidencia_seg": 10,
+    })
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["codigo"] == "CK-1820"
+
+    codigos = {m["codigo"] for m in client.get("/maquinas/").json()}
+    assert "CK-1820" in codigos
+
+
+def test_crear_maquina_codigo_duplicado_409(client):
+    client.post("/maquinas/", json={"codigo": "DUP-1", "nombre": "Dup"})
+    resp = client.post("/maquinas/", json={"codigo": "DUP-1", "nombre": "Dup 2"})
+    assert resp.status_code == 409, resp.text
+
+
+def test_patch_desactiva_oculta_de_lista(client):
+    creada = client.post("/maquinas/", json={"codigo": "SOFT-1", "nombre": "Soft"}).json()
+    resp = client.patch(f"/maquinas/{creada['id']}", json={"activa": False})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["activa"] is False
+
+    codigos = {m["codigo"] for m in client.get("/maquinas/").json()}
+    assert "SOFT-1" not in codigos
+
+
+def test_patch_maquina_inexistente_404(client):
+    resp = client.patch("/maquinas/999999", json={"nombre": "x"})
+    assert resp.status_code == 404, resp.text

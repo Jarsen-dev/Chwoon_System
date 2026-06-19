@@ -43,6 +43,27 @@ class EventoOut(BaseModel):
 # Máquinas + estado en vivo
 # ══════════════════════════════════════════════════════════════════════
 
+class MaquinaCreate(BaseModel):
+    codigo:                str
+    nombre:                str
+    linea:                 Optional[str] = None
+    tipo:                  Optional[str] = None   # EPS | EPP | INYECCION
+    marca_plc:             Optional[str] = None
+    ip_hmi:                Optional[str] = None
+    umbral_incidencia_seg: int = 8
+
+
+class MaquinaUpdate(BaseModel):
+    """Todos los campos opcionales para PATCH parcial."""
+    nombre:                Optional[str] = None
+    linea:                 Optional[str] = None
+    tipo:                  Optional[str] = None
+    marca_plc:             Optional[str] = None
+    ip_hmi:                Optional[str] = None
+    umbral_incidencia_seg: Optional[int] = None
+    activa:                Optional[bool] = None   # permite desactivar (soft-delete)
+
+
 class MaquinaOut(BaseModel):
     id:                    int
     codigo:                str

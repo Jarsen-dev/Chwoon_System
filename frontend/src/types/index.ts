@@ -1108,3 +1108,23 @@ export interface MaquinaEvento {
   metadata?:    Record<string, any>
   created_at?:  string | null
 }
+
+export interface MaquinaCreate {
+  codigo:                 string
+  nombre:                 string
+  linea?:                 string
+  tipo?:                  string
+  marca_plc?:             string
+  ip_hmi?:                string
+  umbral_incidencia_seg?: number
+}
+
+export interface MaquinaUpdate {
+  nombre?:                string
+  linea?:                 string
+  tipo?:                  string
+  marca_plc?:             string
+  ip_hmi?:                string
+  umbral_incidencia_seg?: number
+  activa?:                boolean
+}
