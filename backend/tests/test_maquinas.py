@@ -65,7 +65,7 @@ def test_listar_maquinas_con_estado(client, gateway_ok):
         "valor": 5,
         "metadata": {"meta_h": 40},
     })
-    data = client.get("/maquinas/").json()
+    data = client.get("/maquinas/lista").json()
     codigos = {m["codigo"] for m in data}
     assert "SHM-OTRA" in codigos
     otra = next(m for m in data if m["codigo"] == "SHM-OTRA")
@@ -82,7 +82,7 @@ def test_api_key_invalida_401(client):
 
 
 def test_crear_maquina_y_aparece_en_lista(client):
-    resp = client.post("/maquinas/", json={
+    resp = client.post("/maquinas/crear", json={
         "codigo": "CK-1820",
         "nombre": "Cheonkwang CK-1820",
         "tipo": "EPS",
@@ -92,23 +92,23 @@ def test_crear_maquina_y_aparece_en_lista(client):
     assert resp.status_code == 201, resp.text
     assert resp.json()["codigo"] == "CK-1820"
 
-    codigos = {m["codigo"] for m in client.get("/maquinas/").json()}
+    codigos = {m["codigo"] for m in client.get("/maquinas/lista").json()}
     assert "CK-1820" in codigos
 
 
 def test_crear_maquina_codigo_duplicado_409(client):
-    client.post("/maquinas/", json={"codigo": "DUP-1", "nombre": "Dup"})
-    resp = client.post("/maquinas/", json={"codigo": "DUP-1", "nombre": "Dup 2"})
+    client.post("/maquinas/crear", json={"codigo": "DUP-1", "nombre": "Dup"})
+    resp = client.post("/maquinas/crear", json={"codigo": "DUP-1", "nombre": "Dup 2"})
     assert resp.status_code == 409, resp.text
 
 
 def test_patch_desactiva_oculta_de_lista(client):
-    creada = client.post("/maquinas/", json={"codigo": "SOFT-1", "nombre": "Soft"}).json()
+    creada = client.post("/maquinas/crear", json={"codigo": "SOFT-1", "nombre": "Soft"}).json()
     resp = client.patch(f"/maquinas/{creada['id']}", json={"activa": False})
     assert resp.status_code == 200, resp.text
     assert resp.json()["activa"] is False
 
-    codigos = {m["codigo"] for m in client.get("/maquinas/").json()}
+    codigos = {m["codigo"] for m in client.get("/maquinas/lista").json()}
     assert "SOFT-1" not in codigos
 
 

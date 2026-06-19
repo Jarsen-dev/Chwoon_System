@@ -2560,7 +2560,7 @@ export async function importarPlanEmbarque(token: string, file: File): Promise<a
 // MÁQUINAS EPS — Integración PLC/HMI
 // ==========================================
 export async function getMaquinas(token: string): Promise<MaquinaEstado[]> {
-  const res = await fetch(`${API_URL}/maquinas/`, {
+  const res = await fetch(`${API_URL}/maquinas/lista`, {
     headers: { Authorization: `Bearer ${token}` },
   })
   if (!res.ok) throw new Error('Error cargando máquinas')
@@ -2583,7 +2583,7 @@ export async function getMaquinaEventos(
 }
 
 export async function crearMaquina(token: string, body: MaquinaCreate): Promise<MaquinaEstado> {
-  const res = await fetch(`${API_URL}/maquinas/`, {
+  const res = await fetch(`${API_URL}/maquinas/crear`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify(body),

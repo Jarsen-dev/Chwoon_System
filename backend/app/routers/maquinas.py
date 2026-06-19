@@ -168,7 +168,7 @@ async def registrar_evento(
 
 # ── Alta / edición de máquinas (admin) ────────────────────────────────
 
-@router.post("/", response_model=MaquinaOut, status_code=201)
+@router.post("/crear", response_model=MaquinaOut, status_code=201)
 async def crear_maquina(
     body: MaquinaCreate,
     db: AsyncSession = Depends(get_db),
@@ -207,7 +207,7 @@ async def actualizar_maquina(
 
 # ── Consulta de máquinas + estado en vivo (frontend) ──────────────────
 
-@router.get("/", response_model=List[MaquinaEstadoOut])
+@router.get("/lista", response_model=List[MaquinaEstadoOut])
 async def listar_maquinas(
     db: AsyncSession = Depends(get_db),
     _: Usuario = Depends(get_current_user),
