@@ -197,6 +197,11 @@ const nextConfig: NextConfig = {
         { source: '/logistica/reporte-embarques',                destination: `${BACKEND}/logistica/reporte-embarques` },
         { source: '/logistica/reporte-embarques/',               destination: `${BACKEND}/logistica/reporte-embarques/` },
         { source: '/logistica/limpiar/:path*',                   destination: `${BACKEND}/logistica/limpiar/:path*` },
+
+        // ── MÁQUINAS EPS API (beforeFiles para evitar conflicto con la app page /maquinas) ──
+        // El bare '/maquinas' es la página; estas sub-rutas (1+ segmentos) nunca lo matchean.
+        { source: '/maquinas/:codigo/eventos',                   destination: `${BACKEND}/maquinas/:codigo/eventos` },
+        { source: '/maquinas/:seg',                              destination: `${BACKEND}/maquinas/:seg` },
       ],
 
       afterFiles: [
@@ -264,10 +269,6 @@ const nextConfig: NextConfig = {
         // Productos
         { source: '/productos',                     destination: `${BACKEND}/productos/` },
         { source: '/productos/:path*',              destination: `${BACKEND}/productos/:path*` },
-
-        // Máquinas EPS (integración PLC/HMI)
-        { source: '/maquinas',                      destination: `${BACKEND}/maquinas/` },
-        { source: '/maquinas/:path*',               destination: `${BACKEND}/maquinas/:path*` },
       ],
 
       fallback: [],
