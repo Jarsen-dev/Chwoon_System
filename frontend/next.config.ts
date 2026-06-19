@@ -264,6 +264,10 @@ const nextConfig: NextConfig = {
         // Productos
         { source: '/productos',                     destination: `${BACKEND}/productos/` },
         { source: '/productos/:path*',              destination: `${BACKEND}/productos/:path*` },
+
+        // Máquinas EPS (integración PLC/HMI)
+        { source: '/maquinas',                      destination: `${BACKEND}/maquinas/` },
+        { source: '/maquinas/:path*',               destination: `${BACKEND}/maquinas/:path*` },
       ],
 
       fallback: [],

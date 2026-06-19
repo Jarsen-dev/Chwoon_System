@@ -36,7 +36,9 @@ import {
   OrdenCompraAlmacen,
   LogisticaDashboard,
   ReporteManualInyeccion,
-  ProveedorItem
+  ProveedorItem,
+  MaquinaEstado,
+  MaquinaEvento
 } from '@/types'
 
 const API_URL = ''
@@ -2549,5 +2551,31 @@ export async function importarPlanEmbarque(token: string, file: File): Promise<a
     const err = await res.json().catch(() => ({ detail: 'Error desconocido' }))
     throw new Error(err.detail || 'Error al importar Plan Embarque')
   }
+  return res.json()
+}
+
+// ==========================================
+// MÁQUINAS EPS — Integración PLC/HMI
+// ==========================================
+export async function getMaquinas(token: string): Promise<MaquinaEstado[]> {
+  const res = await fetch(`${API_URL}/maquinas/`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error cargando máquinas')
+  return res.json()
+}
+
+export async function getMaquinaEventos(
+  token: string,
+  codigo: string,
+  limite = 100,
+  tipo?: string,
+): Promise<MaquinaEvento[]> {
+  const params = new URLSearchParams({ limite: String(limite) })
+  if (tipo) params.append('tipo', tipo)
+  const res = await fetch(`${API_URL}/maquinas/${encodeURIComponent(codigo)}/eventos?${params}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error cargando eventos de máquina')
   return res.json()
 }

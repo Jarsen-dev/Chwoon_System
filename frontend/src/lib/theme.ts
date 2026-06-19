@@ -89,6 +89,15 @@ export const MODULE_THEME: Record<string, ModuleTheme> = {
     tabText: 'text-yellow-400',
     tabBorder: 'border-yellow-400',
   },
+  maquinas: {
+    name: 'Máquinas',
+    accent: 'red',
+    spinner: 'border-red-400',
+    navBg: 'bg-red-600',
+    navHover: 'hover:bg-red-700',
+    tabText: 'text-red-400',
+    tabBorder: 'border-red-400',
+  },
 };
 
 // Shared role badges used in headers

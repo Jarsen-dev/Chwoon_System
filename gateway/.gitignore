@@ -1,0 +1,4 @@
+cola_eventos.db
+*.db
+venv/
+__pycache__/

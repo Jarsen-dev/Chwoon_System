@@ -281,13 +281,16 @@ export const TABS_POR_MODULO: Record<string, { id: string; label: string }[]> = 
     { id: 'plan_ventas', label: '📅 Plan Ventas'  },
     { id: 'scanner_iqc', label: '🔍 Scanner IQC'  },
   ],
+  maquinas: [
+    { id: 'eps', label: '🔧 Máquinas EPS' },
+  ],
 }
 
 // Módulos que le corresponden a cada rol
 export const MODULOS_POR_ROL: Record<string, string[]> = {
-  admin:      ['produccion', 'calidad', 'almacen', 'logistica', 'compras', 'ventas'],
-  supervisor: ['produccion'],
-  operador:   ['produccion'],
+  admin:      ['produccion', 'calidad', 'almacen', 'logistica', 'compras', 'ventas', 'maquinas'],
+  supervisor: ['produccion', 'maquinas'],
+  operador:   ['produccion', 'maquinas'],
   calidad:    ['calidad'],
   almacen:    ['almacen'],
   logistica:  ['logistica'],
@@ -1070,4 +1073,38 @@ export interface ReporteManualInyeccion {
   produccion_meta_kg: number
   produccion_porcentaje: number
   scrap_porcentaje: number
+}
+// ==========================================
+// MÁQUINAS EPS — Integración PLC/HMI
+// ==========================================
+export interface MaquinaEstado {
+  id:                    number
+  codigo:                string
+  nombre:                string
+  linea?:                string | null
+  tipo?:                 string | null
+  marca_plc?:            string | null
+  ip_hmi?:               string | null
+  umbral_incidencia_seg: number
+  activa:                boolean
+  counter?:              number | null
+  process_no?:           number | null
+  meta_h?:               number | null
+  estado_actual?:        string | null   // AUTO | MANUAL | DESCONOCIDO
+  incidencias_activas:   string[]
+  piezas_turno:          number
+  ultima_actualizacion?: string | null
+}
+
+export interface MaquinaEvento {
+  id:           number
+  maquina_id:   number
+  tipo_evento:  string   // PIEZA | INCIDENCIA_INICIO | INCIDENCIA_FIN | CAMBIO_ESTADO
+  valor?:       number | null
+  estado?:      string | null
+  operador?:    string | null
+  turno?:       string | null
+  fecha_turno?: string | null
+  metadata?:    Record<string, any>
+  created_at?:  string | null
 }
