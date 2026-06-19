@@ -46,6 +46,7 @@ export default function AdminPage() {
       <Link href="/calidad"  className="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">🔬 Calidad</Link>
       <Link href="/almacen"  className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">📦 Almacén</Link>
       <Link href="/logistica"className="bg-teal-600 hover:bg-teal-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">🚛 Logística</Link>
+      <Link href="/maquinas" className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">⚙️ Máquinas</Link>
       <span className="text-sm font-medium text-yellow-400">{ROL_ICON[rol as RolUsuario]} {username}</span>
       <button onClick={logout} className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">🚪 Salir</button>
     </>

@@ -76,6 +76,7 @@ export default function VentasPage() {
           <Link href="/calidad"   className="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">🔬 Calidad</Link>
           <Link href="/almacen"   className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">📦 Almacén</Link>
           <Link href="/logistica" className="bg-teal-600 hover:bg-teal-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">🚛 Logística</Link>
+          <Link href="/maquinas"  className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">⚙️ Máquinas</Link>
           <Link href="/admin"     className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">👑 Admin</Link>
         </>
       )}

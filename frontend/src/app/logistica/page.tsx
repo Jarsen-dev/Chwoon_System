@@ -69,7 +69,10 @@ export default function LogisticaPage() {
         <Link href="/almacen" className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">📦 Almacén</Link>
       )}
       {rol === 'admin' && (
-        <Link href="/admin" className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">👑 Admin</Link>
+        <>
+          <Link href="/maquinas" className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">⚙️ Máquinas</Link>
+          <Link href="/admin"    className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">👑 Admin</Link>
+        </>
       )}
       <span className={`text-sm font-medium ${badge.color}`}>{badge.icon} {username}</span>
       <button onClick={logout} className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
