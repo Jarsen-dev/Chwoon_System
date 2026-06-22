@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { Card, Badge, Modal, FormInput, Button } from '@/components/ui';
-import { crearMaquina, actualizarMaquina } from '@/lib/api';
-import type { MaquinaEstado } from '@/types';
+import { crearMaquina, actualizarMaquina, getMaquinaEventos } from '@/lib/api';
+import type { MaquinaEstado, MaquinaEvento } from '@/types';
 
 interface Props {
   maquinas: MaquinaEstado[];
@@ -43,12 +43,40 @@ function formatoHora(iso?: string | null): string {
   return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
 
+function formatoFechaHora(iso?: string | null): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleString('es-MX', {
+    day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit',
+  });
+}
+
 export default function MaquinasEPSTab({ maquinas, onRefresh, token, isAdmin }: Props) {
   const [modalAbierto, setModalAbierto] = useState(false);
   const [editandoId, setEditandoId] = useState<number | null>(null);
   const [form, setForm] = useState<FormState>(FORM_VACIO);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
+
+  // Modal de historial de incidencias por máquina
+  const [incMaquina, setIncMaquina] = useState<MaquinaEstado | null>(null);
+  const [incEventos, setIncEventos] = useState<MaquinaEvento[]>([]);
+  const [incCargando, setIncCargando] = useState(false);
+
+  const abrirIncidencias = async (m: MaquinaEstado) => {
+    setIncMaquina(m);
+    setIncEventos([]);
+    setIncCargando(true);
+    try {
+      const data = await getMaquinaEventos(token, m.codigo, 100, 'INCIDENCIA');
+      setIncEventos(data);
+    } catch {
+      setIncEventos([]);
+    } finally {
+      setIncCargando(false);
+    }
+  };
 
   const abrirAlta = () => {
     setEditandoId(null);
@@ -173,6 +201,13 @@ export default function MaquinasEPSTab({ maquinas, onRefresh, token, isAdmin }: 
                   </div>
                   <div className="flex items-center gap-1.5">
                     {estadoBadge(m)}
+                    <button
+                      onClick={() => abrirIncidencias(m)}
+                      title="Historial de incidencias"
+                      className="text-gray-400 hover:text-white text-sm transition-colors"
+                    >
+                      📋
+                    </button>
                     {isAdmin && (
                       <>
                         <button
@@ -281,6 +316,57 @@ export default function MaquinasEPSTab({ maquinas, onRefresh, token, isAdmin }: 
           />
         </div>
         {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
+      </Modal>
+
+      {/* Modal de historial de incidencias */}
+      <Modal
+        open={incMaquina !== null}
+        onClose={() => setIncMaquina(null)}
+        title={incMaquina ? `Incidencias — ${incMaquina.nombre}` : 'Incidencias'}
+        footer={
+          <div className="flex justify-end">
+            <Button variant="secondary" onClick={() => setIncMaquina(null)}>Cerrar</Button>
+          </div>
+        }
+      >
+        {incCargando ? (
+          <p className="text-sm text-gray-400 py-6 text-center">Cargando incidencias…</p>
+        ) : incEventos.length === 0 ? (
+          <p className="text-sm text-gray-400 py-6 text-center">Sin incidencias registradas.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-gray-500 border-b border-gray-800">
+                  <th className="py-2 pr-3">Fecha/hora</th>
+                  <th className="py-2 pr-3">Incidencia</th>
+                  <th className="py-2 pr-3">Evento</th>
+                  <th className="py-2 text-right">Duración</th>
+                </tr>
+              </thead>
+              <tbody>
+                {incEventos.map((ev) => {
+                  const esFin = ev.tipo_evento === 'INCIDENCIA_FIN';
+                  const dur = ev.metadata?.duracion_seg;
+                  return (
+                    <tr key={ev.id} className="border-b border-gray-800/50">
+                      <td className="py-2 pr-3 text-gray-300 whitespace-nowrap">{formatoFechaHora(ev.created_at)}</td>
+                      <td className="py-2 pr-3 text-white">{ev.metadata?.incidencia ?? '—'}</td>
+                      <td className="py-2 pr-3">
+                        <Badge variant={esFin ? 'muted' : 'error'}>
+                          {esFin ? 'Fin' : 'Inicio'}
+                        </Badge>
+                      </td>
+                      <td className="py-2 text-right text-gray-300 whitespace-nowrap">
+                        {dur != null ? `${dur}s` : '—'}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Modal>
     </div>
   );

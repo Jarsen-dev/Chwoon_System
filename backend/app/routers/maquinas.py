@@ -24,6 +24,7 @@ from app.models.maquina_evento import MaquinaEvento
 from app.models.usuario import Usuario
 from app.schemas.maquina import (
     EventoIn, EventoOut, MaquinaEstadoOut, MaquinaOut, MaquinaCreate, MaquinaUpdate,
+    TelemetriaIn,
 )
 
 router = APIRouter(prefix="/maquinas", tags=["maquinas"])
@@ -166,6 +167,38 @@ async def registrar_evento(
     return {"ok": True, "id": evento.id}
 
 
+# ── Telemetría en vivo (gateway, API key) — efímera, no se persiste ────
+
+@router.post("/telemetria")
+async def registrar_telemetria(
+    body: TelemetriaIn,
+    _: None = Depends(verify_gateway_key),
+):
+    """Actualiza el snapshot en vivo (paso del ciclo, counter, meta, estado) y lo
+    difunde por WS, sin persistir filas ni tocar incidencias activas. Permite que el
+    dashboard muestre el "Paso" cambiando entre piezas, manteniendo la granularidad de
+    eventos persistidos en "solo cambios significativos".
+    """
+    st = estado_vivo.setdefault(body.maquina_codigo, _estado_default())
+    if body.counter is not None:
+        st["counter"] = body.counter
+    if body.process_no is not None:
+        st["process_no"] = body.process_no
+    if body.meta_h is not None:
+        st["meta_h"] = body.meta_h
+    if body.estado:
+        st["estado_actual"] = body.estado
+    st["ultima_actualizacion"] = ahora_local().isoformat()
+
+    await manager.broadcast({
+        "type": "maquina_update",
+        "maquina": body.maquina_codigo,
+        "tipo_evento": "TELEMETRIA",
+        "estado": dict(st),
+    })
+    return {"ok": True}
+
+
 # ── Alta / edición de máquinas (admin) ────────────────────────────────
 
 @router.post("/crear", response_model=MaquinaOut, status_code=201)
@@ -267,7 +300,12 @@ async def historial_eventos(
         .order_by(MaquinaEvento.id.desc())
         .limit(min(limite, 500))
     )
-    if tipo:
+    if tipo == "INCIDENCIA":
+        # Familia completa de incidencias (inicio + fin) para el historial por máquina.
+        query = query.where(
+            MaquinaEvento.tipo_evento.in_(["INCIDENCIA_INICIO", "INCIDENCIA_FIN"])
+        )
+    elif tipo:
         query = query.where(MaquinaEvento.tipo_evento == tipo)
 
     result = await db.execute(query)

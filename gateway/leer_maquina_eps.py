@@ -26,6 +26,7 @@ from datetime import datetime
 
 import requests
 from pymodbus.client import ModbusTcpClient
+from pymodbus.exceptions import ModbusException
 
 # ---------- CONFIGURACIÓN (vía variables de entorno) ----------
 HMI_IP = os.getenv("HMI_IP", "192.168.0.132")
@@ -38,9 +39,18 @@ GATEWAY_API_KEY = os.getenv("GATEWAY_API_KEY", "")
 MAQUINA_CODIGO = os.getenv("MAQUINA_CODIGO", "SHM-1234VS")
 OPERADOR = os.getenv("OPERADOR") or None
 UMBRAL_INCIDENCIA_SEG = float(os.getenv("UMBRAL_INCIDENCIA_SEG", "8"))
+# La PRESION HIDRAULICA ALTA se dispara cíclicamente 49-51 s en cada ciclo normal;
+# solo cuenta como incidencia real si supera este umbral (override por bit).
+UMBRAL_HI_PRESION_SEG = float(os.getenv("UMBRAL_HI_PRESION_SEG", "55"))
+UMBRALES_INCIDENCIA = {"hi_presion": UMBRAL_HI_PRESION_SEG}
 HTTP_TIMEOUT = float(os.getenv("HTTP_TIMEOUT", "5"))
 MODBUS_TIMEOUT = float(os.getenv("MODBUS_TIMEOUT", "5"))   # timeout de conexión/lectura Modbus
 RECONEXION_SEG = float(os.getenv("RECONEXION_SEG", "5"))   # espera entre reintentos de connect()
+
+
+def umbral_de(bit: str) -> float:
+    """Umbral de debounce en segundos para un bit de incidencia (override por bit)."""
+    return UMBRALES_INCIDENCIA.get(bit, UMBRAL_INCIDENCIA_SEG)
 
 COLA_DB = os.getenv("COLA_DB", os.path.join(os.path.dirname(__file__), "cola_eventos.db"))
 
@@ -144,6 +154,30 @@ def enviar_evento(conn: sqlite3.Connection, tipo_evento: str, *,
         print(f"[COLA] Evento {tipo_evento} encolado localmente (red caída).")
 
 
+def enviar_telemetria(counter, process_no, meta_h, estado) -> None:
+    """Envía el estado en vivo (paso del ciclo, counter, meta, estado) al backend.
+
+    Es efímera: actualiza el snapshot en vivo para que el dashboard muestre el "Paso"
+    cambiando entre piezas. Fire-and-forget — si falla, no se encola (se reenvía en el
+    próximo cambio). NO envía incidencias: esas las maneja el debounce con su umbral.
+    """
+    try:
+        requests.post(
+            f"{BACKEND_URL}/maquinas/telemetria",
+            json={
+                "maquina_codigo": MAQUINA_CODIGO,
+                "counter": counter,
+                "process_no": process_no,
+                "meta_h": meta_h,
+                "estado": estado,
+            },
+            headers={"X-API-Key": GATEWAY_API_KEY},
+            timeout=2,
+        )
+    except requests.RequestException:
+        pass  # telemetría efímera; se reintenta en el próximo cambio
+
+
 # ════════════════════════════════════════════════════════════════════
 # Lectura Modbus
 # ════════════════════════════════════════════════════════════════════
@@ -229,10 +263,12 @@ def main():
     client = ModbusTcpClient(HMI_IP, port=HMI_PORT, timeout=MODBUS_TIMEOUT)
     conectar_con_reintento(client)
 
-    print(f"Conectado. Umbral incidencia: {UMBRAL_INCIDENCIA_SEG}s. Ctrl+C para detener.\n")
+    print(f"Conectado. Umbral incidencia: {UMBRAL_INCIDENCIA_SEG}s "
+          f"(PRESION ALTA: {UMBRAL_HI_PRESION_SEG}s). Ctrl+C para detener.\n")
 
     counter_anterior = None
     estado_anterior = None
+    tele_anterior = None                             # (process_no, estado, counter) último enviado
     primer_ciclo = True                              # para el log de verificación de mapeo
     incidencia_activa_desde: dict[str, float] = {}   # bit → timestamp en que se activó
     incidencia_reportada: set[str] = set()           # incidencias ya emitidas como INICIO
@@ -243,9 +279,12 @@ def main():
 
             try:
                 datos = leer_maquina(client)
-            except ConnectionError as e:
-                # Socket posiblemente muerto (HMI reiniciado, cable suelto): reconectar.
+            except (ConnectionError, ModbusException) as e:
+                # Cable desconectado, HMI reiniciado o timeout Modbus: el socket queda
+                # muerto. Cerramos y reconectamos (fuerza socket fresco y resincroniza el
+                # contador de transacciones, lo que limpia los desfases transaction_id).
                 print(f"[ERROR] {e} — reconectando en {RECONEXION_SEG}s")
+                client.close()
                 time.sleep(RECONEXION_SEG)
                 conectar_con_reintento(client)
                 continue
@@ -256,6 +295,14 @@ def main():
 
             ahora = time.monotonic()
             estado = estado_de(datos)
+
+            # --- Telemetría en vivo: "Paso" del ciclo entre piezas ---
+            # Se envía solo cuando cambia el paso, el estado o el counter (throttle natural).
+            tele_actual = (datos["process_no"], estado, datos["counter"])
+            if tele_actual != tele_anterior:
+                enviar_telemetria(datos["counter"], datos["process_no"],
+                                  datos["hora_meta"], estado)
+                tele_anterior = tele_actual
 
             # --- Flanco de COUNTER → nueva pieza ---
             if counter_anterior is not None and datos["counter"] != counter_anterior:
@@ -280,9 +327,9 @@ def main():
                     # bit activo: registra el inicio si es nuevo
                     if bit not in incidencia_activa_desde:
                         incidencia_activa_desde[bit] = ahora
-                    # ¿lleva sostenido ≥ umbral y aún no se reportó?
+                    # ¿lleva sostenido ≥ umbral (override por bit) y aún no se reportó?
                     elif (bit not in incidencia_reportada
-                          and ahora - incidencia_activa_desde[bit] >= UMBRAL_INCIDENCIA_SEG):
+                          and ahora - incidencia_activa_desde[bit] >= umbral_de(bit)):
                         incidencia_reportada.add(bit)
                         enviar_evento(conn, "INCIDENCIA_INICIO", estado=estado,
                                       metadata={"incidencia": etiqueta,
