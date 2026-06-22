@@ -39,6 +39,8 @@ MAQUINA_CODIGO = os.getenv("MAQUINA_CODIGO", "SHM-1234VS")
 OPERADOR = os.getenv("OPERADOR") or None
 UMBRAL_INCIDENCIA_SEG = float(os.getenv("UMBRAL_INCIDENCIA_SEG", "8"))
 HTTP_TIMEOUT = float(os.getenv("HTTP_TIMEOUT", "5"))
+MODBUS_TIMEOUT = float(os.getenv("MODBUS_TIMEOUT", "5"))   # timeout de conexión/lectura Modbus
+RECONEXION_SEG = float(os.getenv("RECONEXION_SEG", "5"))   # espera entre reintentos de connect()
 
 COLA_DB = os.getenv("COLA_DB", os.path.join(os.path.dirname(__file__), "cola_eventos.db"))
 
@@ -102,7 +104,11 @@ def _post(payload: dict) -> bool:
         )
         if resp.status_code // 100 == 2:
             return True
-        print(f"[WARN] Backend respondió {resp.status_code}: {resp.text[:120]}")
+        if resp.status_code == 404:
+            print(f"[ERROR] Máquina '{MAQUINA_CODIGO}' no está registrada en el backend. "
+                  f"Aplica la migración (siembra SHM-1234VS) o dala de alta en /maquinas.")
+        else:
+            print(f"[WARN] Backend respondió {resp.status_code}: {resp.text[:120]}")
         return False
     except requests.RequestException as e:
         print(f"[WARN] No se pudo enviar al backend: {e}")
@@ -181,6 +187,34 @@ def estado_de(datos: dict) -> str:
     return "AUTO" if datos["auto"] else ("MANUAL" if datos["manual"] else "DESCONOCIDO")
 
 
+def log_valores_crudos(datos: dict) -> None:
+    """Imprime una vez los valores leídos para verificar el mapeo Modbus.
+
+    Si counter/process_no/meta salen en 0 o absurdos, el problema es el offset
+    de "Mapeando tablas" del MODBUS Server en el HMI, no este script.
+    """
+    incidencias = [k for k in INCIDENCIAS if datos.get(k)]
+    print("[VERIFICACIÓN] Primer ciclo leído del HMI:")
+    print(f"    counter={datos['counter']}  process_no={datos['process_no']}  "
+          f"meta/h={datos['hora_meta']}")
+    print(f"    estado={estado_de(datos)}  auto={datos['auto']} manual={datos['manual']}")
+    print(f"    incidencias_activas={incidencias or '—'}")
+    print("    (si counter/process_no/meta salen en 0 o absurdos → revisar el mapeo "
+          "Modbus del HMI, no el script)\n")
+
+
+def conectar_con_reintento(client: ModbusTcpClient) -> None:
+    """Bloquea hasta lograr conectar al HMI, reintentando con backoff fijo.
+
+    Evita que un arranque del gateway antes de que el HMI esté listo mate el
+    proceso (antes hacía `return` al primer fallo).
+    """
+    while not client.connect():
+        print(f"[WARN] No se pudo conectar al HMI {HMI_IP}:{HMI_PORT}. "
+              f"Verifica cable/WiFi apagado/Modbus Server. Reintento en {RECONEXION_SEG}s…")
+        time.sleep(RECONEXION_SEG)
+
+
 # ════════════════════════════════════════════════════════════════════
 # Loop principal
 # ════════════════════════════════════════════════════════════════════
@@ -192,15 +226,14 @@ def main():
 
     conn = init_cola()
     print(f"Conectando a HMI {HMI_IP}:{HMI_PORT} ... backend={BACKEND_URL} maquina={MAQUINA_CODIGO}")
-    client = ModbusTcpClient(HMI_IP, port=HMI_PORT)
-    if not client.connect():
-        print("No se pudo conectar al HMI. Verifica IP, cable y Modbus Server activo.")
-        return
+    client = ModbusTcpClient(HMI_IP, port=HMI_PORT, timeout=MODBUS_TIMEOUT)
+    conectar_con_reintento(client)
 
     print(f"Conectado. Umbral incidencia: {UMBRAL_INCIDENCIA_SEG}s. Ctrl+C para detener.\n")
 
     counter_anterior = None
     estado_anterior = None
+    primer_ciclo = True                              # para el log de verificación de mapeo
     incidencia_activa_desde: dict[str, float] = {}   # bit → timestamp en que se activó
     incidencia_reportada: set[str] = set()           # incidencias ya emitidas como INICIO
 
@@ -211,9 +244,15 @@ def main():
             try:
                 datos = leer_maquina(client)
             except ConnectionError as e:
-                print(f"[ERROR] {e} — reintentando en {INTERVALO_SEGUNDOS}s")
-                time.sleep(INTERVALO_SEGUNDOS)
+                # Socket posiblemente muerto (HMI reiniciado, cable suelto): reconectar.
+                print(f"[ERROR] {e} — reconectando en {RECONEXION_SEG}s")
+                time.sleep(RECONEXION_SEG)
+                conectar_con_reintento(client)
                 continue
+
+            if primer_ciclo:
+                log_valores_crudos(datos)
+                primer_ciclo = False
 
             ahora = time.monotonic()
             estado = estado_de(datos)
