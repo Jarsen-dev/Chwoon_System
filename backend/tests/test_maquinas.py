@@ -115,3 +115,40 @@ def test_patch_desactiva_oculta_de_lista(client):
 def test_patch_maquina_inexistente_404(client):
     resp = client.patch("/maquinas/999999", json={"nombre": "x"})
     assert resp.status_code == 404, resp.text
+
+
+def test_telemetria_actualiza_estado_en_vivo(client, gateway_ok):
+    _seed_maquina(codigo="TELE-1")
+    resp = client.post("/maquinas/telemetria", json={
+        "maquina_codigo": "TELE-1",
+        "counter": 50,
+        "process_no": 12,
+        "meta_h": 44,
+        "estado": "AUTO",
+    })
+    assert resp.status_code == 200, resp.text
+
+    # El snapshot en vivo debe reflejarse en GET /maquinas/lista sin persistir un evento
+    data = client.get("/maquinas/lista").json()
+    m = next(x for x in data if x["codigo"] == "TELE-1")
+    assert m["process_no"] == 12
+    assert m["counter"] == 50
+    assert m["estado_actual"] == "AUTO"
+    assert m["piezas_turno"] == 0   # telemetría no cuenta como pieza
+
+
+def test_eventos_filtro_familia_incidencia(client, gateway_ok):
+    _seed_maquina(codigo="INC-1")
+    client.post("/maquinas/evento", json={
+        "maquina_codigo": "INC-1", "tipo_evento": "PIEZA", "valor": 1})
+    client.post("/maquinas/evento", json={
+        "maquina_codigo": "INC-1", "tipo_evento": "INCIDENCIA_INICIO",
+        "metadata": {"incidencia": "PRESION HIDRAULICA ALTA"}})
+    client.post("/maquinas/evento", json={
+        "maquina_codigo": "INC-1", "tipo_evento": "INCIDENCIA_FIN",
+        "metadata": {"incidencia": "PRESION HIDRAULICA ALTA", "duracion_seg": 60}})
+
+    eventos = client.get("/maquinas/INC-1/eventos?tipo=INCIDENCIA").json()
+    tipos = {e["tipo_evento"] for e in eventos}
+    assert tipos == {"INCIDENCIA_INICIO", "INCIDENCIA_FIN"}
+    assert len(eventos) == 2   # la PIEZA queda excluida del filtro

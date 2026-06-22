@@ -19,6 +19,15 @@ class EventoIn(BaseModel):
     metadata:       Dict[str, Any] = Field(default_factory=dict)
 
 
+class TelemetriaIn(BaseModel):
+    """Estado en vivo efímero (no se persiste): paso del ciclo, counter, meta, estado."""
+    maquina_codigo: str
+    counter:        Optional[int] = None
+    process_no:     Optional[int] = None
+    meta_h:         Optional[int] = None
+    estado:         Optional[str] = None
+
+
 class EventoOut(BaseModel):
     id:          int
     maquina_id:  int
