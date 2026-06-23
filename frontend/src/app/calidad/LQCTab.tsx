@@ -10,6 +10,11 @@ import {
   descargarPdfInspeccion,
 } from '@/lib/api';
 import type { PuntoResultado, ProductoPuntosInspeccion, CaracteristicasInyeccion } from '@/types';
+import { Button } from '@/components/ui';
+import {
+  IconProduccion, IconCalidad, IconCamara, IconInventario, IconInyeccion,
+  IconDocumento, IconOk, IconCerrar, IconAlertas, IconBuscar, IconPendiente,
+} from '@/lib/icons';
 
 interface Props {
   token: string;
@@ -331,7 +336,7 @@ export default function LQCTab({ token }: Props) {
       });
 
       setUltimaInspeccionId(res.inspeccion_id);
-      setSuccess(`✅ Inspección LQC ${res.inspeccion_id} — Resultado: ${resultado}`);
+      setSuccess(`Inspección LQC ${res.inspeccion_id} — Resultado: ${resultado}`);
       setModo('resultado');
     } catch (err: any) {
       setError(err.message || 'Error al registrar inspección');
@@ -372,14 +377,14 @@ export default function LQCTab({ token }: Props) {
       {/* Mensajes */}
       {error && (
         <div className="bg-red-900/30 border border-red-500/50 rounded-xl p-4 flex items-center justify-between">
-          <p className="text-red-400">❌ {error}</p>
-          <button onClick={() => setError('')} className="text-red-400 hover:text-red-300">✕</button>
+          <p className="text-red-400 flex items-center gap-2"><IconAlertas size={16} aria-hidden /> {error}</p>
+          <button onClick={() => setError('')} className="text-red-400 hover:text-red-300" aria-label="Cerrar"><IconCerrar size={16} aria-hidden /></button>
         </div>
       )}
       {success && (
         <div className="bg-green-900/30 border border-green-500/50 rounded-xl p-4 flex items-center justify-between">
-          <p className="text-green-400">{success}</p>
-          <button onClick={() => setSuccess('')} className="text-green-400 hover:text-green-300">✕</button>
+          <p className="text-green-400 flex items-center gap-2"><IconOk size={16} aria-hidden /> {success}</p>
+          <button onClick={() => setSuccess('')} className="text-green-400 hover:text-green-300" aria-label="Cerrar"><IconCerrar size={16} aria-hidden /></button>
         </div>
       )}
 
@@ -387,8 +392,8 @@ export default function LQCTab({ token }: Props) {
       {modo === 'scanner' && (
         <div className="space-y-6">
           <div>
-            <h2 className="text-2xl font-bold flex items-center gap-2">🏭 Inspección LQC</h2>
-            <p className="text-gray-400 text-sm mt-1">
+            <h2 className="text-2xl font-bold flex items-center gap-2"><IconProduccion size={24} className="text-[var(--accent)]" aria-hidden /> Inspección LQC</h2>
+            <p className="text-gray-300 text-sm mt-1">
               Escanee el código QR del carrito de inyección para iniciar la inspección en línea
             </p>
           </div>
@@ -438,28 +443,18 @@ export default function LQCTab({ token }: Props) {
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold flex items-center gap-2">🏭 LQC — Información del Lote</h2>
-              <p className="text-gray-400 text-sm mt-1">Verifique los datos antes de iniciar la inspección</p>
+              <h2 className="text-2xl font-bold flex items-center gap-2"><IconProduccion size={24} className="text-[var(--accent)]" aria-hidden /> LQC — Información del Lote</h2>
+              <p className="text-gray-300 text-sm mt-1">Verifique los datos antes de iniciar la inspección</p>
             </div>
             <div className="flex gap-3">
-              <button
-                onClick={nuevoEscaneo}
-                className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm transition-colors"
-              >
-                ← Escanear otro
-              </button>
-              <button
-                onClick={iniciarInspeccion}
-                className="bg-purple-600 hover:bg-purple-700 px-6 py-2 rounded-lg text-sm font-medium transition-colors"
-              >
-                🔬 Iniciar Inspección LQC
-              </button>
+              <Button variant="secondary" onClick={nuevoEscaneo}>Escanear otro</Button>
+              <Button onClick={iniciarInspeccion} leftIcon={IconCalidad}>Iniciar Inspección LQC</Button>
             </div>
           </div>
 
           {/* Datos del QR escaneado */}
           <div className="bg-gray-900 rounded-xl border border-purple-500/30 p-6 space-y-3">
-            <h3 className="text-lg font-semibold text-purple-400">📷 Datos del QR</h3>
+            <h3 className="text-lg font-semibold text-purple-400 flex items-center gap-2"><IconCamara size={18} aria-hidden /> Datos del QR</h3>
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4 text-sm">
               <div>
                 <span className="text-gray-400 block">No. Parte</span>
@@ -490,7 +485,7 @@ export default function LQCTab({ token }: Props) {
           {/* Producto */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-gray-900 rounded-xl border border-gray-700 p-6 space-y-3">
-              <h3 className="text-lg font-semibold text-purple-400">📦 Producto</h3>
+              <h3 className="text-lg font-semibold text-purple-400 flex items-center gap-2"><IconInventario size={18} aria-hidden /> Producto</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-400">SKU:</span>
@@ -529,7 +524,7 @@ export default function LQCTab({ token }: Props) {
 
             {/* Características de Inyección */}
             <div className="bg-gray-900 rounded-xl border border-gray-700 p-6 space-y-3">
-              <h3 className="text-lg font-semibold text-pink-400">💉 Características Inyección</h3>
+              <h3 className="text-lg font-semibold text-pink-400 flex items-center gap-2"><IconInyeccion size={18} aria-hidden /> Características Inyección</h3>
               {loteInfo.caracteristicas_inyeccion && Object.keys(loteInfo.caracteristicas_inyeccion).length > 0 ? (
                 <div className="space-y-2 text-sm">
                   {loteInfo.caracteristicas_inyeccion.id_proceso && (
@@ -566,7 +561,7 @@ export default function LQCTab({ token }: Props) {
           {/* Puntos de inspección disponibles */}
           {puntosProducto && puntosProducto.puntos_inspeccion_lqc && puntosProducto.puntos_inspeccion_lqc.length > 0 && (
             <div className="bg-gray-900 rounded-xl border border-gray-700 p-6">
-              <h3 className="text-lg font-semibold text-yellow-400 mb-3">📋 Puntos de Inspección LQC</h3>
+              <h3 className="text-lg font-semibold text-yellow-400 mb-3 flex items-center gap-2"><IconDocumento size={18} aria-hidden /> Puntos de Inspección LQC</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 {puntosProducto.puntos_inspeccion_lqc.map((p: any, i: number) => (
                   <div key={i} className="bg-gray-800 rounded-lg px-4 py-2 text-sm flex items-center gap-2">
@@ -588,18 +583,13 @@ export default function LQCTab({ token }: Props) {
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold flex items-center gap-2">🔬 Inspección LQC en Curso</h2>
+              <h2 className="text-2xl font-bold flex items-center gap-2"><IconCalidad size={24} className="text-[var(--accent)]" aria-hidden /> Inspección LQC en Curso</h2>
               <p className="text-gray-400 text-sm mt-1">
                 <span className="font-mono text-purple-400">{loteInfo.numero_parte_completo}</span>
                 {' — '}{loteInfo.sku_producto} — {loteInfo.nombre_producto || 'N/A'}
               </p>
             </div>
-            <button
-              onClick={() => setModo('info')}
-              className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm transition-colors"
-            >
-              ← Volver a Info
-            </button>
+            <Button variant="secondary" onClick={() => setModo('info')}>Volver a Info</Button>
           </div>
 
           {/* Tabla de puntos de inspección */}
@@ -627,23 +617,23 @@ export default function LQCTab({ token }: Props) {
                         <div className="flex gap-2 justify-center">
                           <button
                             onClick={() => actualizarPunto(idx, 'Conforme')}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                               punto.resultado === 'Conforme'
                                 ? 'bg-green-600 text-white'
-                                : 'bg-gray-700 text-gray-400 hover:bg-green-800 hover:text-green-300'
+                                : 'bg-gray-700 text-gray-300 hover:bg-green-800 hover:text-green-300'
                             }`}
                           >
-                            ✅ Conforme
+                            <IconOk size={14} aria-hidden /> Conforme
                           </button>
                           <button
                             onClick={() => actualizarPunto(idx, 'No Conforme')}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                               punto.resultado === 'No Conforme'
                                 ? 'bg-red-600 text-white'
-                                : 'bg-gray-700 text-gray-400 hover:bg-red-800 hover:text-red-300'
+                                : 'bg-gray-700 text-gray-300 hover:bg-red-800 hover:text-red-300'
                             }`}
                           >
-                            ❌ No Conforme
+                            <IconCerrar size={14} aria-hidden /> No Conforme
                           </button>
                         </div>
                       </td>
@@ -654,14 +644,14 @@ export default function LQCTab({ token }: Props) {
             </div>
           ) : (
             <div className="bg-gray-900 rounded-xl border border-yellow-500/30 p-6 text-center">
-              <p className="text-yellow-400">⚠️ Este producto no tiene puntos de inspección LQC configurados.</p>
-              <p className="text-gray-400 text-sm mt-2">La inspección se registrará sin puntos de evaluación.</p>
+              <p className="text-yellow-400 flex items-center justify-center gap-2"><IconAlertas size={16} aria-hidden /> Este producto no tiene puntos de inspección LQC configurados.</p>
+              <p className="text-gray-300 text-sm mt-2">La inspección se registrará sin puntos de evaluación.</p>
             </div>
           )}
 
           {/* Notas */}
           <div className="bg-gray-900 rounded-xl border border-gray-700 p-6">
-            <label className="block text-sm font-semibold text-gray-300 mb-2">📝 Notas (opcional)</label>
+            <label className="block text-sm font-semibold text-gray-300 mb-2 flex items-center gap-2"><IconDocumento size={16} aria-hidden /> Notas (opcional)</label>
             <textarea
               value={notas}
               onChange={(e) => setNotas(e.target.value)}
@@ -682,25 +672,22 @@ export default function LQCTab({ token }: Props) {
               </p>
               <p className="text-sm mt-1">
                 Resultado esperado:{' '}
-                <span className={`font-bold ${
-                  !todosEvaluados ? 'text-gray-500' :
+                <span className={`inline-flex items-center gap-1 font-bold ${
+                  !todosEvaluados ? 'text-gray-400' :
                   calcularResultadoFinal() === 'Aprobado' ? 'text-green-400' : 'text-red-400'
                 }`}>
-                  {!todosEvaluados ? 'Pendiente...' : calcularResultadoFinal() === 'Aprobado' ? '✅ APROBADO' : '❌ RECHAZADO'}
+                  {!todosEvaluados ? 'Pendiente...' : calcularResultadoFinal() === 'Aprobado' ? <><IconOk size={14} aria-hidden /> APROBADO</> : <><IconCerrar size={14} aria-hidden /> RECHAZADO</>}
                 </span>
               </p>
             </div>
-            <button
+            <Button
+              size="lg"
               onClick={enviarInspeccion}
               disabled={loading || (!todosEvaluados && resultadosPuntos.length > 0)}
-              className={`px-8 py-3 rounded-lg font-medium text-sm transition-colors ${
-                loading || (!todosEvaluados && resultadosPuntos.length > 0)
-                  ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                  : 'bg-purple-600 hover:bg-purple-700 text-white'
-              }`}
+              leftIcon={loading ? IconPendiente : IconOk}
             >
-              {loading ? '⏳ Registrando...' : '📤 Registrar Inspección LQC'}
-            </button>
+              {loading ? 'Registrando...' : 'Registrar Inspección LQC'}
+            </Button>
           </div>
         </div>
       )}
@@ -713,8 +700,10 @@ export default function LQCTab({ token }: Props) {
               ? 'bg-green-900/20 border-green-500/50'
               : 'bg-red-900/20 border-red-500/50'
           }`}>
-            <div className="text-6xl mb-4">
-              {calcularResultadoFinal() === 'Aprobado' ? '✅' : '❌'}
+            <div className="flex justify-center mb-4">
+              {calcularResultadoFinal() === 'Aprobado'
+                ? <IconOk size={56} className="text-green-400" aria-hidden />
+                : <IconCerrar size={56} className="text-red-400" aria-hidden />}
             </div>
             <h2 className={`text-3xl font-bold ${
               calcularResultadoFinal() === 'Aprobado' ? 'text-green-400' : 'text-red-400'
@@ -734,19 +723,9 @@ export default function LQCTab({ token }: Props) {
 
           <div className="flex justify-center gap-4">
             {ultimaInspeccionId && (
-              <button
-                onClick={handleDescargarPdf}
-                className="bg-purple-600 hover:bg-purple-700 px-6 py-3 rounded-lg text-sm font-medium transition-colors"
-              >
-                📄 Descargar PDF
-              </button>
+              <Button size="lg" variant="secondary" onClick={handleDescargarPdf} leftIcon={IconDocumento}>Descargar PDF</Button>
             )}
-            <button
-              onClick={nuevoEscaneo}
-              className="bg-purple-600 hover:bg-purple-700 px-6 py-3 rounded-lg text-sm font-medium transition-colors"
-            >
-              🔍 Escanear Otro Lote
-            </button>
+            <Button size="lg" onClick={nuevoEscaneo} leftIcon={IconBuscar}>Escanear Otro Lote</Button>
           </div>
         </div>
       )}
@@ -756,11 +735,11 @@ export default function LQCTab({ token }: Props) {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
           <div className="bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-gray-800">📷 Escanear QR</h3>
+              <h3 className="text-base font-bold text-white flex items-center gap-2"><IconCamara size={18} aria-hidden /> Escanear QR</h3>
               <button
                 onClick={cerrarScanner}
-                className="text-gray-400 hover:text-gray-700 text-xl leading-none"
-              >✖</button>
+                className="text-gray-400 hover:text-white leading-none" aria-label="Cerrar"
+              ><IconCerrar size={20} aria-hidden /></button>
             </div>
             <div
               ref={scannerContainerRef}
@@ -769,7 +748,7 @@ export default function LQCTab({ token }: Props) {
             />
             {scannerError && (
               <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm">
-                <p className="font-semibold">⚠️ Error de cámara</p>
+                <p className="font-semibold flex items-center gap-1"><IconAlertas size={14} aria-hidden /> Error de cámara</p>
                 <p className="text-xs">{scannerError}</p>
               </div>
             )}
