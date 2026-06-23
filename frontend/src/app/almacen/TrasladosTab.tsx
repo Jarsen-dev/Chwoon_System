@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { getTrasladosProduccion, getHistorialTrasladosProduccion, ejecutarMovimientoParcial } from '@/lib/api';
 import { TrasladoProduccion } from '@/types';
+import { Button, Modal, LoadingSpinner } from '@/components/ui';
+import { IconTraslados, IconLista, IconHistorial, IconEjecutar } from '@/lib/icons';
 
 interface Props {
   token: string;
@@ -91,22 +93,24 @@ export default function TrasladosTab({ token }: Props) {
       )}
 
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-bold">🔄 Traslados a Producción</h2>
+        <h2 className="text-xl font-bold flex items-center gap-2">
+          <IconTraslados size={22} className="text-[var(--accent)]" aria-hidden /> Traslados a Producción
+        </h2>
         <div className="flex gap-2">
           <button onClick={() => setVista('activos')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium ${vista === 'activos' ? 'bg-orange-600' : 'bg-gray-800 text-gray-400'}`}>
-            📋 Activos
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium ${vista === 'activos' ? 'bg-[var(--accent)] text-[var(--accent-fg)]' : 'bg-gray-800 text-gray-300'}`}>
+            <IconLista size={16} aria-hidden /> Activos
           </button>
           <button onClick={() => setVista('historial')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium ${vista === 'historial' ? 'bg-orange-600' : 'bg-gray-800 text-gray-400'}`}>
-            📜 Historial
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium ${vista === 'historial' ? 'bg-[var(--accent)] text-[var(--accent-fg)]' : 'bg-gray-800 text-gray-300'}`}>
+            <IconHistorial size={16} aria-hidden /> Historial
           </button>
         </div>
       </div>
 
       {loading ? (
         <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-400" />
+          <LoadingSpinner sizeClass="h-10 w-10" />
         </div>
       ) : (
         <div className="space-y-4">
@@ -115,15 +119,14 @@ export default function TrasladosTab({ token }: Props) {
               <div className="flex justify-between items-start mb-3">
                 <div>
                   <span className="font-mono text-orange-400 text-sm">{t.id_traslado}</span>
-                  <div className="text-xs text-gray-400 mt-1">OP: {t.op_id_origen} → {t.linea_produccion_destino || 'N/A'}</div>
+                  <div className="text-xs text-gray-300 mt-1 font-mono">OP: {t.op_id_origen} → {t.linea_produccion_destino || 'N/A'}</div>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className={`px-2 py-0.5 rounded-full text-xs ${statusBadge(t.status)}`}>{t.status}</span>
                   {t.status !== 'Completado' && (
-                    <button onClick={() => abrirEjecutar(t)}
-                      className="bg-orange-600 hover:bg-orange-700 px-3 py-1 rounded text-xs font-medium">
-                      ▶ Ejecutar
-                    </button>
+                    <Button variant="primary" size="sm" leftIcon={IconEjecutar} onClick={() => abrirEjecutar(t)}>
+                      Ejecutar
+                    </Button>
                   )}
                 </div>
               </div>
@@ -156,7 +159,7 @@ export default function TrasladosTab({ token }: Props) {
                                 style={{ width: `${Math.min(pct, 100)}%` }}
                               />
                             </div>
-                            <span className="text-xs text-gray-400">{pct.toFixed(0)}%</span>
+                            <span className="text-xs text-gray-300">{pct.toFixed(0)}%</span>
                           </div>
                         </td>
                       </tr>
@@ -170,7 +173,7 @@ export default function TrasladosTab({ token }: Props) {
                 <div className="mt-3 pt-3 border-t border-gray-800">
                   <p className="text-xs text-gray-500 mb-2">Historial de movimientos:</p>
                   {(t.historial || []).map((h: any, hi: number) => (
-                    <div key={hi} className="text-xs text-gray-400 mb-1">
+                    <div key={hi} className="text-xs text-gray-300 mb-1">
                       <span className="text-gray-500">{h.fecha ? new Date(h.fecha).toLocaleString('es-MX') : '-'}</span>
                       {' — '}Autorizado por: <span className="text-white">{h.autorizador}</span>
                     </div>
@@ -188,11 +191,32 @@ export default function TrasladosTab({ token }: Props) {
       )}
 
       {/* Modal Ejecutar Movimiento */}
-      {modalEjecutar && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setModalEjecutar(null)}>
-          <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-lg max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-bold mb-2">▶ Ejecutar Movimiento</h3>
-            <p className="text-sm text-gray-400 mb-4">{modalEjecutar.id_traslado} → {modalEjecutar.linea_produccion_destino}</p>
+      <Modal
+        open={!!modalEjecutar}
+        onClose={() => setModalEjecutar(null)}
+        size="lg"
+        title={
+          <span className="flex items-center gap-2">
+            <IconEjecutar size={18} aria-hidden /> Ejecutar Movimiento
+          </span>
+        }
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setModalEjecutar(null)}>Cancelar</Button>
+            <Button
+              variant="primary"
+              leftIcon={IconEjecutar}
+              onClick={handleEjecutar}
+              disabled={!autorizador || movimientos.every(m => !parseFloat(m.cantidad_a_mover))}
+            >
+              Ejecutar Movimiento
+            </Button>
+          </>
+        }
+      >
+        {modalEjecutar && (
+          <>
+            <p className="text-sm text-gray-300 mb-4 font-mono">{modalEjecutar.id_traslado} → {modalEjecutar.linea_produccion_destino}</p>
 
             <div className="space-y-3 mb-4">
               {movimientos.map((mov, i) => {
@@ -202,7 +226,7 @@ export default function TrasladosTab({ token }: Props) {
                   <div key={i} className="bg-gray-800 rounded-lg p-3">
                     <div className="flex justify-between items-center mb-2">
                       <span className="font-mono text-sm text-orange-400">{mov.sku}</span>
-                      <span className="text-xs text-gray-400">Pendiente: {pendiente}</span>
+                      <span className="text-xs text-gray-300">Pendiente: {pendiente}</span>
                     </div>
                     <input
                       type="number"
@@ -213,7 +237,7 @@ export default function TrasladosTab({ token }: Props) {
                         setMovimientos(updated);
                       }}
                       max={pendiente}
-                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm"
+                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
                       placeholder="Cantidad a mover"
                     />
                   </div>
@@ -221,35 +245,19 @@ export default function TrasladosTab({ token }: Props) {
               })}
             </div>
 
-            <div className="mb-4">
-              <label className="text-sm text-gray-400">Autorizado por</label>
+            <div>
+              <label className="text-sm text-gray-300">Autorizado por</label>
               <input
                 type="text"
                 value={autorizador}
                 onChange={(e) => setAutorizador(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white mt-1"
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white mt-1 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
                 placeholder="Nombre del autorizador"
               />
             </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={handleEjecutar}
-                disabled={!autorizador || movimientos.every(m => !parseFloat(m.cantidad_a_mover))}
-                className="flex-1 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 px-4 py-2 rounded-lg text-sm font-medium"
-              >
-                ▶ Ejecutar Movimiento
-              </button>
-              <button
-                onClick={() => setModalEjecutar(null)}
-                className="flex-1 bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm font-medium"
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
     </div>
   );
 }

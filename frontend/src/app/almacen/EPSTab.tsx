@@ -8,6 +8,8 @@ import {
   getHistorialMovimientosEPS,
 } from '@/lib/api';
 import { UbicacionAlmacen, LoteInventario } from '@/types';
+import { Button, LoadingSpinner } from '@/components/ui';
+import { IconAlmacen, IconInventario, IconNuevo, IconHistorial, IconRecepciones, IconAlertas } from '@/lib/icons';
 
 interface Props {
   token: string;
@@ -92,25 +94,31 @@ export default function EPSTab({ token }: Props) {
 
       {/* Selector de vista */}
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-bold">🏭 Almacén de EPS</h2>
+        <h2 className="text-xl font-bold flex items-center gap-2">
+          <IconAlmacen size={22} className="text-[var(--accent)]" aria-hidden /> Almacén de EPS
+        </h2>
         <div className="flex gap-2">
-          {(['inventario', 'ingresar', 'historial'] as Vista[]).map((v) => (
-            <button
-              key={v}
-              onClick={() => setVista(v)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                vista === v ? 'bg-orange-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'
-              }`}
-            >
-              {v === 'inventario' ? '📦 Inventario EPS' : v === 'ingresar' ? '➕ Ingresar Carrito' : '📜 Historial'}
-            </button>
-          ))}
+          {(['inventario', 'ingresar', 'historial'] as Vista[]).map((v) => {
+            const Icon = v === 'inventario' ? IconInventario : v === 'ingresar' ? IconNuevo : IconHistorial;
+            const txt = v === 'inventario' ? 'Inventario EPS' : v === 'ingresar' ? 'Ingresar Carrito' : 'Historial';
+            return (
+              <button
+                key={v}
+                onClick={() => setVista(v)}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  vista === v ? 'bg-[var(--accent)] text-[var(--accent-fg)]' : 'bg-gray-800 text-gray-300 hover:text-white'
+                }`}
+              >
+                <Icon size={16} aria-hidden /> {txt}
+              </button>
+            );
+          })}
         </div>
       </div>
 
       {loading && vista !== 'ingresar' ? (
         <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-400" />
+          <LoadingSpinner sizeClass="h-10 w-10" />
         </div>
       ) : (
         <>
@@ -121,24 +129,24 @@ export default function EPSTab({ token }: Props) {
                 <table className="w-full text-sm">
                   <thead className="bg-gray-800 sticky top-0">
                     <tr>
-                      <th className="text-left p-3 text-gray-400">Lote ID</th>
-                      <th className="text-left p-3 text-gray-400">SKU</th>
-                      <th className="text-left p-3 text-gray-400">Producto</th>
-                      <th className="text-right p-3 text-gray-400">Cantidad</th>
-                      <th className="text-left p-3 text-gray-400">Ubicación</th>
-                      <th className="text-left p-3 text-gray-400">OP Origen</th>
-                      <th className="text-left p-3 text-gray-400">Estado</th>
+                      <th className="text-left p-3 text-gray-300">Lote ID</th>
+                      <th className="text-left p-3 text-gray-300">SKU</th>
+                      <th className="text-left p-3 text-gray-300">Producto</th>
+                      <th className="text-right p-3 text-gray-300">Cantidad</th>
+                      <th className="text-left p-3 text-gray-300">Ubicación</th>
+                      <th className="text-left p-3 text-gray-300">OP Origen</th>
+                      <th className="text-left p-3 text-gray-300">Estado</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-800">
                     {inventario.map((lote) => (
                       <tr key={lote.id} className="hover:bg-gray-800/50">
                         <td className="p-3 font-mono text-orange-400 text-xs">{lote.lote_id}</td>
-                        <td className="p-3">{lote.sku_producto}</td>
+                        <td className="p-3 font-mono text-xs">{lote.sku_producto}</td>
                         <td className="p-3 text-gray-300">{lote.nombre_producto}</td>
                         <td className="p-3 text-right font-bold">{lote.cantidad_actual}</td>
                         <td className="p-3 text-gray-300">{lote.nombre_ubicacion}</td>
-                        <td className="p-3 text-xs text-gray-400">{lote.op_origen || '-'}</td>
+                        <td className="p-3 text-xs text-gray-300 font-mono">{lote.op_origen || '-'}</td>
                         <td className="p-3">
                           <span className="px-2 py-0.5 rounded-full text-xs bg-green-500/20 text-green-400">
                             {lote.estado_calidad}
@@ -152,7 +160,7 @@ export default function EPSTab({ token }: Props) {
                   </tbody>
                 </table>
               </div>
-              <div className="bg-gray-800 px-4 py-2 text-sm text-gray-400">
+              <div className="bg-gray-800 px-4 py-2 text-sm text-gray-300">
                 Total: {inventario.length} lotes | Stock: {inventario.reduce((s, l) => s + l.cantidad_actual, 0).toLocaleString('es-MX')} items
               </div>
             </div>
@@ -162,52 +170,54 @@ export default function EPSTab({ token }: Props) {
           {vista === 'ingresar' && (
             <div className="max-w-lg mx-auto">
               <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
-                <h3 className="text-lg font-bold mb-4">➕ Ingresar Carrito desde Secado</h3>
+                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                  <IconNuevo size={18} aria-hidden /> Ingresar Carrito desde Secado
+                </h3>
                 <div className="space-y-4">
                   <div>
-                    <label className="text-sm text-gray-400">ID Orden de Producción</label>
+                    <label className="text-sm text-gray-300">ID Orden de Producción</label>
                     <input
                       type="text"
                       value={formIngreso.op_id}
                       onChange={(e) => setFormIngreso(f => ({ ...f, op_id: e.target.value }))}
-                      className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white mt-1"
+                      className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white mt-1 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
                       placeholder="Ej: OP-001"
                     />
                   </div>
                   <div>
-                    <label className="text-sm text-gray-400">ID Carrito (Lote)</label>
+                    <label className="text-sm text-gray-300">ID Carrito (Lote)</label>
                     <input
                       type="text"
                       value={formIngreso.carrito_id}
                       onChange={(e) => setFormIngreso(f => ({ ...f, carrito_id: e.target.value }))}
-                      className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white mt-1"
+                      className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white mt-1 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
                       placeholder="Escanee o ingrese el ID del carrito"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-sm text-gray-400">SKU Producto</label>
+                      <label className="text-sm text-gray-300">SKU Producto</label>
                       <input
                         type="text"
                         value={formIngreso.sku_producto}
                         onChange={(e) => setFormIngreso(f => ({ ...f, sku_producto: e.target.value }))}
-                        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white mt-1"
+                        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white mt-1 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
                         placeholder="SKU"
                       />
                     </div>
                     <div>
-                      <label className="text-sm text-gray-400">Cantidad</label>
+                      <label className="text-sm text-gray-300">Cantidad</label>
                       <input
                         type="number"
                         value={formIngreso.cantidad}
                         onChange={(e) => setFormIngreso(f => ({ ...f, cantidad: e.target.value }))}
-                        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white mt-1"
+                        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white mt-1 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
                         placeholder="0"
                       />
                     </div>
                   </div>
                   <div>
-                    <label className="text-sm text-gray-400">Ubicación Destino</label>
+                    <label className="text-sm text-gray-300">Ubicación Destino</label>
                     <select
                       value={formIngreso.ubicacion_id}
                       onChange={(e) => {
@@ -218,7 +228,7 @@ export default function EPSTab({ token }: Props) {
                           ubicacion_nombre: ub?.nombre || '',
                         }));
                       }}
-                      className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white mt-1"
+                      className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white mt-1 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
                     >
                       <option value="">Seleccionar ubicación...</option>
                       {ubicaciones.map(ub => (
@@ -226,16 +236,20 @@ export default function EPSTab({ token }: Props) {
                       ))}
                     </select>
                     {ubicaciones.length === 0 && (
-                      <p className="text-xs text-yellow-400 mt-1">⚠️ No hay sub-ubicaciones en ALMACEN EPS. Créelas en Ubicaciones.</p>
+                      <p className="text-xs text-yellow-400 mt-1 flex items-center gap-1">
+                        <IconAlertas size={14} aria-hidden /> No hay sub-ubicaciones en ALMACEN EPS. Créelas en Ubicaciones.
+                      </p>
                     )}
                   </div>
-                  <button
+                  <Button
                     onClick={handleIngresar}
+                    size="lg"
+                    leftIcon={IconRecepciones}
                     disabled={!formIngreso.op_id || !formIngreso.carrito_id || !formIngreso.sku_producto || !formIngreso.cantidad || !formIngreso.ubicacion_id}
-                    className="w-full bg-orange-600 hover:bg-orange-700 disabled:opacity-50 px-4 py-3 rounded-lg text-sm font-medium transition-colors"
+                    className="w-full"
                   >
-                    📥 Ingresar al Almacén EPS
-                  </button>
+                    Ingresar al Almacén EPS
+                  </Button>
                 </div>
               </div>
             </div>
@@ -248,24 +262,24 @@ export default function EPSTab({ token }: Props) {
                 <table className="w-full text-sm">
                   <thead className="bg-gray-800 sticky top-0">
                     <tr>
-                      <th className="text-left p-3 text-gray-400">Fecha</th>
-                      <th className="text-left p-3 text-gray-400">ID Traslado</th>
-                      <th className="text-left p-3 text-gray-400">ID Carrito</th>
-                      <th className="text-left p-3 text-gray-400">SKU</th>
-                      <th className="text-right p-3 text-gray-400">Cantidad</th>
-                      <th className="text-left p-3 text-gray-400">Origen</th>
-                      <th className="text-left p-3 text-gray-400">Destino</th>
+                      <th className="text-left p-3 text-gray-300">Fecha</th>
+                      <th className="text-left p-3 text-gray-300">ID Traslado</th>
+                      <th className="text-left p-3 text-gray-300">ID Carrito</th>
+                      <th className="text-left p-3 text-gray-300">SKU</th>
+                      <th className="text-right p-3 text-gray-300">Cantidad</th>
+                      <th className="text-left p-3 text-gray-300">Origen</th>
+                      <th className="text-left p-3 text-gray-300">Destino</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-800">
                     {historial.map((mov, i) => (
                       <tr key={i} className="hover:bg-gray-800/50">
-                        <td className="p-3 text-xs text-gray-400">
+                        <td className="p-3 text-xs text-gray-300">
                           {mov.fecha ? new Date(mov.fecha).toLocaleString('es-MX') : '-'}
                         </td>
                         <td className="p-3 font-mono text-orange-400 text-xs">{mov.id_traslado || '-'}</td>
-                        <td className="p-3 text-xs">{mov.id_carrito}</td>
-                        <td className="p-3">{mov.sku}</td>
+                        <td className="p-3 text-xs font-mono">{mov.id_carrito}</td>
+                        <td className="p-3 font-mono text-xs">{mov.sku}</td>
                         <td className="p-3 text-right font-bold">{mov.cantidad}</td>
                         <td className="p-3 text-gray-300">{mov.origen || '-'}</td>
                         <td className="p-3 text-gray-300">{mov.destino || '-'}</td>

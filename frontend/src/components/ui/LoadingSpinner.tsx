@@ -3,20 +3,24 @@
 import React from 'react';
 
 interface LoadingSpinnerProps {
-  colorClass?: string; // e.g. 'border-emerald-400'
+  /** Override the spinner color with a Tailwind border class, e.g. 'border-emerald-400'.
+   *  When omitted, derives from the module accent (var(--accent)). */
+  colorClass?: string;
   sizeClass?: string;  // e.g. 'h-12 w-12'
   label?: string;
 }
 
 export default function LoadingSpinner({
-  colorClass = 'border-blue-400',
+  colorClass,
   sizeClass = 'h-12 w-12',
   label,
 }: LoadingSpinnerProps) {
   return (
     <div className="flex flex-col items-center justify-center gap-3">
-      <div className={`animate-spin rounded-full ${sizeClass} border-b-2 ${colorClass}`} />
-      {label && <span className="text-sm text-gray-400">{label}</span>}
+      <div
+        className={`animate-spin rounded-full ${sizeClass} border-b-2 ${colorClass || 'border-[var(--accent)]'}`}
+      />
+      {label && <span className="text-sm text-gray-300">{label}</span>}
     </div>
   );
 }

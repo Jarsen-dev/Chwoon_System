@@ -36,14 +36,17 @@ export default function DataTable<T extends Record<string, any>>({
   };
 
   return (
-    <div className={`overflow-x-auto ${maxHeight ? `max-h-[${maxHeight}] overflow-y-auto` : ''} ${className}`}>
+    <div
+      className={`overflow-x-auto ${maxHeight ? 'overflow-y-auto' : ''} ${className}`}
+      style={maxHeight ? { maxHeight } : undefined}
+    >
       <table className="w-full text-sm divide-y divide-gray-800">
         <thead className={stickyHeader ? 'sticky top-0 z-10' : undefined}>
           <tr className="bg-gray-800">
             {columns.map((col) => (
               <th
                 key={col.key}
-                className={`px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wider ${alignClass(col.align)} ${col.className || ''}`}
+                className={`px-4 py-3 text-xs font-medium text-gray-300 uppercase tracking-wider ${alignClass(col.align)} ${col.className || ''}`}
               >
                 {col.header}
               </th>
@@ -55,7 +58,7 @@ export default function DataTable<T extends Record<string, any>>({
             <tr>
               <td colSpan={columns.length} className="px-4 py-8 text-center text-gray-400">
                 <div className="flex items-center justify-center gap-2">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-400" />
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[var(--accent)]" />
                   Cargando...
                 </div>
               </td>

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { FormInput, Button } from '@/components/ui'
+import { IconAlertas } from '@/lib/icons'
 
 export default function LoginPage() {
   const { login } = useAuth()
@@ -25,12 +26,13 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="fixed inset-0 bg-gray-900 flex items-center justify-center overflow-hidden">
-      <div className="bg-gray-800 rounded-2xl shadow-2xl p-8 w-full max-w-md mx-4">
+    <div className="fixed inset-0 bg-gray-950 flex items-center justify-center overflow-hidden">
+      <div className="bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl p-8 w-full max-w-md mx-4">
         <div className="flex flex-col items-center mb-8">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/Logo.png" alt="Logo" className="h-20 w-auto mb-4" />
           <h1 className="text-2xl font-bold text-white">Sistema de Producción</h1>
-          <p className="text-gray-400 mt-1 text-sm">Ingresa tus credenciales para continuar</p>
+          <p className="text-gray-300 mt-1 text-sm">Ingresa tus credenciales para continuar</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -54,12 +56,12 @@ export default function LoginPage() {
           />
 
           {error && (
-            <div className="app-alert-error">
-              ⚠️ {error}
+            <div className="flex items-start gap-2 p-4 rounded-lg text-sm font-medium bg-red-500/10 text-red-400 border border-red-500/20">
+              <IconAlertas size={16} aria-hidden /> {error}
             </div>
           )}
 
-          <Button type="submit" variant="primary" buttonSize="lg" className="w-full" disabled={loading}>
+          <Button type="submit" variant="primary" size="lg" className="w-full" disabled={loading}>
             {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
           </Button>
         </form>

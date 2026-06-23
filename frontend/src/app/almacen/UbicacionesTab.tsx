@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { getUbicaciones, crearUbicacion, actualizarUbicacion, eliminarUbicacion, importarUbicaciones } from '@/lib/api';
 import { UbicacionAlmacen } from '@/types';
+import { Button, Modal, LoadingSpinner } from '@/components/ui';
+import { IconUbicaciones, IconNuevo, IconEditar, IconEliminar } from '@/lib/icons';
 
 interface Props {
   token: string;
@@ -115,8 +117,8 @@ export default function UbicacionesTab({ token }: Props) {
             {!u.activa && <span className="text-xs text-red-400">Inactiva</span>}
           </div>
           <div className="flex gap-2">
-            <button onClick={() => abrirEditar(u)} className="bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 px-2 py-1 rounded text-xs">Editar</button>
-            <button onClick={() => handleEliminar(u.id)} className="bg-red-600/20 hover:bg-red-600/40 text-red-400 px-2 py-1 rounded text-xs">Eliminar</button>
+            <Button variant="ghost" size="sm" leftIcon={IconEditar} onClick={() => abrirEditar(u)}>Editar</Button>
+            <Button variant="danger" size="sm" leftIcon={IconEliminar} onClick={() => handleEliminar(u.id)}>Eliminar</Button>
           </div>
         </div>
         {renderTree(u.id, depth + 1)}
@@ -128,55 +130,58 @@ export default function UbicacionesTab({ token }: Props) {
     <div className="space-y-4">
       {notif && <div className={`p-3 rounded-lg text-sm font-medium ${notif.tipo === 'ok' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>{notif.msg}</div>}
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-bold">📍 Ubicaciones</h2>
-        <button onClick={abrirCrear} className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg text-sm font-medium">➕ Nueva</button>
+        <h2 className="text-xl font-bold flex items-center gap-2">
+          <IconUbicaciones size={22} className="text-[var(--accent)]" aria-hidden /> Ubicaciones
+        </h2>
+        <Button leftIcon={IconNuevo} onClick={abrirCrear}>Nueva</Button>
       </div>
-      {loading ? <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-400" /></div> : (
+      {loading ? <div className="flex justify-center py-12"><LoadingSpinner sizeClass="h-10 w-10" /></div> : (
         <div className="space-y-1">{renderTree()}</div>
       )}
 
-      {modal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setModal(false)}>
-          <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-bold mb-4">{editId ? 'Editar' : 'Nueva'} Ubicación</h3>
-            <div className="space-y-3">
-              <div>
-                <label className="text-sm text-gray-400">Nombre</label>
-                <input value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white mt-1" />
-              </div>
-              <div>
-                <label className="text-sm text-gray-400">Tipo de Zona</label>
-                <select value={form.tipo_zona} onChange={e => setForm(f => ({ ...f, tipo_zona: e.target.value }))} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white mt-1">
-                  {TIPO_ZONAS.map(z => <option key={z} value={z}>{z}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-sm text-gray-400">Padre (opcional)</label>
-                <select value={form.parent_id} onChange={e => setForm(f => ({ ...f, parent_id: e.target.value }))} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white mt-1">
-                  <option value="">Sin padre</option>
-                  {ubicaciones.map(u => <option key={u.id} value={u.id}>{u.nombre}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-sm text-gray-400">Capacidad Máxima</label>
-                <input type="number" value={form.capacidad_max} onChange={e => setForm(f => ({ ...f, capacidad_max: e.target.value }))} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white mt-1" placeholder="kg / unidades" />
-              </div>
-              <div className="flex gap-4">
-                <label className="flex items-center gap-2 text-sm text-gray-400">
-                  <input type="checkbox" checked={form.permite_mixing} onChange={e => setForm(f => ({ ...f, permite_mixing: e.target.checked }))} /> Permite mixing
-                </label>
-                <label className="flex items-center gap-2 text-sm text-gray-400">
-                  <input type="checkbox" checked={form.activa} onChange={e => setForm(f => ({ ...f, activa: e.target.checked }))} /> Activa
-                </label>
-              </div>
-            </div>
-            <div className="flex gap-3 pt-4">
-              <button onClick={guardar} className="flex-1 bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg text-sm font-medium">Guardar</button>
-              <button onClick={() => setModal(false)} className="flex-1 bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm">Cancelar</button>
-            </div>
+      <Modal
+        open={modal}
+        onClose={() => setModal(false)}
+        title={`${editId ? 'Editar' : 'Nueva'} Ubicación`}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setModal(false)}>Cancelar</Button>
+            <Button onClick={guardar}>Guardar</Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <div>
+            <label className="text-sm text-gray-300">Nombre</label>
+            <input value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white mt-1 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]" />
+          </div>
+          <div>
+            <label className="text-sm text-gray-300">Tipo de Zona</label>
+            <select value={form.tipo_zona} onChange={e => setForm(f => ({ ...f, tipo_zona: e.target.value }))} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white mt-1 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]">
+              {TIPO_ZONAS.map(z => <option key={z} value={z}>{z}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-sm text-gray-300">Padre (opcional)</label>
+            <select value={form.parent_id} onChange={e => setForm(f => ({ ...f, parent_id: e.target.value }))} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white mt-1 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]">
+              <option value="">Sin padre</option>
+              {ubicaciones.map(u => <option key={u.id} value={u.id}>{u.nombre}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-sm text-gray-300">Capacidad Máxima</label>
+            <input type="number" value={form.capacidad_max} onChange={e => setForm(f => ({ ...f, capacidad_max: e.target.value }))} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white mt-1 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]" placeholder="kg / unidades" />
+          </div>
+          <div className="flex gap-4">
+            <label className="flex items-center gap-2 text-sm text-gray-300">
+              <input type="checkbox" checked={form.permite_mixing} onChange={e => setForm(f => ({ ...f, permite_mixing: e.target.checked }))} /> Permite mixing
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-300">
+              <input type="checkbox" checked={form.activa} onChange={e => setForm(f => ({ ...f, activa: e.target.checked }))} /> Activa
+            </label>
           </div>
         </div>
-      )}
+      </Modal>
     </div>
   );
 }

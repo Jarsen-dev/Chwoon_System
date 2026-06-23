@@ -23,9 +23,9 @@ export default function FormInput({
 
   return (
     <div className="flex flex-col gap-1.5">
-      {label && <label className="text-xs font-semibold uppercase tracking-wider text-gray-400">{label}</label>}
+      {label && <label className="text-xs font-semibold uppercase tracking-wider text-gray-300">{label}</label>}
       <input
-        className={`w-full bg-gray-800 border border-gray-700 rounded-lg text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-colors ${sizeClasses[inputSize]} ${error ? 'border-red-500 focus:border-red-500 focus:ring-red-500/40' : ''} ${className}`}
+        className={`w-full bg-gray-800 border border-gray-700 rounded-lg text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:border-[var(--accent)] transition-colors ${sizeClasses[inputSize]} ${error ? 'border-red-500 focus:border-red-500 focus:ring-red-500/40' : ''} ${className}`}
         {...props}
       />
       {error && <span className="text-xs text-red-400">{error}</span>}
