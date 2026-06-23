@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 import { ModuleShell, LoadingSpinner } from '@/components/ui';
-import { getModuleTheme, ROLE_BADGE } from '@/lib/theme';
+import { getModuleTheme } from '@/lib/theme';
+import UserBadge from '@/components/UserBadge';
 import DashboardTab       from './DashboardTab';
 import EmbarquesTab       from './EmbarquesTab';
 import ReporteEmbarquesTab from './ReporteEmbarquesTab';
@@ -47,7 +48,6 @@ export default function LogisticaPage() {
 
   if (!token || (rol && !['admin', 'logistica'].includes(rol))) return null;
 
-  const badge = ROLE_BADGE[rol || ''] || { icon: '👤', color: 'text-gray-400' };
 
   const headerRight = (
     <>
@@ -74,7 +74,7 @@ export default function LogisticaPage() {
           <Link href="/admin"    className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">👑 Admin</Link>
         </>
       )}
-      <span className={`text-sm font-medium ${badge.color}`}>{badge.icon} {username}</span>
+      <UserBadge rol={rol} username={username} />
       <button onClick={logout} className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
         🚪 Salir
       </button>

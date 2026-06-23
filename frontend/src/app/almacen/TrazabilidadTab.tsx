@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { getTrazabilidad } from '@/lib/api';
 import { TrazabilidadLote } from '@/types';
+import { Button } from '@/components/ui';
+import { IconTrazabilidad, IconBuscar, IconInventario, IconTiempo, IconPendiente } from '@/lib/icons';
 
 interface Props {
   token: string;
@@ -40,8 +42,10 @@ export default function TrazabilidadTab({ token }: Props) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-bold mb-2">🔍 Trazabilidad de Lotes</h2>
-        <p className="text-sm text-gray-400">Rastree el ciclo de vida completo de un lote, desde su origen hasta su destino.</p>
+        <h2 className="text-xl font-bold mb-2 flex items-center gap-2">
+          <IconTrazabilidad size={22} className="text-[var(--accent)]" aria-hidden /> Trazabilidad de Lotes
+        </h2>
+        <p className="text-sm text-gray-300">Rastree el ciclo de vida completo de un lote, desde su origen hasta su destino.</p>
       </div>
 
       {/* Barra de búsqueda */}
@@ -52,16 +56,18 @@ export default function TrazabilidadTab({ token }: Props) {
           onChange={(e) => setBusqueda(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Ingrese Lote ID, OP ID o Devolución ID..."
-          className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500"
+          className="flex-1 font-mono bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:border-[var(--accent)]"
           autoFocus
         />
-        <button
+        <Button
+          variant="primary"
+          size="lg"
           onClick={buscar}
           disabled={!busqueda.trim() || loading}
-          className="bg-orange-600 hover:bg-orange-700 disabled:opacity-50 px-6 py-3 rounded-lg font-medium transition-colors"
+          leftIcon={loading ? IconPendiente : IconBuscar}
         >
-          {loading ? '⏳' : '🔍'} Buscar
-        </button>
+          Buscar
+        </Button>
       </div>
 
       {error && (
@@ -73,7 +79,9 @@ export default function TrazabilidadTab({ token }: Props) {
         <div className="space-y-4">
           {/* Info del lote */}
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
-            <h3 className="text-lg font-bold mb-3 text-orange-400">📦 Información del Lote</h3>
+            <h3 className="text-lg font-bold mb-3 text-orange-400 flex items-center gap-2">
+              <IconInventario size={18} aria-hidden /> Información del Lote
+            </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {Object.entries(resultado.info_lote).map(([key, value]) => (
                 <div key={key}>
@@ -89,7 +97,9 @@ export default function TrazabilidadTab({ token }: Props) {
           {/* Movimientos */}
           {resultado.movimientos && resultado.movimientos.length > 0 && (
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
-              <h3 className="text-lg font-bold mb-3 text-blue-400">📋 Historial de Movimientos</h3>
+              <h3 className="text-lg font-bold mb-3 text-blue-400 flex items-center gap-2">
+                <IconTiempo size={18} aria-hidden /> Historial de Movimientos
+              </h3>
               <div className="space-y-2">
                 {resultado.movimientos.map((mov, i) => (
                   <div key={i} className="bg-gray-800 rounded-lg p-3 flex items-start justify-between">
@@ -120,9 +130,9 @@ export default function TrazabilidadTab({ token }: Props) {
       {/* Estado vacío */}
       {!loading && !resultado && !error && (
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-16 text-center">
-          <div className="text-5xl mb-4">🔍</div>
-          <p className="text-gray-400">Ingrese un ID para rastrear su trazabilidad</p>
-          <p className="text-xs text-gray-600 mt-2">Puede buscar por: Lote ID, Orden de Producción, Devolución ID</p>
+          <IconBuscar size={48} className="mx-auto mb-4 text-gray-600" aria-hidden />
+          <p className="text-gray-300">Ingrese un ID para rastrear su trazabilidad</p>
+          <p className="text-xs text-gray-500 mt-2">Puede buscar por: Lote ID, Orden de Producción, Devolución ID</p>
         </div>
       )}
     </div>

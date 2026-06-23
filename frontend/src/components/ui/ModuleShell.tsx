@@ -1,13 +1,18 @@
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
-import { useAuth } from '@/context/AuthContext';
-import { getModuleTheme } from '@/lib/theme';
+import { ModuleThemeProvider } from '@/context/ModuleThemeContext';
+import ModuleHeader from '@/components/ModuleHeader';
+import ModuleNavLinks from '@/components/ModuleNavLinks';
+import UserBadge from '@/components/UserBadge';
+import Button from '@/components/ui/Button';
+import { IconSalir, type LucideIcon } from '@/lib/icons';
 
-interface TabDef {
+export interface TabDef {
   id: string;
   label: string;
+  /** Optional during migration; required for fully-migrated modules. */
+  icon?: LucideIcon;
 }
 
 interface ModuleShellProps {
@@ -16,8 +21,14 @@ interface ModuleShellProps {
   tabs: TabDef[];
   activeTab: string;
   onTabChange: (id: string) => void;
-  /** Extra content placed in the header right side (module links, user badge, logout). */
+  /**
+   * Custom header right content. When omitted and `rol`/`onLogout` are given,
+   * a standard right side is rendered: cross-module links + user badge + logout.
+   */
   headerRight?: React.ReactNode;
+  rol?: string | null;
+  username?: string | null;
+  onLogout?: () => void;
   children: React.ReactNode;
 }
 
@@ -28,50 +39,58 @@ export default function ModuleShell({
   activeTab,
   onTabChange,
   headerRight,
+  rol,
+  username,
+  onLogout,
   children,
 }: ModuleShellProps) {
-  const theme = getModuleTheme(moduleKey);
+  const defaultRight =
+    headerRight ??
+    (rol !== undefined ? (
+      <>
+        <ModuleNavLinks rol={rol ?? null} current={moduleKey} />
+        <UserBadge rol={rol ?? null} username={username ?? null} />
+        {onLogout && (
+          <Button variant="danger" size="md" leftIcon={IconSalir} onClick={onLogout}>
+            Salir
+          </Button>
+        )}
+      </>
+    ) : null);
 
   return (
-    <div className="fixed inset-0 bg-gray-950 text-white flex flex-col">
-      {/* Header */}
-      <header className="bg-gray-900 border-b border-gray-800 px-6 py-3 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3">
-          <img src="/Logo.png" alt="Logo" className="h-10 w-auto" />
-          <h1 className="text-xl font-bold">{title}</h1>
-        </div>
-        {headerRight && (
-          <div className="flex items-center gap-3">
-            {headerRight}
-          </div>
-        )}
-      </header>
+    <ModuleThemeProvider
+      moduleKey={moduleKey}
+      className="fixed inset-0 bg-gray-950 text-white flex flex-col"
+    >
+      <ModuleHeader title={title} right={defaultRight} />
 
-      {/* Tabs */}
       {tabs.length > 0 && (
         <div className="bg-gray-900 border-b border-gray-800 px-6 shrink-0">
           <div className="flex gap-1 overflow-x-auto">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => onTabChange(tab.id)}
-                className={`px-4 py-3 text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
-                  activeTab === tab.id
-                    ? `bg-gray-950 ${theme.tabText} border-b-2 ${theme.tabBorder}`
-                    : 'text-gray-400 hover:text-white hover:bg-gray-800'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              const active = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => onTabChange(tab.id)}
+                  className={`inline-flex items-center gap-2 px-4 py-3 text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap border-b-2 ${
+                    active
+                      ? 'bg-gray-950 text-[var(--accent)] border-[var(--accent)]'
+                      : 'text-gray-300 border-transparent hover:text-white hover:bg-gray-800'
+                  }`}
+                >
+                  {Icon && <Icon size={16} aria-hidden />}
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
 
-      {/* Content */}
-      <main className="flex-1 overflow-y-auto p-6">
-        {children}
-      </main>
-    </div>
+      <main className="flex-1 overflow-y-auto p-6">{children}</main>
+    </ModuleThemeProvider>
   );
 }
