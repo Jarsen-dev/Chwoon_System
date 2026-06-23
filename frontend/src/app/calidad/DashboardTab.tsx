@@ -3,30 +3,41 @@
 import { useState, useEffect } from 'react';
 import { getCalidadDashboard } from '@/lib/api';
 import type { CalidadDashboard } from '@/types';
+import { Button, LoadingSpinner } from '@/components/ui';
+import {
+  IconGrafico, IconDocumento, IconCompletado, IconEliminar, IconInventario,
+  IconBuscar, IconProduccion, IconOQC, IconDevoluciones, IconFecha, IconCerrar,
+  IconActualizar, IconAlertas, type LucideIcon,
+} from '@/lib/icons';
 
 interface Props {
   token: string;
 }
 
 function StatCard({
-  icon, label, value, badge, badgeColor = 'text-cyan-400',
+  icon: Icon, label, value, badge, badgeColor = 'text-cyan-400',
   borderColor = 'border-cyan-500/30', valueColor = 'text-white',
 }: {
-  icon: string; label: string; value: string | number;
+  icon: LucideIcon; label: string; value: string | number;
   badge?: string; badgeColor?: string; borderColor?: string; valueColor?: string;
 }) {
   return (
     <div className={`bg-gray-900 rounded-xl border ${borderColor} p-5 flex flex-col gap-2`}>
       <div className="flex items-center justify-between">
-        <span className="text-2xl">{icon}</span>
+        <span
+          className="inline-flex items-center justify-center h-10 w-10 rounded-lg text-[var(--accent)]"
+          style={{ backgroundColor: 'var(--accent-soft)' }}
+        >
+          <Icon size={20} aria-hidden />
+        </span>
         {badge && (
-          <span className={`text-xs font-medium ${badgeColor} bg-gray-800 px -2 py-1 rounded-full`}>
+          <span className={`text-xs font-medium ${badgeColor} bg-gray-800 px-2 py-1 rounded-full`}>
             {badge}
           </span>
         )}
       </div>
       <p className={`text-3xl font-bold ${valueColor}`}>{value}</p>
-      <p className="text-sm text-gray-400">{label}</p>
+      <p className="text-sm text-gray-300">{label}</p>
     </div>
   );
 }
@@ -56,7 +67,7 @@ export default function DashboardTab({ token }: Props) {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400" />
+        <LoadingSpinner />
       </div>
     );
   }
@@ -64,10 +75,8 @@ export default function DashboardTab({ token }: Props) {
   if (error) {
     return (
       <div className="bg-red-900/30 border border-red-500/50 rounded-xl p-6 text-center">
-        <p className="text-red-400">❌ {error}</p>
-        <button onClick={fetchData} className="mt-3 bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm">
-          Reintentar
-        </button>
+        <p className="text-red-400 flex items-center justify-center gap-2"><IconAlertas size={16} aria-hidden /> {error}</p>
+        <Button variant="danger" onClick={fetchData} className="mt-3">Reintentar</Button>
       </div>
     );
   }
@@ -80,24 +89,19 @@ export default function DashboardTab({ token }: Props) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold">Dashboard de Calidad</h2>
-          <p className="text-gray-400 text-sm">
+          <p className="text-gray-300 text-sm">
             Resumen de inspecciones — {new Date().toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </p>
         </div>
-        <button
-          onClick={fetchData}
-          className="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-        >
-          🔄 Actualizar
-        </button>
+        <Button onClick={fetchData} leftIcon={IconActualizar}>Actualizar</Button>
       </div>
 
       {/* Fila 1: General */}
       <div>
-        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">📊 General</h3>
+        <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-3 flex items-center gap-2"><IconGrafico size={16} aria-hidden /> General</h3>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <StatCard
-            icon="📋"
+            icon={IconDocumento}
             label="Total Inspecciones"
             value={data.total_inspecciones}
             badge={`${data.inspecciones_hoy} hoy`}
@@ -105,21 +109,21 @@ export default function DashboardTab({ token }: Props) {
             borderColor="border-cyan-500/30"
           />
           <StatCard
-            icon="✅"
+            icon={IconCompletado}
             label="Tasa de Aprobación"
             value={`${data.tasa_aprobacion}%`}
             borderColor="border-green-500/30"
             valueColor={data.tasa_aprobacion >= 90 ? 'text-green-400' : data.tasa_aprobacion >= 70 ? 'text-yellow-400' : 'text-red-400'}
           />
           <StatCard
-            icon="🗑️"
+            icon={IconEliminar}
             label="Scrap Hoy"
             value={data.scrap_hoy}
             borderColor="border-red-500/30"
             valueColor="text-red-400"
           />
           <StatCard
-            icon="📦"
+            icon={IconInventario}
             label="Scrap del Mes"
             value={data.scrap_mes}
             badge="Acumulado"
@@ -132,23 +136,23 @@ export default function DashboardTab({ token }: Props) {
 
       {/* Fila 2: IQC */}
       <div>
-        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">🔍 IQC — Inspección de Entrada</h3>
+        <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-3 flex items-center gap-2"><IconBuscar size={16} aria-hidden /> IQC — Inspección de Entrada</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <StatCard
-            icon="📦"
+            icon={IconInventario}
             label="Total IQC"
             value={data.iqc_total}
             borderColor="border-blue-500/30"
           />
           <StatCard
-            icon="✅"
+            icon={IconCompletado}
             label="IQC Aprobadas"
             value={data.iqc_aprobadas}
             borderColor="border-green-500/30"
             valueColor="text-green-400"
           />
           <StatCard
-            icon="❌"
+            icon={IconCerrar}
             label="IQC Rechazadas"
             value={data.iqc_rechazadas}
             borderColor="border-red-500/30"
@@ -159,23 +163,23 @@ export default function DashboardTab({ token }: Props) {
 
       {/* Fila 3: LQC */}
       <div>
-        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">🏭 LQC — Inspección en Línea</h3>
+        <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-3 flex items-center gap-2"><IconProduccion size={16} aria-hidden /> LQC — Inspección en Línea</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <StatCard
-            icon="🏭"
+            icon={IconProduccion}
             label="Total LQC"
             value={data.lqc_total}
             borderColor="border-purple-500/30"
           />
           <StatCard
-            icon="✅"
+            icon={IconCompletado}
             label="LQC Aprobadas"
             value={data.lqc_aprobadas}
             borderColor="border-green-500/30"
             valueColor="text-green-400"
           />
           <StatCard
-            icon="❌"
+            icon={IconCerrar}
             label="LQC Rechazadas"
             value={data.lqc_rechazadas}
             borderColor="border-red-500/30"
@@ -186,23 +190,23 @@ export default function DashboardTab({ token }: Props) {
 
       {/* Fila 4: OQC */}
       <div>
-        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">📦 OQC — Inspección de Salida</h3>
+        <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-3 flex items-center gap-2"><IconOQC size={16} aria-hidden /> OQC — Inspección de Salida</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <StatCard
-            icon="📦"
+            icon={IconOQC}
             label="Total OQC"
             value={data.oqc_total}
             borderColor="border-indigo-500/30"
           />
           <StatCard
-            icon="✅"
+            icon={IconCompletado}
             label="OQC Aprobadas"
             value={data.oqc_aprobadas}
             borderColor="border-green-500/30"
             valueColor="text-green-400"
           />
           <StatCard
-            icon="❌"
+            icon={IconCerrar}
             label="OQC Rechazadas"
             value={data.oqc_rechazadas}
             borderColor="border-red-500/30"
@@ -213,17 +217,17 @@ export default function DashboardTab({ token }: Props) {
 
       {/* Fila 5: Devoluciones */}
       <div>
-        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">🔄 Devoluciones</h3>
+        <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-3 flex items-center gap-2"><IconDevoluciones size={16} aria-hidden /> Devoluciones</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <StatCard
-            icon="🔄"
+            icon={IconDevoluciones}
             label="Inspecciones de Devolución"
             value={data.dev_total}
             borderColor="border-yellow-500/30"
             valueColor="text-yellow-400"
           />
           <StatCard
-            icon="📅"
+            icon={IconFecha}
             label="Inspecciones Hoy"
             value={data.inspecciones_hoy}
             badge="Todas las categorías"

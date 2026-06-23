@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getOrdenesCompra, validarOrdenFinanzas } from '@/lib/api'
 import type { OrdenCompra } from '@/types'
-import { Badge } from '@/components/ui'
+import { Badge, Button, Modal } from '@/components/ui'
+import { IconValidacion, IconOk, IconDocumento, IconCerrar, IconCompletado } from '@/lib/icons'
 
 interface Props { token: string }
 
@@ -131,7 +132,7 @@ export default function ValidacionTab({ token }: Props) {
       {/* ========================================== */}
       <div className="w-1/3 bg-gray-900 border border-gray-800 rounded-xl flex flex-col overflow-hidden">
         <div className="p-4 border-b border-gray-800 flex justify-between items-center bg-gray-800/30">
-          <h2 className="font-bold text-gray-200">⚖️ Pendientes de Autorizar</h2>
+          <h2 className="font-bold text-gray-200 flex items-center gap-2"><IconValidacion size={18} className="text-[var(--accent)]" aria-hidden /> Pendientes de Autorizar</h2>
           <Badge variant="warning">{ordenes.length}</Badge>
         </div>
         
@@ -140,8 +141,8 @@ export default function ValidacionTab({ token }: Props) {
             <p className="text-center text-gray-500 mt-10 animate-pulse">Cargando órdenes...</p>
           ) : ordenes.length === 0 ? (
             <div className="text-center mt-10">
-              <p className="text-4xl mb-2">✨</p>
-              <p className="text-gray-500 text-sm">No hay órdenes pendientes de tu firma.</p>
+              <IconCompletado size={36} className="mx-auto mb-2 text-gray-600" aria-hidden />
+              <p className="text-gray-400 text-sm">No hay órdenes pendientes de tu firma.</p>
             </div>
           ) : (
             ordenes.map(oc => {
@@ -165,8 +166,8 @@ export default function ValidacionTab({ token }: Props) {
                     <span className="text-sm font-bold text-gray-200">{formatCurrency(granTotal)}</span>
                   </div>
                   <p className="text-sm text-gray-300 truncate">{oc.nombre_proveedor}</p>
-                  <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
-                    <span className="text-emerald-500">✓</span> Firmado por: {oc.firma_compras}
+                  <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
+                    <IconOk size={12} className="text-emerald-500" aria-hidden /> Firmado por: {oc.firma_compras}
                   </p>
                 </button>
               )
@@ -181,13 +182,13 @@ export default function ValidacionTab({ token }: Props) {
       <div className="w-2/3 bg-gray-900 border border-gray-800 rounded-xl flex flex-col overflow-hidden relative">
         
         <div className="absolute top-4 left-0 right-0 flex justify-center z-10 pointer-events-none">
-          {error && <div className="bg-red-900/90 border border-red-500 text-red-200 px-4 py-2 rounded-lg shadow-lg pointer-events-auto">{error} <button onClick={()=>setError('')} className="ml-2 font-bold">✕</button></div>}
-          {success && <div className="bg-green-900/90 border border-green-500 text-green-200 px-4 py-2 rounded-lg shadow-lg pointer-events-auto">{success} <button onClick={()=>setSuccess('')} className="ml-2 font-bold">✕</button></div>}
+          {error && <div className="bg-red-900/90 border border-red-500 text-red-200 px-4 py-2 rounded-lg shadow-lg pointer-events-auto inline-flex items-center">{error} <button onClick={()=>setError('')} className="ml-2" aria-label="Cerrar"><IconCerrar size={14} aria-hidden /></button></div>}
+          {success && <div className="bg-green-900/90 border border-green-500 text-green-200 px-4 py-2 rounded-lg shadow-lg pointer-events-auto inline-flex items-center">{success} <button onClick={()=>setSuccess('')} className="ml-2" aria-label="Cerrar"><IconCerrar size={14} aria-hidden /></button></div>}
         </div>
 
         {!selectedOC ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-gray-500">
-            <span className="text-6xl mb-4">📄</span>
+          <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
+            <IconDocumento size={56} className="mb-4 text-gray-600" aria-hidden />
             <p>Selecciona una orden de la lista para evaluarla</p>
           </div>
         ) : (
@@ -199,12 +200,8 @@ export default function ValidacionTab({ token }: Props) {
                 <p className="font-mono text-sm text-blue-400">{selectedOC.oc_id}</p>
               </div>
               <div className="flex gap-3">
-                <button onClick={() => setShowRejectModal(true)} className="bg-red-900/30 hover:bg-red-900/60 text-red-400 border border-red-700/50 px-4 py-2 rounded-lg text-sm transition-colors font-medium">
-                  ❌ Rechazar
-                </button>
-                <button onClick={handleAutorizar} className="bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/20 px-6 py-2 rounded-lg text-sm transition-colors font-bold">
-                  ✅ Autorizar Gasto
-                </button>
+                <Button variant="danger" onClick={() => setShowRejectModal(true)} leftIcon={IconCerrar}>Rechazar</Button>
+                <Button variant="primary" onClick={handleAutorizar} leftIcon={IconCompletado}>Autorizar Gasto</Button>
               </div>
             </div>
 
@@ -231,35 +228,30 @@ export default function ValidacionTab({ token }: Props) {
         )}
       </div>
 
-      {/* ========================================== */}
       {/* MODAL DE RECHAZO */}
-      {/* ========================================== */}
-      {showRejectModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-          <div className="bg-gray-900 border border-red-900 rounded-xl w-full max-w-md p-6 shadow-2xl">
-            <h3 className="text-xl font-bold text-red-400 mb-2">Rechazar Orden</h3>
-            <p className="text-sm text-gray-400 mb-4">
-              La orden será devuelta a Compras y se borrará la firma inicial. Debes justificar el motivo para que lo corrijan.
-            </p>
-            <textarea
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg p-3 text-sm focus:border-red-500 focus:outline-none mb-4"
-              rows={4}
-              placeholder="Ej: El precio unitario es más alto de lo cotizado..."
-              value={rechazoMotivo}
-              onChange={(e) => setRechazoMotivo(e.target.value)}
-              autoFocus
-            />
-            <div className="flex justify-end gap-3">
-              <button onClick={() => setShowRejectModal(false)} className="px-4 py-2 rounded-lg text-sm bg-gray-800 hover:bg-gray-700 text-gray-300">
-                Cancelar
-              </button>
-              <button onClick={handleRechazar} className="px-4 py-2 rounded-lg text-sm bg-red-600 hover:bg-red-500 text-white font-bold">
-                Confirmar Rechazo
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal
+        open={showRejectModal}
+        onClose={() => setShowRejectModal(false)}
+        title="Rechazar Orden"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowRejectModal(false)}>Cancelar</Button>
+            <Button variant="danger" onClick={handleRechazar}>Confirmar Rechazo</Button>
+          </>
+        }
+      >
+        <p className="text-sm text-gray-300 mb-4">
+          La orden será devuelta a Compras y se borrará la firma inicial. Debes justificar el motivo para que lo corrijan.
+        </p>
+        <textarea
+          className="w-full bg-gray-800 border border-gray-700 rounded-lg p-3 text-sm focus:border-red-500 focus:ring-2 focus:ring-red-500/40 focus:outline-none"
+          rows={4}
+          placeholder="Ej: El precio unitario es más alto de lo cotizado..."
+          value={rechazoMotivo}
+          onChange={(e) => setRechazoMotivo(e.target.value)}
+          autoFocus
+        />
+      </Modal>
     </div>
   )
 }

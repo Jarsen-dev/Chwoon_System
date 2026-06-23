@@ -3,20 +3,20 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import Link from 'next/link';
 import { ModuleShell, LoadingSpinner } from '@/components/ui';
+import type { TabDef } from '@/components/ui/ModuleShell';
 import { getModuleTheme } from '@/lib/theme';
-import UserBadge from '@/components/UserBadge';
+import { IconDashboard, IconCompras, IconProveedores, IconValidacion } from '@/lib/icons';
 import DashboardTab from './DashboardTab';
 import ComprasTab from './ComprasTab';
 import ProveedoresTab from './ProveedoresTab';
 import ValidacionTab from './ValidacionTab';
 
-const ALL_TABS = [
-  { id: 'dashboard',   label: '📊 Dashboard' },
-  { id: 'compras',     label: '🛒 Compras'   },
-  { id: 'proveedores', label: '🤝 Proveedores' },
-  { id: 'validacion',  label: '⚖️ Validación'  },
+const ALL_TABS: TabDef[] = [
+  { id: 'dashboard',   label: 'Dashboard',   icon: IconDashboard },
+  { id: 'compras',     label: 'Compras',     icon: IconCompras },
+  { id: 'proveedores', label: 'Proveedores', icon: IconProveedores },
+  { id: 'validacion',  label: 'Validación',  icon: IconValidacion },
 ];
 
 const THEME = getModuleTheme('compras');
@@ -50,35 +50,6 @@ export default function ComprasPage() {
 
   if (!token || (rol && !['admin', 'finanzas', 'compras'].includes(rol))) return null;
 
-
-  const headerRight = (
-    <>
-      {['admin'].includes(rol || '') && (
-        <Link href="/" className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-          🏭 Producción
-        </Link>
-      )}
-      {['admin', 'finanzas'].includes(rol || '') && (
-        <Link href="/ventas" className="bg-violet-600 hover:bg-violet-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-          💵 Ventas
-        </Link>
-      )}
-      {rol === 'admin' && (
-        <>
-          <Link href="/calidad"   className="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">🔬 Calidad</Link>
-          <Link href="/almacen"   className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">📦 Almacén</Link>
-          <Link href="/logistica" className="bg-teal-600 hover:bg-teal-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">🚛 Logística</Link>
-          <Link href="/maquinas"  className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">⚙️ Máquinas</Link>
-          <Link href="/admin"     className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">👑 Admin</Link>
-        </>
-      )}
-      <UserBadge rol={rol} username={username} />
-      <button onClick={logout} className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-        🚪 Salir
-      </button>
-    </>
-  );
-
   return (
     <ModuleShell
       moduleKey="compras"
@@ -86,7 +57,9 @@ export default function ComprasPage() {
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={setActiveTab}
-      headerRight={headerRight}
+      rol={rol}
+      username={username}
+      onLogout={logout}
     >
       {activeTab === 'dashboard'   && <DashboardTab token={token} />}
       {activeTab === 'compras'   && <ComprasTab   token={token} />}

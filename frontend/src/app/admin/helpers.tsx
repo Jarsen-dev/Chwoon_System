@@ -1,4 +1,12 @@
 import { RolUsuario } from '@/types'
+import { ROLE_BADGE, ROLE_BADGE_FALLBACK } from '@/lib/theme'
+import {
+  IconDashboard, IconUsuarios, IconLogs, IconDatabase, IconSistema, IconEmpresa,
+  IconInventario, IconEnsamble, IconDocumento, IconCamara, IconSecado, IconEtiquetas,
+  IconContador, IconAlertas, IconParo, IconGrafico, IconCompras, IconVentas,
+  IconRecepciones, IconTag, IconLogistica, IconDevoluciones, IconFecha, IconCalidad,
+  IconEliminar, IconProduccion, IconContacto, type LucideIcon,
+} from '@/lib/icons'
 
 // ── Constantes ──────────────────────────────────────────────────────
 export const ROLES: RolUsuario[] = [
@@ -19,25 +27,19 @@ export const ROL_BADGE: Record<RolUsuario, string> = {
   logistica:  'bg-teal-900/50   text-teal-300   border border-teal-700',
 }
 
-export const ROL_ICON: Record<string, string> = {
-  admin:      '👑',
-  supervisor: '🔵',
-  operador:   '🟢',
-  finanzas:   '💰',
-  compras:    '🛒',
-  ventas:     '💵',
-  calidad:    '🔬',
-  almacen:    '📦',
-  logistica:  '🚛',
+/** Icono (SVG teñible) del rol. Reemplaza el antiguo ROL_ICON de emojis. */
+export function RolIcon({ rol, size = 16, className }: { rol: string; size?: number; className?: string }) {
+  const Icon = (ROLE_BADGE[rol] || ROLE_BADGE_FALLBACK).icon
+  return <Icon size={size} className={className} aria-hidden />
 }
 
-export const TABS = [
-  { id: 'dashboard', label: '📊 Dashboard'     },
-  { id: 'usuarios',  label: '👥 Usuarios'      },
-  { id: 'logs',      label: '📋 Logs'          },
-  { id: 'database',  label: '🗃️ Base de Datos' },
-  { id: 'sistema',   label: '🖥️ Sistema'       },
-  { id: 'empresa',   label: '🏢 Empresa'       },   // ← NUEVO
+export const TABS: { id: string; label: string; icon: LucideIcon }[] = [
+  { id: 'dashboard', label: 'Dashboard',     icon: IconDashboard },
+  { id: 'usuarios',  label: 'Usuarios',      icon: IconUsuarios },
+  { id: 'logs',      label: 'Logs',          icon: IconLogs },
+  { id: 'database',  label: 'Base de Datos', icon: IconDatabase },
+  { id: 'sistema',   label: 'Sistema',       icon: IconSistema },
+  { id: 'empresa',   label: 'Empresa',       icon: IconEmpresa },
 ]
 
 // ── Tipos compartidos ───────────────────────────────────────────────
@@ -107,31 +109,31 @@ export interface ContactoEmpresa {
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────
-export function getTablaIcon(nombre: string): string {
-  const map: Record<string, string> = {
-    usuarios: '👥', inventario_planta: '📦', partes: '⚙️',
-    planes_produccion: '📋', registros_produccion: '📷',
-    registros_secado: '🌡️', cola_impresion: '🖨️',
-    contador_carritos: '🔢', anomalias: '⚠️',
-    registros_paros: '🛑', historial_turnos: '📊',
-    ordenes_compra: '🛒', ordenes_compra_items: '📦',
-    recepciones_compra: '📥', ordenes_venta: '💵',
-    ordenes_venta_items: '🏷️', envios_venta: '🚚',
-    devoluciones: '🔄', planes_venta: '📅',
-    inspecciones: '🔬', registros_scrap: '🗑️',
-    plan_inyeccion: '🏭',
-    configuracion_empresa: '🏢', contactos_empresa: '📇',
+export function getTablaIcon(nombre: string): LucideIcon {
+  const map: Record<string, LucideIcon> = {
+    usuarios: IconUsuarios, inventario_planta: IconInventario, partes: IconEnsamble,
+    planes_produccion: IconDocumento, registros_produccion: IconCamara,
+    registros_secado: IconSecado, cola_impresion: IconEtiquetas,
+    contador_carritos: IconContador, anomalias: IconAlertas,
+    registros_paros: IconParo, historial_turnos: IconGrafico,
+    ordenes_compra: IconCompras, ordenes_compra_items: IconInventario,
+    recepciones_compra: IconRecepciones, ordenes_venta: IconVentas,
+    ordenes_venta_items: IconTag, envios_venta: IconLogistica,
+    devoluciones: IconDevoluciones, planes_venta: IconFecha,
+    inspecciones: IconCalidad, registros_scrap: IconEliminar,
+    plan_inyeccion: IconProduccion,
+    configuracion_empresa: IconEmpresa, contactos_empresa: IconContacto,
   }
-  return map[nombre] || '📄'
+  return map[nombre] || IconDocumento
 }
 
 // ── Componentes compartidos ─────────────────────────────────────────
-export function StatCard({ icon, value, label, badge, badgeColor = 'gray', borderColor = 'border-gray-700', valueColor = 'text-white' }: {
-  icon: string; value: string | number; label: string
+export function StatCard({ icon: Icon, value, label, badge, badgeColor = 'gray', borderColor = 'border-gray-700', valueColor = 'text-white' }: {
+  icon: LucideIcon; value: string | number; label: string
   badge?: string; badgeColor?: string; borderColor?: string; valueColor?: string
 }) {
   const badgeColors: Record<string, string> = {
-    gray:    'text-gray-400 bg-gray-700',
+    gray:    'text-gray-300 bg-gray-700',
     yellow:  'text-yellow-400 bg-yellow-900/30',
     purple:  'text-purple-400 bg-purple-900/30',
     blue:    'text-blue-400 bg-blue-900/30',
@@ -144,7 +146,12 @@ export function StatCard({ icon, value, label, badge, badgeColor = 'gray', borde
   return (
     <div className={`bg-gray-900 rounded-xl border ${borderColor} p-5 flex flex-col gap-2`}>
       <div className="flex items-center justify-between">
-        <span className="text-2xl">{icon}</span>
+        <span
+          className="inline-flex items-center justify-center h-10 w-10 rounded-lg text-[var(--accent)]"
+          style={{ backgroundColor: 'var(--accent-soft)' }}
+        >
+          <Icon size={20} aria-hidden />
+        </span>
         {badge && (
           <span className={`text-xs font-medium px-2 py-1 rounded-full ${badgeColors[badgeColor] || badgeColors.gray}`}>
             {badge}
@@ -152,25 +159,30 @@ export function StatCard({ icon, value, label, badge, badgeColor = 'gray', borde
         )}
       </div>
       <p className={`text-3xl font-bold ${valueColor}`}>{value}</p>
-      <p className="text-sm text-gray-400">{label}</p>
+      <p className="text-sm text-gray-300">{label}</p>
     </div>
   )
 }
 
-export function DbActionCard({ icon, title, description, count, buttonLabel, buttonColor, loading, onClick, danger = false }: {
-  icon: string; title: string; description: string
+export function DbActionCard({ icon: Icon, title, description, count, buttonLabel, buttonColor, loading, onClick, danger = false }: {
+  icon: LucideIcon; title: string; description: string
   count?: number; buttonLabel: string; buttonColor: string
   loading: boolean; onClick: () => void; danger?: boolean
 }) {
   return (
     <div className={`bg-gray-900 rounded-xl border p-5 ${danger ? 'border-red-800/50' : 'border-gray-700'}`}>
       <div className="flex items-start gap-3">
-        <span className="text-2xl mt-0.5">{icon}</span>
+        <span
+          className="inline-flex items-center justify-center h-10 w-10 rounded-lg shrink-0 text-[var(--accent)]"
+          style={{ backgroundColor: 'var(--accent-soft)' }}
+        >
+          <Icon size={20} aria-hidden />
+        </span>
         <div className="flex-1">
           <h3 className="font-bold text-white text-sm">{title}</h3>
-          <p className="text-gray-400 text-xs mt-1">{description}</p>
+          <p className="text-gray-300 text-xs mt-1">{description}</p>
           {count !== undefined && (
-            <p className="text-gray-500 text-xs mt-2">
+            <p className="text-gray-400 text-xs mt-2">
               Registros actuales: <span className="text-gray-300 font-mono font-bold">{count.toLocaleString()}</span>
             </p>
           )}

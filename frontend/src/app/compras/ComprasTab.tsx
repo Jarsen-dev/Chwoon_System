@@ -14,7 +14,12 @@ import {
   type ProveedorItem,
 } from '@/lib/api'
 import type { OrdenCompra } from '@/types'
-import { DataTable, Badge } from '@/components/ui'
+import { DataTable, Badge, Button } from '@/components/ui'
+import {
+  IconCompras, IconFiltro, IconActualizar, IconNuevo, IconCerrar, IconAlertas,
+  IconCompletado, IconInventario, IconProduccion, IconFinanzas, IconVer,
+  IconEditar, IconEliminar, IconDocumento, IconRecepciones, IconFecha, IconFirmar, IconOk,
+} from '@/lib/icons'
 
 interface Props { token: string }
 
@@ -488,7 +493,7 @@ export default function ComprasTab({ token }: Props) {
                 <option value="">Seleccionar…</option>
                 {/* Si el SKU actual existe pero no está en la lista del proveedor, mostrarlo */}
                 {item.sku_producto && !skuEnLista && (
-                  <option value={item.sku_producto}>{item.sku_producto} ⚠️</option>
+                  <option value={item.sku_producto}>{item.sku_producto} (no listado)</option>
                 )}
                 {materialesOpts.map(m => (
                   <option key={m.sku_material} value={m.sku_material}>{m.sku_material}</option>
@@ -510,7 +515,7 @@ export default function ComprasTab({ token }: Props) {
             <label className="block text-xs text-gray-500 mb-1">
               Descripción *
               {item.nombre_producto && item.sku_producto && (
-                <span className="ml-1 text-emerald-500 text-[10px]">✓ auto</span>
+                <span className="ml-1 inline-flex items-center gap-0.5 text-emerald-500 text-[10px]"><IconOk size={10} aria-hidden /> auto</span>
               )}
             </label>
             <input
@@ -551,7 +556,7 @@ export default function ComprasTab({ token }: Props) {
           {/* Eliminar fila */}
           <div className="col-span-1 flex justify-center">
             {formItems.length > 1 && (
-              <button onClick={() => removeItem(idx)} className="text-red-400 hover:text-red-300 text-lg" title="Eliminar fila">🗑️</button>
+              <button onClick={() => removeItem(idx)} className="text-red-400 hover:text-red-300" title="Eliminar fila" aria-label="Eliminar fila"><IconEliminar size={18} aria-hidden /></button>
             )}
           </div>
         </div>
@@ -566,45 +571,43 @@ export default function ComprasTab({ token }: Props) {
     <div className="space-y-4">
       {/* Mensajes */}
       {error && (
-        <div className="bg-red-900/30 border border-red-500/50 rounded-lg px-4 py-3 text-red-400 flex justify-between animate-in fade-in">
-          <span>❌ {error}</span>
-          <button onClick={() => setError('')} className="text-red-300 hover:text-white">✕</button>
+        <div className="bg-red-900/30 border border-red-500/50 rounded-lg px-4 py-3 text-red-400 flex justify-between items-center animate-in fade-in">
+          <span className="flex items-center gap-2"><IconAlertas size={16} aria-hidden /> {error}</span>
+          <button onClick={() => setError('')} className="text-red-300 hover:text-white" aria-label="Cerrar"><IconCerrar size={16} aria-hidden /></button>
         </div>
       )}
       {success && (
-        <div className="bg-green-900/30 border border-green-500/50 rounded-lg px-4 py-3 text-green-400 flex justify-between animate-in fade-in">
-          <span>✅ {success}</span>
-          <button onClick={() => setSuccess('')} className="text-green-300 hover:text-white">✕</button>
+        <div className="bg-green-900/30 border border-green-500/50 rounded-lg px-4 py-3 text-green-400 flex justify-between items-center animate-in fade-in">
+          <span className="flex items-center gap-2"><IconCompletado size={16} aria-hidden /> {success}</span>
+          <button onClick={() => setSuccess('')} className="text-green-300 hover:text-white" aria-label="Cerrar"><IconCerrar size={16} aria-hidden /></button>
         </div>
       )}
 
       {/* ── Toolbar ── */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h2 className="text-xl font-bold">🛒 Órdenes de Compra</h2>
+          <h2 className="text-xl font-bold flex items-center gap-2">
+            <IconCompras size={22} className="text-[var(--accent)]" aria-hidden /> Órdenes de Compra
+          </h2>
           <button onClick={() => setShowFiltros(!showFiltros)}
-            className={`px-3 py-1.5 rounded-lg text-sm transition-colors border ${
+            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors border ${
               showFiltros || hayFiltrosActivos
                 ? 'bg-emerald-600/20 border-emerald-500/30 text-emerald-400'
-                : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white'
+                : 'bg-gray-800 border-gray-700 text-gray-300 hover:text-white'
             }`}>
-            🔍 Filtros {hayFiltrosActivos && `(${ordenesFiltradas.length})`}
+            <IconFiltro size={16} aria-hidden /> Filtros {hayFiltrosActivos && `(${ordenesFiltradas.length})`}
           </button>
         </div>
         <div className="flex gap-2">
-          <button onClick={fetchOrdenes}
-            className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm transition-colors">
-            🔄 Refrescar
-          </button>
-          <button
+          <Button variant="secondary" onClick={fetchOrdenes} leftIcon={IconActualizar}>Refrescar</Button>
+          <Button
+            leftIcon={IconNuevo}
             onClick={async () => {
               resetForm()
               await loadProveedores()
               setShowCreateModal(true)
             }}
-            className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-            ➕ Nueva Orden
-          </button>
+          >Nueva Orden</Button>
         </div>
       </div>
 
@@ -612,24 +615,24 @@ export default function ComprasTab({ token }: Props) {
       {showFiltros && (
         <div className="bg-gray-900 rounded-xl border border-gray-800 p-5 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-gray-400">🔍 Filtros</h3>
+            <h3 className="text-sm font-semibold text-gray-300 flex items-center gap-2"><IconFiltro size={16} aria-hidden /> Filtros</h3>
             {hayFiltrosActivos && (
-              <button onClick={limpiarFiltros} className="text-xs text-red-400 hover:text-red-300">✕ Limpiar</button>
+              <button onClick={limpiarFiltros} className="inline-flex items-center gap-1 text-xs text-red-400 hover:text-red-300"><IconCerrar size={14} aria-hidden /> Limpiar</button>
             )}
           </div>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <div>
-              <label className="block text-xs text-gray-500 mb-1">📅 Fecha Desde</label>
+              <label className="flex items-center gap-1 text-xs text-gray-300 mb-1"><IconFecha size={13} aria-hidden /> Fecha Desde</label>
               <input type="date" value={filtroFechaDesde} onChange={e => setFiltroFechaDesde(e.target.value)}
                 className={selectCls('border-emerald')} />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">📅 Fecha Hasta</label>
+              <label className="flex items-center gap-1 text-xs text-gray-300 mb-1"><IconFecha size={13} aria-hidden /> Fecha Hasta</label>
               <input type="date" value={filtroFechaHasta} onChange={e => setFiltroFechaHasta(e.target.value)}
                 className={selectCls('border-emerald')} />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">🏭 Proveedor</label>
+              <label className="flex items-center gap-1 text-xs text-gray-300 mb-1"><IconProduccion size={13} aria-hidden /> Proveedor</label>
               <select value={filtroProveedor} onChange={e => setFiltroProveedor(e.target.value)}
                 className={selectCls('border-emerald')}>
                 <option value="">Todos</option>
@@ -637,14 +640,14 @@ export default function ComprasTab({ token }: Props) {
               </select>
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">📋 Status</label>
+              <label className="flex items-center gap-1 text-xs text-gray-300 mb-1"><IconDocumento size={13} aria-hidden /> Status</label>
               <select value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)}
                 className={selectCls('border-emerald')}>
                 {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">💰 Valor (rango)</label>
+              <label className="flex items-center gap-1 text-xs text-gray-300 mb-1"><IconFinanzas size={13} aria-hidden /> Valor (rango)</label>
               <div className="flex gap-1">
                 <input type="text" value={filtroValorMin} onChange={e => setFiltroValorMin(e.target.value)}
                   className="w-1/2 bg-gray-800 border border-gray-700 rounded-lg px-2 py-2 text-sm focus:border-emerald-500 focus:outline-none" placeholder="Min" />
@@ -653,15 +656,15 @@ export default function ComprasTab({ token }: Props) {
               </div>
             </div>
           </div>
-          <p className="text-xs text-gray-500">{ordenesFiltradas.length} de {ordenes.length} órdenes</p>
+          <p className="text-xs text-gray-400">{ordenesFiltradas.length} de {ordenes.length} órdenes</p>
         </div>
       )}
 
       {/* ── Tabla ── */}
       {ordenesFiltradas.length === 0 && !loading ? (
         <div className="bg-gray-900 rounded-xl border border-gray-800 p-12 text-center">
-          <p className="text-4xl mb-3">📦</p>
-          <p className="text-gray-400">{hayFiltrosActivos ? 'No hay órdenes que coincidan' : 'No hay órdenes de compra'}</p>
+          <IconInventario size={40} className="mx-auto mb-3 text-gray-600" aria-hidden />
+          <p className="text-gray-300">{hayFiltrosActivos ? 'No hay órdenes que coincidan' : 'No hay órdenes de compra'}</p>
         </div>
       ) : (
         <DataTable
@@ -674,7 +677,7 @@ export default function ComprasTab({ token }: Props) {
               <div>
                 {oc.nombre_proveedor}
                 {isPendienteAprobacion(oc) && oc.origen === 'PRODUCCION' && (
-                  <span className="ml-2 text-xs text-orange-400 italic">⚠️ Asignar proveedor</span>
+                  <span className="ml-2 inline-flex items-center gap-1 text-xs text-orange-400 italic"><IconAlertas size={12} aria-hidden /> Asignar proveedor</span>
                 )}
               </div>
             )},
@@ -696,39 +699,39 @@ export default function ComprasTab({ token }: Props) {
             }},
             { key: 'origen', header: 'Origen', render: (oc) =>
               oc.origen === 'PRODUCCION'
-                ? <Badge variant="warning">🏭 Producción</Badge>
-                : <Badge variant="success">💰 Compras</Badge>
+                ? <Badge variant="warning"><IconProduccion size={12} aria-hidden /> Producción</Badge>
+                : <Badge variant="success"><IconFinanzas size={12} aria-hidden /> Compras</Badge>
             },
             { key: 'items', header: 'Items', render: (oc) => `${oc.items.length} items` },
             { key: 'valor', header: 'Valor Total', align: 'right', render: (oc) =>
               formatCurrency(oc.items.reduce((s: number, i: any) => s + i.cantidad_requerida * i.precio_unitario, 0))
             },
-            { key: 'fecha', header: 'Fecha', render: (oc) => <span className="text-gray-400 text-xs">{formatDate(oc.fecha_creacion)}</span> },
-            { key: 'creado_por', header: 'Creado por', render: (oc) => <span className="text-gray-400">{oc.creado_por || '—'}</span> },
+            { key: 'fecha', header: 'Fecha', render: (oc) => <span className="text-gray-300 text-xs">{formatDate(oc.fecha_creacion)}</span> },
+            { key: 'creado_por', header: 'Creado por', render: (oc) => <span className="text-gray-300">{oc.creado_por || '—'}</span> },
             { key: 'acciones', header: 'Acciones', align: 'center', render: (oc) => (
               <div className="flex justify-center gap-1">
                 <button onClick={() => handleVerDetalle(oc.oc_id)}
-                  className="bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 px-2 py-1 rounded text-xs transition-colors" title="Ver detalle">👁️</button>
-                
+                  className="inline-flex items-center bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 p-1.5 rounded transition-colors" title="Ver detalle" aria-label="Ver detalle"><IconVer size={14} aria-hidden /></button>
+
                 {(oc.status === 'Pendiente de Firma' || oc.status === 'Rechazada') && !oc.firma_compras && (
                   <button onClick={() => handleFirmar(oc)}
-                    className="bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 px-2 py-1 rounded text-xs transition-colors" title="Firmar Orden (Enviar a Finanzas)">✍️</button>
+                    className="inline-flex items-center bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 p-1.5 rounded transition-colors" title="Firmar Orden (Enviar a Finanzas)" aria-label="Firmar orden"><IconFirmar size={14} aria-hidden /></button>
                 )}
 
                 {isPendienteAprobacion(oc) && (
                   <button onClick={() => handleOpenEdit(oc)}
-                    className="bg-orange-600/20 hover:bg-orange-600/40 text-orange-400 px-2 py-1 rounded text-xs transition-colors" title="Editar y Aprobar">✏️</button>
+                    className="inline-flex items-center bg-orange-600/20 hover:bg-orange-600/40 text-orange-300 p-1.5 rounded transition-colors" title="Editar y Aprobar" aria-label="Editar y aprobar"><IconEditar size={14} aria-hidden /></button>
                 )}
-                
+
                 {/* PDF solo visible si está Autorizada, Parcial o Completada */}
                 {['Autorizada', 'Parcial', 'Completada'].includes(oc.status) && (
                   <button onClick={() => handleDescargarPdf(oc.oc_id)}
-                    className="bg-purple-600/20 hover:bg-purple-600/40 text-purple-400 px-2 py-1 rounded text-xs transition-colors" title="Descargar PDF">📄</button>
+                    className="inline-flex items-center bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 p-1.5 rounded transition-colors" title="Descargar PDF" aria-label="Descargar PDF"><IconDocumento size={14} aria-hidden /></button>
                 )}
-                
+
                 {canDelete(oc) && (
                   <button onClick={() => { setDeleteTarget(oc); setShowDeleteModal(true) }}
-                    className="bg-red-600/20 hover:bg-red-600/40 text-red-400 px-2 py-1 rounded text-xs transition-colors" title="Eliminar">🗑️</button>
+                    className="inline-flex items-center bg-red-600/20 hover:bg-red-600/40 text-red-300 p-1.5 rounded transition-colors" title="Eliminar" aria-label="Eliminar"><IconEliminar size={14} aria-hidden /></button>
                 )}
               </div>
             )},
@@ -743,8 +746,8 @@ export default function ComprasTab({ token }: Props) {
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
           <div className="bg-gray-900 rounded-2xl border border-gray-700 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-800 flex items-center justify-between">
-              <h3 className="text-lg font-bold">➕ Nueva Orden de Compra</h3>
-              <button onClick={() => { setShowCreateModal(false); resetForm() }} className="text-gray-400 hover:text-white text-xl">✕</button>
+              <h3 className="text-lg font-bold flex items-center gap-2"><IconNuevo size={18} aria-hidden /> Nueva Orden de Compra</h3>
+              <button onClick={() => { setShowCreateModal(false); resetForm() }} className="text-gray-300 hover:text-white" aria-label="Cerrar"><IconCerrar size={20} aria-hidden /></button>
             </div>
 
             <div className="p-6 space-y-4">
@@ -769,7 +772,7 @@ export default function ComprasTab({ token }: Props) {
                   </button>
                 </div>
                 {!selectedProveedor && proveedores.length > 0 && (
-                  <p className="text-xs text-yellow-500/80 mb-2">⚠️ Selecciona un proveedor para ver sus números de parte disponibles</p>
+                  <p className="text-xs text-yellow-500/80 mb-2 flex items-center gap-1"><IconAlertas size={13} aria-hidden /> Selecciona un proveedor para ver sus números de parte disponibles</p>
                 )}
                 <div className="space-y-3">
                   {formItems.map((item, idx) => renderItemRow(item, idx, 'emerald'))}
@@ -797,10 +800,7 @@ export default function ComprasTab({ token }: Props) {
                 className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm transition-colors">
                 Cancelar
               </button>
-              <button onClick={handleCrear}
-                className="bg-emerald-600 hover:bg-emerald-700 px-6 py-2 rounded-lg text-sm font-medium transition-colors">
-                ✅ Crear Orden
-              </button>
+              <Button onClick={handleCrear} leftIcon={IconCompletado}>Crear Orden</Button>
             </div>
           </div>
         </div>
@@ -814,20 +814,21 @@ export default function ComprasTab({ token }: Props) {
           <div className="bg-gray-900 rounded-2xl border border-orange-700/50 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-800 flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-bold text-orange-400">✏️ Editar y Aprobar Orden</h3>
-                <p className="text-xs text-gray-500 mt-1">
-                  OC: <span className="text-emerald-400 font-mono">{editOC.oc_id}</span> — Generada desde 🏭 Producción
+                <h3 className="text-lg font-bold text-orange-400 flex items-center gap-2"><IconEditar size={18} aria-hidden /> Editar y Aprobar Orden</h3>
+                <p className="text-xs text-gray-400 mt-1 inline-flex items-center gap-1">
+                  OC: <span className="text-emerald-400 font-mono">{editOC.oc_id}</span> — Generada desde <IconProduccion size={12} aria-hidden /> Producción
                 </p>
               </div>
               <button onClick={() => { setShowEditModal(false); setEditOC(null); resetForm() }}
-                className="text-gray-400 hover:text-white text-xl">✕</button>
+                className="text-gray-300 hover:text-white" aria-label="Cerrar"><IconCerrar size={20} aria-hidden /></button>
             </div>
 
             {/* Banner informativo */}
             <div className="mx-6 mt-4 bg-orange-900/20 border border-orange-700/30 rounded-lg p-3">
-              <p className="text-xs text-orange-400">
-                🏭 Esta orden fue generada automáticamente desde Pre-Expansión por stock insuficiente.
-                Selecciona el proveedor real, ajusta cantidades/precios y aprueba para habilitar la recepción.
+              <p className="text-xs text-orange-400 flex items-start gap-1">
+                <IconProduccion size={13} className="mt-0.5 shrink-0" aria-hidden />
+                <span>Esta orden fue generada automáticamente desde Pre-Expansión por stock insuficiente.
+                Selecciona el proveedor real, ajusta cantidades/precios y aprueba para habilitar la recepción.</span>
               </p>
               {editOC.notas && (
                 <p className="text-xs text-gray-400 mt-2 border-t border-orange-700/20 pt-2">
@@ -857,7 +858,7 @@ export default function ComprasTab({ token }: Props) {
                   </button>
                 </div>
                 {!selectedProveedor && proveedores.length > 0 && (
-                  <p className="text-xs text-yellow-500/80 mb-2">⚠️ Selecciona un proveedor para ver sus números de parte disponibles</p>
+                  <p className="text-xs text-yellow-500/80 mb-2 flex items-center gap-1"><IconAlertas size={13} aria-hidden /> Selecciona un proveedor para ver sus números de parte disponibles</p>
                 )}
                 <div className="space-y-3">
                   {formItems.map((item, idx) => renderItemRow(item, idx, 'orange'))}
@@ -870,10 +871,7 @@ export default function ComprasTab({ token }: Props) {
                 className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm transition-colors">
                 Cancelar
               </button>
-              <button onClick={handleAprobar}
-                className="bg-orange-600 hover:bg-orange-700 px-6 py-2 rounded-lg text-sm font-medium transition-colors">
-                ✅ Aprobar Orden
-              </button>
+              <Button onClick={handleAprobar} leftIcon={IconCompletado}>Aprobar Orden</Button>
             </div>
           </div>
         </div>
@@ -887,12 +885,12 @@ export default function ComprasTab({ token }: Props) {
           <div className="bg-gray-900 rounded-2xl border border-gray-700 w-full max-w-5xl max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-800 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <h3 className="text-lg font-bold">📋 Detalle: <span className="text-emerald-400">{ordenDetalle.oc_id}</span></h3>
+                <h3 className="text-lg font-bold flex items-center gap-2"><IconDocumento size={18} aria-hidden /> Detalle: <span className="text-emerald-400 font-mono">{ordenDetalle.oc_id}</span></h3>
                 {ordenDetalle.origen === 'PRODUCCION' && (
-                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-500/20 text-orange-400 border border-orange-500/30">🏭 Producción</span>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-500/20 text-orange-400 border border-orange-500/30"><IconProduccion size={12} aria-hidden /> Producción</span>
                 )}
               </div>
-              <button onClick={() => setShowDetalleModal(false)} className="text-gray-400 hover:text-white text-xl">✕</button>
+              <button onClick={() => setShowDetalleModal(false)} className="text-gray-300 hover:text-white" aria-label="Cerrar"><IconCerrar size={20} aria-hidden /></button>
             </div>
             <div className="p-6 space-y-6">
               <div className="grid grid-cols-3 gap-4">
@@ -916,7 +914,7 @@ export default function ComprasTab({ token }: Props) {
                 </div>
               )}
               <div>
-                <h4 className="text-sm font-semibold text-gray-400 mb-2">📦 Productos</h4>
+                <h4 className="text-sm font-semibold text-gray-300 mb-2 flex items-center gap-2"><IconInventario size={16} aria-hidden /> Productos</h4>
                 <div className="bg-gray-800/30 rounded-lg border border-gray-700 overflow-hidden">
                   <table className="w-full text-sm">
                     <thead className="bg-gray-800">
@@ -951,7 +949,7 @@ export default function ComprasTab({ token }: Props) {
               </div>
               {ordenDetalle.recepciones?.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-semibold text-gray-400 mb-2">📥 Historial de Recepciones</h4>
+                  <h4 className="text-sm font-semibold text-gray-300 mb-2 flex items-center gap-2"><IconRecepciones size={16} aria-hidden /> Historial de Recepciones</h4>
                   <div className="space-y-2">
                     {ordenDetalle.recepciones.map((rec: any) => (
                       <div key={rec.recepcion_id} className="bg-gray-800/30 rounded-lg p-3 border border-gray-700 flex justify-between items-start">
@@ -984,7 +982,7 @@ export default function ComprasTab({ token }: Props) {
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
           <div className="bg-gray-900 rounded-2xl border border-red-700/50 w-full max-w-md">
             <div className="p-6 border-b border-gray-800">
-              <h3 className="text-lg font-bold text-red-400">⚠️ Confirmar Eliminación</h3>
+              <h3 className="text-lg font-bold text-red-400 flex items-center gap-2"><IconAlertas size={18} aria-hidden /> Confirmar Eliminación</h3>
             </div>
             <div className="p-6 space-y-4">
               <p className="text-gray-300">¿Está seguro de que desea eliminar esta orden de compra?</p>
@@ -993,22 +991,16 @@ export default function ComprasTab({ token }: Props) {
                 <p className="text-sm"><span className="text-gray-500">Proveedor:</span> <span className="text-white">{deleteTarget.nombre_proveedor}</span></p>
                 <p className="text-sm"><span className="text-gray-500">Items:</span> <span className="text-white">{deleteTarget.items.length}</span></p>
                 {deleteTarget.origen === 'PRODUCCION' && (
-                  <p className="text-xs text-orange-400 mt-1">🏭 Generada desde Producción</p>
+                  <p className="text-xs text-orange-400 mt-1 inline-flex items-center gap-1"><IconProduccion size={12} aria-hidden /> Generada desde Producción</p>
                 )}
               </div>
               <div className="bg-red-900/20 border border-red-700/30 rounded-lg p-3">
-                <p className="text-xs text-red-400">⚠️ Esta acción no se puede deshacer.</p>
+                <p className="text-xs text-red-400 flex items-center gap-1"><IconAlertas size={13} aria-hidden /> Esta acción no se puede deshacer.</p>
               </div>
             </div>
             <div className="p-6 border-t border-gray-800 flex justify-end gap-3">
-              <button onClick={() => { setShowDeleteModal(false); setDeleteTarget(null) }}
-                className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm transition-colors">
-                Cancelar
-              </button>
-              <button onClick={handleEliminarConfirm}
-                className="bg-red-600 hover:bg-red-700 px-6 py-2 rounded-lg text-sm font-medium transition-colors">
-                🗑️ Eliminar
-              </button>
+              <Button variant="secondary" onClick={() => { setShowDeleteModal(false); setDeleteTarget(null) }}>Cancelar</Button>
+              <Button variant="danger" onClick={handleEliminarConfirm} leftIcon={IconEliminar}>Eliminar</Button>
             </div>
           </div>
         </div>

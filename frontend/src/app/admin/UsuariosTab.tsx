@@ -9,7 +9,12 @@ import {
   toggleUsuario
 } from '@/lib/api'
 import { Usuario, UsuarioCreate, RolUsuario, TABS_POR_MODULO, MODULOS_POR_ROL } from '@/types'
-import { ROLES, ROL_BADGE, ROL_ICON } from './helpers'
+import { ROLES, ROL_BADGE, RolIcon } from './helpers'
+import { Button, Modal, LoadingSpinner } from '@/components/ui'
+import {
+  IconNuevo, IconAlertas, IconEditar, IconEliminar, IconOk, IconInactivo,
+  IconBloqueado, IconDesbloqueado, IconGuardar, IconModulo,
+} from '@/lib/icons'
 
 interface Props {
   token: string
@@ -160,25 +165,20 @@ export default function UsuariosTab({ token }: Props) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold">Gestión de Usuarios</h2>
-          <p className="text-gray-400 text-sm mt-1">{usuarios.length} usuarios registrados</p>
+          <p className="text-gray-300 text-sm mt-1">{usuarios.length} usuarios registrados</p>
         </div>
-        <button
-          onClick={handleNuevo}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
-        >
-          ➕ Nuevo Usuario
-        </button>
+        <Button onClick={handleNuevo} leftIcon={IconNuevo}>Nuevo Usuario</Button>
       </div>
 
       {error && (
-        <div className="bg-red-900/50 border border-red-500 text-red-300 rounded-lg px-4 py-3 text-sm">
-          ⚠️ {error}
+        <div className="bg-red-900/50 border border-red-500 text-red-300 rounded-lg px-4 py-3 text-sm flex items-center gap-2">
+          <IconAlertas size={16} aria-hidden /> {error}
         </div>
       )}
 
       {/* ── Tabla ── */}
       {loadingUsers ? (
-        <div className="text-center py-20 text-gray-400 animate-pulse">⏳ Cargando usuarios...</div>
+        <div className="flex justify-center py-20"><LoadingSpinner label="Cargando usuarios..." /></div>
       ) : (
         <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
           <table className="w-full">
@@ -204,7 +204,7 @@ export default function UsuariosTab({ token }: Props) {
                   <tr key={user.id} className="hover:bg-gray-700/30 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
-                        <span>{ROL_ICON[user.rol]}</span>
+                        <RolIcon rol={user.rol} />
                         <span className="font-medium">{user.username}</span>
                       </div>
                     </td>
@@ -216,12 +216,12 @@ export default function UsuariosTab({ token }: Props) {
                     </td>
                     <td className="px-6 py-4">
                       {tienePermisos ? (
-                        <span className="text-xs px-2 py-1 rounded-full font-medium bg-purple-900/50 text-purple-300 border border-purple-700">
-                          🔒 {totalTabs} tabs
+                        <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium bg-purple-900/50 text-purple-300 border border-purple-700">
+                          <IconBloqueado size={12} aria-hidden /> {totalTabs} tabs
                         </span>
                       ) : (
-                        <span className="text-xs px-2 py-1 rounded-full font-medium bg-gray-700 text-gray-400 border border-gray-600">
-                          🔓 Acceso total
+                        <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium bg-gray-700 text-gray-300 border border-gray-600">
+                          <IconDesbloqueado size={12} aria-hidden /> Acceso total
                         </span>
                       )}
                     </td>
@@ -231,31 +231,33 @@ export default function UsuariosTab({ token }: Props) {
                           ? 'bg-green-900/50 text-green-300 border border-green-700'
                           : 'bg-gray-700 text-gray-400 border border-gray-600'
                       }`}>
-                        {user.activo ? '✅ Activo' : '⛔ Inactivo'}
+                        <span className="inline-flex items-center gap-1">
+                          {user.activo ? <IconOk size={12} aria-hidden /> : <IconInactivo size={12} aria-hidden />} {user.activo ? 'Activo' : 'Inactivo'}
+                        </span>
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-gray-400 text-sm">
+                    <td className="px-6 py-4 text-gray-300 text-sm">
                       {user.created_at ? new Date(user.created_at).toLocaleDateString('es-MX') : '—'}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-center gap-2">
                         <button
                           onClick={() => handleEdit(user)}
-                          className="text-xs bg-blue-900/50 hover:bg-blue-800 text-blue-300 px-2 py-1 rounded-lg transition-colors"
+                          className="inline-flex items-center gap-1 text-xs bg-blue-900/50 hover:bg-blue-800 text-blue-300 px-2 py-1 rounded-lg transition-colors"
                         >
-                          ✏️ Editar
+                          <IconEditar size={13} aria-hidden /> Editar
                         </button>
                         <button
                           onClick={() => handleToggle(user)}
-                          className="text-xs bg-yellow-900/50 hover:bg-yellow-800 text-yellow-300 px-2 py-1 rounded-lg transition-colors"
+                          className="inline-flex items-center gap-1 text-xs bg-yellow-900/50 hover:bg-yellow-800 text-yellow-300 px-2 py-1 rounded-lg transition-colors"
                         >
-                          {user.activo ? '⛔ Desactivar' : '✅ Activar'}
+                          {user.activo ? <><IconInactivo size={13} aria-hidden /> Desactivar</> : <><IconOk size={13} aria-hidden /> Activar</>}
                         </button>
                         <button
                           onClick={() => setDeleteUserState(user)}
-                          className="text-xs bg-red-900/50 hover:bg-red-800 text-red-300 px-2 py-1 rounded-lg transition-colors"
+                          className="inline-flex items-center gap-1 text-xs bg-red-900/50 hover:bg-red-800 text-red-300 px-2 py-1 rounded-lg transition-colors"
                         >
-                          🗑️ Eliminar
+                          <IconEliminar size={13} aria-hidden /> Eliminar
                         </button>
                       </div>
                     </td>
@@ -271,8 +273,8 @@ export default function UsuariosTab({ token }: Props) {
       {showModal && (
         <div className="fixed inset-0 bg-black/70 flex items-start justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-gray-800 rounded-2xl shadow-2xl p-6 w-full max-w-xl border border-gray-700 my-8">
-            <h3 className="text-lg font-bold mb-5">
-              {editUser ? '✏️ Editar Usuario' : '➕ Nuevo Usuario'}
+            <h3 className="text-lg font-bold mb-5 flex items-center gap-2">
+              {editUser ? <><IconEditar size={18} aria-hidden /> Editar Usuario</> : <><IconNuevo size={18} aria-hidden /> Nuevo Usuario</>}
             </h3>
 
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -337,7 +339,7 @@ export default function UsuariosTab({ token }: Props) {
                   className="w-full bg-gray-700 text-white rounded-lg px-3 py-2 border border-gray-600 focus:border-blue-500 focus:outline-none"
                 >
                   {ROLES.map(r => (
-                    <option key={r} value={r}>{ROL_ICON[r]} {r}</option>
+                    <option key={r} value={r}>{r}</option>
                   ))}
                 </select>
               </div>
@@ -356,8 +358,8 @@ export default function UsuariosTab({ token }: Props) {
                   className="w-full flex items-center justify-between px-4 py-3 bg-gray-700/50 hover:bg-gray-700 transition-colors"
                 >
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-200">
-                      🔒 Permisos por sub-tab
+                    <span className="text-sm font-medium text-gray-200 inline-flex items-center gap-2">
+                      <IconBloqueado size={15} aria-hidden /> Permisos por sub-tab
                     </span>
                     {usarPermisos ? (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-purple-900/50 text-purple-300 border border-purple-700">
@@ -395,8 +397,8 @@ export default function UsuariosTab({ token }: Props) {
 
                             {/* Header del módulo con toggle-all */}
                             <div className="flex items-center justify-between mb-2">
-                              <span className="text-sm font-semibold text-gray-200 capitalize">
-                                📂 {modulo}
+                              <span className="text-sm font-semibold text-gray-200 capitalize inline-flex items-center gap-2">
+                                <IconModulo size={15} aria-hidden /> {modulo}
                               </span>
                               <button
                                 type="button"
@@ -407,7 +409,7 @@ export default function UsuariosTab({ token }: Props) {
                                     : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
                                 }`}
                               >
-                                {todosActivos ? '✓ Todos' : algunoActivo ? '~ Algunos' : '○ Ninguno'}
+                                {todosActivos ? 'Todos' : algunoActivo ? 'Algunos' : 'Ninguno'}
                               </button>
                             </div>
 
@@ -446,26 +448,17 @@ export default function UsuariosTab({ token }: Props) {
               </div>
 
               {error && (
-                <div className="bg-red-900/50 border border-red-500 text-red-300 rounded-lg px-3 py-2 text-sm">
-                  ⚠️ {error}
+                <div className="bg-red-900/50 border border-red-500 text-red-300 rounded-lg px-3 py-2 text-sm flex items-center gap-2">
+                  <IconAlertas size={15} aria-hidden /> {error}
                 </div>
               )}
 
               {/* Botones */}
               <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => { setShowModal(false); setEditUser(null); setError('') }}
-                  className="flex-1 bg-gray-700 hover:bg-gray-600 text-white rounded-lg py-2 transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg py-2 transition-colors"
-                >
-                  {editUser ? '💾 Guardar' : '➕ Crear'}
-                </button>
+                <Button type="button" variant="secondary" className="flex-1" onClick={() => { setShowModal(false); setEditUser(null); setError('') }}>Cancelar</Button>
+                <Button type="submit" className="flex-1" leftIcon={editUser ? IconGuardar : IconNuevo}>
+                  {editUser ? 'Guardar' : 'Crear'}
+                </Button>
               </div>
             </form>
           </div>
@@ -473,41 +466,36 @@ export default function UsuariosTab({ token }: Props) {
       )}
 
       {/* ═══ MODAL: CONFIRMAR ELIMINACIÓN ═══ */}
-      {deleteUserState && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 rounded-2xl shadow-2xl p-6 w-full max-w-sm border border-gray-700">
+      <Modal
+        open={!!deleteUserState}
+        onClose={() => { setDeleteUserState(null); setError('') }}
+        title="Eliminar Usuario"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => { setDeleteUserState(null); setError('') }}>Cancelar</Button>
+            <Button variant="danger" onClick={handleDelete} leftIcon={IconEliminar}>Eliminar</Button>
+          </>
+        }
+      >
+        {deleteUserState && (
+          <>
             <div className="flex justify-center mb-4">
-              <div className="bg-red-900/50 rounded-full p-4"><span className="text-4xl">🗑️</span></div>
+              <div className="bg-red-900/50 rounded-full p-4 text-red-300"><IconEliminar size={32} aria-hidden /></div>
             </div>
-            <h3 className="text-lg font-bold text-center text-white mb-2">Eliminar Usuario</h3>
-            <p className="text-gray-400 text-center text-sm mb-1">
+            <p className="text-gray-300 text-center text-sm mb-1">
               ¿Estás seguro que deseas eliminar al usuario:
             </p>
-            <p className="text-white font-semibold text-center mb-6">
-              {ROL_ICON[deleteUserState.rol]} {deleteUserState.username}
+            <p className="text-white font-semibold text-center mb-4 inline-flex items-center justify-center gap-2 w-full">
+              <RolIcon rol={deleteUserState.rol} /> {deleteUserState.username}
             </p>
             {error && (
-              <div className="bg-red-900/50 border border-red-500 text-red-300 rounded-lg px-3 py-2 text-sm mb-4">
-                ⚠️ {error}
+              <div className="bg-red-900/50 border border-red-500 text-red-300 rounded-lg px-3 py-2 text-sm flex items-center gap-2">
+                <IconAlertas size={15} aria-hidden /> {error}
               </div>
             )}
-            <div className="flex gap-3">
-              <button
-                onClick={() => { setDeleteUserState(null); setError('') }}
-                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white rounded-lg py-2.5 transition-colors font-medium"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleDelete}
-                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg py-2.5 transition-colors"
-              >
-                🗑️ Eliminar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
     </div>
   )
 }

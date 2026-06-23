@@ -3,18 +3,18 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import Link from 'next/link';
 import { ModuleShell, LoadingSpinner } from '@/components/ui';
+import type { TabDef } from '@/components/ui/ModuleShell';
 import { getModuleTheme } from '@/lib/theme';
-import UserBadge from '@/components/UserBadge';
+import { IconDashboard, IconLogistica, IconDocumento } from '@/lib/icons';
 import DashboardTab       from './DashboardTab';
 import EmbarquesTab       from './EmbarquesTab';
 import ReporteEmbarquesTab from './ReporteEmbarquesTab';
 
-const ALL_TABS = [
-  { id: 'dashboard', label: '📊 Dashboard' },
-  { id: 'embarques', label: '🚚 Embarques' },
-  { id: 'reporte',   label: '📋 Reporte'   },
+const ALL_TABS: TabDef[] = [
+  { id: 'dashboard', label: 'Dashboard', icon: IconDashboard },
+  { id: 'embarques', label: 'Embarques', icon: IconLogistica },
+  { id: 'reporte',   label: 'Reporte',   icon: IconDocumento },
 ];
 
 const THEME = getModuleTheme('logistica');
@@ -48,39 +48,6 @@ export default function LogisticaPage() {
 
   if (!token || (rol && !['admin', 'logistica'].includes(rol))) return null;
 
-
-  const headerRight = (
-    <>
-      {['admin', 'supervisor', 'operador', 'calidad'].includes(rol || '') && (
-        <Link href="/" className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-          🏭 Producción
-        </Link>
-      )}
-      {['admin', 'finanzas'].includes(rol || '') && (
-        <>
-          <Link href="/compras" className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">🛒 Compras</Link>
-          <Link href="/ventas"  className="bg-violet-600 hover:bg-violet-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">💵 Ventas</Link>
-        </>
-      )}
-      {['admin', 'calidad'].includes(rol || '') && (
-        <Link href="/calidad" className="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">🔬 Calidad</Link>
-      )}
-      {['admin', 'almacen'].includes(rol || '') && (
-        <Link href="/almacen" className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">📦 Almacén</Link>
-      )}
-      {rol === 'admin' && (
-        <>
-          <Link href="/maquinas" className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">⚙️ Máquinas</Link>
-          <Link href="/admin"    className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">👑 Admin</Link>
-        </>
-      )}
-      <UserBadge rol={rol} username={username} />
-      <button onClick={logout} className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-        🚪 Salir
-      </button>
-    </>
-  );
-
   return (
     <ModuleShell
       moduleKey="logistica"
@@ -88,7 +55,9 @@ export default function LogisticaPage() {
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={setActiveTab}
-      headerRight={headerRight}
+      rol={rol}
+      username={username}
+      onLogout={logout}
     >
       {activeTab === 'dashboard' && <DashboardTab        token={token} />}
       {activeTab === 'embarques' && <EmbarquesTab        token={token} />}

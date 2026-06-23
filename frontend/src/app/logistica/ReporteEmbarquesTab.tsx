@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { getReporteEmbarques } from '@/lib/api';
 import { ReporteEmbarqueItem } from '@/types';
+import { Button } from '@/components/ui';
+import { IconDocumento, IconGrafico, IconPendiente } from '@/lib/icons';
 
 interface Props {
   token: string;
@@ -33,26 +35,28 @@ export default function ReporteEmbarquesTab({ token }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-bold">📋 Reporte de Embarques por Día</h2>
+        <h2 className="text-xl font-bold flex items-center gap-2">
+          <IconDocumento size={22} className="text-[var(--accent)]" aria-hidden /> Reporte de Embarques por Día
+        </h2>
       </div>
 
       {/* Filtros */}
       <div className="flex gap-3 items-end">
         <div>
-          <label className="text-sm text-gray-400">Fecha</label>
+          <label className="text-sm text-gray-300">Fecha</label>
           <input
             type="date"
             value={fecha}
             onChange={(e) => setFecha(e.target.value)}
-            className="block bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white mt-1"
+            className="block bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white mt-1 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
           />
         </div>
         <div>
-          <label className="text-sm text-gray-400">Clase de Producto</label>
+          <label className="text-sm text-gray-300">Clase de Producto</label>
           <select
             value={clase}
             onChange={(e) => setClase(e.target.value)}
-            className="block bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white mt-1"
+            className="block bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white mt-1 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
           >
             <option value="">TODAS LAS CLASES</option>
             <option value="AUTOPARTES">AUTOPARTES</option>
@@ -60,13 +64,9 @@ export default function ReporteEmbarquesTab({ token }: Props) {
             <option value="EMBALAJE">EMBALAJE</option>
           </select>
         </div>
-        <button
-          onClick={cargar}
-          disabled={loading}
-          className="bg-teal-600 hover:bg-teal-700 disabled:opacity-50 px-6 py-2 rounded-lg text-sm font-medium transition-colors"
-        >
-          {loading ? '⏳ Cargando...' : '📊 Generar Reporte'}
-        </button>
+        <Button onClick={cargar} disabled={loading} leftIcon={loading ? IconPendiente : IconGrafico}>
+          {loading ? 'Cargando...' : 'Generar Reporte'}
+        </Button>
       </div>
 
       {error && (
@@ -80,13 +80,13 @@ export default function ReporteEmbarquesTab({ token }: Props) {
             <table className="w-full text-sm">
               <thead className="bg-gray-800">
                 <tr>
-                  <th className="text-left p-3 text-gray-400 sticky left-0 bg-gray-800 z-10">SKU</th>
-                  <th className="text-right p-3 text-gray-400">Solicitado</th>
-                  <th className="text-right p-3 text-gray-400">Enviado</th>
-                  <th className="text-right p-3 text-gray-400">Diferencia</th>
-                  <th className="text-right p-3 text-gray-400">% Tránsito</th>
+                  <th className="text-left p-3 text-gray-300 sticky left-0 bg-gray-800 z-10">SKU</th>
+                  <th className="text-right p-3 text-gray-300">Solicitado</th>
+                  <th className="text-right p-3 text-gray-300">Enviado</th>
+                  <th className="text-right p-3 text-gray-300">Diferencia</th>
+                  <th className="text-right p-3 text-gray-300">% Tránsito</th>
                   {horas.map(h => (
-                    <th key={h} className="text-center p-2 text-gray-500 text-xs min-w-[50px]">
+                    <th key={h} className="text-center p-2 text-gray-400 text-xs min-w-[50px]">
                       {h}:00
                     </th>
                   ))}
@@ -134,20 +134,20 @@ export default function ReporteEmbarquesTab({ token }: Props) {
 
           {/* Resumen */}
           <div className="bg-gray-800 px-4 py-3 flex gap-6 text-sm">
-            <span className="text-gray-400">
+            <span className="text-gray-300">
               Total SKUs: <span className="text-white font-bold">{reporte.length}</span>
             </span>
-            <span className="text-gray-400">
+            <span className="text-gray-300">
               Total Solicitado: <span className="text-white font-bold">
                 {reporte.reduce((s, r) => s + r.cantidad_solicitada, 0).toLocaleString('es-MX')}
               </span>
             </span>
-            <span className="text-gray-400">
+            <span className="text-gray-300">
               Total Enviado: <span className="text-green-400 font-bold">
                 {reporte.reduce((s, r) => s + r.cantidad_enviada, 0).toLocaleString('es-MX')}
               </span>
             </span>
-            <span className="text-gray-400">
+            <span className="text-gray-300">
               Embarcado Hoy: <span className="text-teal-400 font-bold">
                 {reporte.reduce((s, r) => s + r.total_embarcado_dia, 0).toLocaleString('es-MX')}
               </span>
@@ -159,8 +159,8 @@ export default function ReporteEmbarquesTab({ token }: Props) {
       {/* Estado vacío */}
       {!loading && reporte.length === 0 && !error && (
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-16 text-center">
-          <div className="text-5xl mb-4">📋</div>
-          <p className="text-gray-400">Seleccione una fecha y genere el reporte</p>
+          <IconDocumento size={48} className="mx-auto mb-4 text-gray-600" aria-hidden />
+          <p className="text-gray-300">Seleccione una fecha y genere el reporte</p>
         </div>
       )}
     </div>

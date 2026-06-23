@@ -70,6 +70,43 @@ export {
   ListChecks as IconLista,
   BarChart3 as IconGrafico,
   TrendingUp as IconFifo,
+  LineChart as IconDemanda,
+  PieChart as IconPie,
+
+  // Producción — tabs
+  Wrench as IconEnsamble,
+  Flame as IconPreExpansion,
+  Syringe as IconInyeccion,
+  Thermometer as IconSecado,
+  Camera as IconCamara,
+
+  // Calidad
+  PackageCheck as IconOQC,
+  Undo2 as IconDevoluciones,
+
+  // Compras
+  Handshake as IconProveedores,
+  Scale as IconValidacion,
+
+  // Ventas / clientes
+  Users as IconUsuarios,
+
+  // Admin
+  Database as IconDatabase,
+  MonitorCog as IconSistema,
+  Building2 as IconEmpresa,
+  ScrollText as IconLogs,
+  Hash as IconContador,
+  CircleStop as IconParo,
+  Contact as IconContacto,
+  PenLine as IconFirmar,
+  Trophy as IconRanking,
+  Save as IconGuardar,
+  Unlock as IconDesbloqueado,
+  Folder as IconModulo,
+  Ban as IconInactivo,
+  Landmark as IconBanco,
+  Star as IconEstrella,
 } from 'lucide-react';
 
 export type { LucideIcon } from 'lucide-react';

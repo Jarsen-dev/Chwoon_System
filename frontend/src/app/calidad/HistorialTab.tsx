@@ -3,6 +3,11 @@
 import { useState, useEffect } from 'react';
 import { getInspecciones, descargarPdfInspeccion } from '@/lib/api';
 import type { InspeccionCalidad } from '@/types';
+import { Button, Modal, LoadingSpinner } from '@/components/ui';
+import {
+  IconDocumento, IconActualizar, IconBuscar, IconCerrar, IconAlertas,
+  IconOk, IconVer,
+} from '@/lib/icons';
 
 interface Props {
   token: string;
@@ -84,15 +89,10 @@ export default function HistorialTab({ token }: Props) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">📋 Historial de Inspecciones</h2>
-          <p className="text-gray-400 text-sm mt-1">Registro completo de todas las inspecciones realizadas</p>
+          <h2 className="text-2xl font-bold flex items-center gap-2"><IconDocumento size={24} className="text-[var(--accent)]" aria-hidden /> Historial de Inspecciones</h2>
+          <p className="text-gray-300 text-sm mt-1">Registro completo de todas las inspecciones realizadas</p>
         </div>
-        <button
-          onClick={fetchData}
-          className="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-        >
-          🔄 Actualizar
-        </button>
+        <Button onClick={fetchData} leftIcon={IconActualizar}>Actualizar</Button>
       </div>
 
       {/* Filtros */}
@@ -104,10 +104,10 @@ export default function HistorialTab({ token }: Props) {
             className="bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500"
           >
             <option value="">Todos los tipos</option>
-            <option value="IQC">🔍 IQC</option>
-            <option value="LQC">🏭 LQC</option>
-            <option value="OQC">📦 OQC</option>
-            <option value="DEVOLUCION">🔄 Devolución</option>
+            <option value="IQC">IQC</option>
+            <option value="LQC">LQC</option>
+            <option value="OQC">OQC</option>
+            <option value="DEVOLUCION">Devolución</option>
           </select>
           <select
             value={filtroResultado}
@@ -115,8 +115,8 @@ export default function HistorialTab({ token }: Props) {
             className="bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500"
           >
             <option value="">Todos los resultados</option>
-            <option value="Aprobado">✅ Aprobado</option>
-            <option value="Rechazado">❌ Rechazado</option>
+            <option value="Aprobado">Aprobado</option>
+            <option value="Rechazado">Rechazado</option>
           </select>
           <input
             type="date"
@@ -131,49 +131,39 @@ export default function HistorialTab({ token }: Props) {
             className="bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500"
           />
           <div className="flex gap-2">
-            <button
-              onClick={aplicarFiltros}
-              className="flex-1 bg-cyan-600 hover:bg-cyan-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
-            >
-              🔍 Filtrar
-            </button>
-            <button
-              onClick={limpiarFiltros}
-              className="bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded-lg text-sm transition-colors"
-            >
-              ✕
-            </button>
+            <Button onClick={aplicarFiltros} leftIcon={IconBuscar} className="flex-1">Filtrar</Button>
+            <Button variant="secondary" onClick={limpiarFiltros} aria-label="Limpiar filtros"><IconCerrar size={16} aria-hidden /></Button>
           </div>
         </div>
       </div>
 
       {error && (
         <div className="bg-red-900/30 border border-red-500/50 rounded-xl p-4">
-          <p className="text-red-400">❌ {error}</p>
+          <p className="text-red-400 flex items-center gap-2"><IconAlertas size={16} aria-hidden /> {error}</p>
         </div>
       )}
 
       {loading ? (
         <div className="flex items-center justify-center h-48">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-cyan-400" />
+          <LoadingSpinner sizeClass="h-10 w-10" />
         </div>
       ) : (
         <>
-          <p className="text-gray-500 text-sm">{inspecciones.length} inspecciones encontradas</p>
+          <p className="text-gray-300 text-sm">{inspecciones.length} inspecciones encontradas</p>
 
           <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
             <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
               <table className="w-full">
                 <thead className="sticky top-0 bg-gray-800 z-10">
                   <tr>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400">Fecha</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400">ID</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400">Tipo</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400">SKU</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400">Producto</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400">Inspector</th>
-                    <th className="text-center px-4 py-3 text-xs font-semibold text-gray-400">Resultado</th>
-                    <th className="text-center px-4 py-3 text-xs font-semibold text-gray-400">Acciones</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-300">Fecha</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-300">ID</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-300">Tipo</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-300">SKU</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-300">Producto</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-300">Inspector</th>
+                    <th className="text-center px-4 py-3 text-xs font-semibold text-gray-300">Resultado</th>
+                    <th className="text-center px-4 py-3 text-xs font-semibold text-gray-300">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -194,25 +184,27 @@ export default function HistorialTab({ token }: Props) {
                         </td>
                         <td className="px-4 py-3 text-xs text-gray-400">{insp.inspector}</td>
                         <td className="px-4 py-3 text-center">
-                          <span className={`text-xs font-bold ${
+                          <span className={`inline-flex items-center gap-1 text-xs font-bold ${
                             insp.resultado_final === 'Aprobado' ? 'text-green-400' : 'text-red-400'
                           }`}>
-                            {insp.resultado_final === 'Aprobado' ? '✅' : '❌'} {insp.resultado_final}
+                            {insp.resultado_final === 'Aprobado' ? <IconOk size={13} aria-hidden /> : <IconCerrar size={13} aria-hidden />} {insp.resultado_final}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-center">
                           <div className="flex gap-1 justify-center">
                             <button
                               onClick={() => verDetalle(insp)}
-                              className="bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded text-xs transition-colors"
+                              className="inline-flex items-center bg-gray-700 hover:bg-gray-600 p-1.5 rounded transition-colors"
+                              title="Ver detalle" aria-label="Ver detalle"
                             >
-                              👁️
+                              <IconVer size={14} aria-hidden />
                             </button>
                             <button
                               onClick={() => descargarPdfInspeccion(token, insp.inspeccion_id)}
-                              className="bg-purple-700 hover:bg-purple-600 px-2 py-1 rounded text-xs transition-colors"
+                              className="inline-flex items-center bg-purple-700 hover:bg-purple-600 p-1.5 rounded transition-colors"
+                              title="Descargar PDF" aria-label="Descargar PDF"
                             >
-                              📄
+                              <IconDocumento size={14} aria-hidden />
                             </button>
                           </div>
                         </td>
@@ -234,16 +226,22 @@ export default function HistorialTab({ token }: Props) {
       )}
 
       {/* Modal Detalle */}
-      {detalle && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 rounded-xl border border-gray-700 max-w-2xl w-full max-h-[80vh] overflow-y-auto p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-cyan-400">
-                Detalle — {detalle.inspeccion_id}
-              </h3>
-              <button onClick={() => setDetalle(null)} className="text-gray-400 hover:text-white text-xl">✕</button>
-            </div>
-
+      <Modal
+        open={!!detalle}
+        onClose={() => setDetalle(null)}
+        size="2xl"
+        title={<span className="text-cyan-400 font-mono">Detalle — {detalle?.inspeccion_id}</span>}
+        footer={
+          detalle ? (
+            <>
+              <Button variant="secondary" onClick={() => setDetalle(null)}>Cerrar</Button>
+              <Button leftIcon={IconDocumento} onClick={() => descargarPdfInspeccion(token, detalle.inspeccion_id)}>Descargar PDF</Button>
+            </>
+          ) : null
+        }
+      >
+        {detalle && (
+          <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div><span className="text-gray-400">Tipo:</span> <span className="text-white ml-2">{detalle.tipo_inspeccion}</span></div>
               <div><span className="text-gray-400">Resultado:</span> <span className={`ml-2 font-bold ${detalle.resultado_final === 'Aprobado' ? 'text-green-400' : 'text-red-400'}`}>{detalle.resultado_final}</span></div>
@@ -286,23 +284,9 @@ export default function HistorialTab({ token }: Props) {
               </div>
             )}
 
-            <div className="flex justify-end gap-3 pt-2">
-              <button
-                onClick={() => descargarPdfInspeccion(token, detalle.inspeccion_id)}
-                className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-              >
-                📄 Descargar PDF
-              </button>
-              <button
-                onClick={() => setDetalle(null)}
-                className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm transition-colors"
-              >
-                Cerrar
-              </button>
-            </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   );
 }
