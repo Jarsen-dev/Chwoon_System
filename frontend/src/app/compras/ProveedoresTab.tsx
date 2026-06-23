@@ -1,6 +1,12 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { Button } from '@/components/ui';
+import {
+  IconAlertas, IconCompletado, IconCerrar, IconRanking, IconLista, IconNuevo,
+  IconVer, IconEditar, IconEliminar, IconGrafico, IconDocumento, IconHistorial,
+  IconInventario, IconGuardar, IconProveedores,
+} from '@/lib/icons';
 
 interface Material {
   id?: number;
@@ -346,52 +352,50 @@ export default function ProveedoresTab({ token }: { token: string }) {
         {error && (
           <div className="pointer-events-auto bg-gray-900/95 border-l-4 border-red-500 shadow-2xl shadow-black/50 rounded-r-xl px-4 py-3 text-red-400 flex justify-between items-start gap-3 animate-in slide-in-from-top-4 fade-in duration-300">
             <div className="flex gap-2">
-              <span className="text-base">❌</span>
+              <IconAlertas size={16} className="mt-0.5 shrink-0" aria-hidden />
               <div className="text-sm">
                 <span className="font-semibold block text-red-300">Error en Operación</span>
                 <p className="text-gray-400 text-xs mt-0.5">{error}</p>
               </div>
             </div>
-            <button onClick={() => setError('')} className="text-gray-500 hover:text-white transition-colors shrink-0 text-xs p-0.5">✕</button>
+            <button onClick={() => setError('')} className="text-gray-400 hover:text-white transition-colors shrink-0 p-0.5" aria-label="Cerrar"><IconCerrar size={14} aria-hidden /></button>
           </div>
         )}
         {success && (
           <div className="pointer-events-auto bg-gray-900/95 border-l-4 border-emerald-500 shadow-2xl shadow-black/50 rounded-r-xl px-4 py-3 text-emerald-400 flex justify-between items-start gap-3 animate-in slide-in-from-top-4 fade-in duration-300">
             <div className="flex gap-2">
-              <span className="text-base">✅</span>
+              <IconCompletado size={16} className="mt-0.5 shrink-0" aria-hidden />
               <div className="text-sm">
                 <span className="font-semibold block text-emerald-300">Acción Exitosa</span>
                 <p className="text-gray-400 text-xs mt-0.5">{success}</p>
               </div>
             </div>
-            <button onClick={() => setSuccess('')} className="text-gray-500 hover:text-white transition-colors shrink-0 text-xs p-0.5">✕</button>
+            <button onClick={() => setSuccess('')} className="text-gray-400 hover:text-white transition-colors shrink-0 p-0.5" aria-label="Cerrar"><IconCerrar size={14} aria-hidden /></button>
           </div>
         )}
       </div>
 
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-xl font-bold tracking-tight">
-            {viewMode === 'catalogo' ? 'Catálogo de Proveedores' : '🏆 Ranking de Proveedores'}
+          <h2 className="text-xl font-bold tracking-tight flex items-center gap-2">
+            {viewMode === 'catalogo'
+              ? <><IconProveedores size={22} className="text-[var(--accent)]" aria-hidden /> Catálogo de Proveedores</>
+              : <><IconRanking size={22} className="text-[var(--accent)]" aria-hidden /> Ranking de Proveedores</>}
           </h2>
-          <p className="text-gray-400 text-sm">
+          <p className="text-gray-300 text-sm">
             {viewMode === 'catalogo' ? 'Gestiona credenciales de compra, tiempos de entrega y matriz de insumos.' : 'Ordenados por score de calidad descendente.'}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button
+          <Button
+            variant="secondary"
+            leftIcon={viewMode === 'catalogo' ? IconRanking : IconLista}
             onClick={() => { setViewMode(viewMode === 'catalogo' ? 'ranking' : 'catalogo'); if (viewMode === 'catalogo') fetchRanking(); }}
-            className="bg-gray-800 hover:bg-gray-700 text-white font-medium px-4 py-2 rounded-lg text-sm transition-colors"
           >
-            {viewMode === 'catalogo' ? '🏆 Ver Ranking' : '📋 Ver Catálogo'}
-          </button>
+            {viewMode === 'catalogo' ? 'Ver Ranking' : 'Ver Catálogo'}
+          </Button>
           {viewMode === 'catalogo' && (
-            <button 
-              onClick={handleOpenCreateModal}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-4 py-2 rounded-lg text-sm transition-colors"
-            >
-              ➕ Registrar Proveedor
-            </button>
+            <Button leftIcon={IconNuevo} onClick={handleOpenCreateModal}>Registrar Proveedor</Button>
           )}
         </div>
       </div>
@@ -463,26 +467,26 @@ export default function ProveedoresTab({ token }: { token: string }) {
                 {/* ═══════════════════════════════════════ */}
                 {/* NUEVO: Botón Ver Detalle */}
                 {/* ═══════════════════════════════════════ */}
-                <button 
+                <button
                   onClick={() => handleOpenDetailModal(p)}
-                  className="text-gray-400 hover:text-blue-400 hover:bg-gray-800 p-1.5 rounded transition-colors text-xs"
-                  title="Ver Detalle Completo"
+                  className="text-gray-300 hover:text-blue-400 hover:bg-gray-800 p-1.5 rounded transition-colors"
+                  title="Ver Detalle Completo" aria-label="Ver detalle"
                 >
-                  👁️
+                  <IconVer size={16} aria-hidden />
                 </button>
-                <button 
+                <button
                   onClick={() => handleOpenEditModal(p)}
-                  className="text-gray-400 hover:text-amber-400 hover:bg-gray-800 p-1.5 rounded transition-colors text-xs"
-                  title="Editar Proveedor"
+                  className="text-gray-300 hover:text-amber-400 hover:bg-gray-800 p-1.5 rounded transition-colors"
+                  title="Editar Proveedor" aria-label="Editar proveedor"
                 >
-                  ✏️
+                  <IconEditar size={16} aria-hidden />
                 </button>
-                <button 
+                <button
                   onClick={() => handleOpenDeleteModal(p)}
-                  className="text-gray-400 hover:text-red-400 hover:bg-gray-800 p-1.5 rounded transition-colors text-xs"
-                  title="Eliminar Proveedor"
+                  className="text-gray-300 hover:text-red-400 hover:bg-gray-800 p-1.5 rounded transition-colors"
+                  title="Eliminar Proveedor" aria-label="Eliminar proveedor"
                 >
-                  🗑️
+                  <IconEliminar size={16} aria-hidden />
                 </button>
               </div>
             </div>
@@ -527,8 +531,10 @@ export default function ProveedoresTab({ token }: { token: string }) {
       {modalOpen && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-gray-900 border border-gray-800 rounded-xl w-full max-w-2xl p-6 text-white space-y-4 max-h-[90vh] overflow-y-auto shadow-2xl">
-            <h3 className="text-lg font-bold border-b border-gray-800 pb-2">
-              {isEditing ? `✏️ Editar Proveedor: ${razonSocial}` : '➕ Registrar Nuevo Proveedor'}
+            <h3 className="text-lg font-bold border-b border-gray-800 pb-2 flex items-center gap-2">
+              {isEditing
+                ? <><IconEditar size={18} aria-hidden /> Editar Proveedor: {razonSocial}</>
+                : <><IconNuevo size={18} aria-hidden /> Registrar Nuevo Proveedor</>}
             </h3>
             <form onSubmit={handleGuardarProveedor} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -617,8 +623,8 @@ export default function ProveedoresTab({ token }: { token: string }) {
                 <div className="flex gap-2 bg-gray-950 p-2.5 rounded-lg border border-gray-800/60">
                   <input type="text" placeholder="SKU MATERIAL (Ej: MP-RES-01)" value={newSku} onChange={(e) => setNewSku(e.target.value)} className="flex-1 bg-gray-900 border border-gray-800 rounded-lg p-2 text-xs font-mono text-white uppercase focus:outline-none focus:border-emerald-500"/>
                   <input type="number" step="0.01" placeholder="Costo Unitario" value={newCosto || ''} onChange={(e) => setNewCosto(Number(e.target.value))} className="w-32 bg-gray-900 border border-gray-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-emerald-500"/>
-                  <button type="button" onClick={handleAddMaterial} className="bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 border border-emerald-500/30 px-4 py-2 rounded-lg text-xs font-medium transition-colors">
-                    ＋ Asignar
+                  <button type="button" onClick={handleAddMaterial} className="inline-flex items-center gap-1 bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 border border-emerald-500/30 px-4 py-2 rounded-lg text-xs font-medium transition-colors">
+                    <IconNuevo size={14} aria-hidden /> Asignar
                   </button>
                 </div>
 
@@ -633,13 +639,13 @@ export default function ProveedoresTab({ token }: { token: string }) {
                           <span className="font-mono text-emerald-400 font-medium">{m.sku_material}</span>
                           <span className="text-gray-400">Coste asignado: <strong className="text-gray-200">${m.costo_unitario.toFixed(2)} MXN</strong></span>
                         </div>
-                        <button 
-                          type="button" 
+                        <button
+                          type="button"
                           onClick={() => handleRemoveMaterialForm(idx)}
-                          className="text-gray-500 hover:text-red-400 transition-colors p-0.5"
-                          title="Remover material"
+                          className="text-gray-400 hover:text-red-400 transition-colors p-0.5"
+                          title="Remover material" aria-label="Remover material"
                         >
-                          ✕
+                          <IconCerrar size={14} aria-hidden />
                         </button>
                       </div>
                     ))
@@ -648,10 +654,10 @@ export default function ProveedoresTab({ token }: { token: string }) {
               </div>
 
               <div className="flex justify-end gap-2 border-t border-gray-800 pt-4">
-                <button type="button" onClick={() => setModalOpen(false)} className="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">Cancelar</button>
-                <button type="submit" className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-                  {isEditing ? '💾 Guardar Cambios' : 'Guardar Proveedor'}
-                </button>
+                <Button type="button" variant="secondary" onClick={() => setModalOpen(false)}>Cancelar</Button>
+                <Button type="submit" leftIcon={isEditing ? IconGuardar : undefined}>
+                  {isEditing ? 'Guardar Cambios' : 'Guardar Proveedor'}
+                </Button>
               </div>
             </form>
           </div>
@@ -680,11 +686,11 @@ export default function ProveedoresTab({ token }: { token: string }) {
                   </div>
                   <p className="text-gray-400 text-xs font-mono">{detailTarget.uuid}</p>
                 </div>
-                <button 
+                <button
                   onClick={() => { setDetailModalOpen(false); setDetailTarget(null); }}
-                  className="text-gray-500 hover:text-white transition-colors text-lg p-1"
+                  className="text-gray-400 hover:text-white transition-colors p-1" aria-label="Cerrar"
                 >
-                  ✕
+                  <IconCerrar size={18} aria-hidden />
                 </button>
               </div>
             </div>
@@ -717,7 +723,7 @@ export default function ProveedoresTab({ token }: { token: string }) {
             {detailScore && (
               <div className="bg-gray-950 p-4 rounded-lg border border-gray-800 space-y-3">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-semibold text-gray-300">📊 Score de Calidad</h4>
+                  <h4 className="text-sm font-semibold text-gray-300 flex items-center gap-2"><IconGrafico size={16} aria-hidden /> Score de Calidad</h4>
                   <span className={`text-2xl font-bold ${
                     detailScore.score_calidad >= 80 ? 'text-emerald-400' :
                     detailScore.score_calidad >= 60 ? 'text-yellow-400' : 'text-red-400'
@@ -725,7 +731,7 @@ export default function ProveedoresTab({ token }: { token: string }) {
                 </div>
                 {detailScore.recomendacion_estatus && (
                   <div className="bg-amber-950/20 border border-amber-500/20 rounded-lg p-2">
-                    <p className="text-xs text-amber-400">⚠️ {detailScore.recomendacion_estatus}</p>
+                    <p className="text-xs text-amber-400 flex items-center gap-1"><IconAlertas size={13} aria-hidden /> {detailScore.recomendacion_estatus}</p>
                   </div>
                 )}
                 {detailScore.score_detalle && (
@@ -754,14 +760,14 @@ export default function ProveedoresTab({ token }: { token: string }) {
             {/* Notas / Observaciones */}
             {detailTarget.notas && (
               <div className="bg-gray-950/50 p-4 rounded-lg border border-gray-800/50">
-                <h4 className="text-xs font-semibold uppercase text-gray-500 tracking-wider mb-2">📝 Notas / Observaciones</h4>
+                <h4 className="text-xs font-semibold uppercase text-gray-400 tracking-wider mb-2 flex items-center gap-2"><IconDocumento size={14} aria-hidden /> Notas / Observaciones</h4>
                 <p className="text-gray-300 text-sm whitespace-pre-wrap leading-relaxed">{detailTarget.notas}</p>
               </div>
             )}
 
             {/* Historial de Eventos */}
             <div>
-              <h4 className="text-sm font-semibold text-gray-300 mb-3">📜 Últimos Eventos</h4>
+              <h4 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2"><IconHistorial size={16} aria-hidden /> Últimos Eventos</h4>
               {detailEvents.length === 0 ? (
                 <div className="bg-gray-950 p-4 rounded-lg border border-gray-800 text-center">
                   <p className="text-gray-500 text-sm">Sin eventos registrados.</p>
@@ -790,7 +796,7 @@ export default function ProveedoresTab({ token }: { token: string }) {
             {/* Lista Completa de Materiales */}
             <div>
               <h4 className="text-sm font-semibold text-gray-300 mb-3 flex justify-between items-center">
-                <span>📦 Matriz Completa de Materiales Surtidos</span>
+                <span className="flex items-center gap-2"><IconInventario size={16} aria-hidden /> Matriz Completa de Materiales Surtidos</span>
                 <span className="text-xs text-gray-500 font-normal">{detailTarget.materiales.length} registros</span>
               </h4>
               
@@ -826,25 +832,20 @@ export default function ProveedoresTab({ token }: { token: string }) {
             <div className="flex justify-between items-center border-t border-gray-800 pt-4">
               <button
                 onClick={() => setIncidentModalOpen(true)}
-                className="bg-red-600/20 text-red-400 hover:bg-red-600/30 border border-red-500/30 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                className="inline-flex items-center gap-2 bg-red-600/20 text-red-400 hover:bg-red-600/30 border border-red-500/30 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
               >
-                ⚠️ Registrar Incidencia
+                <IconAlertas size={16} aria-hidden /> Registrar Incidencia
               </button>
               <div className="flex gap-2">
-                <button 
-                  onClick={() => { setDetailModalOpen(false); setDetailTarget(null); }}
-                  className="bg-gray-800 hover:bg-gray-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors"
-                >
-                  Cerrar
-                </button>
-                <button 
+                <Button variant="secondary" onClick={() => { setDetailModalOpen(false); setDetailTarget(null); }}>Cerrar</Button>
+                <button
                   onClick={() => {
                     setDetailModalOpen(false);
                     handleOpenEditModal(detailTarget);
                   }}
-                  className="bg-amber-600/20 text-amber-400 hover:bg-amber-600/30 border border-amber-500/30 px-5 py-2 rounded-lg text-sm font-medium transition-colors"
+                  className="inline-flex items-center gap-2 bg-amber-600/20 text-amber-400 hover:bg-amber-600/30 border border-amber-500/30 px-5 py-2 rounded-lg text-sm font-medium transition-colors"
                 >
-                  ✏️ Editar Proveedor
+                  <IconEditar size={16} aria-hidden /> Editar Proveedor
                 </button>
               </div>
             </div>
@@ -856,7 +857,7 @@ export default function ProveedoresTab({ token }: { token: string }) {
       {incidentModalOpen && detailTarget && (
         <div className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-gray-900 border border-gray-800 rounded-xl w-full max-w-md p-6 text-white space-y-4 shadow-2xl">
-            <h3 className="text-lg font-bold border-b border-gray-800 pb-2">⚠️ Registrar Incidencia</h3>
+            <h3 className="text-lg font-bold border-b border-gray-800 pb-2 flex items-center gap-2"><IconAlertas size={18} aria-hidden /> Registrar Incidencia</h3>
             <form onSubmit={handleRegistrarIncidencia} className="space-y-3">
               <div className="flex flex-col gap-1">
                 <label className="text-xs text-gray-400">Tipo de Incidencia</label>
@@ -875,8 +876,8 @@ export default function ProveedoresTab({ token }: { token: string }) {
                 <input type="text" value={incidentRef} onChange={(e) => setIncidentRef(e.target.value)} className="bg-gray-950 border border-gray-800 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-emerald-500" placeholder="Ej: OC-20260101120000" />
               </div>
               <div className="flex justify-end gap-2 border-t border-gray-800 pt-4">
-                <button type="button" onClick={() => setIncidentModalOpen(false)} className="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">Cancelar</button>
-                <button type="submit" className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">Registrar</button>
+                <Button type="button" variant="secondary" onClick={() => setIncidentModalOpen(false)}>Cancelar</Button>
+                <Button type="submit" variant="danger">Registrar</Button>
               </div>
             </form>
           </div>
@@ -888,7 +889,7 @@ export default function ProveedoresTab({ token }: { token: string }) {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-gray-900 rounded-2xl border border-red-700/40 w-full max-w-md animate-in zoom-in-95 duration-200 text-white shadow-2xl">
             <div className="p-6 border-b border-gray-800">
-              <h3 className="text-lg font-bold text-red-400 flex items-center gap-2">⚠️ Confirmar Eliminación</h3>
+              <h3 className="text-lg font-bold text-red-400 flex items-center gap-2"><IconAlertas size={18} aria-hidden /> Confirmar Eliminación</h3>
             </div>
             <div className="p-6 space-y-4">
               <p className="text-gray-300 text-sm">¿Está seguro de que desea eliminar permanentemente este proveedor?</p>
@@ -898,24 +899,15 @@ export default function ProveedoresTab({ token }: { token: string }) {
                 <p><span className="text-gray-500">Materiales Asignados:</span> <span className="text-emerald-400 font-medium">{deleteTarget.materiales.length} SKUs</span></p>
               </div>
               <div className="bg-red-950/20 border border-red-900/30 rounded-lg p-3">
-                <p className="text-xs text-red-400 leading-relaxed">
-                  ⚠️ Esta acción es destructiva. Se romperá el vínculo directo en el catálogo y no podrá utilizarse para nuevas Órdenes de Compra hasta volver a registrarlo.
+                <p className="text-xs text-red-400 leading-relaxed flex items-start gap-1">
+                  <IconAlertas size={13} className="mt-0.5 shrink-0" aria-hidden />
+                  <span>Esta acción es destructiva. Se romperá el vínculo directo en el catálogo y no podrá utilizarse para nuevas Órdenes de Compra hasta volver a registrarlo.</span>
                 </p>
               </div>
             </div>
             <div className="p-6 border-t border-gray-800 flex justify-end gap-3">
-              <button 
-                onClick={() => { setShowDeleteModal(false); setDeleteTarget(null); }} 
-                className="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-              >
-                Cancelar
-              </button>
-              <button 
-                onClick={handleEliminarConfirm} 
-                className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors"
-              >
-                🗑️ Eliminar
-              </button>
+              <Button variant="secondary" onClick={() => { setShowDeleteModal(false); setDeleteTarget(null); }}>Cancelar</Button>
+              <Button variant="danger" onClick={handleEliminarConfirm} leftIcon={IconEliminar}>Eliminar</Button>
             </div>
           </div>
         </div>

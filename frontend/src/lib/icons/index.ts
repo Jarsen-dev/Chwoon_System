@@ -99,6 +99,9 @@ export {
   Hash as IconContador,
   CircleStop as IconParo,
   Contact as IconContacto,
+  PenLine as IconFirmar,
+  Trophy as IconRanking,
+  Save as IconGuardar,
 } from 'lucide-react';
 
 export type { LucideIcon } from 'lucide-react';

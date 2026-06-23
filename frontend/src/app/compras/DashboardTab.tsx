@@ -3,13 +3,18 @@
 import { useState, useEffect } from 'react';
 import { getFinanzasDashboard } from '@/lib/api';
 import type { FinanzasDashboard } from '@/types';
+import { Button, LoadingSpinner } from '@/components/ui';
+import {
+  IconCompras, IconInventario, IconCompletado, IconPendiente, IconFinanzas,
+  IconActualizar, IconAlertas, type LucideIcon,
+} from '@/lib/icons';
 
 interface Props {
   token: string;
 }
 
 function StatCard({
-  icon,
+  icon: Icon,
   label,
   value,
   badge,
@@ -17,7 +22,7 @@ function StatCard({
   borderColor = 'border-emerald-500/30',
   valueColor = 'text-white',
 }: {
-  icon: string;
+  icon: LucideIcon;
   label: string;
   value: string | number;
   badge?: string;
@@ -28,7 +33,12 @@ function StatCard({
   return (
     <div className={`bg-gray-900 rounded-xl border ${borderColor} p-5 flex flex-col gap-2`}>
       <div className="flex items-center justify-between">
-        <span className="text-2xl">{icon}</span>
+        <span
+          className="inline-flex items-center justify-center h-10 w-10 rounded-lg text-[var(--accent)]"
+          style={{ backgroundColor: 'var(--accent-soft)' }}
+        >
+          <Icon size={20} aria-hidden />
+        </span>
         {badge && (
           <span className={`text-xs font-medium ${badgeColor} bg-gray-800 px-2 py-1 rounded-full`}>
             {badge}
@@ -36,7 +46,7 @@ function StatCard({
         )}
       </div>
       <p className={`text-3xl font-bold ${valueColor}`}>{value}</p>
-      <p className="text-sm text-gray-400">{label}</p>
+      <p className="text-sm text-gray-300">{label}</p>
     </div>
   );
 }
@@ -69,7 +79,7 @@ export default function DashboardTab({ token }: Props) {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-400" />
+        <LoadingSpinner />
       </div>
     );
   }
@@ -77,10 +87,8 @@ export default function DashboardTab({ token }: Props) {
   if (error) {
     return (
       <div className="bg-red-900/30 border border-red-500/50 rounded-xl p-6 text-center">
-        <p className="text-red-400">❌ {error}</p>
-        <button onClick={fetchData} className="mt-3 bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm">
-          Reintentar
-        </button>
+        <p className="text-red-400 flex items-center justify-center gap-2"><IconAlertas size={16} aria-hidden /> {error}</p>
+        <Button variant="danger" onClick={fetchData} className="mt-3">Reintentar</Button>
       </div>
     );
   }
@@ -93,24 +101,21 @@ export default function DashboardTab({ token }: Props) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold">Dashboard de Compras</h2>
-          <p className="text-gray-400 text-sm">
+          <p className="text-gray-300 text-sm">
             Resumen de compras — {new Date().toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </p>
         </div>
-        <button
-          onClick={fetchData}
-          className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-        >
-          🔄 Actualizar
-        </button>
+        <Button onClick={fetchData} leftIcon={IconActualizar}>Actualizar</Button>
       </div>
 
       {/* Compras */}
       <div>
-        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">🛒 Compras</h3>
+        <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+          <IconCompras size={16} aria-hidden /> Compras
+        </h3>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <StatCard
-            icon="📦"
+            icon={IconInventario}
             label="Total Órdenes de Compra"
             value={data.total_oc}
             badge={`${data.oc_pendientes} pendientes`}
@@ -118,21 +123,21 @@ export default function DashboardTab({ token }: Props) {
             borderColor="border-blue-500/30"
           />
           <StatCard
-            icon="✅"
+            icon={IconCompletado}
             label="OC Completadas"
             value={data.oc_completadas}
             borderColor="border-green-500/30"
             valueColor="text-green-400"
           />
           <StatCard
-            icon="⏳"
+            icon={IconPendiente}
             label="OC Pendientes/Parciales"
             value={data.oc_pendientes}
             borderColor="border-yellow-500/30"
             valueColor="text-yellow-400"
           />
           <StatCard
-            icon="💰"
+            icon={IconFinanzas}
             label="Valor Compras (Mes)"
             value={formatCurrency(data.valor_compras_mes)}
             badge="Mes actual"
