@@ -3,6 +3,11 @@
 import { useState } from 'react';
 import { registrarInspeccion, getPuntosInspeccion, descargarPdfInspeccion } from '@/lib/api';
 import type { PuntoResultado, ProductoPuntosInspeccion } from '@/types';
+import { Button } from '@/components/ui';
+import {
+  IconDevoluciones, IconAlertas, IconDocumento, IconActualizar, IconBuscar,
+  IconPendiente, IconOk, IconCerrar,
+} from '@/lib/icons';
 
 interface Props {
   token: string;
@@ -82,7 +87,7 @@ export default function DevolucionesTab({ token }: Props) {
         notas: `Motivo: ${motivo}${notas ? ` | ${notas}` : ''}`,
       });
       setUltimaInspeccionId(res.inspeccion_id);
-      setSuccess(`✅ Inspección Devolución ${res.inspeccion_id} — ${resultado}`);
+      setSuccess(`Inspección Devolución ${res.inspeccion_id} — ${resultado}`);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -109,31 +114,24 @@ export default function DevolucionesTab({ token }: Props) {
     <div className="space-y-6 max-w-5xl mx-auto">
       {error && (
         <div className="bg-red-900/30 border border-red-500/50 rounded-xl p-4">
-          <p className="text-red-400">❌ {error}</p>
+          <p className="text-red-400 flex items-center gap-2"><IconAlertas size={16} aria-hidden /> {error}</p>
         </div>
       )}
       {success && (
         <div className="bg-green-900/30 border border-green-500/50 rounded-xl p-4 flex items-center justify-between">
-          <p className="text-green-400">{success}</p>
+          <p className="text-green-400 flex items-center gap-2"><IconOk size={16} aria-hidden /> {success}</p>
           <div className="flex gap-2">
             {ultimaInspeccionId && (
-              <button
-                onClick={() => descargarPdfInspeccion(token, ultimaInspeccionId!)}
-                className="bg-purple-600 hover:bg-purple-700 px-3 py-1 rounded-lg text-xs"
-              >
-                📄 PDF
-              </button>
+              <Button size="sm" variant="secondary" leftIcon={IconDocumento} onClick={() => descargarPdfInspeccion(token, ultimaInspeccionId!)}>PDF</Button>
             )}
-            <button onClick={reiniciar} className="bg-cyan-600 hover:bg-cyan-700 px-3 py-1 rounded-lg text-xs">
-              🔄 Nueva
-            </button>
+            <Button size="sm" leftIcon={IconActualizar} onClick={reiniciar}>Nueva</Button>
           </div>
         </div>
       )}
 
       <div>
-        <h2 className="text-2xl font-bold flex items-center gap-2">🔄 Inspección de Devolución</h2>
-        <p className="text-gray-400 text-sm mt-1">Inspección de material devuelto por cliente</p>
+        <h2 className="text-2xl font-bold flex items-center gap-2"><IconDevoluciones size={24} className="text-[var(--accent)]" aria-hidden /> Inspección de Devolución</h2>
+        <p className="text-gray-300 text-sm mt-1">Inspección de material devuelto por cliente</p>
       </div>
 
       {!skuBuscado && (
@@ -149,13 +147,9 @@ export default function DevolucionesTab({ token }: Props) {
                 className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white
                            placeholder-gray-500 focus:outline-none focus:border-yellow-500"
               />
-              <button
-                onClick={buscarProducto}
-                disabled={loading || !sku.trim()}
-                className="bg-yellow-600 hover:bg-yellow-700 px-6 py-3 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-              >
-                {loading ? '⏳' : '🔍 Buscar'}
-              </button>
+              <Button size="lg" onClick={buscarProducto} disabled={loading || !sku.trim()} leftIcon={loading ? IconPendiente : IconBuscar}>
+                Buscar
+              </Button>
             </div>
           </div>
         </div>
@@ -182,7 +176,7 @@ export default function DevolucionesTab({ token }: Props) {
 
           {/* Datos de devolución */}
           <div className="bg-gray-900 rounded-xl border border-yellow-500/20 p-6">
-            <h3 className="text-sm font-semibold text-yellow-400 mb-3">📋 Datos de la Devolución</h3>
+            <h3 className="text-sm font-semibold text-yellow-400 mb-3 flex items-center gap-2"><IconDocumento size={16} aria-hidden /> Datos de la Devolución</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm text-gray-300 mb-1">OV Origen</label>
@@ -260,23 +254,23 @@ export default function DevolucionesTab({ token }: Props) {
                         <div className="flex gap-2 justify-center">
                           <button
                             onClick={() => actualizarPunto(idx, 'Conforme')}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                               punto.resultado === 'Conforme'
                                 ? 'bg-green-600 text-white'
-                                : 'bg-gray-700 text-gray-400 hover:bg-green-800'
+                                : 'bg-gray-700 text-gray-300 hover:bg-green-800'
                             }`}
                           >
-                            ✅ Conforme
+                            <IconOk size={14} aria-hidden /> Conforme
                           </button>
                           <button
                             onClick={() => actualizarPunto(idx, 'No Conforme')}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                               punto.resultado === 'No Conforme'
                                 ? 'bg-red-600 text-white'
-                                : 'bg-gray-700 text-gray-400 hover:bg-red-800'
+                                : 'bg-gray-700 text-gray-300 hover:bg-red-800'
                             }`}
                           >
-                            ❌ No Conforme
+                            <IconCerrar size={14} aria-hidden /> No Conforme
                           </button>
                         </div>
                       </td>
@@ -287,7 +281,7 @@ export default function DevolucionesTab({ token }: Props) {
             </div>
           ) : (
             <div className="bg-gray-900 rounded-xl border border-yellow-500/30 p-6 text-center">
-              <p className="text-yellow-400">⚠️ Sin puntos de inspección configurados para reinspección.</p>
+              <p className="text-yellow-400 flex items-center justify-center gap-2"><IconAlertas size={16} aria-hidden /> Sin puntos de inspección configurados para reinspección.</p>
             </div>
           )}
 
@@ -301,20 +295,15 @@ export default function DevolucionesTab({ token }: Props) {
               rows={2}
             />
             <div className="flex items-center justify-between">
-              <button onClick={reiniciar} className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm">
-                ← Reiniciar
-              </button>
-              <button
+              <Button variant="secondary" onClick={reiniciar}>Reiniciar</Button>
+              <Button
+                size="lg"
                 onClick={enviarInspeccion}
                 disabled={loading || (!todosEvaluados && resultadosPuntos.length > 0) || !motivo}
-                className={`px-8 py-3 rounded-lg font-medium text-sm transition-colors ${
-                  loading || (!todosEvaluados && resultadosPuntos.length > 0) || !motivo
-                    ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                    : 'bg-yellow-600 hover:bg-yellow-700 text-white'
-                }`}
+                leftIcon={loading ? IconPendiente : IconOk}
               >
-                {loading ? '⏳ Registrando...' : '📤 Registrar Inspección Devolución'}
-              </button>
+                {loading ? 'Registrando...' : 'Registrar Inspección Devolución'}
+              </Button>
             </div>
           </div>
         </>

@@ -3,6 +3,11 @@
 import { useState } from 'react';
 import { registrarInspeccion, getPuntosInspeccion, descargarPdfInspeccion } from '@/lib/api';
 import type { PuntoResultado, ProductoPuntosInspeccion } from '@/types';
+import { Button } from '@/components/ui';
+import {
+  IconOQC, IconAlertas, IconDocumento, IconActualizar, IconBuscar,
+  IconPendiente, IconOk, IconCerrar,
+} from '@/lib/icons';
 
 interface Props {
   token: string;
@@ -78,7 +83,7 @@ export default function OQCTab({ token }: Props) {
         notas: notas || undefined,
       });
       setUltimaInspeccionId(res.inspeccion_id);
-      setSuccess(`✅ Inspección OQC ${res.inspeccion_id} — ${resultado}`);
+      setSuccess(`Inspección OQC ${res.inspeccion_id} — ${resultado}`);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -103,31 +108,24 @@ export default function OQCTab({ token }: Props) {
     <div className="space-y-6 max-w-5xl mx-auto">
       {error && (
         <div className="bg-red-900/30 border border-red-500/50 rounded-xl p-4">
-          <p className="text-red-400">❌ {error}</p>
+          <p className="text-red-400 flex items-center gap-2"><IconAlertas size={16} aria-hidden /> {error}</p>
         </div>
       )}
       {success && (
         <div className="bg-green-900/30 border border-green-500/50 rounded-xl p-4 flex items-center justify-between">
-          <p className="text-green-400">{success}</p>
+          <p className="text-green-400 flex items-center gap-2"><IconOk size={16} aria-hidden /> {success}</p>
           <div className="flex gap-2">
             {ultimaInspeccionId && (
-              <button
-                onClick={() => descargarPdfInspeccion(token, ultimaInspeccionId!)}
-                className="bg-purple-600 hover:bg-purple-700 px-3 py-1 rounded-lg text-xs"
-              >
-                📄 PDF
-              </button>
+              <Button size="sm" variant="secondary" leftIcon={IconDocumento} onClick={() => descargarPdfInspeccion(token, ultimaInspeccionId!)}>PDF</Button>
             )}
-            <button onClick={reiniciar} className="bg-cyan-600 hover:bg-cyan-700 px-3 py-1 rounded-lg text-xs">
-              🔄 Nueva
-            </button>
+            <Button size="sm" leftIcon={IconActualizar} onClick={reiniciar}>Nueva</Button>
           </div>
         </div>
       )}
 
       <div>
-        <h2 className="text-2xl font-bold flex items-center gap-2">📦 Inspección OQC</h2>
-        <p className="text-gray-400 text-sm mt-1">Inspección de salida — Producto final</p>
+        <h2 className="text-2xl font-bold flex items-center gap-2"><IconOQC size={24} className="text-[var(--accent)]" aria-hidden /> Inspección OQC</h2>
+        <p className="text-gray-300 text-sm mt-1">Inspección de salida — Producto final</p>
       </div>
 
       {!skuBuscado && (
@@ -142,13 +140,14 @@ export default function OQCTab({ token }: Props) {
               className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white
                          placeholder-gray-500 focus:outline-none focus:border-indigo-500"
             />
-            <button
+            <Button
+              size="lg"
               onClick={buscarProducto}
               disabled={loading || !sku.trim()}
-              className="bg-indigo-600 hover:bg-indigo-700 px-6 py-3 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+              leftIcon={loading ? IconPendiente : IconBuscar}
             >
-              {loading ? '⏳' : '🔍 Buscar'}
-            </button>
+              Buscar
+            </Button>
           </div>
         </div>
       )}
@@ -218,24 +217,24 @@ export default function OQCTab({ token }: Props) {
                       <td className="px-6 py-3 text-sm text-gray-400">{punto.especificacion || '—'}</td>
                       <td className="px-6 py-3">
                         <div className="flex gap-2 justify-center">
-                          <button                             onClick={() => actualizarPunto(idx, 'Conforme')}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                          <button onClick={() => actualizarPunto(idx, 'Conforme')}
+                            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                               punto.resultado === 'Conforme'
                                 ? 'bg-green-600 text-white'
-                                : 'bg-gray-700 text-gray-400 hover:bg-green-800'
+                                : 'bg-gray-700 text-gray-300 hover:bg-green-800'
                             }`}
                           >
-                            ✅ Conforme
+                            <IconOk size={14} aria-hidden /> Conforme
                           </button>
                           <button
                             onClick={() => actualizarPunto(idx, 'No Conforme')}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                               punto.resultado === 'No Conforme'
                                 ? 'bg-red-600 text-white'
-                                : 'bg-gray-700 text-gray-400 hover:bg-red-800'
+                                : 'bg-gray-700 text-gray-300 hover:bg-red-800'
                             }`}
                           >
-                            ❌ No Conforme
+                            <IconCerrar size={14} aria-hidden /> No Conforme
                           </button>
                         </div>
                       </td>
@@ -246,7 +245,7 @@ export default function OQCTab({ token }: Props) {
             </div>
           ) : (
             <div className="bg-gray-900 rounded-xl border border-yellow-500/30 p-6 text-center">
-              <p className="text-yellow-400">⚠️ Sin puntos de inspección OQC configurados.</p>
+              <p className="text-yellow-400 flex items-center justify-center gap-2"><IconAlertas size={16} aria-hidden /> Sin puntos de inspección OQC configurados.</p>
             </div>
           )}
 
@@ -260,20 +259,15 @@ export default function OQCTab({ token }: Props) {
               rows={2}
             />
             <div className="flex items-center justify-between">
-              <button onClick={reiniciar} className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm">
-                ← Reiniciar
-              </button>
-              <button
+              <Button variant="secondary" onClick={reiniciar}>Reiniciar</Button>
+              <Button
+                size="lg"
                 onClick={enviarInspeccion}
                 disabled={loading || (!todosEvaluados && resultadosPuntos.length > 0)}
-                className={`px-8 py-3 rounded-lg font-medium text-sm transition-colors ${
-                  loading || (!todosEvaluados && resultadosPuntos.length > 0)
-                    ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                    : 'bg-indigo-600 hover:bg-indigo-700 text-white'
-                }`}
+                leftIcon={loading ? IconPendiente : IconOk}
               >
-                {loading ? '⏳ Registrando...' : '📤 Registrar Inspección OQC'}
-              </button>
+                {loading ? 'Registrando...' : 'Registrar Inspección OQC'}
+              </Button>
             </div>
           </div>
         </>

@@ -3,6 +3,11 @@
 import { useState, useEffect } from 'react';
 import { getScrap, registrarScrap, descargarPdfScrap } from '@/lib/api';
 import type { RegistroScrapItem } from '@/types';
+import { Button, Modal, LoadingSpinner } from '@/components/ui';
+import {
+  IconEliminar, IconAlertas, IconCerrar, IconDocumento, IconActualizar,
+  IconBuscar, IconOk, IconNuevo,
+} from '@/lib/icons';
 
 interface Props {
   token: string;
@@ -78,7 +83,7 @@ export default function ScrapTab({ token }: Props) {
         origen: formData.origen,
         referencia: formData.referencia || undefined,
       });
-      setSuccess(`✅ Scrap registrado: ${res.scrap_id}`);
+      setSuccess(`Scrap registrado: ${res.scrap_id}`);
       setShowModal(false);
       setFormData({
         sku_producto: '', nombre_producto: '', lote_id: '',
@@ -118,41 +123,26 @@ export default function ScrapTab({ token }: Props) {
     <div className="space-y-6">
       {error && (
         <div className="bg-red-900/30 border border-red-500/50 rounded-xl p-4 flex items-center justify-between">
-          <p className="text-red-400">❌ {error}</p>
-          <button onClick={() => setError('')} className="text-red-400 hover:text-red-300">✕</button>
+          <p className="text-red-400 flex items-center gap-2"><IconAlertas size={16} aria-hidden /> {error}</p>
+          <button onClick={() => setError('')} className="text-red-400 hover:text-red-300" aria-label="Cerrar"><IconCerrar size={16} aria-hidden /></button>
         </div>
       )}
       {success && (
         <div className="bg-green-900/30 border border-green-500/50 rounded-xl p-4 flex items-center justify-between">
-          <p className="text-green-400">{success}</p>
-          <button onClick={() => setSuccess('')} className="text-green-400 hover:text-green-300">✕</button>
+          <p className="text-green-400 flex items-center gap-2"><IconOk size={16} aria-hidden /> {success}</p>
+          <button onClick={() => setSuccess('')} className="text-green-400 hover:text-green-300" aria-label="Cerrar"><IconCerrar size={16} aria-hidden /></button>
         </div>
       )}
 
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">🗑️ Reporte de Scrap</h2>
-          <p className="text-gray-400 text-sm mt-1">Registro unificado de scrap (producción, inventario, devoluciones)</p>
+          <h2 className="text-2xl font-bold flex items-center gap-2"><IconEliminar size={24} className="text-[var(--accent)]" aria-hidden /> Reporte de Scrap</h2>
+          <p className="text-gray-300 text-sm mt-1">Registro unificado de scrap (producción, inventario, devoluciones)</p>
         </div>
         <div className="flex gap-3">
-          <button
-            onClick={handleDescargarPdf}
-            className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-          >
-            📄 PDF
-          </button>
-          <button
-            onClick={() => setShowModal(true)}
-            className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-          >
-            + Registrar Scrap
-          </button>
-          <button
-            onClick={fetchData}
-            className="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-          >
-            🔄
-          </button>
+          <Button variant="secondary" onClick={handleDescargarPdf} leftIcon={IconDocumento}>PDF</Button>
+          <Button variant="danger" onClick={() => setShowModal(true)} leftIcon={IconNuevo}>Registrar Scrap</Button>
+          <Button variant="secondary" onClick={fetchData} leftIcon={IconActualizar} aria-label="Actualizar">Actualizar</Button>
         </div>
       </div>
 
@@ -183,26 +173,22 @@ export default function ScrapTab({ token }: Props) {
             <option value="Devolucion">Devolución</option>
           </select>
           <div className="flex gap-2">
-            <button onClick={aplicarFiltros} className="flex-1 bg-red-600 hover:bg-red-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors">
-              🔍 Filtrar
-            </button>
-            <button onClick={limpiarFiltros} className="bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded-lg text-sm transition-colors">
-              ✕
-            </button>
+            <Button variant="danger" onClick={aplicarFiltros} leftIcon={IconBuscar} className="flex-1">Filtrar</Button>
+            <Button variant="secondary" onClick={limpiarFiltros} aria-label="Limpiar filtros"><IconCerrar size={16} aria-hidden /></Button>
           </div>
         </div>
       </div>
 
       {/* Resumen */}
       <div className="bg-gray-900 rounded-xl border border-red-500/30 p-4 flex items-center justify-between">
-        <span className="text-sm text-gray-400">{registros.length} registros encontrados</span>
+        <span className="text-sm text-gray-300">{registros.length} registros encontrados</span>
         <span className="text-lg font-bold text-red-400">Total Scrap: {totalScrap.toLocaleString()}</span>
       </div>
 
       {/* Tabla */}
       {loading ? (
         <div className="flex items-center justify-center h-48">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-red-400" />
+          <LoadingSpinner sizeClass="h-10 w-10" />
         </div>
       ) : (
         <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
@@ -210,14 +196,14 @@ export default function ScrapTab({ token }: Props) {
             <table className="w-full">
               <thead className="sticky top-0 bg-gray-800 z-10">
                 <tr>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400">Fecha</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400">ID</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400">SKU</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400">Lote</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-400">Cantidad</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400">Origen</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400">Motivo</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400">Registrado por</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-300">Fecha</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-300">ID</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-300">SKU</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-300">Lote</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-300">Cantidad</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-300">Origen</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-300">Motivo</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-300">Registrado por</th>
                 </tr>
               </thead>
               <tbody>
@@ -255,14 +241,18 @@ export default function ScrapTab({ token }: Props) {
       )}
 
       {/* Modal Crear Scrap */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 rounded-xl border border-gray-700 max-w-lg w-full p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-red-400">🗑️ Registrar Scrap</h3>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-white text-xl">✕</button>
-            </div>
-
+      <Modal
+        open={showModal}
+        onClose={() => setShowModal(false)}
+        size="lg"
+        title={<span className="flex items-center gap-2 text-red-400"><IconEliminar size={18} aria-hidden /> Registrar Scrap</span>}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowModal(false)}>Cancelar</Button>
+            <Button variant="danger" onClick={handleCrear} disabled={!formData.sku_producto || !formData.cantidad}>Registrar Scrap</Button>
+          </>
+        }
+      >
             <div className="space-y-3">
               <div>
                 <label className="block text-sm text-gray-300 mb-1">SKU *</label>
@@ -337,25 +327,7 @@ export default function ScrapTab({ token }: Props) {
                 />
               </div>
             </div>
-
-            <div className="flex justify-end gap-3 pt-2">
-              <button
-                onClick={() => setShowModal(false)}
-                className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleCrear}
-                disabled={!formData.sku_producto || !formData.cantidad}
-                className="bg-red-600 hover:bg-red-700 px-6 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-              >
-                Registrar Scrap
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      </Modal>
     </div>
   );
 }
