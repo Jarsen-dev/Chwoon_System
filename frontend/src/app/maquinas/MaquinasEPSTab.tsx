@@ -2,6 +2,10 @@
 
 import { useState } from 'react';
 import { Card, Badge, Modal, FormInput, Button } from '@/components/ui';
+import {
+  IconAlertas, IconEjecutar, IconConfig, IconDocumento, IconEditar,
+  IconEliminar, IconNuevo, IconActualizar,
+} from '@/lib/icons';
 import { crearMaquina, actualizarMaquina, getMaquinaEventos } from '@/lib/api';
 import type { MaquinaEstado, MaquinaEvento } from '@/types';
 
@@ -29,11 +33,11 @@ const FORM_VACIO: FormState = {
 
 function estadoBadge(m: MaquinaEstado) {
   if (m.incidencias_activas && m.incidencias_activas.length > 0) {
-    return <Badge variant="error">⚠️ Incidencia</Badge>;
+    return <Badge variant="error"><IconAlertas size={12} aria-hidden /> Incidencia</Badge>;
   }
-  if (m.estado_actual === 'AUTO') return <Badge variant="success">▶️ AUTO</Badge>;
-  if (m.estado_actual === 'MANUAL') return <Badge variant="warning">✋ MANUAL</Badge>;
-  return <Badge variant="muted">— Sin dato</Badge>;
+  if (m.estado_actual === 'AUTO') return <Badge variant="success"><IconEjecutar size={12} aria-hidden /> AUTO</Badge>;
+  if (m.estado_actual === 'MANUAL') return <Badge variant="warning"><IconConfig size={12} aria-hidden /> MANUAL</Badge>;
+  return <Badge variant="muted">Sin dato</Badge>;
 }
 
 function formatoHora(iso?: string | null): string {
@@ -157,32 +161,17 @@ export default function MaquinasEPSTab({ maquinas, onRefresh, token, isAdmin }: 
         <h2 className="text-lg font-semibold">Estado en tiempo real — Turno actual</h2>
         <div className="flex items-center gap-2">
           {isAdmin && (
-            <button
-              onClick={abrirAlta}
-              className="bg-red-600 hover:bg-red-700 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
-            >
-              ➕ Agregar máquina
-            </button>
+            <Button onClick={abrirAlta} size="sm" leftIcon={IconNuevo}>Agregar máquina</Button>
           )}
-          <button
-            onClick={onRefresh}
-            className="bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
-          >
-            🔄 Recargar
-          </button>
+          <Button onClick={onRefresh} variant="secondary" size="sm" leftIcon={IconActualizar}>Recargar</Button>
         </div>
       </div>
 
       {maquinas.length === 0 ? (
-        <div className="text-center text-gray-400 py-20">
+        <div className="text-center text-gray-300 py-20">
           <p className="text-lg">No hay máquinas registradas todavía.</p>
           {isAdmin && (
-            <button
-              onClick={abrirAlta}
-              className="mt-4 bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-            >
-              ➕ Agregar la primera máquina
-            </button>
+            <Button onClick={abrirAlta} className="mt-4" leftIcon={IconNuevo}>Agregar la primera máquina</Button>
           )}
         </div>
       ) : (
@@ -204,25 +193,28 @@ export default function MaquinasEPSTab({ maquinas, onRefresh, token, isAdmin }: 
                     <button
                       onClick={() => abrirIncidencias(m)}
                       title="Historial de incidencias"
-                      className="text-gray-400 hover:text-white text-sm transition-colors"
+                      aria-label="Historial de incidencias"
+                      className="text-gray-300 hover:text-white transition-colors"
                     >
-                      📋
+                      <IconDocumento size={16} aria-hidden />
                     </button>
                     {isAdmin && (
                       <>
                         <button
                           onClick={() => abrirEdicion(m)}
                           title="Editar"
-                          className="text-gray-400 hover:text-white text-sm transition-colors"
+                          aria-label="Editar máquina"
+                          className="text-gray-300 hover:text-white transition-colors"
                         >
-                          ✏️
+                          <IconEditar size={16} aria-hidden />
                         </button>
                         <button
                           onClick={() => desactivar(m)}
                           title="Desactivar"
-                          className="text-gray-400 hover:text-red-400 text-sm transition-colors"
+                          aria-label="Desactivar máquina"
+                          className="text-gray-300 hover:text-red-400 transition-colors"
                         >
-                          🗑️
+                          <IconEliminar size={16} aria-hidden />
                         </button>
                       </>
                     )}

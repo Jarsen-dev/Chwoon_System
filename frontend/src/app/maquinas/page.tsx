@@ -3,16 +3,18 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import Link from 'next/link';
-import { ModuleShell, LoadingSpinner } from '@/components/ui';
+import { ModuleShell, LoadingSpinner, Button } from '@/components/ui';
+import type { TabDef } from '@/components/ui/ModuleShell';
 import { getModuleTheme } from '@/lib/theme';
 import UserBadge from '@/components/UserBadge';
+import ModuleNavLinks from '@/components/ModuleNavLinks';
+import { IconEnsamble, IconSalir } from '@/lib/icons';
 import { getMaquinas } from '@/lib/api';
 import type { MaquinaEstado } from '@/types';
 import MaquinasEPSTab from './MaquinasEPSTab';
 
-const ALL_TABS = [
-  { id: 'eps', label: '🔧 Máquinas EPS' },
+const ALL_TABS: TabDef[] = [
+  { id: 'eps', label: 'Máquinas EPS', icon: IconEnsamble },
 ];
 
 type EstadoVivo = Partial<MaquinaEstado>;
@@ -124,17 +126,13 @@ export default function MaquinasPage() {
 
   const headerRight = (
     <>
-      <Link href="/" className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-        🏭 Producción
-      </Link>
+      <ModuleNavLinks rol={rol} current="maquinas" />
       <span className={`flex items-center gap-1.5 text-xs ${wsStatus === 'conectado' ? 'text-emerald-400' : 'text-red-400'}`}>
         <span className={`h-2 w-2 rounded-full ${wsStatus === 'conectado' ? 'bg-emerald-400' : 'bg-red-400'}`} />
         {wsStatus === 'conectado' ? 'En vivo' : 'Sin conexión'}
       </span>
       <UserBadge rol={rol} username={username} />
-      <button onClick={logout} className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-        🚪 Salir
-      </button>
+      <Button variant="danger" leftIcon={IconSalir} onClick={logout}>Salir</Button>
     </>
   );
 
