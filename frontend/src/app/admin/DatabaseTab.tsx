@@ -2,15 +2,22 @@
 
 import { useState, useEffect } from 'react'
 import { SystemStatus, DbActionCard } from './helpers'
+import { Button, Modal, LoadingSpinner } from '@/components/ui'
+import {
+  IconDatabase, IconSistema, IconActualizar, IconCerrar, IconConfig, IconAlertas,
+  IconEtiquetas, IconGrafico, IconContador, IconCamara, IconSecado, IconPreExpansion,
+  IconProduccion, IconVentas, IconInventario, IconEliminar, IconCompletado,
+  IconDocumento, IconDemanda, IconLogistica, type LucideIcon,
+} from '@/lib/icons'
 
 interface Props {
   token: string
 }
 
-const PGADMIN_LINKS = [
+const PGADMIN_LINKS: { label: string; icon: LucideIcon; url: string; desc: string; badge: string; badgeColor: string }[] = [
   {
     label:      'pgAdmin Local',
-    icon:       '🖥️',
+    icon:       IconSistema,
     url:        'http://localhost:5050',
     desc:       'Desarrollo',
     badge:      'LOCAL',
@@ -18,7 +25,7 @@ const PGADMIN_LINKS = [
   },
   {
     label:      'pgAdmin Producción',
-    icon:       '🌐',
+    icon:       IconDatabase,
     url:        'http://100.111.35.87:5050',
     desc:       'Servidor',
     badge:      'PRODUCCIÓN',
@@ -57,13 +64,13 @@ export default function DatabaseTab({ token }: Props) {
       })
       const data = await res.json()
       if (res.ok) {
-        setDbResult({ msg: `✅ ${data.message} (${data.eliminados} registros)`, type: 'success' })
+        setDbResult({ msg: `${data.message} (${data.eliminados} registros)`, type: 'success' })
         cargarSystemStatus()
       } else {
-        setDbResult({ msg: `❌ ${data.detail || 'Error desconocido'}`, type: 'error' })
+        setDbResult({ msg: `${data.detail || 'Error desconocido'}`, type: 'error' })
       }
     } catch {
-      setDbResult({ msg: '❌ Error de conexión', type: 'error' })
+      setDbResult({ msg: 'Error de conexión', type: 'error' })
     } finally {
       setDbActionLoading(null)
     }
@@ -85,22 +92,21 @@ export default function DatabaseTab({ token }: Props) {
           <h2 className="text-2xl font-bold">Gestión de Base de Datos</h2>
           <p className="text-gray-400 text-sm mt-1">Acceso directo, mantenimiento y limpieza</p>
         </div>
-        <button onClick={cargarSystemStatus} disabled={loadingSystem}
-          className="text-sm bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded-lg transition-colors">
-          {loadingSystem ? '⏳ Cargando...' : '🔄 Actualizar'}
-        </button>
+        <Button variant="secondary" size="sm" onClick={cargarSystemStatus} disabled={loadingSystem} leftIcon={IconActualizar}>
+          {loadingSystem ? 'Cargando...' : 'Actualizar'}
+        </Button>
       </div>
 
             {/* ═══ ACCESO DIRECTO A pgAdmin ═══ */}
       <div className="bg-gray-800 rounded-xl border border-gray-700 p-5">
         <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider mb-4 flex items-center gap-2">
-          🐘 Acceso Directo a pgAdmin
+          <IconDatabase size={16} aria-hidden /> Acceso Directo a pgAdmin
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {PGADMIN_LINKS.map(pg => (
             <div key={pg.label}
               className="bg-gray-900/50 rounded-xl border border-gray-700 p-4 flex items-center gap-4">
-              <span className="text-3xl">{pg.icon}</span>
+              <span className="inline-flex items-center justify-center h-10 w-10 rounded-lg text-[var(--accent)]" style={{ backgroundColor: 'var(--accent-soft)' }}><pg.icon size={20} aria-hidden /></span>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-0.5">
                   <h4 className="font-bold text-white text-sm">{pg.label}</h4>
@@ -115,9 +121,9 @@ export default function DatabaseTab({ token }: Props) {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold py-2.5 px-5 rounded-lg
-                           transition-colors flex items-center gap-2 whitespace-nowrap flex-shrink-0"
+                           transition-colors inline-flex items-center gap-2 whitespace-nowrap flex-shrink-0"
               >
-                🐘 Abrir
+                <IconDatabase size={16} aria-hidden /> Abrir
               </a>
             </div>
           ))}
@@ -136,18 +142,18 @@ export default function DatabaseTab({ token }: Props) {
             : 'bg-red-900/30 border-red-700 text-red-300'
         }`}>
           {dbResult.msg}
-          <button onClick={() => setDbResult(null)} className="float-right opacity-50 hover:opacity-100">✖</button>
+          <button onClick={() => setDbResult(null)} className="float-right opacity-50 hover:opacity-100" aria-label="Cerrar"><IconCerrar size={14} aria-hidden /></button>
         </div>
       )}
 
       {/* ═══ ACCIONES DE LIMPIEZA ═══ */}
       <div>
         <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider mb-4 flex items-center gap-2">
-          🧹 Acciones de Mantenimiento
+          <IconConfig size={16} aria-hidden /> Acciones de Mantenimiento
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <DbActionCard
-            icon="🖨️" title="Limpiar Cola de Impresión"
+            icon={IconEtiquetas} title="Limpiar Cola de Impresión"
             description="Elimina etiquetas ya generadas (estado 'generado')"
             count={getCount('cola_impresion')}
             buttonLabel="Limpiar Generados" buttonColor="bg-purple-600 hover:bg-purple-700"
@@ -155,7 +161,7 @@ export default function DatabaseTab({ token }: Props) {
             onClick={() => confirmarAccionDB('limpiar-cola', 'Limpiar Cola', '¿Eliminar todas las etiquetas con estado "generado"?')}
           />
           <DbActionCard
-            icon="⚠️" title="Limpiar Anomalías Antiguas"
+            icon={IconAlertas} title="Limpiar Anomalías Antiguas"
             description="Elimina anomalías con más de 30 días"
             count={getCount('anomalias')}
             buttonLabel="Limpiar +30 días" buttonColor="bg-yellow-600 hover:bg-yellow-700"
@@ -163,7 +169,7 @@ export default function DatabaseTab({ token }: Props) {
             onClick={() => confirmarAccionDB('limpiar-anomalias', 'Limpiar Anomalías', '¿Eliminar anomalías con más de 30 días de antigüedad?')}
           />
           <DbActionCard
-            icon="📊" title="Limpiar Historial de Turnos"
+            icon={IconGrafico} title="Limpiar Historial de Turnos"
             description="Elimina snapshots de turnos con más de 30 días"
             count={getCount('historial_turnos')}
             buttonLabel="Limpiar +30 días" buttonColor="bg-blue-600 hover:bg-blue-700"
@@ -171,7 +177,7 @@ export default function DatabaseTab({ token }: Props) {
             onClick={() => confirmarAccionDB('limpiar-historial', 'Limpiar Historial', '¿Eliminar historial de turnos con más de 30 días?')}
           />
           <DbActionCard
-            icon="🔢" title="Resetear Contadores de Carrito"
+            icon={IconContador} title="Resetear Contadores de Carrito"
             description="Resetea todos los contadores a cero"
             count={getCount('contador_carritos')}
             buttonLabel="Resetear Contadores" buttonColor="bg-orange-600 hover:bg-orange-700"
@@ -179,21 +185,21 @@ export default function DatabaseTab({ token }: Props) {
             onClick={() => confirmarAccionDB('resetear-contadores', 'Resetear Contadores', '¿Resetear todos los contadores de carritos? Esto reiniciará la numeración.')}
           />
           <DbActionCard
-            icon="📷" title="Vaciar Registros de Producción"
-            description="⚠️ PELIGROSO: Elimina TODOS los escaneos de producción"
+            icon={IconCamara} title="Vaciar Registros de Producción"
+            description="PELIGROSO: Elimina TODOS los escaneos de producción"
             count={getCount('registros_produccion')}
             buttonLabel="Vaciar Producción" buttonColor="bg-red-600 hover:bg-red-700"
             loading={dbActionLoading === 'vaciar-produccion'}
-            onClick={() => confirmarAccionDB('vaciar-produccion', '⚠️ Vaciar Producción', '¿ELIMINAR TODOS los registros de producción? Esta acción NO se puede deshacer.')}
+            onClick={() => confirmarAccionDB('vaciar-produccion', 'Vaciar Producción', '¿ELIMINAR TODOS los registros de producción? Esta acción NO se puede deshacer.')}
             danger
           />
           <DbActionCard
-            icon="🌡️" title="Vaciar Registros de Secado"
-            description="⚠️ PELIGROSO: Elimina TODOS los registros de secado"
+            icon={IconSecado} title="Vaciar Registros de Secado"
+            description="PELIGROSO: Elimina TODOS los registros de secado"
             count={getCount('registros_secado')}
             buttonLabel="Vaciar Secado" buttonColor="bg-red-600 hover:bg-red-700"
             loading={dbActionLoading === 'vaciar-secado'}
-            onClick={() => confirmarAccionDB('vaciar-secado', '⚠️ Vaciar Secado', '¿ELIMINAR TODOS los registros de secado? Esta acción NO se puede deshacer.')}
+            onClick={() => confirmarAccionDB('vaciar-secado', 'Vaciar Secado', '¿ELIMINAR TODOS los registros de secado? Esta acción NO se puede deshacer.')}
             danger
           />
         </div>
@@ -201,7 +207,7 @@ export default function DatabaseTab({ token }: Props) {
       {/* ═══ ACCIONES PRE-EXPANSIÓN ═══ */}
       <div>
         <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider mb-1 flex items-center gap-2">
-          🔥 Pre-Expansión — Limpieza de Datos
+          <IconPreExpansion size={16} aria-hidden /> Pre-Expansión — Limpieza de Datos
         </h3>
         <p className="text-xs text-gray-500 mb-4">
           Estas acciones eliminan registros de las sub-tabs del módulo de Pre-Expansión.
@@ -209,46 +215,46 @@ export default function DatabaseTab({ token }: Props) {
         </p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <DbActionCard
-            icon="🔥"
+            icon={IconPreExpansion}
             title="Vaciar Órdenes de Producción"
-            description="⚠️ Elimina TODAS las OPs (Pre-Expansión, Inyección, Ensamble) y suministros asociados"
+            description="Elimina TODAS las OPs (Pre-Expansión, Inyección, Ensamble) y suministros asociados"
             count={getCount('ordenes_produccion')}
             buttonLabel="Vaciar OPs"
             buttonColor="bg-red-600 hover:bg-red-700"
             loading={dbActionLoading === 'vaciar-ordenes-produccion'}
             onClick={() => confirmarAccionDB(
               'vaciar-ordenes-produccion',
-              '⚠️ Vaciar Órdenes de Producción',
+              'Vaciar Órdenes de Producción',
               '¿ELIMINAR TODAS las órdenes de producción y suministros de silo? Esto afecta Pre-Expansión, Inyección y Ensamble. Acción NO reversible.'
             )}
             danger
           />
           <DbActionCard
-            icon="🚚"
+            icon={IconLogistica}
             title="Vaciar Suministros de Silo"
-            description="⚠️ Elimina TODOS los registros de suministros SILO → AUX"
+            description="Elimina TODOS los registros de suministros SILO → AUX"
             count={getCount('suministros_silo')}
             buttonLabel="Vaciar Suministros"
             buttonColor="bg-red-600 hover:bg-red-700"
             loading={dbActionLoading === 'vaciar-suministros-silo'}
             onClick={() => confirmarAccionDB(
               'vaciar-suministros-silo',
-              '⚠️ Vaciar Suministros de Silo',
+              'Vaciar Suministros de Silo',
               '¿ELIMINAR TODOS los suministros de silo registrados? El historial de la sub-tab Suministro quedará vacío. Acción NO reversible.'
             )}
             danger
           />
           <DbActionCard
-            icon="📦"
+            icon={IconInventario}
             title="Vaciar Lotes de Inventario (Producción)"
-            description="⚠️ Elimina lotes de inventario generados por OPs y sus movimientos"
+            description="Elimina lotes de inventario generados por OPs y sus movimientos"
             count={getCount('lotes_inventario')}
             buttonLabel="Vaciar Lotes Prod."
             buttonColor="bg-red-600 hover:bg-red-700"
             loading={dbActionLoading === 'vaciar-lotes-inventario-produccion'}
             onClick={() => confirmarAccionDB(
               'vaciar-lotes-inventario-produccion',
-              '⚠️ Vaciar Lotes de Inventario de Producción',
+              'Vaciar Lotes de Inventario de Producción',
               '¿ELIMINAR todos los lotes de inventario generados por producción y sus movimientos? Solo afecta lotes con origen en OPs. Acción NO reversible.'
             )}
             danger
@@ -259,7 +265,7 @@ export default function DatabaseTab({ token }: Props) {
       {/* ═══ ACCIONES INYECCIÓN ═══ */}
       <div>
         <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider mb-1 flex items-center gap-2">
-          🏭 Inyección — Limpieza de Datos
+          <IconProduccion size={16} aria-hidden /> Inyección — Limpieza de Datos
         </h3>
         <p className="text-xs text-gray-500 mb-4">
           Estas acciones eliminan registros del plan de inyección.
@@ -267,22 +273,22 @@ export default function DatabaseTab({ token }: Props) {
         </p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <DbActionCard
-            icon="🗑️"
+            icon={IconEliminar}
             title="Vaciar Plan de Inyección"
-            description="⚠️ Elimina TODOS los registros del plan de inyección (Pendientes, En Proceso y Finalizados)"
+            description="Elimina TODOS los registros del plan de inyección (Pendientes, En Proceso y Finalizados)"
             count={getCount('plan_inyeccion')}
             buttonLabel="Vaciar Todo"
             buttonColor="bg-red-600 hover:bg-red-700"
             loading={dbActionLoading === 'vaciar-plan-inyeccion'}
             onClick={() => confirmarAccionDB(
               'vaciar-plan-inyeccion',
-              '⚠️ Vaciar Plan de Inyección',
+              'Vaciar Plan de Inyección',
               '¿ELIMINAR TODOS los registros del plan de inyección? Esto borra órdenes pendientes, en proceso y finalizadas. Acción NO reversible.'
             )}
             danger
           />
           <DbActionCard
-            icon="✅"
+            icon={IconCompletado}
             title="Vaciar Finalizados"
             description="Elimina solo las órdenes con status 'Finalizado'"
             count={undefined}
@@ -291,12 +297,12 @@ export default function DatabaseTab({ token }: Props) {
             loading={dbActionLoading === 'vaciar-plan-inyeccion-finalizados'}
             onClick={() => confirmarAccionDB(
               'vaciar-plan-inyeccion-finalizados',
-              '✅ Vaciar Finalizados',
+              'Vaciar Finalizados',
               '¿Eliminar solo las órdenes de inyección FINALIZADAS? Las órdenes en proceso y pendientes NO se verán afectadas.'
             )}
           />
           <DbActionCard
-            icon="📋"
+            icon={IconDocumento}
             title="Vaciar Pendientes"
             description="Elimina solo las órdenes con status 'Pendiente'"
             count={undefined}
@@ -305,7 +311,7 @@ export default function DatabaseTab({ token }: Props) {
             loading={dbActionLoading === 'vaciar-plan-inyeccion-pendientes'}
             onClick={() => confirmarAccionDB(
               'vaciar-plan-inyeccion-pendientes',
-              '📋 Vaciar Pendientes',
+              'Vaciar Pendientes',
               '¿Eliminar solo las órdenes de inyección PENDIENTES? Las órdenes en proceso y finalizadas NO se verán afectadas.'
             )}
           />
@@ -315,7 +321,7 @@ export default function DatabaseTab({ token }: Props) {
       {/* ═══ ACCIONES VENTAS ═══ */}
       <div>
         <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider mb-1 flex items-center gap-2">
-          🚚 Ventas — Limpieza de Datos
+          <IconVentas size={16} aria-hidden /> Ventas — Limpieza de Datos
         </h3>
         <p className="text-xs text-gray-500 mb-4">
           Estas acciones eliminan registros del módulo de Ventas (plan semanal, PSI, órdenes y envíos).
@@ -323,61 +329,61 @@ export default function DatabaseTab({ token }: Props) {
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <DbActionCard
-            icon="📊"
+            icon={IconGrafico}
             title="Vaciar Plan de Ventas (CW PLAN)"
-            description="⚠️ Elimina TODOS los planes semanales importados de CW PLAN"
+            description="Elimina TODOS los planes semanales importados de CW PLAN"
             count={getCount('planes_venta')}
             buttonLabel="Vaciar Plan Ventas"
             buttonColor="bg-red-600 hover:bg-red-700"
             loading={dbActionLoading === 'vaciar-plan-ventas'}
             onClick={() => confirmarAccionDB(
               'vaciar-plan-ventas',
-              '⚠️ Vaciar Plan de Ventas',
+              'Vaciar Plan de Ventas',
               '¿ELIMINAR TODOS los planes de ventas importados? Esto borra los datos de CW PLAN y sus programaciones semanales. Acción NO reversible.'
             )}
             danger
           />
           <DbActionCard
-            icon="📈"
+            icon={IconDemanda}
             title="Vaciar Snapshots PSI"
-            description="⚠️ Elimina TODOS los registros de cobertura PSI importados de LG"
+            description="Elimina TODOS los registros de cobertura PSI importados de LG"
             count={getCount('psi_snapshots')}
             buttonLabel="Vaciar PSI"
             buttonColor="bg-orange-600 hover:bg-orange-700"
             loading={dbActionLoading === 'vaciar-psi-snapshots'}
             onClick={() => confirmarAccionDB(
               'vaciar-psi-snapshots',
-              '⚠️ Vaciar Snapshots PSI',
+              'Vaciar Snapshots PSI',
               '¿ELIMINAR TODOS los snapshots de cobertura PSI? Los datos de cobertura Ref/Oven desaparecerán. Acción NO reversible.'
             )}
             danger
           />
           <DbActionCard
-            icon="📋"
+            icon={IconDocumento}
             title="Vaciar Órdenes de Venta (OV)"
-            description="⚠️ Elimina TODAS las órdenes de venta, items y envíos asociados"
+            description="Elimina TODAS las órdenes de venta, items y envíos asociados"
             count={getCount('ordenes_venta')}
             buttonLabel="Vaciar OVs"
             buttonColor="bg-red-600 hover:bg-red-700"
             loading={dbActionLoading === 'vaciar-ordenes-venta'}
             onClick={() => confirmarAccionDB(
               'vaciar-ordenes-venta',
-              '⚠️ Vaciar Órdenes de Venta',
+              'Vaciar Órdenes de Venta',
               '¿ELIMINAR TODAS las órdenes de venta? Esto incluye items y envíos asociados. Acción NO reversible.'
             )}
             danger
           />
           <DbActionCard
-            icon="🚚"
+            icon={IconLogistica}
             title="Vaciar Envíos de Venta"
-            description="⚠️ Elimina TODOS los registros de embarques/envíos realizados"
+            description="Elimina TODOS los registros de embarques/envíos realizados"
             count={getCount('envios_venta')}
             buttonLabel="Vaciar Envíos"
             buttonColor="bg-orange-600 hover:bg-orange-700"
             loading={dbActionLoading === 'vaciar-envios-venta'}
             onClick={() => confirmarAccionDB(
               'vaciar-envios-venta',
-              '⚠️ Vaciar Envíos de Venta',
+              'Vaciar Envíos de Venta',
               '¿ELIMINAR TODOS los envíos de venta registrados? El historial de embarques quedará vacío. Acción NO reversible.'
             )}
             danger
@@ -386,23 +392,26 @@ export default function DatabaseTab({ token }: Props) {
       </div>
 
       {/* ═══ MODAL CONFIRMAR ═══ */}
-      {confirmAction && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 rounded-2xl shadow-2xl p-6 w-full max-w-sm border border-gray-700">
+      <Modal
+        open={!!confirmAction}
+        onClose={() => setConfirmAction(null)}
+        title={confirmAction?.title || ''}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setConfirmAction(null)}>Cancelar</Button>
+            <Button variant="danger" onClick={() => confirmAction?.onConfirm()}>Confirmar</Button>
+          </>
+        }
+      >
+        {confirmAction && (
+          <>
             <div className="flex justify-center mb-4">
-              <div className="bg-yellow-900/50 rounded-full p-4"><span className="text-4xl">⚠️</span></div>
+              <div className="bg-yellow-900/50 rounded-full p-4 text-yellow-300"><IconAlertas size={32} aria-hidden /></div>
             </div>
-            <h3 className="text-lg font-bold text-center text-white mb-2">{confirmAction.title}</h3>
-            <p className="text-gray-400 text-center text-sm mb-6">{confirmAction.message}</p>
-            <div className="flex gap-3">
-              <button onClick={() => setConfirmAction(null)}
-                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white rounded-lg py-2.5 transition-colors font-medium">Cancelar</button>
-              <button onClick={confirmAction.onConfirm}
-                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg py-2.5 transition-colors">Confirmar</button>
-            </div>
-          </div>
-        </div>
-      )}
+            <p className="text-gray-300 text-center text-sm">{confirmAction.message}</p>
+          </>
+        )}
+      </Modal>
     </div>
   )
 }

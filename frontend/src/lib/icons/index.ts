@@ -102,6 +102,11 @@ export {
   PenLine as IconFirmar,
   Trophy as IconRanking,
   Save as IconGuardar,
+  Unlock as IconDesbloqueado,
+  Folder as IconModulo,
+  Ban as IconInactivo,
+  Landmark as IconBanco,
+  Star as IconEstrella,
 } from 'lucide-react';
 
 export type { LucideIcon } from 'lucide-react';

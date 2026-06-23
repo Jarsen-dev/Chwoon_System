@@ -2,6 +2,11 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { ConfiguracionEmpresa, ContactoEmpresa } from './helpers'
+import { Button, Modal } from '@/components/ui'
+import {
+  IconOk, IconAlertas, IconEmpresa, IconGuardar, IconTag, IconUbicaciones,
+  IconContacto, IconNuevo, IconEditar, IconEliminar, IconBanco, IconEstrella, type LucideIcon,
+} from '@/lib/icons'
 
 // ── helpers internos ──────────────────────────────────────────────────────────
 
@@ -83,10 +88,10 @@ function Field({
   )
 }
 
-function SectionHeader({ icon, title }: { icon: string; title: string }) {
+function SectionHeader({ icon: Icon, title }: { icon: LucideIcon; title: string }) {
   return (
     <div className="flex items-center gap-2 mb-4">
-      <span className="text-lg">{icon}</span>
+      <Icon size={18} className="text-[var(--accent)]" aria-hidden />
       <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider">{title}</h3>
       <div className="flex-1 border-t border-gray-700 ml-2" />
     </div>
@@ -99,7 +104,7 @@ function Toast({ msg, type }: { msg: string; type: 'ok' | 'err' }) {
       className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg text-sm font-medium shadow-lg transition-all
         ${type === 'ok' ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'}`}
     >
-      {type === 'ok' ? '✅ ' : '❌ '}{msg}
+      <span className="inline-flex items-center gap-2">{type === 'ok' ? <IconOk size={15} aria-hidden /> : <IconAlertas size={15} aria-hidden />}{msg}</span>
     </div>
   )
 }
@@ -296,22 +301,15 @@ export default function EmpresaTab({ token }: { token: string }) {
       <section className="bg-gray-900 border border-gray-700 rounded-xl p-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <span className="text-2xl">🏢</span>
+            <IconEmpresa size={24} className="text-[var(--accent)]" aria-hidden />
             <div>
               <h2 className="text-lg font-bold text-white">Información General</h2>
-              <p className="text-xs text-gray-400">Datos fiscales y de contacto de la empresa</p>
+              <p className="text-xs text-gray-300">Datos fiscales y de contacto de la empresa</p>
             </div>
           </div>
-          <button
-            onClick={saveCfg}
-            disabled={cfgSaving || cfgLoading}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600
-              disabled:cursor-not-allowed px-5 py-2 rounded-lg text-sm font-bold text-white transition-colors"
-          >
-            {cfgSaving
-              ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Guardando…</>
-              : '💾 Guardar'}
-          </button>
+          <Button onClick={saveCfg} disabled={cfgSaving || cfgLoading} leftIcon={IconGuardar}>
+            {cfgSaving ? 'Guardando…' : 'Guardar'}
+          </Button>
         </div>
 
         {cfgLoading ? (
@@ -322,7 +320,7 @@ export default function EmpresaTab({ token }: { token: string }) {
           <div className="space-y-6">
             {/* — Datos principales — */}
             <div>
-              <SectionHeader icon="🏷️" title="Datos principales" />
+              <SectionHeader icon={IconTag} title="Datos principales" />
               <div className="grid grid-cols-2 gap-4">
                 <Field label="Nombre de la empresa *" value={cfg.nombre ?? ''} onChange={setCfgField('nombre')} placeholder="Mi Empresa S.A. de C.V." span2 />
                 <Field label="RFC"                    value={cfg.rfc ?? ''}    onChange={setCfgField('rfc')}    placeholder="XAXX010101000" />
@@ -333,7 +331,7 @@ export default function EmpresaTab({ token }: { token: string }) {
 
             {/* — Dirección — */}
             <div>
-              <SectionHeader icon="📍" title="Dirección" />
+              <SectionHeader icon={IconUbicaciones} title="Dirección" />
               <div className="grid grid-cols-2 gap-4">
                 <Field label="Dirección"  value={cfg.direccion ?? ''} onChange={setCfgField('direccion')} placeholder="Calle, número, colonia" span2 textarea />
                 <Field label="CP"         value={cfg.cp ?? ''}        onChange={setCfgField('cp')}        placeholder="64000" />
@@ -345,7 +343,7 @@ export default function EmpresaTab({ token }: { token: string }) {
 
             {/* — Contacto — */}
             <div>
-              <SectionHeader icon="📞" title="Contacto" />
+              <SectionHeader icon={IconContacto} title="Contacto" />
               <div className="grid grid-cols-2 gap-4">
                 <Field label="Teléfono" value={cfg.telefono ?? ''} onChange={setCfgField('telefono')} placeholder="+52 81 1234 5678" />
                 <Field label="Correo electrónico" value={cfg.email ?? ''} onChange={setCfgField('email')} type="email" placeholder="contacto@empresa.com" />
@@ -355,7 +353,7 @@ export default function EmpresaTab({ token }: { token: string }) {
 
             {/* — Datos bancarios — */}
             <div>
-              <SectionHeader icon="🏦" title="Datos Bancarios" />
+              <SectionHeader icon={IconBanco} title="Datos Bancarios" />
               <div className="grid grid-cols-2 gap-4">
                 <Field label="Banco"   value={cfg.banco ?? ''}  onChange={setCfgField('banco')}  placeholder="BBVA / Banamex / HSBC…" />
                 <Field label="Cuenta"  value={cfg.cuenta ?? ''} onChange={setCfgField('cuenta')} placeholder="0123456789" />
@@ -370,19 +368,13 @@ export default function EmpresaTab({ token }: { token: string }) {
       <section className="bg-gray-900 border border-gray-700 rounded-xl p-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <span className="text-2xl">📇</span>
+            <IconContacto size={24} className="text-[var(--accent)]" aria-hidden />
             <div>
               <h2 className="text-lg font-bold text-white">Directorio de Contactos</h2>
-              <p className="text-xs text-gray-400">Contactos por área con datos de localización</p>
+              <p className="text-xs text-gray-300">Contactos por área con datos de localización</p>
             </div>
           </div>
-          <button
-            onClick={openNew}
-            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 px-4 py-2
-              rounded-lg text-sm font-bold text-white transition-colors"
-          >
-            ➕ Nuevo Contacto
-          </button>
+          <Button onClick={openNew} leftIcon={IconNuevo}>Nuevo Contacto</Button>
         </div>
 
         {/* Filtros */}
@@ -423,8 +415,8 @@ export default function EmpresaTab({ token }: { token: string }) {
             <span className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : contactosFiltrados.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
-            <p className="text-3xl mb-2">📇</p>
+          <div className="text-center py-12 text-gray-400">
+            <IconContacto size={36} className="mx-auto mb-2 text-gray-600" aria-hidden />
             <p className="text-sm">No hay contactos registrados</p>
           </div>
         ) : (
@@ -444,7 +436,7 @@ export default function EmpresaTab({ token }: { token: string }) {
                     <td className="py-3 px-3">
                       <div className="flex items-center gap-1.5">
                         {c.es_principal && (
-                          <span className="text-yellow-400 text-xs" title="Principal">★</span>
+                          <IconEstrella size={12} className="text-yellow-400 fill-yellow-400" aria-label="Principal" />
                         )}
                         <span className="text-xs bg-gray-700 text-gray-300 px-2 py-0.5 rounded-full whitespace-nowrap">
                           {c.area}
@@ -488,15 +480,17 @@ export default function EmpresaTab({ token }: { token: string }) {
                       <div className="flex gap-2">
                         <button
                           onClick={() => openEdit(c)}
-                          className="text-blue-400 hover:text-blue-300 text-xs font-medium transition-colors"
+                          className="text-blue-400 hover:text-blue-300 transition-colors"
+                          aria-label="Editar contacto"
                         >
-                          ✏️
+                          <IconEditar size={15} aria-hidden />
                         </button>
                         <button
                           onClick={() => deleteContacto(c.id!)}
-                          className="text-red-400 hover:text-red-300 text-xs font-medium transition-colors"
+                          className="text-red-400 hover:text-red-300 transition-colors"
+                          aria-label="Eliminar contacto"
                         >
-                          🗑️
+                          <IconEliminar size={15} aria-hidden />
                         </button>
                       </div>
                     </td>
@@ -509,24 +503,26 @@ export default function EmpresaTab({ token }: { token: string }) {
       </section>
 
       {/* ═══ MODAL CONTACTO ═════════════════════════════════════════ */}
-      {modal !== 'closed' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-700">
-              <h3 className="text-lg font-bold text-white">
-                {modal === 'new' ? '➕ Nuevo Contacto' : '✏️ Editar Contacto'}
-              </h3>
-              <button
-                onClick={closeModal}
-                className="text-gray-400 hover:text-white text-xl leading-none"
-              >
-                ×
-              </button>
-            </div>
-
+      <Modal
+        open={modal !== 'closed'}
+        onClose={closeModal}
+        size="2xl"
+        title={
+          modal === 'new'
+            ? <span className="flex items-center gap-2"><IconNuevo size={18} aria-hidden /> Nuevo Contacto</span>
+            : <span className="flex items-center gap-2"><IconEditar size={18} aria-hidden /> Editar Contacto</span>
+        }
+        footer={
+          <>
+            <Button variant="secondary" onClick={closeModal}>Cancelar</Button>
+            <Button onClick={saveContacto} disabled={modalSaving} leftIcon={IconGuardar}>
+              {modalSaving ? 'Guardando…' : 'Guardar'}
+            </Button>
+          </>
+        }
+      >
             {/* Body */}
-            <div className="p-6 space-y-5">
+            <div className="space-y-5">
               {/* Área + Nombre */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -586,7 +582,7 @@ export default function EmpresaTab({ token }: { token: string }) {
                     onChange={e => setMdField('es_principal')(e.target.checked)}
                     className="w-4 h-4 rounded accent-yellow-400"
                   />
-                  <span className="text-sm text-gray-300">⭐ Contacto principal del área</span>
+                  <span className="text-sm text-gray-300 inline-flex items-center gap-1"><IconEstrella size={14} aria-hidden /> Contacto principal del área</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer select-none">
                   <input
@@ -595,34 +591,11 @@ export default function EmpresaTab({ token }: { token: string }) {
                     onChange={e => setMdField('activo')(e.target.checked)}
                     className="w-4 h-4 rounded accent-emerald-400"
                   />
-                  <span className="text-sm text-gray-300">✅ Activo</span>
+                  <span className="text-sm text-gray-300 inline-flex items-center gap-1"><IconOk size={14} aria-hidden /> Activo</span>
                 </label>
               </div>
             </div>
-
-            {/* Footer */}
-            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-700">
-              <button
-                onClick={closeModal}
-                className="px-4 py-2 rounded-lg text-sm font-medium text-gray-300 bg-gray-800
-                  hover:bg-gray-700 transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={saveContacto}
-                disabled={modalSaving}
-                className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold text-white
-                  bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
-              >
-                {modalSaving
-                  ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Guardando…</>
-                  : '💾 Guardar'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      </Modal>
     </div>
   )
 }

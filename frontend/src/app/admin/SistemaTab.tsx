@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { SystemStatus, getTablaIcon } from './helpers'
+import { Button, LoadingSpinner } from '@/components/ui'
+import { IconActualizar, IconDatabase, IconGrafico, IconTiempo } from '@/lib/icons'
 
 interface Props {
   token: string
@@ -31,39 +33,38 @@ export default function SistemaTab({ token }: Props) {
           <h2 className="text-2xl font-bold">Estado del Sistema</h2>
           <p className="text-gray-400 text-sm mt-1">Información técnica y monitoreo</p>
         </div>
-        <button onClick={cargarSystemStatus} disabled={loadingSystem}
-          className="text-sm bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded-lg transition-colors">
-          {loadingSystem ? '⏳ Cargando...' : '🔄 Actualizar'}
-        </button>
+        <Button variant="secondary" size="sm" onClick={cargarSystemStatus} disabled={loadingSystem} leftIcon={IconActualizar}>
+          {loadingSystem ? 'Cargando...' : 'Actualizar'}
+        </Button>
       </div>
 
       {loadingSystem && !systemStatus ? (
-        <div className="text-center py-20 text-gray-400 animate-pulse">⏳ Cargando estado del sistema...</div>
+        <div className="flex justify-center py-20"><LoadingSpinner label="Cargando estado del sistema..." /></div>
       ) : systemStatus && (
         <>
           {/* Info cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="bg-gray-800 rounded-xl border border-gray-700 p-5">
-              <span className="text-2xl block mb-1">💾</span>
+              <IconDatabase size={22} className="block mb-1 text-[var(--accent)]" aria-hidden />
               <p className="text-2xl font-bold text-white">{systemStatus.db_size}</p>
-              <p className="text-xs text-gray-400 mt-1">Tamaño de DB</p>
+              <p className="text-xs text-gray-300 mt-1">Tamaño de DB</p>
             </div>
             <div className="bg-gray-800 rounded-xl border border-gray-700 p-5">
-              <span className="text-2xl block mb-1">📊</span>
+              <IconGrafico size={22} className="block mb-1 text-[var(--accent)]" aria-hidden />
               <p className="text-2xl font-bold text-white">{systemStatus.total_registros.toLocaleString()}</p>
-              <p className="text-xs text-gray-400 mt-1">Registros Totales</p>
+              <p className="text-xs text-gray-300 mt-1">Registros Totales</p>
             </div>
             <div className="bg-gray-800 rounded-xl border border-gray-700 p-5">
-              <span className="text-2xl block mb-1">🗃️</span>
+              <IconDatabase size={22} className="block mb-1 text-[var(--accent)]" aria-hidden />
               <p className="text-2xl font-bold text-white">{systemStatus.total_tablas}</p>
-              <p className="text-xs text-gray-400 mt-1">Tablas</p>
+              <p className="text-xs text-gray-300 mt-1">Tablas</p>
             </div>
             <div className="bg-gray-800 rounded-xl border border-gray-700 p-5">
-              <span className="text-2xl block mb-1">⏱️</span>
+              <IconTiempo size={22} className="block mb-1 text-[var(--accent)]" aria-hidden />
               <p className="text-lg font-bold text-white truncate" title={systemStatus.uptime}>
                 {systemStatus.uptime}
               </p>
-              <p className="text-xs text-gray-400 mt-1">Uptime DB</p>
+              <p className="text-xs text-gray-300 mt-1">Uptime DB</p>
             </div>
           </div>
 
@@ -81,11 +82,11 @@ export default function SistemaTab({ token }: Props) {
               </div>
               <div className="flex justify-between py-2 border-b border-gray-700/50">
                 <span className="text-gray-400">Backend</span>
-                <span className="text-green-400 font-mono text-xs">🟢 FastAPI (8000)</span>
+                <span className="text-green-400 font-mono text-xs">● FastAPI (8000)</span>
               </div>
               <div className="flex justify-between py-2 border-b border-gray-700/50">
                 <span className="text-gray-400">Frontend</span>
-                <span className="text-green-400 font-mono text-xs">🟢 Next.js (3000)</span>
+                <span className="text-green-400 font-mono text-xs">● Next.js (3000)</span>
               </div>
             </div>
           </div>
@@ -107,8 +108,10 @@ export default function SistemaTab({ token }: Props) {
                 {systemStatus.tablas.map(tabla => (
                   <tr key={tabla.nombre} className="hover:bg-gray-700/30 transition-colors">
                     <td className="px-5 py-3 text-sm">
-                      <span className="mr-2">{getTablaIcon(tabla.nombre)}</span>
-                      <span className="font-mono text-gray-300">{tabla.nombre}</span>
+                      <span className="inline-flex items-center gap-2">
+                        {(() => { const Icon = getTablaIcon(tabla.nombre); return <Icon size={16} className="text-gray-400" aria-hidden /> })()}
+                        <span className="font-mono text-gray-300">{tabla.nombre}</span>
+                      </span>
                     </td>
                     <td className="px-5 py-3 text-right">
                       <span className={`font-bold text-sm ${
