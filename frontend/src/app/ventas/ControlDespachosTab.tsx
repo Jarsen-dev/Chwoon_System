@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { getOrdenesVenta, despacharOV, cambiarEstadoOV } from '@/lib/api'
 import { ESTADO_COLORS } from '@/lib/api'
 import type { OrdenVenta } from '@/types'
+import { Button, LoadingSpinner } from '@/components/ui'
+import { IconLogistica, IconActualizar, IconOk, IconCerrar, IconDocumento, IconAlertas } from '@/lib/icons'
 
 interface Props { token: string }
 
@@ -94,8 +96,8 @@ export default function ControlDespachosTab({ token }: Props) {
       })
 
       const msg = form.status === 'OK'
-        ? `✓ Salida registrada. Envío: ${res.envio_id}. OV → ${res.estado_ov}`
-        : `⚠ Salida NG registrada. OV vuelve a "Lista para Carga".`
+        ? `Salida registrada. Envío: ${res.envio_id}. OV → ${res.estado_ov}`
+        : `Salida NG registrada. OV vuelve a "Lista para Carga".`
       setSuccess(msg)
 
       // Agregar al historial del día
@@ -146,26 +148,26 @@ export default function ControlDespachosTab({ token }: Props) {
       {/* ── Panel izquierdo: lista de OVs en andén ── */}
       <div className="lg:col-span-2 space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-base font-semibold text-teal-400">
-            🚛 Andén — Listas para Carga
+          <h3 className="text-base font-semibold text-teal-400 flex items-center gap-2">
+            <IconLogistica size={18} aria-hidden /> Andén — Listas para Carga
           </h3>
           <button
             onClick={cargarOrdenes}
-            className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
+            className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-200 transition-colors"
           >
-            🔄 Actualizar
+            <IconActualizar size={13} aria-hidden /> Actualizar
           </button>
         </div>
 
         {loading && (
           <div className="flex justify-center py-8">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-teal-400" />
+            <LoadingSpinner sizeClass="h-6 w-6" />
           </div>
         )}
 
         {!loading && ordenes.length === 0 && (
-          <div className="text-center py-10 text-gray-500 bg-gray-900 rounded-xl border border-gray-800">
-            <p className="text-2xl mb-2">🟢</p>
+          <div className="text-center py-10 text-gray-400 bg-gray-900 rounded-xl border border-gray-800">
+            <IconOk size={28} className="mx-auto mb-2 text-green-400" aria-hidden />
             <p className="text-sm font-medium">Sin órdenes en andén</p>
             <p className="text-xs mt-1">Cuando Almacén valide cajas, aparecerán aquí</p>
           </div>
@@ -217,9 +219,9 @@ export default function ControlDespachosTab({ token }: Props) {
       <div className="lg:col-span-3">
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 h-full">
           {!seleccionada ? (
-            <div className="flex items-center justify-center h-48 text-gray-600">
+            <div className="flex items-center justify-center h-48 text-gray-400">
               <div className="text-center">
-                <p className="text-3xl mb-2">👈</p>
+                <IconLogistica size={32} className="mx-auto mb-2 text-gray-600" aria-hidden />
                 <p className="text-sm">Selecciona una orden del andén</p>
               </div>
             </div>
@@ -267,7 +269,7 @@ export default function ControlDespachosTab({ token }: Props) {
                     }`}
                   />
                   {npxError && <p className="text-xs text-red-400 mt-1">{npxError}</p>}
-                  {form.departure && !npxError && <p className="text-xs text-green-400 mt-1">✓ Formato válido</p>}
+                  {form.departure && !npxError && <p className="inline-flex items-center gap-1 text-xs text-green-400 mt-1"><IconOk size={12} aria-hidden /> Formato válido</p>}
                 </div>
 
                 {/* CW Invoice */}
@@ -318,7 +320,7 @@ export default function ControlDespachosTab({ token }: Props) {
                         onChange={() => setForm({ ...form, status: 'OK' })}
                         className="hidden"
                       />
-                      <span className="text-lg">✓</span>
+                      <IconOk size={18} aria-hidden />
                       <div>
                         <p className="text-xs font-bold">OK</p>
                         <p className="text-xs opacity-70">Salida exitosa</p>
@@ -335,7 +337,7 @@ export default function ControlDespachosTab({ token }: Props) {
                         onChange={() => setForm({ ...form, status: 'NG' })}
                         className="hidden"
                       />
-                      <span className="text-lg">✕</span>
+                      <IconCerrar size={18} aria-hidden />
                       <div>
                         <p className="text-xs font-bold">NG</p>
                         <p className="text-xs opacity-70">No go — carga detenida</p>
@@ -343,8 +345,8 @@ export default function ControlDespachosTab({ token }: Props) {
                     </label>
                   </div>
                   {form.status === 'NG' && (
-                    <p className="text-xs text-orange-400 mt-2">
-                      ⚠ Al guardar como NG, la OV regresará a "Lista para Carga" para reintentar.
+                    <p className="inline-flex items-center gap-1 text-xs text-orange-400 mt-2">
+                      <IconAlertas size={13} aria-hidden /> Al guardar como NG, la OV regresará a "Lista para Carga" para reintentar.
                     </p>
                   )}
                 </div>
@@ -361,21 +363,20 @@ export default function ControlDespachosTab({ token }: Props) {
                   </div>
                 )}
 
-                <button
+                <Button
                   onClick={handleDespachar}
                   disabled={despachando}
-                  className={`w-full py-3 rounded-lg font-bold text-sm transition-colors ${
-                    form.status === 'NG'
-                      ? 'bg-red-700 hover:bg-red-800 disabled:opacity-50'
-                      : 'bg-teal-600 hover:bg-teal-700 disabled:opacity-50'
-                  }`}
+                  variant={form.status === 'NG' ? 'danger' : 'primary'}
+                  size="lg"
+                  className="w-full"
+                  leftIcon={despachando ? undefined : form.status === 'NG' ? IconCerrar : IconOk}
                 >
                   {despachando
                     ? 'Registrando...'
                     : form.status === 'NG'
-                    ? '✕ Registrar Salida NG'
-                    : '✓ Dar Salida Física'}
-                </button>
+                    ? 'Registrar Salida NG'
+                    : 'Dar Salida Física'}
+                </Button>
               </div>
             </>
           )}
@@ -384,7 +385,7 @@ export default function ControlDespachosTab({ token }: Props) {
       {/* Historial del día */}
       {historial.length > 0 && (
         <div className="mt-6 border-t border-gray-800 pt-6">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">📋 Despachos de esta sesión</p>
+          <p className="text-xs font-semibold text-gray-300 uppercase tracking-wider mb-3 flex items-center gap-2"><IconDocumento size={14} aria-hidden /> Despachos de esta sesión</p>
           <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
             <table className="w-full text-xs">
               <thead className="bg-gray-800">

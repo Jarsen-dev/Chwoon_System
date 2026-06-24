@@ -41,6 +41,11 @@ export {
   // Producción / IA / alertas
   Sparkles as IconPrediccion,
   TriangleAlert as IconAlertas,
+  ShieldAlert as IconFraude,
+  Turtle as IconLento,
+  Keyboard as IconTeclado,
+  ClipboardX as IconPegado,
+  Siren as IconAlarma,
 
   // Turnos
   Sun as IconTurnoDia,
@@ -67,6 +72,9 @@ export {
   Calendar as IconFecha,
 
   // Vistas / gráficos
+  Info as IconInfo,
+  Inbox as IconBandeja,
+  Lightbulb as IconTip,
   ListChecks as IconLista,
   BarChart3 as IconGrafico,
   TrendingUp as IconFifo,
@@ -79,6 +87,7 @@ export {
   Syringe as IconInyeccion,
   Thermometer as IconSecado,
   Camera as IconCamara,
+  Container as IconSilo,
 
   // Calidad
   PackageCheck as IconOQC,
@@ -90,6 +99,8 @@ export {
 
   // Ventas / clientes
   Users as IconUsuarios,
+  Mail as IconEmail,
+  Phone as IconTelefono,
 
   // Admin
   Database as IconDatabase,

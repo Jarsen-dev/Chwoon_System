@@ -10,6 +10,13 @@ import {
   descargarReportePreexpansionExcel,
 } from '@/lib/api'
 import { ProductoItem } from '@/types'
+import { Modal, Button } from '@/components/ui'
+import {
+  IconPreExpansion, IconSilo, IconLogistica, IconLista, IconCerrar, IconNuevo,
+  IconActualizar, IconEjecutar, IconUbicaciones, IconDocumento, IconOk,
+  IconTurnoDia, IconTurnoNoche, IconGrafico, IconTiempo, IconGuardar,
+  IconAlertas, type LucideIcon,
+} from '@/lib/icons'
 
 type SubTab = 'lotes' | 'silos' | 'suministro' | 'reporte'
 
@@ -92,18 +99,21 @@ export default function PreExpansionTab() {
     <div className="space-y-4">
       <div className="flex items-center gap-1 bg-gray-800 rounded-xl p-1">
         {([
-          { id: 'lotes' as SubTab, label: '🔥 Lotes' },
-          { id: 'silos' as SubTab, label: '🏗️ Estado Silos' },
-          { id: 'suministro' as SubTab, label: '🚚 Suministro' },
-          { id: 'reporte' as SubTab, label: '📋 Reporte' },
-        ]).map(tab => (
-          <button key={tab.id} onClick={() => setSubTab(tab.id)}
-            className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-              subTab === tab.id ? 'bg-gray-900 text-orange-400 shadow-sm' : 'text-gray-400 hover:text-gray-300'
-            }`}>
-            {tab.label}
-          </button>
-        ))}
+          { id: 'lotes' as SubTab, label: 'Lotes', icon: IconPreExpansion },
+          { id: 'silos' as SubTab, label: 'Estado Silos', icon: IconSilo },
+          { id: 'suministro' as SubTab, label: 'Suministro', icon: IconLogistica },
+          { id: 'reporte' as SubTab, label: 'Reporte', icon: IconLista },
+        ] as { id: SubTab; label: string; icon: LucideIcon }[]).map(tab => {
+          const TabIcon = tab.icon
+          return (
+            <button key={tab.id} onClick={() => setSubTab(tab.id)}
+              className={`flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                subTab === tab.id ? 'bg-gray-900 text-[var(--accent)] shadow-sm' : 'text-gray-300 hover:text-white'
+              }`}>
+              <TabIcon size={16} aria-hidden /> {tab.label}
+            </button>
+          )
+        })}
       </div>
       {subTab === 'lotes'      && <LotesSubTab />}
       {subTab === 'silos'      && <SilosSubTab />}
@@ -231,7 +241,7 @@ function LotesSubTab() {
         ubicacion_destino:   formUbicacion,
       })
       if (res.oc_generada) {
-        setMensaje({ tipo: 'ok', texto: `Lote iniciado. ⚠️ Stock insuficiente: se generó la OC ${res.oc_generada}. Espere aprobación de Compras.` })
+        setMensaje({ tipo: 'ok', texto: `Lote iniciado. Stock insuficiente: se generó la OC ${res.oc_generada}. Espere aprobación de Compras.` })
       } else {
         setMensaje({ tipo: 'ok', texto: res.message })
       }
@@ -324,16 +334,12 @@ function LotesSubTab() {
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-white">🔥 Lotes de Pre-Expansión</h2>
+        <h2 className="text-xl font-bold text-white flex items-center gap-2"><IconPreExpansion size={22} className="text-[var(--accent)]" aria-hidden /> Lotes de Pre-Expansión</h2>
         <div className="flex gap-2">
-          <button onClick={() => setShowForm(!showForm)}
-            className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
-            {showForm ? '✕ Cancelar' : '➕ Nuevo Lote'}
-          </button>
-          <button onClick={cargar} disabled={loading}
-            className="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg text-sm font-medium text-gray-300">
-            🔄
-          </button>
+          <Button onClick={() => setShowForm(!showForm)} leftIcon={showForm ? IconCerrar : IconNuevo} className="bg-orange-600 hover:bg-orange-700 text-white">
+            {showForm ? 'Cancelar' : 'Nuevo Lote'}
+          </Button>
+          <Button variant="secondary" onClick={cargar} disabled={loading} aria-label="Actualizar"><IconActualizar size={16} /></Button>
         </div>
       </div>
 
@@ -422,26 +428,24 @@ function LotesSubTab() {
                   ))}
                 </select>
               ) : (
-                <div className="w-full border border-red-500/40 bg-red-500/100/10 rounded-lg px-3 py-2 text-sm text-red-400">
-                  ⚠️ No se encontraron silos. Crea sub-ubicaciones bajo &quot;SILOS&quot; en Almacén → Ubicaciones.
+                <div className="w-full border border-red-500/40 bg-red-500/10 rounded-lg px-3 py-2 text-sm text-red-400 flex items-center gap-2">
+                  <IconAlertas size={15} aria-hidden /> No se encontraron silos. Crea sub-ubicaciones bajo &quot;SILOS&quot; en Almacén → Ubicaciones.
                 </div>
               )}
             </div>
           </div>
 
-          <button onClick={handleIniciar}
-            disabled={ubicacionesSilos.length === 0}
-            className="bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg text-sm font-medium">
-            🚀 Iniciar Lote
-          </button>
+          <Button onClick={handleIniciar} disabled={ubicacionesSilos.length === 0} leftIcon={IconEjecutar} className="bg-orange-600 hover:bg-orange-700 text-white">
+            Iniciar Lote
+          </Button>
         </div>
       )}
 
       {/* ── Lotes Activos ── */}
       <div>
-        <h3 className="font-semibold text-gray-300 mb-3">🟢 Lotes Activos ({activas.length})</h3>
+        <h3 className="font-semibold text-gray-300 mb-3 flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-green-400" aria-hidden /> Lotes Activos ({activas.length})</h3>
         {activas.length === 0 ? (
-          <p className="text-gray-400 text-sm py-4">No hay lotes activos</p>
+          <p className="text-gray-300 text-sm py-4">No hay lotes activos</p>
         ) : (
           <div className="space-y-3">
             {activas.map(op => {
@@ -465,19 +469,19 @@ function LotesSubTab() {
                         </span>
                       )}
                       {op.ubicacion_destino && (
-                        <span className="text-xs bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-full">
-                          📍 {op.ubicacion_destino}
+                        <span className="inline-flex items-center gap-1 text-xs bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-full">
+                          <IconUbicaciones size={12} aria-hidden /> {op.ubicacion_destino}
                         </span>
                       )}
                     </div>
                     <div className="flex gap-2">
                       <button onClick={() => { setParcialOpId(op.op_id); setParcialCantidad('') }}
-                        className="bg-blue-500/20 hover:bg-blue-200 text-blue-400 px-3 py-1.5 rounded-lg text-xs font-medium">
-                        📝 Parcial
+                        className="inline-flex items-center gap-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 px-3 py-1.5 rounded-lg text-xs font-medium">
+                        <IconDocumento size={14} aria-hidden /> Parcial
                       </button>
                       <button onClick={() => handleClickFinalizar(op.op_id)}
-                        className="bg-green-500/20 hover:bg-green-200 text-green-400 px-3 py-1.5 rounded-lg text-xs font-medium">
-                        ✅ Finalizar
+                        className="inline-flex items-center gap-1 bg-green-500/20 hover:bg-green-500/30 text-green-400 px-3 py-1.5 rounded-lg text-xs font-medium">
+                        <IconOk size={14} aria-hidden /> Finalizar
                       </button>
                     </div>
                   </div>
@@ -515,8 +519,8 @@ function LotesSubTab() {
                         className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
                         Registrar
                       </button>
-                      <button onClick={() => setParcialOpId(null)}
-                        className="text-gray-400 hover:text-gray-400 px-2 py-2 text-sm">✕</button>
+                      <button onClick={() => setParcialOpId(null)} aria-label="Cancelar"
+                        className="text-gray-400 hover:text-white px-2 py-2"><IconCerrar size={16} /></button>
                     </div>
                   )}
                 </div>
@@ -529,8 +533,8 @@ function LotesSubTab() {
       {/* ── Finalizados ── */}
       {ordenes.some(o => o.status === 'Finalizado') && (
         <div>
-          <h3 className="font-semibold text-gray-300 mb-3">
-            ✅ Finalizados ({finalizadas.length})
+          <h3 className="font-semibold text-gray-300 mb-3 flex items-center gap-2">
+            <IconOk size={16} className="text-emerald-400" aria-hidden /> Finalizados ({finalizadas.length})
           </h3>
 
           {/* Filtros */}
@@ -540,8 +544,8 @@ function LotesSubTab() {
               <select value={filtroTurno} onChange={e => setFiltroTurno(e.target.value)}
                 className="w-full bg-gray-950 border border-gray-800 rounded-md px-2 py-1.5 text-xs text-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/15">
                 <option value="">Todos</option>
-                <option value="DIA">☀️ DIA</option>
-                <option value="NOCHE">🌙 NOCHE</option>
+                <option value="DIA">DIA</option>
+                <option value="NOCHE">NOCHE</option>
               </select>
             </div>
             <div>
@@ -597,7 +601,7 @@ function LotesSubTab() {
                             ? 'bg-yellow-500/20 text-yellow-400'
                             : 'bg-indigo-500/20 text-indigo-300'
                         }`}>
-                          {getTurno(op.fecha_inicio) === 'DIA' ? '☀️' : '🌙'} {getTurno(op.fecha_inicio)}
+                          <span className="inline-flex items-center gap-1">{getTurno(op.fecha_inicio) === 'DIA' ? <IconTurnoDia size={12} aria-hidden /> : <IconTurnoNoche size={12} aria-hidden />} {getTurno(op.fecha_inicio)}</span>
                         </span>
                       </td>
                       <td className="px-3 py-2 font-mono text-blue-400 text-xs">{op.op_id}</td>
@@ -631,11 +635,20 @@ function LotesSubTab() {
       )}
 
       {/* ── MODAL: Datos de Proceso ── */}
-      {showDatosModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-[3px] z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] w-full max-w-md p-6 space-y-4">
-            <h3 className="text-lg font-bold text-white">📊 Datos de Proceso</h3>
-            <p className="text-sm text-gray-400">
+      <Modal
+        open={showDatosModal}
+        onClose={() => { setShowDatosModal(false); setDatosOpId(null) }}
+        size="md"
+        title={<span className="flex items-center gap-2 text-[var(--accent)]"><IconGrafico size={18} aria-hidden /> Datos de Proceso</span>}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => { setShowDatosModal(false); setDatosOpId(null) }}>Omitir</Button>
+            <Button onClick={handleGuardarDatos} leftIcon={IconGuardar} className="bg-orange-600 hover:bg-orange-700 text-white">Guardar</Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+            <p className="text-sm text-gray-300">
               Primer parcial registrado para{' '}
               <span className="font-mono font-semibold">{datosOpId}</span>.
               Ingresa los datos del proceso:
@@ -658,24 +671,24 @@ function LotesSubTab() {
                   className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15" min="0" step="1" />
               </div>
             </div>
-            <div className="flex gap-3 justify-end">
-              <button onClick={() => { setShowDatosModal(false); setDatosOpId(null) }}
-                className="px-4 py-2 text-sm text-gray-400 hover:text-gray-300">Omitir</button>
-              <button onClick={handleGuardarDatos}
-                className="bg-orange-600 hover:bg-orange-700 text-white px-5 py-2 rounded-lg text-sm font-medium">
-                💾 Guardar
-              </button>
-            </div>
-          </div>
         </div>
-      )}
+      </Modal>
 
       {/* ── MODAL: Finalizar ── */}
-      {showFinalizarModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-[3px] z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] w-full max-w-sm p-6 space-y-4">
-            <h3 className="text-lg font-bold text-white">✅ Finalizar Lote</h3>
-            <p className="text-sm text-gray-400">
+      <Modal
+        open={showFinalizarModal}
+        onClose={() => { setShowFinalizarModal(false); setFinalizarOpId(null) }}
+        size="sm"
+        title={<span className="flex items-center gap-2 text-emerald-400"><IconOk size={18} aria-hidden /> Finalizar Lote</span>}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => { setShowFinalizarModal(false); setFinalizarOpId(null) }}>Cancelar</Button>
+            <Button onClick={handleConfirmarFinalizar} leftIcon={IconOk} className="bg-green-600 hover:bg-green-700 text-white">Confirmar</Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+            <p className="text-sm text-gray-300">
               Finalizando <span className="font-mono font-semibold">{finalizarOpId}</span>
             </p>
             <div className="space-y-3">
@@ -694,17 +707,8 @@ function LotesSubTab() {
                   min="0" step="1" placeholder="Ingresa el counter tiro..." />
               </div>
             </div>
-            <div className="flex gap-3 justify-end">
-              <button onClick={() => { setShowFinalizarModal(false); setFinalizarOpId(null) }}
-                className="px-4 py-2 text-sm text-gray-400 hover:text-gray-300">Cancelar</button>
-              <button onClick={handleConfirmarFinalizar}
-                className="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg text-sm font-medium">
-                ✅ Confirmar
-              </button>
-            </div>
-          </div>
         </div>
-      )}
+      </Modal>
     </div>
   )
 }
@@ -822,7 +826,7 @@ function SilosSubTab() {
             ))}
             <div className="mt-2 bg-gray-900 rounded-lg p-2 border border-orange-500/30">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-400">⏱️ Tiempo en reposo:</span>
+                <span className="inline-flex items-center gap-1 text-xs text-gray-400"><IconTiempo size={12} aria-hidden /> Tiempo en reposo:</span>
                 <span className="font-bold text-orange-400 text-sm">
                   {formatTiempoReposo(reposoVivo || s.tiempo_reposo_segundos)}
                 </span>
@@ -837,17 +841,12 @@ function SilosSubTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-white">🏗️ Estado de Silos</h2>
+        <h2 className="text-xl font-bold text-white flex items-center gap-2"><IconSilo size={22} className="text-[var(--accent)]" aria-hidden /> Estado de Silos</h2>
         <div className="flex gap-2">
-          <button onClick={handleDescargarExcel}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-400 bg-green-600 hover:bg-green-700 active:scale-95 text-white">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6M4 20h16a1 1 0 001-1V5 a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/>
-            </svg>
+          <Button onClick={handleDescargarExcel} leftIcon={IconDocumento} className="bg-green-600 hover:bg-green-700 text-white">
             Descargar Excel
-          </button>
-          <button onClick={cargar} disabled={loading}
-            className="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg text-sm font-medium text-gray-300">🔄</button>
+          </Button>
+          <Button variant="secondary" onClick={cargar} disabled={loading} aria-label="Actualizar"><IconActualizar size={16} /></Button>
         </div>
       </div>
 
@@ -973,14 +972,12 @@ function SuministroSubTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-white">🚚 Suministro a AUX</h2>
+        <h2 className="text-xl font-bold text-white flex items-center gap-2"><IconLogistica size={22} className="text-[var(--accent)]" aria-hidden /> Suministro a AUX</h2>
         <div className="flex gap-2">
-          <button onClick={() => setShowForm(!showForm)}
-            className="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
-            {showForm ? '✕ Cancelar' : '➕ Nuevo Suministro'}
-          </button>
-          <button onClick={cargar} disabled={loading}
-            className="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg text-sm font-medium text-gray-300">🔄</button>
+          <Button onClick={() => setShowForm(!showForm)} leftIcon={showForm ? IconCerrar : IconNuevo} className="bg-cyan-600 hover:bg-cyan-700 text-white">
+            {showForm ? 'Cancelar' : 'Nuevo Suministro'}
+          </Button>
+          <Button variant="secondary" onClick={cargar} disabled={loading} aria-label="Actualizar"><IconActualizar size={16} /></Button>
         </div>
       </div>
 
@@ -1028,10 +1025,9 @@ function SuministroSubTab() {
                 placeholder="Ej: MAQ-1, MAQ-3, MAQ-7" />
             </div>
           </div>
-          <button onClick={handleCrear}
-            className="bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-2 rounded-lg text-sm font-medium">
-            🚚 Registrar Suministro
-          </button>
+          <Button onClick={handleCrear} leftIcon={IconLogistica} className="bg-cyan-600 hover:bg-cyan-700 text-white">
+            Registrar Suministro
+          </Button>
         </div>
       )}
 
@@ -1066,8 +1062,8 @@ function SuministroSubTab() {
 
       {/* ── Historial de Suministros ── */}
       <div>
-        <h3 className="font-semibold text-gray-300 mb-3">
-          📋 Historial de Suministros ({suministrosFiltrados.length}
+        <h3 className="font-semibold text-gray-300 mb-3 flex items-center gap-2">
+          <IconLista size={16} aria-hidden /> Historial de Suministros ({suministrosFiltrados.length}
           {suministrosFiltrados.length !== suministros.length && (
             <span className="text-xs font-normal text-gray-400 ml-1">de {suministros.length}</span>
           )})
@@ -1256,14 +1252,14 @@ function ReporteSubTab() {
     <div className="space-y-4">
       {/* Header + controles */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h2 className="text-xl font-bold text-white">📋 Reporte de Pre-Expansión</h2>
+        <h2 className="text-xl font-bold text-white flex items-center gap-2"><IconLista size={22} className="text-[var(--accent)]" aria-hidden /> Reporte de Pre-Expansión</h2>
         <div className="flex items-center gap-3 flex-wrap">
           {/* Filtro Turno */}
           <select value={filtroTurno} onChange={e => setFiltroTurno(e.target.value)}
             className="bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15">
             <option value="">Ambos turnos</option>
-            <option value="DIA">☀️ DIA</option>
-            <option value="NOCHE">🌙 NOCHE</option>
+            <option value="DIA">DIA</option>
+            <option value="NOCHE">NOCHE</option>
           </select>
           <input type="date" value={fechaFiltro} onChange={e => setFechaFiltro(e.target.value)}
             className="bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15" />
@@ -1274,10 +1270,7 @@ function ReporteSubTab() {
             </svg>
             Descargar Excel
           </button>
-          <button onClick={cargar} disabled={loading}
-            className="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg text-sm font-medium text-gray-300">
-            🔄
-          </button>
+          <Button variant="secondary" onClick={cargar} disabled={loading} aria-label="Actualizar"><IconActualizar size={16} /></Button>
         </div>
       </div>
 
@@ -1344,7 +1337,7 @@ function ReporteSubTab() {
                             ? 'bg-yellow-500/20 text-yellow-400'
                             : 'bg-indigo-100 text-indigo-700'
                         }`}>
-                          {turno === 'DIA' ? '☀️' : '🌙'} {turno}
+                          <span className="inline-flex items-center gap-1">{turno === 'DIA' ? <IconTurnoDia size={12} aria-hidden /> : <IconTurnoNoche size={12} aria-hidden />} {turno}</span>
                         </span>
                       )}
                     </td>
@@ -1451,7 +1444,7 @@ function ReporteSubTab() {
       {/* Resumen */}
       {(ordenes.length > 0 || suministrosTotal > 0) && (
         <div className="bg-gray-800 rounded-lg border border-gray-800 p-4">
-          <h4 className="font-semibold text-gray-300 text-sm mb-2">📊 Resumen del Día</h4>
+          <h4 className="font-semibold text-gray-300 text-sm mb-2 flex items-center gap-2"><IconGrafico size={15} aria-hidden /> Resumen del Día</h4>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
             <div>
               <span className="text-gray-400">Total Lotes:</span>

@@ -1,4 +1,5 @@
 import { RegistroProduccion } from '@/types'
+import { IconFraude, IconMaquinas, IconLento, IconAlertas, type LucideIcon } from '@/lib/icons'
 
 export function getTipoBadge(tipo: string): string {
   switch (tipo) {
@@ -9,12 +10,12 @@ export function getTipoBadge(tipo: string): string {
   }
 }
 
-export function getTipoIcon(tipo: string): string {
+export function getTipoIcon(tipo: string): LucideIcon {
   switch (tipo) {
-    case 'FRAUDE':        return '🕵️'
-    case 'MANTENIMIENTO': return '⚙️'
-    case 'LENTITUD_PLAN': return '🐢'
-    default:              return '⚠️'
+    case 'FRAUDE':        return IconFraude
+    case 'MANTENIMIENTO': return IconMaquinas
+    case 'LENTITUD_PLAN': return IconLento
+    default:              return IconAlertas
   }
 }
 

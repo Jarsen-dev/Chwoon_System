@@ -12,6 +12,11 @@ import {
   agregarACola,
 } from '@/lib/api'
 import { InventarioItem } from '@/types'
+import { Modal, Button, LoadingSpinner } from '@/components/ui'
+import {
+  IconOk, IconAlertas, IconInfo, IconEliminar, IconEtiquetas, IconEditar,
+  IconNuevo, IconGuardar, IconCerrar, IconInventario, IconDocumento, IconPendiente,
+} from '@/lib/icons'
 
 type ModalInfo = {
   title: string
@@ -53,22 +58,12 @@ export default function PartesTab() {
 
   const [modalInfo, setModalInfo] = useState<ModalInfo>(null)
   const [confirmModal, setConfirmModal] = useState<ConfirmModal>(null)
-  const okButtonRef = useRef<HTMLButtonElement>(null)
-  const confirmButtonRef = useRef<HTMLButtonElement>(null)
 
   const [isQueueModalOpen, setIsQueueModalOpen] = useState(false)
   const [itemForQueue, setItemForQueue] = useState<InventarioItem | null>(null)
   const [queueQty, setQueueQty] = useState('1')
   const qtyInputRef = useRef<HTMLInputElement>(null)
   const [turnoQueue, setTurnoQueue] = useState<'Día' | 'Noche'>('Día')
-
-  useEffect(() => {
-    if (modalInfo && okButtonRef.current) okButtonRef.current.focus()
-  }, [modalInfo])
-
-  useEffect(() => {
-    if (confirmModal && confirmButtonRef.current) confirmButtonRef.current.focus()
-  }, [confirmModal])
 
   useEffect(() => {
     if (isQueueModalOpen && qtyInputRef.current) {
@@ -277,139 +272,98 @@ export default function PartesTab() {
 
   if (loading)
     return (
-      <div className="p-8 text-center text-xl font-semibold text-gray-400">
-        Cargando datos...
+      <div className="p-8 flex justify-center">
+        <LoadingSpinner label="Cargando datos..." />
       </div>
     )
+
+  const ModalIcon = modalInfo
+    ? (modalInfo.type === 'success' ? IconOk : modalInfo.type === 'error' ? IconAlertas : IconInfo)
+    : IconInfo
+  const modalTitleColor = modalInfo
+    ? (modalInfo.type === 'success' ? 'text-emerald-400' : modalInfo.type === 'error' ? 'text-red-400' : 'text-blue-400')
+    : ''
 
   return (
     <div className="relative">
       {/* MODAL NOTIFICACIÓN */}
-      {modalInfo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-[3px]">
-          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] w-full max-w-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-800 flex items-center gap-2">
-              <span>
-                {modalInfo.type === 'success' ? '✅' : modalInfo.type === 'error' ? '❌' : 'ℹ️'}
-              </span>
-              <h3 className={`text-base font-bold ${
-                modalInfo.type === 'success' ? 'text-emerald-400' :
-                modalInfo.type === 'error'   ? 'text-red-400'     : 'text-blue-400'
-              }`}>{modalInfo.title}</h3>
-            </div>
-            <div className="p-5">
-              <p className="text-gray-300 text-sm mb-5">{modalInfo.message}</p>
-              <div className="flex justify-end">
-                <button
-                  ref={okButtonRef}
-                  onClick={() => setModalInfo(null)}
-                  className={`inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold border transition-all duration-150 ${
-                    modalInfo.type === 'success' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20' :
-                    modalInfo.type === 'error'   ? 'bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20' :
-                                                   'bg-blue-500/10 text-blue-400 border-blue-500/30 hover:bg-blue-500/20'
-                  }`}
-                >
-                  Aceptar
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal
+        open={!!modalInfo}
+        onClose={() => setModalInfo(null)}
+        size="sm"
+        title={<span className={`flex items-center gap-2 ${modalTitleColor}`}><ModalIcon size={18} aria-hidden /> {modalInfo?.title}</span>}
+        footer={<Button variant="secondary" onClick={() => setModalInfo(null)}>Aceptar</Button>}
+      >
+        <p className="text-gray-300 text-sm">{modalInfo?.message}</p>
+      </Modal>
 
       {/* MODAL CONFIRMAR ELIMINACIÓN */}
-      {confirmModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-[3px]">
-          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] w-full max-w-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-800 flex items-center gap-2">
-              <span>🗑️</span>
-              <h3 className="text-base font-bold text-red-400">{confirmModal.title}</h3>
-            </div>
-            <div className="p-5">
-              <p className="text-gray-300 text-sm mb-5">{confirmModal.message}</p>
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={() => setConfirmModal(null)}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold border border-gray-800 text-gray-400 hover:text-white hover:border-gray-700 hover:bg-gray-800 transition-all duration-150"
-                >
-                  Cancelar
-                </button>
-                <button
-                  ref={confirmButtonRef}
-                  onClick={confirmModal.onConfirm}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold border bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20 transition-all duration-150"
-                >
-                  Sí, Eliminar
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal
+        open={!!confirmModal}
+        onClose={() => setConfirmModal(null)}
+        size="sm"
+        title={<span className="flex items-center gap-2 text-red-400"><IconEliminar size={18} aria-hidden /> {confirmModal?.title}</span>}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setConfirmModal(null)}>Cancelar</Button>
+            <Button variant="danger" onClick={() => confirmModal?.onConfirm()} leftIcon={IconEliminar}>Sí, Eliminar</Button>
+          </>
+        }
+      >
+        <p className="text-gray-300 text-sm">{confirmModal?.message}</p>
+      </Modal>
 
       {/* MODAL AÑADIR A COLA */}
-      {isQueueModalOpen && itemForQueue && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-[3px]">
-          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] w-full max-w-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-800 flex items-center gap-2">
-              <span>🖨️</span>
-              <h3 className="text-base font-bold text-blue-400">Añadir a Cola</h3>
+      <Modal
+        open={isQueueModalOpen && !!itemForQueue}
+        onClose={() => setIsQueueModalOpen(false)}
+        size="sm"
+        title={<span className="flex items-center gap-2 text-[var(--accent)]"><IconEtiquetas size={18} aria-hidden /> Añadir a Cola</span>}
+      >
+        {itemForQueue && (
+          <form onSubmit={confirmAddToQueue}>
+            <p className="text-gray-300 text-sm mb-4">
+              Parte:{' '}
+              <strong className="text-[var(--accent)] font-mono bg-[var(--accent-soft)] px-1 rounded">
+                {itemForQueue.codigo}
+              </strong>
+            </p>
+            <label className="block text-xs font-semibold text-gray-300 mb-1">
+              Cantidad de Etiquetas
+            </label>
+            <input
+              ref={qtyInputRef}
+              type="number"
+              min="1"
+              value={queueQty}
+              onChange={(e) => setQueueQty(e.target.value)}
+              className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-white outline-none focus:ring-2 focus:ring-[var(--accent)] text-2xl text-center font-bold mb-4"
+              required
+            />
+            <label className="block text-xs font-semibold text-gray-300 mb-1">Turno</label>
+            <select
+              value={turnoQueue}
+              onChange={(e) => setTurnoQueue(e.target.value as 'Día' | 'Noche')}
+              className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:ring-2 focus:ring-[var(--accent)] mb-5"
+            >
+              <option value="Día">Día</option>
+              <option value="Noche">Noche</option>
+            </select>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="secondary" onClick={() => setIsQueueModalOpen(false)}>Cancelar</Button>
+              <Button type="submit" leftIcon={IconEtiquetas}>Añadir e Imprimir</Button>
             </div>
-            <form onSubmit={confirmAddToQueue} className="p-5">
-              <p className="text-gray-400 text-sm mb-4">
-                Parte:{' '}
-                <strong className="text-blue-400 font-mono bg-blue-500/10 px-1 rounded">
-                  {itemForQueue.codigo}
-                </strong>
-              </p>
-              <label className="block text-xs font-semibold text-gray-300 mb-1">
-                Cantidad de Etiquetas
-              </label>
-              <input
-                ref={qtyInputRef}
-                type="number"
-                min="1"
-                value={queueQty}
-                onChange={(e) => setQueueQty(e.target.value)}
-                className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 text-2xl text-center font-bold mb-4"
-                required
-              />
-              <label className="block text-xs font-semibold text-gray-300 mb-1">Turno</label>
-              <select
-                value={turnoQueue}
-                onChange={(e) => setTurnoQueue(e.target.value as 'Día' | 'Noche')}
-                className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 mb-5"
-              >
-                <option value="Día">Día</option>
-                <option value="Noche">Noche</option>
-              </select>
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsQueueModalOpen(false)}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold border border-gray-800 text-gray-400 hover:text-white hover:border-gray-700 hover:bg-gray-800 transition-all duration-150"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold border bg-blue-500/10 text-blue-400 border-blue-500/30 hover:bg-blue-500/20 transition-all duration-150"
-                >
-                  Añadir e Imprimir
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+          </form>
+        )}
+      </Modal>
 
       {/* FORMULARIO */}
       <form
         onSubmit={handleSubmit}
         className="bg-gray-900 p-6 rounded-xl border border-gray-800 mb-6"
       >
-        <h2 className="text-lg font-bold text-gray-300 mb-4 pb-2 border-b border-gray-800">
-          {editing ? `✏️ Editar Parte: ${editing}` : '➕ Nueva Parte'}
+        <h2 className="text-lg font-bold text-gray-300 mb-4 pb-2 border-b border-gray-800 flex items-center gap-2">
+          {editing ? <><IconEditar size={18} className="text-[var(--accent)]" aria-hidden /> Editar Parte: {editing}</> : <><IconNuevo size={18} className="text-[var(--accent)]" aria-hidden /> Nueva Parte</>}
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
@@ -496,12 +450,9 @@ export default function PartesTab() {
           </div>
         </div>
         <div className="mt-5 flex flex-wrap gap-3 border-t border-gray-800 pt-4">
-          <button
-            type="submit"
-            className="bg-blue-600 text-white px-5 py-2.5 rounded font-medium hover:bg-blue-700 transition shadow-sm"
-          >
-            {editing ? '💾 Actualizar Parte' : '➕ Agregar Parte'}
-          </button>
+          <Button type="submit" leftIcon={editing ? IconGuardar : IconNuevo}>
+            {editing ? 'Actualizar Parte' : 'Agregar Parte'}
+          </Button>
           {!editing && (
             <>
               <input
@@ -511,50 +462,31 @@ export default function PartesTab() {
                 accept=".xlsx,.xls"
                 className="hidden"
               />
-              <button
+              <Button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isImporting}
-                className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-400 ${
-                  isImporting ? 'bg-gray-400 cursor-not-allowed text-white' : 'bg-green-600 hover:bg-green-700 active:scale-95 text-white'
-                }`}
+                leftIcon={isImporting ? IconPendiente : IconDocumento}
+                className="bg-green-600 hover:bg-green-700 text-white"
               >
-                {isImporting ? (
-                  <>
-                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-                    </svg>
-                    Importando...
-                  </>
-                ) : (
-                  <>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6M4 20h16a1 1 0 001-1V5 a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/>
-                    </svg>
-                    Importar Excel
-                  </>
-                )}
-              </button>
+                {isImporting ? 'Importando...' : 'Importar Excel'}
+              </Button>
             </>
           )}
           {editing && (
-            <button
+            <Button
               type="button"
               onClick={() => openQueueModal(inventario.find((i) => i.codigo === editing)!)}
-              className="bg-purple-600 text-white px-5 py-2.5 rounded font-medium hover:bg-purple-700 transition shadow-sm"
+              leftIcon={IconEtiquetas}
+              className="bg-purple-600 hover:bg-purple-700 text-white"
             >
-              🖨️ Añadir a la Cola e Imprimir
-            </button>
+              Añadir a la Cola e Imprimir
+            </Button>
           )}
           {editing && (
-            <button
-              type="button"
-              onClick={resetForm}
-              className="bg-gray-500 text-white px-5 py-2.5 rounded font-medium hover:bg-gray-600 transition shadow-sm ml-auto"
-            >
-              ❌ Cancelar Edición
-            </button>
+            <Button type="button" variant="secondary" onClick={resetForm} leftIcon={IconCerrar} className="ml-auto">
+              Cancelar Edición
+            </Button>
           )}
         </div>
       </form>
@@ -661,36 +593,42 @@ export default function PartesTab() {
                     {item.linea_lg}
                   </span>
                 </td>
-                <td className="p-3 text-center space-x-2">
-                  <button
-                    onClick={() => openQueueModal(item)}
-                    className="text-purple-400 hover:text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 p-1.5 rounded transition"
-                    title="Añadir a la Cola e Imprimir"
-                  >
-                    🖨️
-                  </button>
-                  <button
-                    onClick={() => handleEdit(item)}
-                    className="text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 p-1.5 rounded transition"
-                    title="Editar"
-                  >
-                    ✏️
-                  </button>
-                  <button
-                    onClick={() => handleDelete(item.codigo)}
-                    className="text-red-400 hover:text-red-900 bg-red-500/100/10 hover:bg-red-500/20 p-1.5 rounded transition"
-                    title="Eliminar"
-                  >
-                    🗑️
-                  </button>
+                <td className="p-3 text-center">
+                  <div className="flex items-center justify-center gap-2">
+                    <button
+                      onClick={() => openQueueModal(item)}
+                      className="text-purple-400 hover:text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 p-1.5 rounded transition"
+                      title="Añadir a la Cola e Imprimir"
+                      aria-label="Añadir a la Cola e Imprimir"
+                    >
+                      <IconEtiquetas size={16} />
+                    </button>
+                    <button
+                      onClick={() => handleEdit(item)}
+                      className="text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 p-1.5 rounded transition"
+                      title="Editar"
+                      aria-label="Editar"
+                    >
+                      <IconEditar size={16} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(item.codigo)}
+                      className="text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 p-1.5 rounded transition"
+                      title="Eliminar"
+                      aria-label="Eliminar"
+                    >
+                      <IconEliminar size={16} />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
         {inventarioFiltrado.length === 0 && (
-          <div className="p-10 text-center text-gray-400">
-            <span className="text-4xl block mb-2">📦</span>
+          <div className="p-10 text-center text-gray-300">
+            <IconInventario size={36} className="mx-auto mb-2 text-gray-500" aria-hidden />
+
             {hayFiltros ? (
               <>
                 No se encontraron partes con los filtros aplicados.

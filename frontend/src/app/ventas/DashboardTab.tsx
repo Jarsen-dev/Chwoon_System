@@ -9,22 +9,28 @@ import {
 import { getFinanzasDashboard, getOrdenesVenta, ESTADO_COLORS, importarPlanEmbarque } from '@/lib/api';
 import type { FinanzasDashboard, OrdenVenta } from '@/types';
 import { semaforoCoverage, colorClasesSemaforo } from '@/types';
+import { Button, LoadingSpinner } from '@/components/ui';
+import {
+  IconInventario, IconDocumento, IconLogistica, IconCompletado, IconAlertas,
+  IconGrafico, IconDevoluciones, IconCalidad, IconFinanzas, IconTiempo,
+  IconActualizar, IconRecepciones, IconPendiente, type LucideIcon,
+} from '@/lib/icons';
 
 interface Props {
   token: string;
 }
 
 function StatCard({
-  icon,
+  icon: Icon,
   label,
   value,
   sub,
-  subColor = 'text-gray-500',
+  subColor = 'text-gray-400',
   valueColor = 'text-white',
   borderColor = 'border-gray-800',
   trend,
 }: {
-  icon: string;
+  icon: LucideIcon;
   label: string;
   value: string | number;
   sub?: string;
@@ -38,11 +44,11 @@ function StatCard({
   return (
     <div className={`bg-gray-900 rounded-xl border ${borderColor} p-5 flex flex-col gap-1`}>
       <div className="flex items-center justify-between">
-        <p className="text-2xl">{icon}</p>
+        <span className="inline-flex items-center justify-center h-10 w-10 rounded-lg text-[var(--accent)]" style={{ backgroundColor: 'var(--accent-soft)' }}><Icon size={20} aria-hidden /></span>
         {trendIcon && <span className={`text-sm font-bold ${trendColor}`}>{trendIcon}</span>}
       </div>
       <p className={`text-3xl font-bold ${valueColor}`}>{value}</p>
-      <p className="text-sm text-gray-400">{label}</p>
+      <p className="text-sm text-gray-300">{label}</p>
       {sub && <p className={`text-xs ${subColor}`}>{sub}</p>}
     </div>
   );
@@ -86,7 +92,7 @@ export default function DashboardTab({ token }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [importing, setImporting] = useState(false);
-  const [importMsg, setImportMsg] = useState('');
+  const [importMsg, setImportMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const fetchData = async () => {
@@ -113,12 +119,12 @@ export default function DashboardTab({ token }: Props) {
     if (!file) return;
     try {
       setImporting(true);
-      setImportMsg('');
+      setImportMsg(null);
       const res = await importarPlanEmbarque(token, file);
-      setImportMsg(`✅ PSI importado: Ref ${(res.coverage_ref_dday * 100).toFixed(0)}% / Oven ${(res.coverage_oven_dday * 100).toFixed(0)}%`);
+      setImportMsg({ text: `PSI importado: Ref ${(res.coverage_ref_dday * 100).toFixed(0)}% / Oven ${(res.coverage_oven_dday * 100).toFixed(0)}%`, ok: true });
       await fetchData();
     } catch (err: any) {
-      setImportMsg(`❌ ${err.message}`);
+      setImportMsg({ text: err.message, ok: false });
     } finally {
       setImporting(false);
       if (fileRef.current) fileRef.current.value = '';
@@ -133,7 +139,7 @@ export default function DashboardTab({ token }: Props) {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-400" />
+        <LoadingSpinner sizeClass="h-10 w-10" />
       </div>
     );
   }
@@ -141,10 +147,8 @@ export default function DashboardTab({ token }: Props) {
   if (error) {
     return (
       <div className="bg-red-900/30 border border-red-500/50 rounded-xl p-6 text-center">
-        <p className="text-red-400 mb-3">❌ {error}</p>
-        <button onClick={fetchData} className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm transition-colors">
-          Reintentar
-        </button>
+        <p className="text-red-400 mb-3 flex items-center justify-center gap-2"><IconAlertas size={16} aria-hidden /> {error}</p>
+        <Button variant="danger" onClick={fetchData}>Reintentar</Button>
       </div>
     );
   }
@@ -183,38 +187,32 @@ export default function DashboardTab({ token }: Props) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold">Dashboard de Ventas</h2>
-          <p className="text-gray-400 text-sm">
+          <p className="text-gray-300 text-sm">
             {new Date().toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportEmbarque} />
-          <button
-            onClick={() => fileRef.current?.click()}
-            disabled={importing}
-            className="bg-teal-700 hover:bg-teal-600 disabled:opacity-50 border border-teal-600 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-          >
-            {importing ? '⏳' : '📥'} Plan Embarque
-          </button>
-          <button onClick={fetchData} className="bg-gray-800 hover:bg-gray-700 border border-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
-            🔄 Actualizar
-          </button>
+          <Button variant="secondary" onClick={() => fileRef.current?.click()} disabled={importing} leftIcon={importing ? IconPendiente : IconRecepciones}>
+            Plan Embarque
+          </Button>
+          <Button variant="secondary" onClick={fetchData} leftIcon={IconActualizar}>Actualizar</Button>
         </div>
       </div>
 
       {importMsg && (
-        <p className={`text-xs px-1 ${importMsg.startsWith('✅') ? 'text-teal-400' : 'text-red-400'}`}>
-          {importMsg}
+        <p className={`text-xs px-1 ${importMsg.ok ? 'text-teal-400' : 'text-red-400'}`}>
+          {importMsg.text}
         </p>
       )}
 
       {/* Fila 1: KPIs del día */}
       <div>
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">📦 KPIs del día</p>
+        <p className="text-xs font-semibold text-gray-300 uppercase tracking-wider mb-3 flex items-center gap-2"><IconInventario size={14} aria-hidden /> KPIs del día</p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-gray-900 rounded-xl border border-blue-500/30 p-5">
             <div className="flex items-center justify-between mb-1">
-              <p className="text-2xl">📋</p>
+              <span className="inline-flex items-center justify-center h-10 w-10 rounded-lg text-[var(--accent)]" style={{ backgroundColor: 'var(--accent-soft)' }}><IconDocumento size={20} aria-hidden /></span>
               <span className={`text-sm font-bold ${cumplColor}`}>{pctCumpl >= 90 ? '↑' : pctCumpl >= 60 ? '→' : '↓'}</span>
             </div>
             <p className={`text-3xl font-bold ${cumplColor}`}>{pctCumpl.toFixed(1)}%</p>
@@ -222,7 +220,7 @@ export default function DashboardTab({ token }: Props) {
             <ProgBar pct={pctCumpl} color={cumplBar} />
           </div>
           <StatCard
-            icon="🚛"
+            icon={IconLogistica}
             label="Programado hoy"
             value={data.programado_hoy.toLocaleString()}
             sub="pzas del plan activo"
@@ -230,7 +228,7 @@ export default function DashboardTab({ token }: Props) {
             borderColor="border-blue-500/30"
           />
           <StatCard
-            icon="✅"
+            icon={IconCompletado}
             label="Embarcado hoy"
             value={data.embarcado_hoy.toLocaleString()}
             sub="pzas con status OK"
@@ -239,7 +237,7 @@ export default function DashboardTab({ token }: Props) {
             trend={data.embarcado_hoy >= data.programado_hoy ? 'up' : 'down'}
           />
           <StatCard
-            icon="⚠️"
+            icon={IconAlertas}
             label="SKUs DIF negativa"
             value={data.skus_dif_negativa}
             sub="stock LG < plan acumulado"
@@ -255,7 +253,7 @@ export default function DashboardTab({ token }: Props) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Bar chart: Programado vs Embarcado */}
         <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">📊 Programado vs Embarcado</p>
+          <p className="text-xs font-semibold text-gray-300 uppercase tracking-wider mb-4 flex items-center gap-2"><IconGrafico size={14} aria-hidden /> Programado vs Embarcado</p>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={barData} barGap={8}>
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
@@ -281,7 +279,7 @@ export default function DashboardTab({ token }: Props) {
 
         {/* Donut: distribución de OVs por estado */}
         <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">🔄 Distribución de Órdenes de Venta</p>
+          <p className="text-xs font-semibold text-gray-300 uppercase tracking-wider mb-4 flex items-center gap-2"><IconDevoluciones size={14} aria-hidden /> Distribución de Órdenes de Venta</p>
           {pieData.length === 0 ? (
             <div className="flex items-center justify-center h-48 text-gray-600">
               <p className="text-sm">Sin órdenes activas</p>
@@ -323,7 +321,7 @@ export default function DashboardTab({ token }: Props) {
       {/* Fila 3: PSI Coverage con RadialBar */}
       <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
         <div className="flex items-center justify-between mb-4">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">🔬 PSI Coverage</p>
+          <p className="text-xs font-semibold text-gray-300 uppercase tracking-wider flex items-center gap-2"><IconCalidad size={14} aria-hidden /> PSI Coverage</p>
           <span className="text-xs text-gray-600">100% = cobertura completa · &gt;100% = excedente</span>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -355,7 +353,7 @@ export default function DashboardTab({ token }: Props) {
       {/* Fila 4: Resumen financiero */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatCard
-          icon="🔄"
+          icon={IconDevoluciones}
           label="Total devoluciones"
           value={data.total_devoluciones}
           sub={`${data.devoluciones_pendientes} pendientes inspección`}
@@ -363,14 +361,14 @@ export default function DashboardTab({ token }: Props) {
           borderColor="border-orange-500/30"
         />
         <StatCard
-          icon="📋"
+          icon={IconDocumento}
           label="Planes de venta activos"
           value={data.planes_venta_activos}
           valueColor="text-violet-400"
           borderColor="border-violet-500/30"
         />
         <StatCard
-          icon="💰"
+          icon={IconFinanzas}
           label="Valor ventas (mes)"
           value={fmtMXN(data.valor_ventas_mes)}
           sub="Mes en curso"
@@ -383,17 +381,17 @@ export default function DashboardTab({ token }: Props) {
       {/* Fila 5: Tabla de órdenes recientes */}
       {recientes.length > 0 && (
         <div>
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">🕐 Órdenes recientes</p>
+          <p className="text-xs font-semibold text-gray-300 uppercase tracking-wider mb-3 flex items-center gap-2"><IconTiempo size={14} aria-hidden /> Órdenes recientes</p>
           <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-gray-800">
                 <tr>
-                  <th className="px-4 py-3 text-left text-gray-400 font-medium text-xs">OV ID</th>
-                  <th className="px-4 py-3 text-left text-gray-400 font-medium text-xs">Cliente</th>
-                  <th className="px-4 py-3 text-left text-gray-400 font-medium text-xs">Estado</th>
-                  <th className="px-4 py-3 text-right text-gray-400 font-medium text-xs">Valor</th>
-                  <th className="px-4 py-3 text-left text-gray-400 font-medium text-xs">Fecha</th>
-                  <th className="px-4 py-3 text-left text-gray-400 font-medium text-xs">Progreso</th>
+                  <th className="px-4 py-3 text-left text-gray-300 font-medium text-xs">OV ID</th>
+                  <th className="px-4 py-3 text-left text-gray-300 font-medium text-xs">Cliente</th>
+                  <th className="px-4 py-3 text-left text-gray-300 font-medium text-xs">Estado</th>
+                  <th className="px-4 py-3 text-right text-gray-300 font-medium text-xs">Valor</th>
+                  <th className="px-4 py-3 text-left text-gray-300 font-medium text-xs">Fecha</th>
+                  <th className="px-4 py-3 text-left text-gray-300 font-medium text-xs">Progreso</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-800">

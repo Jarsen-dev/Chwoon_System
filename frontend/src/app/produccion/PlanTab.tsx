@@ -3,6 +3,12 @@
 import { useRef, useState } from 'react'
 import { useAuth }           from '@/context/AuthContext'
 import { importarPlanExcel, eliminarDelPlan, agregarACola } from '@/lib/api'
+import { Modal, Button } from '@/components/ui'
+import {
+  IconOk, IconAlertas, IconInfo, IconEliminar, IconEtiquetas, IconActualizar,
+  IconCompletado, IconSinMovimiento, IconLista, IconTurnoDia, IconTurnoNoche,
+  IconDocumento, IconPendiente,
+} from '@/lib/icons'
 
 interface Props {
   planes:       any[]
@@ -49,16 +55,16 @@ export default function PlanTab({ planes, onRefresh, onGoToTab }: Props) {
       if (result.errores?.length > 0) setErroresImport(result.errores)
 
       setModalInfo({
-        title:   '✅ Plan Importado',
+        title:   'Plan Importado',
         message: `Partes importadas: ${result.partes_importadas}\nEtiquetas en cola: ${result.etiquetas_en_cola}${
-          result.errores.length > 0 ? `\n⚠️ ${result.errores.length} advertencia(s)` : ''
+          result.errores.length > 0 ? `\n${result.errores.length} advertencia(s)` : ''
         }`,
         type: 'success'
       })
       onRefresh()
     } catch (error: any) {
       setModalInfo({
-        title:   '❌ Error al Importar',
+        title:   'Error al Importar',
         message: error.message || 'No se pudo procesar el archivo.',
         type:    'error'
       })
@@ -74,7 +80,7 @@ export default function PlanTab({ planes, onRefresh, onGoToTab }: Props) {
   const handleImprimir = async (plan: any) => {
     if (!token) {
       setModalInfo({
-        title:   '❌ Error',
+        title:   'Error',
         message: 'No hay sesión activa. Inicia sesión para imprimir.',
         type:    'error'
       })
@@ -87,7 +93,7 @@ export default function PlanTab({ planes, onRefresh, onGoToTab }: Props) {
 
     if (carritos <= 0) {
       setModalInfo({
-        title:   '⚠️ Sin etiquetas',
+        title:   'Sin etiquetas',
         message: `No se puede calcular la cantidad de etiquetas para "${plan.numero_parte}". Verifica que tenga QTU en el inventario.`,
         type:    'error'
       })
@@ -109,7 +115,7 @@ export default function PlanTab({ planes, onRefresh, onGoToTab }: Props) {
       }
     } catch (error: any) {
       setModalInfo({
-        title:   '❌ Error al agregar a cola',
+        title:   'Error al agregar a cola',
         message: error.message || 'No se pudo añadir a la cola de impresión.',
         type:    'error'
       })
@@ -132,7 +138,7 @@ export default function PlanTab({ planes, onRefresh, onGoToTab }: Props) {
           onRefresh()
         } catch (error: any) {
           setModalInfo({
-            title:   '❌ Error',
+            title:   'Error',
             message: error.message,
             type:    'error'
           })
@@ -158,135 +164,91 @@ export default function PlanTab({ planes, onRefresh, onGoToTab }: Props) {
     switch (estado) {
       case 'en_proceso':
         return (
-          <span className="px-2.5 py-1 bg-blue-500/20 text-blue-300 rounded-full text-xs font-bold">
-            🔄 En Proceso
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-500/20 text-blue-300 rounded-full text-xs font-bold">
+            <IconActualizar size={13} aria-hidden /> En Proceso
           </span>
         )
       case 'completado':
         return (
-          <span className="px-2.5 py-1 bg-green-500/20 text-green-400 rounded-full text-xs font-bold">
-            ✅ Completado
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-500/20 text-green-400 rounded-full text-xs font-bold">
+            <IconCompletado size={13} aria-hidden /> Completado
           </span>
         )
       default:
         return (
-          <span className="px-2.5 py-1 bg-yellow-500/20 text-yellow-300 rounded-full text-xs font-bold">
-            ⏸️ Pendiente
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-yellow-500/20 text-yellow-300 rounded-full text-xs font-bold">
+            <IconSinMovimiento size={13} aria-hidden /> Pendiente
           </span>
         )
     }
   }
 
+  const ModalIcon = modalInfo
+    ? (modalInfo.type === 'success' ? IconOk : modalInfo.type === 'error' ? IconAlertas : IconInfo)
+    : IconInfo
+  const modalTitleColor = modalInfo
+    ? (modalInfo.type === 'success' ? 'text-emerald-400' : modalInfo.type === 'error' ? 'text-red-400' : 'text-blue-400')
+    : ''
+
   return (
     <div className="space-y-4">
 
-      {/* ======================================================= */}
-      {/* MODAL: NOTIFICACIÓN                                      */}
-      {/* ======================================================= */}
-      {modalInfo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-[3px]">
-          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] w-full max-w-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-800 flex items-center gap-2">
-              <h3 className={`text-base font-bold ${
-                modalInfo.type === 'success' ? 'text-emerald-400' :
-                modalInfo.type === 'error'   ? 'text-red-400'     : 'text-blue-400'
-              }`}>{modalInfo.title}</h3>
-            </div>
-            <div className="p-5">
-              <p className="text-gray-300 text-sm whitespace-pre-line mb-4">
-                {modalInfo.message}
-              </p>
-              {erroresImport.length > 0 && (
-                <button
-                  onClick={() => { setModalInfo(null); setIsErrorModalOpen(true) }}
-                  className="w-full mb-3 inline-flex items-center justify-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold border bg-yellow-500/10 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/20 transition"
-                >
-                  ⚠️ Ver {erroresImport.length} advertencia(s)
-                </button>
-              )}
-              <div className="flex justify-end">
-                <button
-                  onClick={() => setModalInfo(null)}
-                  className={`inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold border transition-all duration-150 ${
-                    modalInfo.type === 'success' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20' :
-                    modalInfo.type === 'error'   ? 'bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20' :
-                                                   'bg-blue-500/10 text-blue-400 border-blue-500/30 hover:bg-blue-500/20'
-                  }`}
-                >
-                  Aceptar
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* MODAL: NOTIFICACIÓN */}
+      <Modal
+        open={!!modalInfo}
+        onClose={() => setModalInfo(null)}
+        size="sm"
+        title={<span className={`flex items-center gap-2 ${modalTitleColor}`}><ModalIcon size={18} aria-hidden /> {modalInfo?.title}</span>}
+        footer={<Button variant="secondary" onClick={() => setModalInfo(null)}>Aceptar</Button>}
+      >
+        <p className="text-gray-300 text-sm whitespace-pre-line mb-4">{modalInfo?.message}</p>
+        {erroresImport.length > 0 && (
+          <button
+            onClick={() => { setModalInfo(null); setIsErrorModalOpen(true) }}
+            className="w-full inline-flex items-center justify-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold border bg-yellow-500/10 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/20 transition"
+          >
+            <IconAlertas size={14} aria-hidden /> Ver {erroresImport.length} advertencia(s)
+          </button>
+        )}
+      </Modal>
 
-      {/* ======================================================= */}
-      {/* MODAL: CONFIRMAR ELIMINACIÓN                            */}
-      {/* ======================================================= */}
-      {confirmModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-[3px]">
-          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] w-full max-w-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-800 flex items-center gap-2">
-              <span>🗑️</span>
-              <h3 className="text-base font-bold text-red-400">{confirmModal.title}</h3>
-            </div>
-            <div className="p-5">
-              <p className="text-gray-300 text-sm mb-5">{confirmModal.message}</p>
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={() => setConfirmModal(null)}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold border border-gray-800 text-gray-400 hover:text-white hover:border-gray-700 hover:bg-gray-800 transition-all duration-150"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={confirmModal.onConfirm}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold border bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20 transition-all duration-150"
-                >
-                  Sí, Eliminar
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* MODAL: CONFIRMAR ELIMINACIÓN */}
+      <Modal
+        open={!!confirmModal}
+        onClose={() => setConfirmModal(null)}
+        size="sm"
+        title={<span className="flex items-center gap-2 text-red-400"><IconEliminar size={18} aria-hidden /> {confirmModal?.title}</span>}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setConfirmModal(null)}>Cancelar</Button>
+            <Button variant="danger" onClick={() => confirmModal?.onConfirm()} leftIcon={IconEliminar}>Sí, Eliminar</Button>
+          </>
+        }
+      >
+        <p className="text-gray-300 text-sm">{confirmModal?.message}</p>
+      </Modal>
 
-      {/* ======================================================= */}
-      {/* MODAL: ADVERTENCIAS                                      */}
-      {/* ======================================================= */}
-      {isErrorModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-[3px]">
-          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] w-full max-w-md overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-800 flex items-center gap-2">
-              <span>⚠️</span>
-              <h3 className="text-base font-bold text-yellow-400">Advertencias</h3>
-            </div>
-            <div className="p-5">
-              <div className="max-h-60 overflow-y-auto space-y-1 bg-gray-800 rounded-lg p-3 border border-gray-800">
-                {erroresImport.map((err, idx) => (
-                  <p key={idx} className="text-xs text-red-400 font-mono">• {err}</p>
-                ))}
-              </div>
-              <div className="flex justify-end mt-4">
-                <button
-                  onClick={() => { setIsErrorModalOpen(false); setErroresImport([]) }}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold border bg-yellow-500/10 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/20 transition-all duration-150"
-                >
-                  Entendido
-                </button>
-              </div>
-            </div>
-          </div>
+      {/* MODAL: ADVERTENCIAS */}
+      <Modal
+        open={isErrorModalOpen}
+        onClose={() => { setIsErrorModalOpen(false); setErroresImport([]) }}
+        size="md"
+        title={<span className="flex items-center gap-2 text-yellow-400"><IconAlertas size={18} aria-hidden /> Advertencias</span>}
+        footer={<Button variant="secondary" onClick={() => { setIsErrorModalOpen(false); setErroresImport([]) }}>Entendido</Button>}
+      >
+        <div className="max-h-60 overflow-y-auto space-y-1 bg-gray-800 rounded-lg p-3 border border-gray-800">
+          {erroresImport.map((err, idx) => (
+            <p key={idx} className="text-xs text-red-400 font-mono">• {err}</p>
+          ))}
         </div>
-      )}
+      </Modal>
 
       {/* ======================================================= */}
       {/* HEADER                                                   */}
       {/* ======================================================= */}
       <div className="flex flex-wrap justify-between items-center gap-3">
-        <h2 className="text-xl font-bold text-gray-200">
-          Gestor de Plan de Producción
+        <h2 className="text-xl font-bold text-gray-200 flex items-center gap-2">
+          <IconLista size={20} className="text-[var(--accent)]" aria-hidden /> Gestor de Plan de Producción
         </h2>
         <div className="flex items-center gap-2">
           <input
@@ -296,32 +258,14 @@ export default function PlanTab({ planes, onRefresh, onGoToTab }: Props) {
             onChange={handleFileUpload}
             className="hidden"
           />
-          <button
+          <Button
             onClick={() => fileInputRef.current?.click()}
             disabled={isImporting}
-            className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-400 ${
-              isImporting
-                ? 'bg-gray-400 cursor-not-allowed text-white'
-                : 'bg-green-600 hover:bg-green-700 active:scale-95 text-white'
-            }`}
+            leftIcon={isImporting ? IconPendiente : IconDocumento}
+            className="bg-green-600 hover:bg-green-700 text-white"
           >
-            {isImporting ? (
-              <>
-                <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-                </svg>
-                Importando...
-              </>
-            ) : (
-              <>
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6M4 20h16a1 1 0 001-1V5 a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/>
-                </svg>
-                Importar Excel
-              </>
-            )}
-          </button>
+            {isImporting ? 'Importando...' : 'Importar Excel'}
+          </Button>
         </div>
       </div>
 
@@ -329,7 +273,7 @@ export default function PlanTab({ planes, onRefresh, onGoToTab }: Props) {
       {/* HINT                                                     */}
       {/* ======================================================= */}
       <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg px-4 py-3 text-xs text-blue-400 flex items-start gap-2">
-        <span className="text-base">ℹ️</span>
+        <IconInfo size={16} className="shrink-0 mt-0.5" aria-hidden />
         <div>
           <p className="font-semibold mb-1">Formato esperado del Excel:</p>
           <p>
@@ -370,8 +314,8 @@ export default function PlanTab({ planes, onRefresh, onGoToTab }: Props) {
             {planes.length === 0 ? (
               <tr>
                 <td colSpan={8} className="p-12 text-center">
-                  <span className="text-4xl block mb-2">📋</span>
-                  <span className="text-gray-400">
+                  <IconLista size={36} className="mx-auto mb-2 text-gray-500" aria-hidden />
+                  <span className="text-gray-300">
                     No hay un plan activo. Importa un archivo Excel para comenzar.
                   </span>
                 </td>
@@ -408,7 +352,7 @@ export default function PlanTab({ planes, onRefresh, onGoToTab }: Props) {
                               ? 'bg-yellow-500/20 text-yellow-300'
                               : 'bg-indigo-500/20 text-indigo-300'
                           }`}>
-                            {turnoNorm === 'Día' ? '☀️' : '🌙'} {turnoNorm}
+                            <span className="inline-flex items-center gap-1">{turnoNorm === 'Día' ? <IconTurnoDia size={13} aria-hidden /> : <IconTurnoNoche size={13} aria-hidden />} {turnoNorm}</span>
                           </span>
                         )
                       })()}
@@ -464,17 +408,17 @@ export default function PlanTab({ planes, onRefresh, onGoToTab }: Props) {
                               Enviando...
                             </>
                           ) : (
-                            <>🖨️ Imprimir</>
+                            <><IconEtiquetas size={14} aria-hidden /> Imprimir</>
                           )}
                         </button>
 
                         {/* Eliminar fila */}
                         <button
                           onClick={() => handleEliminar(p.numero_parte)}
-                          className="px-3 py-1.5 rounded text-xs font-bold text-white bg-red-500/100 hover:bg-red-600 transition shadow-sm flex items-center gap-1"
+                          className="px-3 py-1.5 rounded text-xs font-bold text-white bg-red-600 hover:bg-red-700 transition shadow-sm flex items-center gap-1"
                           title="Eliminar del plan"
                         >
-                          🗑️ Eliminar
+                          <IconEliminar size={14} aria-hidden /> Eliminar
                         </button>
 
                       </div>

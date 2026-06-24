@@ -3,6 +3,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getDevoluciones, crearDevolucion, procesarDisposicion } from '@/lib/api'
 import type { Devolucion } from '@/types'
+import { Button, Modal, LoadingSpinner } from '@/components/ui'
+import {
+  IconDevoluciones, IconPendiente, IconCompletado, IconEliminar, IconAlertas,
+  IconCerrar, IconOk, IconActualizar, IconNuevo, IconValidacion, IconEnsamble,
+} from '@/lib/icons'
 
 interface Props {
   token: string
@@ -145,49 +150,49 @@ export default function DevolucionesTab({ token }: Props) {
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-gray-900 rounded-xl border border-gray-800 p-4">
-          <p className="text-2xl mb-1">🔄</p>
+          <IconDevoluciones size={22} className="mb-1 text-[var(--accent)]" aria-hidden />
           <p className="text-2xl font-bold text-white">{totalDev}</p>
-          <p className="text-xs text-gray-400 mt-1">Total devoluciones</p>
+          <p className="text-xs text-gray-300 mt-1">Total devoluciones</p>
         </div>
         <div className="bg-gray-900 rounded-xl border border-yellow-500/30 p-4">
-          <p className="text-2xl mb-1">⏳</p>
+          <IconPendiente size={22} className="mb-1 text-yellow-400" aria-hidden />
           <p className="text-2xl font-bold text-yellow-400">{pendientes}</p>
-          <p className="text-xs text-gray-400 mt-1">Pendientes inspección</p>
+          <p className="text-xs text-gray-300 mt-1">Pendientes inspección</p>
         </div>
         <div className="bg-gray-900 rounded-xl border border-green-500/30 p-4">
-          <p className="text-2xl mb-1">✅</p>
+          <IconCompletado size={22} className="mb-1 text-green-400" aria-hidden />
           <p className="text-2xl font-bold text-green-400">{finalizadas}</p>
-          <p className="text-xs text-gray-400 mt-1">Finalizadas</p>
+          <p className="text-xs text-gray-300 mt-1">Finalizadas</p>
         </div>
         <div className="bg-gray-900 rounded-xl border border-red-500/30 p-4">
-          <p className="text-2xl mb-1">🗑️</p>
+          <IconEliminar size={22} className="mb-1 text-red-400" aria-hidden />
           <p className="text-2xl font-bold text-red-400">{totalScrap.toLocaleString()}</p>
-          <p className="text-xs text-gray-400 mt-1">Pzas en scrap</p>
+          <p className="text-xs text-gray-300 mt-1">Pzas en scrap</p>
         </div>
       </div>
 
       {/* Messages */}
       {error && (
-        <div className="bg-red-900/30 border border-red-500/50 rounded-lg px-4 py-3 text-red-400 flex justify-between">
-          <span>❌ {error}</span>
-          <button onClick={() => setError('')} className="text-red-300 hover:text-white">✕</button>
+        <div className="bg-red-900/30 border border-red-500/50 rounded-lg px-4 py-3 text-red-400 flex justify-between items-center">
+          <span className="flex items-center gap-2"><IconAlertas size={16} aria-hidden /> {error}</span>
+          <button onClick={() => setError('')} className="text-red-300 hover:text-white" aria-label="Cerrar"><IconCerrar size={16} aria-hidden /></button>
         </div>
       )}
       {success && (
-        <div className="bg-green-900/30 border border-green-500/50 rounded-lg px-4 py-3 text-green-400 flex justify-between">
-          <span>✅ {success}</span>
-          <button onClick={() => setSuccess('')} className="text-green-300 hover:text-white">✕</button>
+        <div className="bg-green-900/30 border border-green-500/50 rounded-lg px-4 py-3 text-green-400 flex justify-between items-center">
+          <span className="flex items-center gap-2"><IconOk size={16} aria-hidden /> {success}</span>
+          <button onClick={() => setSuccess('')} className="text-green-300 hover:text-white" aria-label="Cerrar"><IconCerrar size={16} aria-hidden /></button>
         </div>
       )}
 
       {/* Toolbar */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3 flex-wrap">
-          <h2 className="text-xl font-bold">🔄 Devoluciones</h2>
+          <h2 className="text-xl font-bold flex items-center gap-2"><IconDevoluciones size={22} className="text-[var(--accent)]" aria-hidden /> Devoluciones</h2>
           <select
             value={filtroEstado}
             onChange={(e) => setFiltroEstado(e.target.value)}
-            className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm"
+            className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
           >
             {ESTADO_OPTIONS.map((s) => (
               <option key={s} value={s}>{s}</option>
@@ -198,31 +203,24 @@ export default function DevolucionesTab({ token }: Props) {
             placeholder="Filtrar por SKU..."
             value={filtroSku}
             onChange={e => setFiltroSku(e.target.value)}
-            className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm w-40 focus:border-orange-500 focus:outline-none"
+            className="font-mono bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm w-40 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
           />
         </div>
         <div className="flex gap-2">
-          <button onClick={fetchDevoluciones} className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm transition-colors">
-            🔄 Refrescar
-          </button>
-          <button
-            onClick={() => { resetFormCrear(); setShowCreateModal(true) }}
-            className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-          >
-            ➕ Nueva Devolución
-          </button>
+          <Button variant="secondary" onClick={fetchDevoluciones} leftIcon={IconActualizar}>Refrescar</Button>
+          <Button onClick={() => { resetFormCrear(); setShowCreateModal(true) }} leftIcon={IconNuevo}>Nueva Devolución</Button>
         </div>
       </div>
 
       {/* Tabla */}
       {loading ? (
         <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-400" />
+          <LoadingSpinner sizeClass="h-10 w-10" />
         </div>
       ) : devoluciones.length === 0 ? (
         <div className="bg-gray-900 rounded-xl border border-gray-800 p-12 text-center">
-          <p className="text-4xl mb-3">🔄</p>
-          <p className="text-gray-400">No hay devoluciones registradas</p>
+          <IconDevoluciones size={40} className="mx-auto mb-3 text-gray-600" aria-hidden />
+          <p className="text-gray-300">No hay devoluciones registradas</p>
         </div>
       ) : (
         <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
@@ -270,14 +268,14 @@ export default function DevolucionesTab({ token }: Props) {
                               setDispRetrabajo('')
                               setShowDisposicionModal(true)
                             }}
-                            className="bg-yellow-600/20 hover:bg-yellow-600/40 text-yellow-400 px-2 py-1 rounded text-xs transition-colors"
+                            className="inline-flex items-center gap-1 bg-yellow-600/20 hover:bg-yellow-600/40 text-yellow-400 px-2 py-1 rounded text-xs transition-colors"
                             title="Procesar disposición"
                           >
-                            ⚖️ Procesar
+                            <IconValidacion size={13} aria-hidden /> Procesar
                           </button>
                         )}
                         {dev.estado_inspeccion === 'Finalizado' && (
-                          <span className="text-green-400 text-xs">✅ Procesado</span>
+                          <span className="inline-flex items-center gap-1 text-green-400 text-xs"><IconCompletado size={13} aria-hidden /> Procesado</span>
                         )}
                       </div>
                     </td>
@@ -289,17 +287,19 @@ export default function DevolucionesTab({ token }: Props) {
         </div>
       )}
 
-      {/* ============================================ */}
-      {/* Modal: Crear Devolución                      */}
-      {/* ============================================ */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 rounded-2xl border border-gray-700 w-full max-w-lg">
-            <div className="p-6 border-b border-gray-800 flex items-center justify-between">
-              <h3 className="text-lg font-bold">➕ Registrar Devolución</h3>
-              <button onClick={() => setShowCreateModal(false)} className="text-gray-400 hover:text-white text-xl">✕</button>
-            </div>
-            <div className="p-6 space-y-4">
+      {/* Modal: Crear Devolución */}
+      <Modal
+        open={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        title={<span className="flex items-center gap-2"><IconNuevo size={18} aria-hidden /> Registrar Devolución</span>}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowCreateModal(false)}>Cancelar</Button>
+            <Button onClick={handleCrear} leftIcon={IconOk}>Registrar</Button>
+          </>
+        }
+      >
+            <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm text-gray-400 mb-1">OV Origen *</label>
@@ -368,30 +368,22 @@ export default function DevolucionesTab({ token }: Props) {
                 />
               </div>
             </div>
+      </Modal>
 
-            <div className="p-6 border-t border-gray-800 flex justify-end gap-3">
-              <button onClick={() => setShowCreateModal(false)} className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm transition-colors">
-                Cancelar
-              </button>
-              <button onClick={handleCrear} className="bg-emerald-600 hover:bg-emerald-700 px-6 py-2 rounded-lg text-sm font-medium transition-colors">
-                ✅ Registrar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ============================================ */}
-      {/* Modal: Procesar Disposición                  */}
-      {/* ============================================ */}
-      {showDisposicionModal && selectedDev && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 rounded-2xl border border-gray-700 w-full max-w-lg">
-            <div className="p-6 border-b border-gray-800 flex items-center justify-between">
-              <h3 className="text-lg font-bold">⚖️ Procesar Disposición</h3>
-              <button onClick={() => setShowDisposicionModal(false)} className="text-gray-400 hover:text-white text-xl">✕</button>
-            </div>
-            <div className="p-6 space-y-4">
+      {/* Modal: Procesar Disposición */}
+      <Modal
+        open={showDisposicionModal && !!selectedDev}
+        onClose={() => setShowDisposicionModal(false)}
+        title={<span className="flex items-center gap-2"><IconValidacion size={18} aria-hidden /> Procesar Disposición</span>}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowDisposicionModal(false)}>Cancelar</Button>
+            <Button onClick={handleDisposicion} leftIcon={IconValidacion}>Confirmar Disposición</Button>
+          </>
+        }
+      >
+        {selectedDev && (
+            <div className="space-y-4">
               {/* Info de la devolución */}
               <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700 space-y-2">
                 <div className="flex justify-between">
@@ -417,15 +409,16 @@ export default function DevolucionesTab({ token }: Props) {
               </div>
 
               <div className="bg-yellow-900/20 border border-yellow-700/30 rounded-lg p-3">
-                <p className="text-xs text-yellow-400">
-                  ⚠️ Distribuya la cantidad devuelta ({selectedDev.cantidad_devuelta}) entre Scrap y Retrabajo.
-                  La suma no debe superar la cantidad devuelta.
+                <p className="text-xs text-yellow-400 flex items-start gap-1">
+                  <IconAlertas size={13} className="mt-0.5 shrink-0" aria-hidden />
+                  <span>Distribuya la cantidad devuelta ({selectedDev.cantidad_devuelta}) entre Scrap y Retrabajo.
+                  La suma no debe superar la cantidad devuelta.</span>
                 </p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">🗑️ Cantidad Scrap</label>
+                  <label className="flex items-center gap-1 text-sm text-gray-300 mb-1"><IconEliminar size={14} aria-hidden /> Cantidad Scrap</label>
                   <input
                     type="text"
                     value={dispScrap}
@@ -435,7 +428,7 @@ export default function DevolucionesTab({ token }: Props) {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">🔧 Cantidad Retrabajo</label>
+                  <label className="flex items-center gap-1 text-sm text-gray-300 mb-1"><IconEnsamble size={14} aria-hidden /> Cantidad Retrabajo</label>
                   <input
                     type="text"
                     value={dispRetrabajo}
@@ -467,18 +460,8 @@ export default function DevolucionesTab({ token }: Props) {
                 </div>
               )}
             </div>
-
-            <div className="p-6 border-t border-gray-800 flex justify-end gap-3">
-              <button onClick={() => setShowDisposicionModal(false)} className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm transition-colors">
-                Cancelar
-              </button>
-              <button onClick={handleDisposicion} className="bg-yellow-600 hover:bg-yellow-700 px-6 py-2 rounded-lg text-sm font-medium transition-colors">
-                ⚖️ Confirmar Disposición
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   )
 }
