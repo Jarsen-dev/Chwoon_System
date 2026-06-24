@@ -7,15 +7,11 @@ export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: ButtonVariant | 'accent';
+  variant?: ButtonVariant;
   size?: ButtonSize;
   leftIcon?: LucideIcon;
   rightIcon?: LucideIcon;
   children: React.ReactNode;
-  /** @deprecated use `size`. Kept for backward compatibility. */
-  buttonSize?: ButtonSize;
-  /** @deprecated accent now comes from the module theme. Kept for backward compatibility. */
-  accentColor?: string;
 }
 
 const sizeClasses: Record<ButtonSize, string> = {
@@ -39,23 +35,18 @@ const variantClasses: Record<ButtonVariant, string> = {
 
 export default function Button({
   variant = 'primary',
-  size,
-  buttonSize,
-  accentColor,
+  size = 'md',
   leftIcon: LeftIcon,
   rightIcon: RightIcon,
   className = '',
   children,
   ...props
 }: ButtonProps) {
-  void accentColor; // deprecated alias, intentionally ignored (accent comes from theme)
-  const resolvedSize: ButtonSize = size ?? buttonSize ?? 'md';
-  const resolvedVariant: ButtonVariant = variant === 'accent' ? 'primary' : variant;
-  const icoSize = iconSize[resolvedSize];
+  const icoSize = iconSize[size];
 
   return (
     <button
-      className={`inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-950 disabled:opacity-50 disabled:cursor-not-allowed ${sizeClasses[resolvedSize]} ${variantClasses[resolvedVariant]} ${className}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-950 disabled:opacity-50 disabled:cursor-not-allowed ${sizeClasses[size]} ${variantClasses[variant]} ${className}`}
       {...props}
     >
       {LeftIcon && <LeftIcon size={icoSize} aria-hidden />}

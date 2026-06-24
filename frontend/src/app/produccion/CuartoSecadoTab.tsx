@@ -3,6 +3,12 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { Html5Qrcode } from 'html5-qrcode'
+import { Modal } from '@/components/ui'
+import {
+  IconSecado, IconAlertas, IconCerrar, IconCamara, IconBuscar, IconOk,
+  IconUsuario, IconActualizar, IconTeclado, IconPegado, IconRecepciones,
+  IconSalir, type LucideIcon,
+} from '@/lib/icons'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface RegistroSecado {
@@ -48,21 +54,21 @@ function esFormatoQRValido(codigo: string): boolean {
 }
 
 // ─── Alert color map ──────────────────────────────────────────────────────────
-const ALERTA_STYLES: Record<string, { bg: string; border: string; color: string; icon: string }> = {
-  'TECLADO BLOQUEADO': { bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.3)',  color: '#fbbf24', icon: '⌨️' },
-  'PEGADO BLOQUEADO':  { bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.3)',  color: '#fbbf24', icon: '📋' },
-  'FORMATO INVÁLIDO':  { bg: 'rgba(249,115,22,0.08)', border: 'rgba(249,115,22,0.3)',  color: '#fb923c', icon: '⚠️' },
-  'ENTRADA':           { bg: 'rgba(16,185,129,0.08)', border: 'rgba(16,185,129,0.3)',  color: '#10b981', icon: '🟢' },
-  'SALIDA':            { bg: 'rgba(59,130,246,0.08)', border: 'rgba(59,130,246,0.3)',  color: '#3b82f6', icon: '🔵' },
-  'ERROR':             { bg: 'rgba(239,68,68,0.08)',  border: 'rgba(239,68,68,0.3)',   color: '#ef4444', icon: '🚨' },
-  'TURNO':             { bg: 'rgba(139,92,246,0.08)', border: 'rgba(139,92,246,0.3)',  color: '#8b5cf6', icon: '🔄' },
+const ALERTA_STYLES: Record<string, { bg: string; border: string; color: string; icon: LucideIcon }> = {
+  'TECLADO BLOQUEADO': { bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.3)',  color: '#fbbf24', icon: IconTeclado },
+  'PEGADO BLOQUEADO':  { bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.3)',  color: '#fbbf24', icon: IconPegado },
+  'FORMATO INVÁLIDO':  { bg: 'rgba(249,115,22,0.08)', border: 'rgba(249,115,22,0.3)',  color: '#fb923c', icon: IconAlertas },
+  'ENTRADA':           { bg: 'rgba(16,185,129,0.08)', border: 'rgba(16,185,129,0.3)',  color: '#10b981', icon: IconRecepciones },
+  'SALIDA':            { bg: 'rgba(59,130,246,0.08)', border: 'rgba(59,130,246,0.3)',  color: '#3b82f6', icon: IconSalir },
+  'ERROR':             { bg: 'rgba(239,68,68,0.08)',  border: 'rgba(239,68,68,0.3)',   color: '#ef4444', icon: IconAlertas },
+  'TURNO':             { bg: 'rgba(139,92,246,0.08)', border: 'rgba(139,92,246,0.3)',  color: '#8b5cf6', icon: IconActualizar },
 }
 
 const DEFAULT_ALERTA = {
   bg: 'rgba(245,158,11,0.08)',
   border: 'rgba(245,158,11,0.3)',
   color: '#fbbf24',
-  icon: '⚠️',
+  icon: IconAlertas,
 }
 
 const COLUMNAS = [
@@ -371,8 +377,8 @@ export default function CuartoSecadoTab() {
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
-          <div className="text-lg font-bold text-white">🌡️ Cuarto de Secado</div>
-          <div className="text-xs text-gray-400 mt-1">
+          <div className="text-lg font-bold text-white flex items-center gap-2"><IconSecado size={20} className="text-amber-400" aria-hidden /> Cuarto de Secado</div>
+          <div className="text-xs text-gray-300 mt-1">
             {registros.length} total · {carritosAdentro} en cámara · {carritosSalidos} salidos
           </div>
         </div>
@@ -405,12 +411,12 @@ export default function CuartoSecadoTab() {
       {/* Error Excel */}
       {errorExcel && (
         <div className="flex items-start gap-2 px-3.5 py-2.5 rounded-lg text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/30">
-          <span>⚠</span>
+          <IconAlertas size={14} className="mt-0.5 shrink-0" aria-hidden />
           <span className="flex-1">
             Error al generar Excel:{' '}
             <span className="font-mono text-[11px]">{errorExcel}</span>
           </span>
-          <button onClick={() => setErrorExcel(null)} className="text-red-400 hover:text-red-300 text-base leading-none bg-transparent border-none cursor-pointer p-0">✕</button>
+          <button onClick={() => setErrorExcel(null)} className="text-red-400 hover:text-red-300 bg-transparent border-none cursor-pointer p-0" aria-label="Cerrar"><IconCerrar size={16} /></button>
         </div>
       )}
 
@@ -451,25 +457,22 @@ export default function CuartoSecadoTab() {
       </div>
 
       {/* Modal Scanner */}
-      {scannerOpen && (
-        <div className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] w-full max-w-sm">
-            <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
-              <span className="text-sm font-bold text-white">📷 Escanear QR</span>
-              <button className="text-gray-400 hover:text-white transition-colors text-lg leading-none" onClick={cerrarScanner}>✕</button>
+      <Modal
+        open={scannerOpen}
+        onClose={cerrarScanner}
+        size="sm"
+        title={<span className="flex items-center gap-2"><IconCamara size={16} className="text-amber-400" aria-hidden /> Escanear QR</span>}
+      >
+        <div className="flex flex-col gap-3">
+          <div ref={scannerContainerRef} id="reader-secado" className="w-full aspect-square rounded-lg overflow-hidden bg-black" />
+          {scannerError && (
+            <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs bg-red-500/10 text-red-400 border border-red-500/30">
+              <IconAlertas size={14} aria-hidden /> {scannerError}
             </div>
-            <div className="p-5 flex flex-col gap-3">
-              <div ref={scannerContainerRef} id="reader-secado" className="w-full aspect-square rounded-lg overflow-hidden bg-black" />
-              {scannerError && (
-                <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs bg-red-500/10 text-red-400 border border-red-500/30">
-                  <span>⚠️</span> {scannerError}
-                </div>
-              )}
-              <p className="text-xs text-gray-400 text-center">Apunta el código QR dentro del recuadro</p>
-            </div>
-          </div>
+          )}
+          <p className="text-xs text-gray-300 text-center">Apunta el código QR dentro del recuadro</p>
         </div>
-      )}
+      </Modal>
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3">
@@ -490,6 +493,7 @@ export default function CuartoSecadoTab() {
         <div className="flex flex-col gap-2">
           {alertas.slice(0, 5).map(alerta => {
             const st = ALERTA_STYLES[alerta.tipo] ?? DEFAULT_ALERTA
+            const StIcon = st.icon
             return (
               <div
                 key={alerta.id}
@@ -497,14 +501,15 @@ export default function CuartoSecadoTab() {
                 style={{ background: st.bg, border: `1px solid ${st.border}` }}
               >
                 <div>
-                  <div className="text-xs font-bold mb-0.5" style={{ color: st.color }}>{st.icon} {alerta.tipo}</div>
-                  <div className="text-xs text-gray-400">{alerta.mensaje}</div>
+                  <div className="text-xs font-bold mb-0.5 flex items-center gap-1.5" style={{ color: st.color }}><StIcon size={13} aria-hidden /> {alerta.tipo}</div>
+                  <div className="text-xs text-gray-300">{alerta.mensaje}</div>
                 </div>
                 <button
                   onClick={() => setAlertas(prev => prev.filter(a => a.id !== alerta.id))}
-                  className="bg-transparent border-none cursor-pointer text-base leading-none p-0 opacity-70 hover:opacity-100 transition-opacity"
+                  className="bg-transparent border-none cursor-pointer p-0 opacity-70 hover:opacity-100 transition-opacity"
                   style={{ color: st.color }}
-                >✕</button>
+                  aria-label="Cerrar"
+                ><IconCerrar size={15} /></button>
               </div>
             )
           })}
@@ -553,8 +558,8 @@ export default function CuartoSecadoTab() {
             <select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)}
               className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15">
               <option value="">Cualquier Estado</option>
-              <option value="dentro">🌡️ Dentro</option>
-              <option value="salido">✅ Salido</option>
+              <option value="dentro">Dentro</option>
+              <option value="salido">Salido</option>
             </select>
           </div>
 
@@ -593,15 +598,15 @@ export default function CuartoSecadoTab() {
             ) : registros.length === 0 ? (
               <tr>
                 <td colSpan={COLUMNAS.length} className="px-4 py-14 text-center">
-                  <div className="text-3xl mb-2">🌡️</div>
-                  <div className="text-sm text-gray-400">Esperando escaneo...</div>
+                  <IconSecado size={30} className="mx-auto mb-2 text-gray-500" aria-hidden />
+                  <div className="text-sm text-gray-300">Esperando escaneo...</div>
                 </td>
               </tr>
             ) : registrosFiltrados.length === 0 ? (
               <tr>
                 <td colSpan={COLUMNAS.length} className="px-4 py-14 text-center">
-                  <div className="text-3xl mb-2">🔍</div>
-                  <div className="text-sm text-gray-400 mb-2">Sin resultados para los filtros aplicados</div>
+                  <IconBuscar size={28} className="mx-auto mb-2 text-gray-500" aria-hidden />
+                  <div className="text-sm text-gray-300 mb-2">Sin resultados para los filtros aplicados</div>
                   <button onClick={limpiarFiltros} className="text-xs text-blue-400 hover:text-blue-300 underline bg-transparent border-none cursor-pointer">
                     Limpiar filtros
                   </button>
@@ -652,17 +657,17 @@ export default function CuartoSecadoTab() {
                     <td className="px-3 py-2.5 text-center">
                       {reg.estado === 'dentro' ? (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/30">
-                          🌡️ Dentro
+                          <IconSecado size={11} aria-hidden /> Dentro
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                          ✓ Salido
+                          <IconOk size={11} aria-hidden /> Salido
                         </span>
                       )}
                     </td>
 
-                    <td className="px-3 py-2.5 text-center text-xs text-gray-400 whitespace-nowrap">
-                      👤 {reg.usuario || '—'}
+                    <td className="px-3 py-2.5 text-center text-xs text-gray-300 whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1"><IconUsuario size={12} className="text-gray-500" aria-hidden /> {reg.usuario || '—'}</span>
                     </td>
                   </tr>
                 )
