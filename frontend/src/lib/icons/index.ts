@@ -87,6 +87,7 @@ export {
   Syringe as IconInyeccion,
   Thermometer as IconSecado,
   Camera as IconCamara,
+  Container as IconSilo,
 
   // Calidad
   PackageCheck as IconOQC,
