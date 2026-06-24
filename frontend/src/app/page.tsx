@@ -3,14 +3,26 @@
 import { useEffect, useState, useRef } from 'react'
 import { useAuth }            from '@/context/AuthContext'
 import { useRouter }          from 'next/navigation'
-import { RegistroProduccion } from '@/types'
-import Link                   from 'next/link'
 import {
   getRegistros,
   getProyeccion,
   getSaludMaquinas,
   getPlanProduccion,
 } from '@/lib/api'
+
+import { ModuleThemeProvider } from '@/context/ModuleThemeContext'
+import ModuleNavLinks from '@/components/ModuleNavLinks'
+import UserBadge from '@/components/UserBadge'
+import { Button } from '@/components/ui'
+import { useTurno, getTurnoActual, getFechaTurno } from '@/hooks/useTurno'
+import { usePinnedTabs, DEFAULT_PINNED } from '@/hooks/usePinnedTabs'
+import type { LucideIcon } from '@/lib/icons'
+import {
+  IconInicio, IconCaptura, IconDashboard, IconPicking, IconPreExpansion,
+  IconInyeccion, IconEnsamble, IconInventario, IconEtiquetas, IconLista,
+  IconPrediccion, IconAlertas, IconTurnoDia, IconTurnoNoche, IconSalir,
+  IconModulo,
+} from '@/lib/icons'
 
 import { RegistroConMeta } from './produccion/helpers'
 
@@ -37,70 +49,23 @@ interface Anomalia {
 // ── Helpers ───────────────────────────────────────────────────────
 const API_URL = process.env.NEXT_PUBLIC_API_URL || ''
 
-function getTurnoActual(): string {
-  const m = new Date().getHours() * 60 + new Date().getMinutes()
-  return m >= 450 && m < 1170 ? 'DIA' : 'NOCHE'
-}
-
-function getFechaTurno(): string {
-  const now = new Date()
-  const m   = now.getHours() * 60 + now.getMinutes()
-  if (m < 450) {
-    const y = new Date(now)
-    y.setDate(y.getDate() - 1)
-    return y.toISOString().split('T')[0]
-  }
-  return now.toISOString().split('T')[0]
-}
-
 // ── Tabs config ──────────────────────────────────────────────────
-const ALL_TABS = [
-  { id: 'home',              label: '🏠 Inicio',           roles: ['admin','supervisor','operador','calidad'] },
-  { id: 'captura',           label: '📷 Captura',          roles: ['admin','supervisor','operador','calidad'] },
-  { id: 'dashboard',         label: '📊 Dashboard',        roles: ['admin','supervisor','operador','calidad'] },
-  { id: 'ordenes',           label: '📋 Órdenes Prod.',    roles: ['admin','supervisor','operador'] },
-  { id: 'pre_expansion',     label: '🔥 Pre-Expansión',    roles: ['admin','supervisor','operador'] },
-  { id: 'inyeccion',         label: '💉 Inyección',        roles: ['admin','supervisor','operador'] },
-  { id: 'ensamble',          label: '🔧 Ensamble',         roles: ['admin','supervisor','operador'] },
-  { id: 'productos',         label: '📦 Productos',        roles: ['admin','supervisor','operador'] },
-  { id: 'etiquetas',         label: '🖨️ Etiquetas',        roles: ['admin','supervisor','operador'] },
-  { id: 'plan',              label: '📋 Plan Prod.',       roles: ['admin','supervisor'] },
-  { id: 'prediccion',        label: '🤖 Predicción IA',    roles: ['admin','supervisor'] },
-  { id: 'anomalias',         label: '🚨 Anomalías',        roles: ['admin','supervisor'] },
+interface TabConfig { id: string; label: string; icon: LucideIcon; roles: string[] }
+
+const ALL_TABS: TabConfig[] = [
+  { id: 'home',          label: 'Inicio',         icon: IconInicio,        roles: ['admin','supervisor','operador','calidad'] },
+  { id: 'captura',       label: 'Captura',        icon: IconCaptura,       roles: ['admin','supervisor','operador','calidad'] },
+  { id: 'dashboard',     label: 'Dashboard',      icon: IconDashboard,     roles: ['admin','supervisor','operador','calidad'] },
+  { id: 'ordenes',       label: 'Órdenes Prod.',  icon: IconPicking,       roles: ['admin','supervisor','operador'] },
+  { id: 'pre_expansion', label: 'Pre-Expansión',  icon: IconPreExpansion,  roles: ['admin','supervisor','operador'] },
+  { id: 'inyeccion',     label: 'Inyección',      icon: IconInyeccion,     roles: ['admin','supervisor','operador'] },
+  { id: 'ensamble',      label: 'Ensamble',       icon: IconEnsamble,      roles: ['admin','supervisor','operador'] },
+  { id: 'productos',     label: 'Productos',      icon: IconInventario,    roles: ['admin','supervisor','operador'] },
+  { id: 'etiquetas',     label: 'Etiquetas',      icon: IconEtiquetas,     roles: ['admin','supervisor','operador'] },
+  { id: 'plan',          label: 'Plan Prod.',     icon: IconLista,         roles: ['admin','supervisor'] },
+  { id: 'prediccion',    label: 'Predicción IA',  icon: IconPrediccion,    roles: ['admin','supervisor'] },
+  { id: 'anomalias',     label: 'Anomalías',      icon: IconAlertas,       roles: ['admin','supervisor'] },
 ]
-
-const DEFAULT_PINNED = ['home', 'captura', 'dashboard', 'productos', 'etiquetas']
-
-const ROL_BADGE: Record<string, { icon: string; color: string }> = {
-  admin:      { icon: '👑', color: 'text-yellow-400' },
-  supervisor: { icon: '🔵', color: 'text-blue-400'   },
-  operador:   { icon: '🟢', color: 'text-green-400'  },
-  calidad:    { icon: '🔬', color: 'text-cyan-400'   },
-  finanzas:   { icon: '💰', color: 'text-emerald-400' },
-  logistica:  { icon: '🚛', color: 'text-teal-400'   },
-}
-
-// ── Pinned tabs persistence ──────────────────────────────────────
-function getPinnedKey(user: string) {
-  return `pinnedTabs_${user}`
-}
-
-function loadPinnedTabs(user: string): string[] {
-  if (typeof window === 'undefined') return DEFAULT_PINNED
-  try {
-    const stored = localStorage.getItem(getPinnedKey(user))
-    if (stored) {
-      const parsed = JSON.parse(stored)
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed
-    }
-  } catch {}
-  return DEFAULT_PINNED
-}
-
-function savePinnedTabs(user: string, pinned: string[]) {
-  if (typeof window === 'undefined') return
-  localStorage.setItem(getPinnedKey(user), JSON.stringify(pinned))
-}
 
 // ══════════════════════════════════════════════════════════════════
 export default function ProduccionPage() {
@@ -111,7 +76,7 @@ export default function ProduccionPage() {
   const [activeTab, setActiveTab] = useState('')
   const [wsStatus, setWsStatus]   = useState<'conectado'|'desconectado'|'conectando'>('desconectado')
   const [menuOpen, setMenuOpen]   = useState(false)
-  const [pinnedTabs, setPinnedTabs] = useState<string[]>(DEFAULT_PINNED)
+  const { pinnedTabs, togglePin } = usePinnedTabs(username)
   const menuRef = useRef<HTMLDivElement>(null)
 
   // ── Scanner state ──────────────────────────────────────────────
@@ -126,8 +91,7 @@ export default function ProduccionPage() {
   const [anomalias,     setAnomalias]     = useState<Anomalia[]>([])
 
   // ── Turno ──────────────────────────────────────────────────────
-  const [turnoActual, setTurnoActual] = useState(getTurnoActual)
-  const [fechaTurno,  setFechaTurno]  = useState(getFechaTurno)
+  const { turnoActual } = useTurno()
 
   // ── Dashboard prod ─────────────────────────────────────────────
   const [dashPorParte,    setDashPorParte]    = useState<
@@ -144,13 +108,6 @@ export default function ProduccionPage() {
   const inputValueRef = useRef('')
   const tokenRef      = useRef<string|null>(null)
   const [scannerKey, setScannerKey] = useState(0)
-
-  // ── Load pinned tabs per user ──────────────────────────────────
-  useEffect(() => {
-    if (username) {
-      setPinnedTabs(loadPinnedTabs(username))
-    }
-  }, [username])
 
   // ── Close menu on outside click ────────────────────────────────
   useEffect(() => {
@@ -179,15 +136,6 @@ export default function ProduccionPage() {
 
   // ── Sync tokenRef ──────────────────────────────────────────────
   useEffect(() => { tokenRef.current = token ?? null }, [token])
-
-  // ── Turno label update ─────────────────────────────────────────
-  useEffect(() => {
-    const i = setInterval(() => {
-      setTurnoActual(getTurnoActual())
-      setFechaTurno(getFechaTurno())
-    }, 60_000)
-    return () => clearInterval(i)
-  }, [])
 
   // ── WS + carga inicial ─────────────────────────────────────────
   useEffect(() => {
@@ -225,16 +173,6 @@ export default function ProduccionPage() {
     }, 1_000)
     return () => clearInterval(i)
   }, [activeTab])
-
-  const togglePin = (tabId: string) => {
-    setPinnedTabs(prev => {
-      const next = prev.includes(tabId)
-        ? prev.filter(id => id !== tabId)
-        : [...prev, tabId]
-      if (username) savePinnedTabs(username, next)
-      return next
-    })
-  }
 
   const selectTabFromMenu = (tabId: string) => {
     setActiveTab(tabId)
@@ -428,7 +366,6 @@ export default function ProduccionPage() {
   const tabs = ALL_TABS.filter(
     t => t.roles.includes(rol ?? '') && tieneAccesoTab('produccion', t.id)
   )
-  const badge = ROL_BADGE[rol || ''] || { icon: '👤', color: 'text-gray-400' }
 
   const pinnedVisibleTabs = tabs.filter(t => pinnedTabs.includes(t.id))
 
@@ -460,7 +397,7 @@ export default function ProduccionPage() {
   const isInyeccion = activeTab === 'inyeccion'
 
   return (
-    <div className="fixed inset-0 bg-gray-950 text-white flex flex-col">
+    <ModuleThemeProvider moduleKey="produccion" className="fixed inset-0 bg-gray-950 text-white flex flex-col">
 
       {/* ═══ HEADER ═══ */}
       <header className="bg-gray-900 border-b border-gray-800 px-6 py-3 flex items-center justify-between shrink-0">
@@ -480,60 +417,15 @@ export default function ProduccionPage() {
               ? 'bg-yellow-500/10 border-yellow-500/40 text-yellow-400'
               : 'bg-indigo-500/10 border-indigo-500/40 text-indigo-400'
           }`}>
-            <span>{turnoActual === 'DIA' ? '☀️' : '🌙'}</span>
+            {turnoActual === 'DIA' ? <IconTurnoDia size={14} aria-hidden /> : <IconTurnoNoche size={14} aria-hidden />}
             <span>{turnoActual}</span>
           </div>
 
-          {['admin', 'finanzas'].includes(rol || '') && (
-            <>
-              <Link href="/compras" className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors">
-                🛒 Compras
-              </Link>
-              <Link href="/ventas" className="bg-violet-600 hover:bg-violet-700 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors">
-                💵 Ventas
-              </Link>
-            </>
-          )}
+          <ModuleNavLinks rol={rol} current="produccion" />
 
-          {['admin', 'calidad'].includes(rol || '') && (
-            <Link href="/calidad" className="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors">
-              🔬 Calidad
-            </Link>
-          )}
+          <UserBadge rol={rol} username={username} />
 
-          {rol === 'admin' && (
-            <>
-              <Link href="/almacen" className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors">
-                📦 Almacén
-              </Link>
-              <Link href="/logistica" className="bg-teal-600 hover:bg-teal-700 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors">
-                🚛 Logística
-              </Link>
-            </>
-          )}
-
-          {['admin', 'supervisor', 'operador'].includes(rol || '') && (
-            <Link href="/maquinas" className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors">
-              ⚙️ Máquinas
-            </Link>
-          )}
-
-          {rol === 'admin' && (
-            <Link href="/admin" className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors">
-              👑 Admin
-            </Link>
-          )}
-
-          <span className={`text-sm font-medium ${badge.color}`}>
-            {badge.icon} {username}
-          </span>
-
-          <button
-            onClick={logout}
-            className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
-          >
-            🚪 Salir
-          </button>
+          <Button variant="danger" onClick={logout} leftIcon={IconSalir}>Salir</Button>
         </div>
       </header>
 
@@ -545,8 +437,8 @@ export default function ProduccionPage() {
               onClick={() => setMenuOpen(prev => !prev)}
               className={`flex items-center justify-center w-10 h-10 rounded-lg transition-colors ${
                 menuOpen
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                  ? 'bg-[var(--accent)] text-[var(--accent-fg)]'
+                  : 'text-gray-300 hover:text-white hover:bg-gray-800'
               }`}
               title="Menú de módulos"
             >
@@ -562,32 +454,36 @@ export default function ProduccionPage() {
             {menuOpen && (
               <div className="absolute top-full left-0 mt-2 z-50 bg-gray-800 border border-gray-700 rounded-xl shadow-2xl p-4 min-w-[480px]">
                 <div className="flex items-center justify-between mb-3 pb-3 border-b border-gray-700">
-                  <span className="text-sm font-semibold text-gray-300">📂 Módulos</span>
+                  <span className="flex items-center gap-2 text-sm font-semibold text-gray-300">
+                    <IconModulo size={16} aria-hidden /> Módulos
+                  </span>
                 </div>
 
                 <div className="grid grid-cols-3 gap-1">
                   {tabs.map(tab => {
                     const isPinned = pinnedTabs.includes(tab.id)
                     const isActive = activeTab === tab.id
+                    const TabIcon = tab.icon
                     return (
                       <div
                         key={tab.id}
                         className={`flex items-center gap-2 px-3 py-2.5 rounded-lg cursor-pointer transition-all group ${
                           isActive
-                            ? 'bg-blue-600/20 border border-blue-500/40'
+                            ? 'bg-[var(--accent-soft)] border border-[var(--accent)]'
                             : 'hover:bg-gray-700/60 border border-transparent'
                         }`}
                       >
                         <button
                           onClick={() => selectTabFromMenu(tab.id)}
-                          className={`flex-1 text-left text-sm font-medium truncate transition-colors ${
+                          className={`flex-1 flex items-center gap-2 text-left text-sm font-medium truncate transition-colors ${
                             isActive
-                              ? 'text-blue-300'
+                              ? 'text-[var(--accent)]'
                               : 'text-gray-300 group-hover:text-white'
                           }`}
                           title={tab.label}
                         >
-                          {tab.label}
+                          <TabIcon size={16} className="shrink-0" aria-hidden />
+                          <span className="truncate">{tab.label}</span>
                         </button>
 
                         <button
@@ -597,8 +493,8 @@ export default function ProduccionPage() {
                           }}
                           className={`flex-shrink-0 w-6 h-6 flex items-center justify-center rounded transition-all ${
                             isPinned
-                              ? 'text-blue-400 hover:text-blue-300 bg-blue-500/20'
-                              : 'text-gray-600 hover:text-gray-400 hover:bg-gray-700'
+                              ? 'text-[var(--accent)] bg-[var(--accent-soft)]'
+                              : 'text-gray-500 hover:text-gray-300 hover:bg-gray-700'
                           }`}
                           title={isPinned ? 'Quitar de acceso rápido' : 'Añadir a acceso rápido'}
                         >
@@ -621,8 +517,8 @@ export default function ProduccionPage() {
                   })}
                 </div>
 
-                <div className="mt-3 pt-3 border-t border-gray-700 flex items-center gap-2 text-xs text-gray-500">
-                  <svg className="w-3.5 h-3.5 text-blue-400" fill="currentColor" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1}>
+                <div className="mt-3 pt-3 border-t border-gray-700 flex items-center gap-2 text-xs text-gray-400">
+                  <svg className="w-3.5 h-3.5 text-[var(--accent)]" fill="currentColor" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M16 3l-4 4-4-1-3 3 4 4-2 6 6-2 4 4 3-3-1-4 4-4z" />
                   </svg>
                   <span>Haz clic en el pin para fijar o quitar accesos rápidos</span>
@@ -634,23 +530,27 @@ export default function ProduccionPage() {
           <div className="w-px h-8 bg-gray-700 mx-1" />
 
           <div className="flex gap-1 overflow-x-auto flex-1 py-1">
-            {pinnedVisibleTabs.map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-2.5 text-sm font-medium rounded-lg transition-all whitespace-nowrap ${
-                  activeTab === tab.id
-                    ? 'bg-gray-800 text-blue-400 shadow-sm'
-                    : 'text-gray-400 hover:text-white hover:bg-gray-800'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+            {pinnedVisibleTabs.map(tab => {
+              const TabIcon = tab.icon
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-all whitespace-nowrap ${
+                    activeTab === tab.id
+                      ? 'bg-gray-800 text-[var(--accent)] shadow-sm'
+                      : 'text-gray-300 hover:text-white hover:bg-gray-800'
+                  }`}
+                >
+                  <TabIcon size={16} aria-hidden />
+                  {tab.label}
+                </button>
+              )
+            })}
 
             {pinnedVisibleTabs.length === 0 && (
-              <span className="text-gray-600 text-sm italic flex items-center px-3">
-                Abre el menú ☰ para fijar accesos rápidos
+              <span className="text-gray-500 text-sm italic flex items-center px-3">
+                Abre el menú para fijar accesos rápidos
               </span>
             )}
           </div>
@@ -697,6 +597,6 @@ export default function ProduccionPage() {
           <AnomaliesTab anomalias={anomalias} cargarAnomalias={cargarAnomalias} />
         )}
       </main>
-    </div>
+    </ModuleThemeProvider>
   )
 }

@@ -1,9 +1,15 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { getInventario, getCola, agregarACola, generarPDF, eliminarDeCola, limpiarCola } from '@/lib/api'
 import { InventarioItem, ColaItem } from '@/types'
+import { Modal, Button, LoadingSpinner } from '@/components/ui'
+import {
+  IconOk, IconAlertas, IconInfo, IconEtiquetas, IconBuscar, IconCerrar,
+  IconNuevo, IconEliminar, IconPendiente, IconDocumento, IconBandeja,
+  IconTip, IconTurnoDia, IconTurnoNoche,
+} from '@/lib/icons'
 
 const normalizarTurno = (turno: string): 'Día' | 'Noche' => {
   const t = (turno || '').trim().toUpperCase()
@@ -32,8 +38,6 @@ export default function EtiquetasTab() {
   } | null>(null)
   const [isClearModalOpen, setIsClearModalOpen] = useState(false)
 
-  const okButtonRef = useRef<HTMLButtonElement>(null)
-
   const inventarioFiltrado = inventario.filter(item => {
     const term = searchParte.toLowerCase()
     return (
@@ -43,10 +47,6 @@ export default function EtiquetasTab() {
       item.linea.toLowerCase().includes(term)
     )
   })
-
-  useEffect(() => {
-    if (modalInfo && okButtonRef.current) okButtonRef.current.focus()
-  }, [modalInfo])
 
   useEffect(() => {
     cargarDatos()
@@ -155,81 +155,57 @@ export default function EtiquetasTab() {
   }
 
   if (loading) return (
-    <div className="p-8 text-center text-xl font-semibold text-gray-400">
-      Cargando datos...
+    <div className="p-8 flex justify-center">
+      <LoadingSpinner label="Cargando datos..." />
     </div>
   )
+
+  const ModalIcon = modalInfo
+    ? (modalInfo.type === 'success' ? IconOk : modalInfo.type === 'error' ? IconAlertas : IconInfo)
+    : IconInfo
+  const modalTitleColor = modalInfo
+    ? (modalInfo.type === 'success' ? 'text-emerald-400' : modalInfo.type === 'error' ? 'text-red-400' : 'text-blue-400')
+    : ''
 
   return (
     <div className="relative">
 
       {/* MODAL NOTIFICACIÓN */}
-      {modalInfo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-[3px]">
-          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] w-full max-w-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-800 flex items-center gap-2">
-              <span>
-                {modalInfo.type === 'success' ? '✅' : modalInfo.type === 'error' ? '❌' : 'ℹ️'}
-              </span>
-              <h3 className={`text-base font-bold ${
-                modalInfo.type === 'success' ? 'text-emerald-400' :
-                modalInfo.type === 'error'   ? 'text-red-400'     : 'text-blue-400'
-              }`}>{modalInfo.title}</h3>
-            </div>
-            <div className="p-5">
-              <p className="text-gray-300 text-sm mb-5">{modalInfo.message}</p>
-              <div className="flex justify-end">
-                <button
-                  ref={okButtonRef}
-                  onClick={() => setModalInfo(null)}
-                  className={`inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold border transition-all duration-150 ${
-                    modalInfo.type === 'success' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20' :
-                    modalInfo.type === 'error'   ? 'bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20' :
-                                                   'bg-blue-500/10 text-blue-400 border-blue-500/30 hover:bg-blue-500/20'
-                  }`}
-                >
-                  Aceptar
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal
+        open={!!modalInfo}
+        onClose={() => setModalInfo(null)}
+        size="sm"
+        title={
+          <span className={`flex items-center gap-2 ${modalTitleColor}`}>
+            <ModalIcon size={18} aria-hidden /> {modalInfo?.title}
+          </span>
+        }
+        footer={<Button variant="secondary" onClick={() => setModalInfo(null)}>Aceptar</Button>}
+      >
+        <p className="text-gray-300 text-sm">{modalInfo?.message}</p>
+      </Modal>
 
       {/* MODAL CONFIRMAR LIMPIEZA */}
-      {isClearModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-[3px]">
-          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] w-full max-w-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-800 flex items-center gap-2">
-              <span>⚠️</span>
-              <h3 className="text-base font-bold text-orange-400">Confirmar Acción</h3>
-            </div>
-            <div className="p-5">
-              <p className="text-gray-300 text-sm mb-5">
-                ¿Estás seguro de que deseas limpiar <strong>TODA</strong> la cola de impresión?
-              </p>
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={() => setIsClearModalOpen(false)}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold border border-gray-800 text-gray-400 hover:text-white hover:border-gray-700 hover:bg-gray-800 transition-all duration-150"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={executeClearQueue}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold border bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20 transition-all duration-150"
-                >
-                  Sí, Limpiar Cola
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal
+        open={isClearModalOpen}
+        onClose={() => setIsClearModalOpen(false)}
+        size="sm"
+        title={<span className="flex items-center gap-2 text-orange-400"><IconAlertas size={18} aria-hidden /> Confirmar Acción</span>}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setIsClearModalOpen(false)}>Cancelar</Button>
+            <Button variant="danger" onClick={executeClearQueue} leftIcon={IconEliminar}>Sí, Limpiar Cola</Button>
+          </>
+        }
+      >
+        <p className="text-gray-300 text-sm">
+          ¿Estás seguro de que deseas limpiar <strong>TODA</strong> la cola de impresión?
+        </p>
+      </Modal>
 
       {/* TÍTULO */}
       <div className="flex items-center gap-2 mb-6">
-        <span className="text-2xl">🖨️</span>
+        <IconEtiquetas size={26} className="text-[var(--accent)]" aria-hidden />
         <h1 className="text-2xl font-bold text-white">Impresión de Etiquetas</h1>
       </div>
 
@@ -246,7 +222,7 @@ export default function EtiquetasTab() {
                 No. de Parte / Descripción
               </label>
               <div className="relative">
-                <span className="absolute inset-y-0 left-0 pl-2.5 flex items-center text-gray-400 pointer-events-none">🔍</span>
+                <span className="absolute inset-y-0 left-0 pl-2.5 flex items-center text-gray-400 pointer-events-none"><IconBuscar size={14} aria-hidden /></span>
                 <input
                   type="text"
                   placeholder="Buscar por código, descripción, línea..."
@@ -258,8 +234,9 @@ export default function EtiquetasTab() {
                   <button
                     type="button"
                     onClick={() => setSearchParte('')}
-                    className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-gray-400 hover:text-gray-400"
-                  >✖</button>
+                    className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-gray-400 hover:text-white"
+                    aria-label="Limpiar búsqueda"
+                  ><IconCerrar size={14} /></button>
                 )}
               </div>
               <select
@@ -292,8 +269,8 @@ export default function EtiquetasTab() {
                 ) : null
               })()}
 
-              <p className="text-xs text-gray-400 mt-1 italic">💡 Doble clic o Enter para añadir directo</p>
-              <p className="text-xs text-gray-400 mt-1 text-right">{inventarioFiltrado.length} de {inventario.length} partes</p>
+              <p className="text-xs text-gray-300 mt-1 italic flex items-center gap-1.5"><IconTip size={13} aria-hidden /> Doble clic o Enter para añadir directo</p>
+              <p className="text-xs text-gray-300 mt-1 text-right">{inventarioFiltrado.length} de {inventario.length} partes</p>
             </div>
 
             <div className="mb-4">
@@ -320,12 +297,7 @@ export default function EtiquetasTab() {
               </select>
             </div>
 
-            <button
-              type="submit"
-              className="w-full bg-blue-500 text-white font-semibold px-4 py-2.5 rounded-md hover:bg-blue-400 transition border border-blue-500"
-            >
-              ➡️ Añadir a la Cola
-            </button>
+            <Button type="submit" leftIcon={IconNuevo} className="w-full">Añadir a la Cola</Button>
           </form>
         </div>
 
@@ -337,20 +309,24 @@ export default function EtiquetasTab() {
                 Etiquetas en Cola ({cola.length})
               </h2>
               <div className="flex gap-2">
-                <button
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={() => setIsClearModalOpen(true)}
                   disabled={cola.length === 0}
-                  className="bg-gray-800 border border-gray-600 text-gray-300 px-4 py-1.5 rounded font-medium hover:bg-gray-700 transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
+                  leftIcon={IconEliminar}
                 >
-                  🧹 Limpiar Cola
-                </button>
-                <button
+                  Limpiar Cola
+                </Button>
+                <Button
+                  size="sm"
                   onClick={handleGeneratePDF}
                   disabled={cola.length === 0 || isGenerating}
-                  className="bg-green-600 text-white px-4 py-1.5 rounded font-bold hover:bg-green-700 transition disabled:opacity-40 disabled:cursor-not-allowed shadow-sm flex items-center gap-1"
+                  leftIcon={isGenerating ? IconPendiente : IconDocumento}
+                  className="bg-green-600 hover:bg-green-700 text-white"
                 >
-                  {isGenerating ? '⏳ Generando...' : '📄 Generar PDF'}
-                </button>
+                  {isGenerating ? 'Generando...' : 'Generar PDF'}
+                </Button>
               </div>
             </div>
 
@@ -369,8 +345,8 @@ export default function EtiquetasTab() {
                 <tbody>
                   {cola.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="p-10 text-center text-gray-400">
-                        <span className="text-3xl block mb-2">📥</span>
+                      <td colSpan={6} className="p-10 text-center text-gray-300">
+                        <IconBandeja size={32} className="mx-auto mb-2 text-gray-500" aria-hidden />
                         La cola está vacía. Selecciona un número de parte y añádelo.
                       </td>
                     </tr>
@@ -384,12 +360,12 @@ export default function EtiquetasTab() {
                           {(() => {
                             const turnoNorm = normalizarTurno(item.turno)
                             return (
-                              <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                              <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${
                                 turnoNorm === 'Día'
                                   ? 'bg-yellow-500/20 text-yellow-300'
                                   : 'bg-indigo-500/20 text-indigo-300'
                               }`}>
-                                {turnoNorm === 'Día' ? '☀️' : '🌙'} {turnoNorm}
+                                {turnoNorm === 'Día' ? <IconTurnoDia size={13} aria-hidden /> : <IconTurnoNoche size={13} aria-hidden />} {turnoNorm}
                               </span>
                             )
                           })()}
@@ -409,7 +385,8 @@ export default function EtiquetasTab() {
                           <button
                             onClick={() => handleDelete(item.id!)}
                             className="text-red-500 hover:text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-full w-8 h-8 inline-flex items-center justify-center transition"
-                          >✖</button>
+                            aria-label="Eliminar"
+                          ><IconEliminar size={15} /></button>
                         </td>
                       </tr>
                     ))

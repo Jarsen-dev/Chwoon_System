@@ -4,6 +4,10 @@ import { useState, useMemo, useRef, useEffect } from 'react'
 import { Html5Qrcode } from 'html5-qrcode'
 import { RegistroConMeta } from './helpers'
 import { getFaltanStyle }  from './helpers'
+import {
+  IconCerrar, IconAlertas, IconTeclado, IconPegado, IconAlarma,
+  IconCamara, IconBuscar, IconOk, IconUsuario,
+} from '@/lib/icons'
 
 interface Props {
   registros:         RegistroConMeta[]
@@ -420,14 +424,14 @@ export default function ScannerTab({
         <div className="bg-red-500/100/10 border border-red-500/40 text-red-400 rounded-lg
                         p-3 text-sm flex justify-between items-start">
           <div>
-            <p className="font-semibold mb-1">❌ Error al generar Excel</p>
+            <p className="font-semibold mb-1 flex items-center gap-1.5"><IconAlertas size={15} aria-hidden /> Error al generar Excel</p>
             <p className="whitespace-pre-wrap font-mono text-xs">{errorMsg}</p>
           </div>
           <button
             onClick={() => setErrorMsg(null)}
-            className="text-red-400 hover:text-red-400 font-bold ml-4
-                       text-lg leading-none flex-shrink-0"
-          >✖</button>
+            className="text-red-400 hover:text-red-300 ml-4 flex-shrink-0"
+            aria-label="Cerrar"
+          ><IconCerrar size={18} /></button>
         </div>
       )}
 
@@ -481,19 +485,19 @@ export default function ScannerTab({
               }`}
             >
               <div>
-                <p className="font-bold text-sm">
-                  {alerta.tipo === 'TECLADO BLOQUEADO'  ? '⌨️' :
-                   alerta.tipo === 'PEGADO BLOQUEADO'   ? '📋' :
-                   alerta.tipo === 'FORMATO INVÁLIDO'   ? '⚠️' :
-                   '🚨'} ALERTA: {alerta.tipo}
+                <p className="font-bold text-sm flex items-center gap-1.5">
+                  {alerta.tipo === 'TECLADO BLOQUEADO'  ? <IconTeclado size={15} aria-hidden /> :
+                   alerta.tipo === 'PEGADO BLOQUEADO'   ? <IconPegado size={15} aria-hidden /> :
+                   alerta.tipo === 'FORMATO INVÁLIDO'   ? <IconAlertas size={15} aria-hidden /> :
+                   <IconAlarma size={15} aria-hidden />} ALERTA: {alerta.tipo}
                 </p>
                 <p className="text-sm mt-0.5">{alerta.motivo}</p>
               </div>
               <button
                 onClick={() => setAlertas(alertas.filter(a => a.id !== alerta.id))}
-                className="font-bold ml-4 text-lg leading-none opacity-50
-                           hover:opacity-100"
-              >✖</button>
+                className="ml-4 opacity-50 hover:opacity-100"
+                aria-label="Cerrar"
+              ><IconCerrar size={18} /></button>
             </div>
           ))}
         </div>
@@ -590,15 +594,15 @@ export default function ScannerTab({
             {registros.length === 0 ? (
               <tr>
                 <td colSpan={COLUMNAS.length} className="p-12 text-center">
-                  <span className="text-4xl block mb-2">📷</span>
-                  <span className="text-gray-400">Esperando escaneo...</span>
+                  <IconCamara size={36} className="mx-auto mb-2 text-gray-500" aria-hidden />
+                  <span className="text-gray-300">Esperando escaneo...</span>
                 </td>
               </tr>
             ) : registrosFiltrados.length === 0 ? (
               <tr>
                 <td colSpan={COLUMNAS.length} className="p-12 text-center">
-                  <span className="text-3xl block mb-2">🔍</span>
-                  <span className="text-gray-400">
+                  <IconBuscar size={32} className="mx-auto mb-2 text-gray-500" aria-hidden />
+                  <span className="text-gray-300">
                     Sin resultados para los filtros aplicados
                   </span>
                   <button
@@ -670,14 +674,16 @@ export default function ScannerTab({
 
                     <td className={`p-3 text-center font-semibold
                       ${getFaltanStyle(reg.faltan ?? 'N/A')}`}>
-                      {reg.faltan === 0 ? '✅ 0' : (reg.faltan ?? 'N/A')}
+                      {reg.faltan === 0
+                        ? <span className="inline-flex items-center gap-1"><IconOk size={14} aria-hidden /> 0</span>
+                        : (reg.faltan ?? 'N/A')}
                     </td>
 
                     <td className={`p-3 text-center text-xs whitespace-nowrap ${
                       esNuevo ? 'text-gray-200 font-semibold' : 'text-gray-400'
                     }`}>
                       <span className="inline-flex items-center gap-1">
-                        <span>👤</span>
+                        <IconUsuario size={14} className="text-gray-500" aria-hidden />
                         <span>{reg.usuario || '—'}</span>
                       </span>
                     </td>
@@ -700,11 +706,12 @@ export default function ScannerTab({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-[3px]">
           <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] w-full max-w-md p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-white">📷 Escanear QR</h3>
+              <h3 className="text-base font-bold text-white flex items-center gap-2"><IconCamara size={18} className="text-[var(--accent)]" aria-hidden /> Escanear QR</h3>
               <button
                 onClick={cerrarScanner}
-                className="text-gray-400 hover:text-gray-300 text-xl leading-none"
-              >✖</button>
+                className="text-gray-400 hover:text-gray-300"
+                aria-label="Cerrar"
+              ><IconCerrar size={20} /></button>
             </div>
             <div
               ref={scannerContainerRef}
@@ -712,8 +719,8 @@ export default function ScannerTab({
               className="w-full aspect-square rounded-xl overflow-hidden bg-black"
             />
             {scannerError && (
-              <div className="bg-red-500/100/10 border border-red-200 text-red-400 rounded-lg p-3 text-sm">
-                <p className="font-semibold">⚠️ Error de cámara</p>
+              <div className="bg-red-500/10 border border-red-500/40 text-red-400 rounded-lg p-3 text-sm">
+                <p className="font-semibold flex items-center gap-1.5"><IconAlertas size={15} aria-hidden /> Error de cámara</p>
                 <p className="text-xs">{scannerError}</p>
               </div>
             )}

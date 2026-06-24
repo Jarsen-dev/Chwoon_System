@@ -1,6 +1,7 @@
 'use client'
 
 import { getFaltanStyle } from './helpers'
+import { IconGrafico, IconMaquinas, IconPrediccion } from '@/lib/icons'
 
 interface Props {
   proyecciones:  any[]
@@ -12,8 +13,8 @@ export default function PredictionTab({ proyecciones, saludMaquinas }: Props) {
     <div className="space-y-8">
       {/* Proyecciones */}
       <div>
-        <h2 className="text-xl font-bold text-gray-200 mb-4 border-b pb-2">
-          📊 Proyección de Cierre de Turno
+        <h2 className="text-xl font-bold text-gray-200 mb-4 border-b border-gray-800 pb-2 flex items-center gap-2">
+          <IconGrafico size={20} className="text-[var(--accent)]" aria-hidden /> Proyección de Cierre de Turno
         </h2>
         <div className="overflow-x-auto border border-gray-800 rounded-xl">
           <table className="w-full text-sm">
@@ -28,8 +29,8 @@ export default function PredictionTab({ proyecciones, saludMaquinas }: Props) {
               {proyecciones.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="p-12 text-center">
-                    <span className="text-4xl block mb-2">🤖</span>
-                    <span className="text-gray-400">Sin datos suficientes para proyectar.</span>
+                    <IconPrediccion size={36} className="mx-auto mb-2 text-gray-500" aria-hidden />
+                    <span className="text-gray-300">Sin datos suficientes para proyectar.</span>
                   </td>
                 </tr>
               ) : (
@@ -51,8 +52,8 @@ export default function PredictionTab({ proyecciones, saludMaquinas }: Props) {
 
       {/* Salud máquinas */}
       <div>
-        <h2 className="text-xl font-bold text-gray-200 mb-4 border-b pb-2">
-          ⚙️ Mantenimiento Predictivo
+        <h2 className="text-xl font-bold text-gray-200 mb-4 border-b border-gray-800 pb-2 flex items-center gap-2">
+          <IconMaquinas size={20} className="text-[var(--accent)]" aria-hidden /> Mantenimiento Predictivo
         </h2>
         <div className="overflow-x-auto border border-gray-800 rounded-xl">
           <table className="w-full text-sm">
@@ -67,8 +68,8 @@ export default function PredictionTab({ proyecciones, saludMaquinas }: Props) {
               {saludMaquinas.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="p-12 text-center">
-                    <span className="text-4xl block mb-2">⚙️</span>
-                    <span className="text-gray-400">Escanea más códigos para detectar patrones.</span>
+                    <IconMaquinas size={36} className="mx-auto mb-2 text-gray-500" aria-hidden />
+                    <span className="text-gray-300">Escanea más códigos para detectar patrones.</span>
                   </td>
                 </tr>
               ) : (
