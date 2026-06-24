@@ -11,6 +11,11 @@ import {
   getProductos,
   surtirMaterialPendiente,
 } from '@/lib/api'
+import { Button } from '@/components/ui'
+import {
+  IconEnsamble, IconCerrar, IconNuevo, IconActualizar, IconLista, IconAlertas,
+  IconEjecutar, IconPendiente, IconSinMovimiento, IconOk, IconCompletado,
+} from '@/lib/icons'
 
 export default function EnsambleTab() {
   const { token, username } = useAuth()
@@ -99,7 +104,7 @@ export default function EnsambleTab() {
     try {
       const res = await registrarPiezaAssy(token, opId)
       if (res.carrito_completado) {
-        setMensaje({ tipo: 'ok', texto: `🎉 Carrito #${res.numero_carrito} completado! Total: ${res.cantidad_producida}` })
+        setMensaje({ tipo: 'ok', texto: `Carrito #${res.numero_carrito} completado. Total: ${res.cantidad_producida}` })
       }
       cargar()
     } catch (e: any) {
@@ -137,16 +142,12 @@ export default function EnsambleTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-100">🔧 Ensamble (ASSY)</h2>
+        <h2 className="text-2xl font-bold text-gray-100 flex items-center gap-2"><IconEnsamble size={24} className="text-[var(--accent)]" aria-hidden /> Ensamble (ASSY)</h2>
         <div className="flex gap-2">
-          <button onClick={() => { setShowForm(!showForm); setFaltantes(null) }}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
-            {showForm ? '✕ Cancelar' : '➕ Nueva Orden'}
-          </button>
-          <button onClick={cargar} disabled={loading}
-            className="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg text-sm font-medium text-gray-300">
-            🔄
-          </button>
+          <Button onClick={() => { setShowForm(!showForm); setFaltantes(null) }} leftIcon={showForm ? IconCerrar : IconNuevo}>
+            {showForm ? 'Cancelar' : 'Nueva Orden'}
+          </Button>
+          <Button variant="secondary" onClick={cargar} disabled={loading} aria-label="Actualizar"><IconActualizar size={16} /></Button>
         </div>
       </div>
 
@@ -210,7 +211,7 @@ export default function EnsambleTab() {
           {/* BOM Preview */}
           {productoSeleccionado && productoSeleccionado.bom && productoSeleccionado.bom.length > 0 && (
             <div className="bg-gray-800 rounded-lg p-4">
-              <h4 className="text-sm font-semibold text-gray-400 mb-2">📋 BOM — Lista de Materiales</h4>
+              <h4 className="text-sm font-semibold text-gray-300 mb-2 flex items-center gap-2"><IconLista size={15} aria-hidden /> BOM — Lista de Materiales</h4>
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-gray-400 text-xs">
@@ -239,7 +240,7 @@ export default function EnsambleTab() {
           {/* Faltantes */}
           {faltantes && faltantes.length > 0 && (
             <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
-              <h4 className="text-sm font-semibold text-yellow-300 mb-2">⚠️ Componentes Faltantes</h4>
+              <h4 className="text-sm font-semibold text-yellow-300 mb-2 flex items-center gap-2"><IconAlertas size={15} aria-hidden /> Componentes Faltantes</h4>
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-yellow-400 text-xs">
@@ -264,18 +265,15 @@ export default function EnsambleTab() {
             </div>
           )}
 
-          <button onClick={handleIniciar}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg text-sm font-medium">
-            🚀 Iniciar Orden
-          </button>
+          <Button onClick={handleIniciar} leftIcon={IconEjecutar}>Iniciar Orden</Button>
         </div>
       )}
 
       {/* Órdenes Activas */}
       <div>
-        <h3 className="font-semibold text-gray-300 mb-3">🟢 Activas ({activas.length})</h3>
+        <h3 className="font-semibold text-gray-300 mb-3 flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-green-400" aria-hidden /> Activas ({activas.length})</h3>
         {activas.length === 0 ? (
-          <p className="text-gray-400 text-sm py-4">No hay órdenes activas</p>
+          <p className="text-gray-300 text-sm py-4">No hay órdenes activas</p>
         ) : (
           <div className="space-y-3">
             {activas.map(op => {
@@ -296,32 +294,32 @@ export default function EnsambleTab() {
                       <span className="font-mono font-bold text-blue-400">{op.op_id}</span>
                       <span className="ml-3 text-sm text-gray-400">{op.nombre_producto || op.sku_producto}</span>
                       {isPendiente && (
-                        <span className="ml-2 px-2 py-0.5 bg-yellow-500/20 text-yellow-400 rounded-full text-xs font-semibold">
-                          ⏳ Pendiente Material
+                        <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 bg-yellow-500/20 text-yellow-400 rounded-full text-xs font-semibold">
+                          <IconPendiente size={12} aria-hidden /> Pendiente Material
                         </span>
                       )}
                       {tieneParo && (
-                        <span className="ml-2 px-2 py-0.5 bg-red-500/20 text-red-400 rounded-full text-xs font-semibold">
-                          ⏸️ En Paro
+                        <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 bg-red-500/20 text-red-400 rounded-full text-xs font-semibold">
+                          <IconSinMovimiento size={12} aria-hidden /> En Paro
                         </span>
                       )}
                     </div>
                     <div className="flex gap-2">
                       {isPendiente ? (
                         <button onClick={() => handleSurtir(op.op_id)}
-                          className="bg-green-500/20 hover:bg-green-500/30 text-green-400 px-3 py-1.5 rounded-lg text-xs font-medium">
-                          ✅ Surtir Material
+                          className="inline-flex items-center gap-1 bg-green-500/20 hover:bg-green-500/30 text-green-400 px-3 py-1.5 rounded-lg text-xs font-medium">
+                          <IconOk size={14} aria-hidden /> Surtir Material
                         </button>
                       ) : (
                         <>
                           <button onClick={() => handlePieza(op.op_id)}
-                            className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 px-3 py-1.5 rounded-lg text-xs font-medium"
+                            className="inline-flex items-center gap-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50"
                             disabled={tieneParo}>
-                            ➕ Pieza
+                            <IconNuevo size={14} aria-hidden /> Pieza
                           </button>
                           <button onClick={() => handleFinalizar(op.op_id)}
-                            className="bg-green-500/20 hover:bg-green-500/30 text-green-400 px-3 py-1.5 rounded-lg text-xs font-medium">
-                            ✅ Finalizar
+                            className="inline-flex items-center gap-1 bg-green-500/20 hover:bg-green-500/30 text-green-400 px-3 py-1.5 rounded-lg text-xs font-medium">
+                            <IconOk size={14} aria-hidden /> Finalizar
                           </button>
                         </>
                       )}
@@ -363,7 +361,7 @@ export default function EnsambleTab() {
       {/* Finalizadas */}
       {finalizadas.length > 0 && (
         <div>
-          <h3 className="font-semibold text-gray-300 mb-3">✅ Finalizadas ({finalizadas.length})</h3>
+          <h3 className="font-semibold text-gray-300 mb-3 flex items-center gap-2"><IconCompletado size={16} className="text-emerald-400" aria-hidden /> Finalizadas ({finalizadas.length})</h3>
           <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-gray-800 border-b border-gray-800">
