@@ -1,5 +1,7 @@
 'use client';
 import { useState } from 'react';
+import { Button } from '@/components/ui';
+import { IconDocumento, IconGrafico, IconRecepciones } from '@/lib/icons';
 
 function getLunes(offset = 0): string {
   const now = new Date();
@@ -27,60 +29,50 @@ export default function ReportesTab({ token }: { token: string }) {
       {/* Reporte Diario */}
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
         <div className="flex items-center gap-2 mb-2">
-          <span className="text-2xl">📄</span>
+          <IconDocumento size={22} className="text-[var(--accent)]" aria-hidden />
           <h3 className="text-lg font-bold text-white">Reporte Diario</h3>
         </div>
-        <p className="text-sm text-gray-400 mb-6">Genera el formato oficial CW Reporte Diario con datos de envíos, camiones y facturas del día seleccionado.</p>
+        <p className="text-sm text-gray-300 mb-6">Genera el formato oficial CW Reporte Diario con datos de envíos, camiones y facturas del día seleccionado.</p>
         <div className="space-y-4">
           <div>
-            <label className="text-xs text-gray-400">Fecha del Reporte</label>
+            <label className="text-xs text-gray-300">Fecha del Reporte</label>
             <input
               type="date"
               value={fecha}
               onChange={e => setFecha(e.target.value)}
-              className="w-full mt-1 p-2 bg-gray-800 border border-gray-700 rounded text-white [color-scheme:dark]"
+              className="w-full mt-1 p-2 bg-gray-800 border border-gray-700 rounded text-white [color-scheme:dark] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
             />
           </div>
-          <button
-            onClick={handleDescargarDiario}
-            className="w-full bg-emerald-600 hover:bg-emerald-700 py-3 rounded-lg font-bold flex items-center justify-center gap-2 transition-colors"
-          >
-            <span>⬇️</span> Descargar Reporte Diario
-          </button>
+          <Button onClick={handleDescargarDiario} leftIcon={IconRecepciones} className="w-full">Descargar Reporte Diario</Button>
         </div>
       </div>
 
       {/* Reporte Semanal */}
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
         <div className="flex items-center gap-2 mb-2">
-          <span className="text-2xl">📊</span>
+          <IconGrafico size={22} className="text-[var(--accent)]" aria-hidden />
           <h3 className="text-lg font-bold text-white">Reporte Semanal</h3>
         </div>
-        <p className="text-sm text-gray-400 mb-6">Acumulado de la semana seleccionada — envíos, cumplimiento por día y SKU.</p>
+        <p className="text-sm text-gray-300 mb-6">Acumulado de la semana seleccionada — envíos, cumplimiento por día y SKU.</p>
         <div className="space-y-4">
           <div>
-            <label className="text-xs text-gray-400">Semana (selecciona el Lunes)</label>
+            <label className="text-xs text-gray-300">Semana (selecciona el Lunes)</label>
             <input
               type="date"
               value={lunesIso}
               onChange={e => setLunesIso(e.target.value)}
-              className="w-full mt-1 p-2 bg-gray-800 border border-gray-700 rounded text-white [color-scheme:dark]"
+              className="w-full mt-1 p-2 bg-gray-800 border border-gray-700 rounded text-white [color-scheme:dark] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
             />
             <div className="flex gap-2 mt-2">
-              <button onClick={() => setLunesIso(getLunes(-1))} className="text-xs text-gray-500 hover:text-gray-300 underline transition-colors">
+              <button onClick={() => setLunesIso(getLunes(-1))} className="text-xs text-gray-400 hover:text-gray-200 underline transition-colors">
                 ← Semana anterior
               </button>
-              <button onClick={() => setLunesIso(getLunes(0))} className="text-xs text-gray-500 hover:text-gray-300 underline transition-colors">
+              <button onClick={() => setLunesIso(getLunes(0))} className="text-xs text-gray-400 hover:text-gray-200 underline transition-colors">
                 Semana actual
               </button>
             </div>
           </div>
-          <button
-            onClick={handleDescargarSemanal}
-            className="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-bold flex items-center justify-center gap-2 transition-colors"
-          >
-            <span>⬇️</span> Descargar Reporte Semanal
-          </button>
+          <Button onClick={handleDescargarSemanal} leftIcon={IconRecepciones} className="w-full">Descargar Reporte Semanal</Button>
         </div>
       </div>
     </div>

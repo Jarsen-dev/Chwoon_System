@@ -9,6 +9,12 @@ import {
 } from '@/lib/api';
 import type { OrdenVenta, PlanVentasSemana, DiaSemana } from '@/types';
 import { calcularDIF } from '@/types';
+import { Button, Modal, LoadingSpinner } from '@/components/ui';
+import {
+  IconAlertas, IconCerrar, IconOk, IconVentas, IconActualizar, IconNuevo,
+  IconDocumento, IconVer, IconEditar, IconEtiquetas, IconEliminar, IconInventario,
+  IconLogistica, IconPrediccion,
+} from '@/lib/icons';
 
 interface Props { token: string }
 
@@ -240,15 +246,15 @@ export default function VentasTab({ token }: Props) {
     <div className="space-y-4">
       {/* Messages */}
       {error && (
-        <div className="bg-red-900/30 border border-red-500/50 rounded-lg px-4 py-3 text-red-400 flex justify-between">
-          <span>❌ {error}</span>
-          <button onClick={() => setError('')} className="text-red-300 hover:text-white">✕</button>
+        <div className="bg-red-900/30 border border-red-500/50 rounded-lg px-4 py-3 text-red-400 flex justify-between items-center">
+          <span className="flex items-center gap-2"><IconAlertas size={16} aria-hidden /> {error}</span>
+          <button onClick={() => setError('')} className="text-red-300 hover:text-white" aria-label="Cerrar"><IconCerrar size={16} aria-hidden /></button>
         </div>
       )}
       {success && (
-        <div className="bg-green-900/30 border border-green-500/50 rounded-lg px-4 py-3 text-green-400 flex justify-between">
-          <span>✅ {success}</span>
-          <button onClick={() => setSuccess('')} className="text-green-300 hover:text-white">✕</button>
+        <div className="bg-green-900/30 border border-green-500/50 rounded-lg px-4 py-3 text-green-400 flex justify-between items-center">
+          <span className="flex items-center gap-2"><IconOk size={16} aria-hidden /> {success}</span>
+          <button onClick={() => setSuccess('')} className="text-green-300 hover:text-white" aria-label="Cerrar"><IconCerrar size={16} aria-hidden /></button>
         </div>
       )}
 
@@ -260,7 +266,7 @@ export default function VentasTab({ token }: Props) {
             className="w-full px-5 py-3 flex items-center justify-between text-left hover:bg-amber-900/30 transition-colors"
           >
             <div className="flex items-center gap-3">
-              <span className="text-amber-400 text-lg">💡</span>
+              <IconPrediccion size={18} className="text-amber-400" aria-hidden />
               <span className="font-semibold text-amber-300">Recomendaciones del Plan de Ventas</span>
               <span className="bg-amber-500 text-black text-xs font-bold px-2 py-0.5 rounded-full">{pendientes.length}</span>
               <span className="text-xs text-amber-500">ordenes pendientes de autorizar</span>
@@ -287,7 +293,7 @@ export default function VentasTab({ token }: Props) {
                   disabled={seleccionadas.size === 0 || autorizando}
                   className="bg-amber-600 hover:bg-amber-700 disabled:opacity-40 px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors"
                 >
-                  {autorizando ? 'Generando...' : `✓ Aceptar seleccionadas (${seleccionadas.size})`}
+                  {autorizando ? 'Generando...' : `Aceptar seleccionadas (${seleccionadas.size})`}
                 </button>
               </div>
 
@@ -346,37 +352,30 @@ export default function VentasTab({ token }: Props) {
       {/* Toolbar */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h2 className="text-xl font-bold">💵 Órdenes de Venta</h2>
+          <h2 className="text-xl font-bold flex items-center gap-2"><IconVentas size={22} className="text-[var(--accent)]" aria-hidden /> Órdenes de Venta</h2>
           <select
             value={filtroEstado}
             onChange={(e) => setFiltroEstado(e.target.value)}
-            className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm"
+            className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
           >
             {ESTADO_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
         <div className="flex gap-2">
-          <button onClick={fetchOrdenes} className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm transition-colors">
-            🔄 Refrescar
-          </button>
-          <button
-            onClick={openCreateModal}
-            className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-          >
-            ➕ Nueva OV
-          </button>
+          <Button variant="secondary" onClick={fetchOrdenes} leftIcon={IconActualizar}>Refrescar</Button>
+          <Button onClick={openCreateModal} leftIcon={IconNuevo}>Nueva OV</Button>
         </div>
       </div>
 
       {/* Tabla */}
       {loading ? (
         <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-400" />
+          <LoadingSpinner sizeClass="h-10 w-10" />
         </div>
       ) : ordenes.length === 0 ? (
         <div className="bg-gray-900 rounded-xl border border-gray-800 p-12 text-center">
-          <p className="text-4xl mb-3">📋</p>
-          <p className="text-gray-400">No hay órdenes de venta</p>
+          <IconDocumento size={40} className="mx-auto mb-3 text-gray-600" aria-hidden />
+          <p className="text-gray-300">No hay órdenes de venta</p>
         </div>
       ) : (
         <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
@@ -418,35 +417,35 @@ export default function VentasTab({ token }: Props) {
                         {/* Ver detalle */}
                         <button
                           onClick={() => handleVerDetalle(ov.ov_id)}
-                          className="bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 px-2 py-1 rounded text-xs transition-colors"
-                          title="Ver detalle"
+                          className="inline-flex items-center bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 p-1.5 rounded transition-colors"
+                          title="Ver detalle" aria-label="Ver detalle"
                         >
-                          👁️
+                          <IconVer size={14} aria-hidden />
                         </button>
                         {/* Editar */}
                         <button
                           onClick={() => openEditModal(ov)}
-                          className="bg-amber-600/20 hover:bg-amber-600/40 text-amber-400 px-2 py-1 rounded text-xs transition-colors"
-                          title="Editar orden"
+                          className="inline-flex items-center bg-amber-600/20 hover:bg-amber-600/40 text-amber-300 p-1.5 rounded transition-colors"
+                          title="Editar orden" aria-label="Editar orden"
                         >
-                          ✏️
+                          <IconEditar size={14} aria-hidden />
                         </button>
                         {/* Imprimir PDF */}
                         <button
                           onClick={() => handleImprimir(ov)}
-                          className="bg-violet-600/20 hover:bg-violet-600/40 text-violet-400 px-2 py-1 rounded text-xs transition-colors"
-                          title="Imprimir PDF"
+                          className="inline-flex items-center bg-violet-600/20 hover:bg-violet-600/40 text-violet-300 p-1.5 rounded transition-colors"
+                          title="Imprimir PDF" aria-label="Imprimir PDF"
                         >
-                          🖨️
+                          <IconEtiquetas size={14} aria-hidden />
                         </button>
                         {/* Eliminar (cancelar) — solo en estados no terminales */}
                         {ESTADOS_CANCELABLES.has(ov.estado) && (
                           <button
                             onClick={() => setDeletingOV(ov)}
-                            className="bg-red-600/20 hover:bg-red-600/40 text-red-400 px-2 py-1 rounded text-xs transition-colors"
-                            title="Cancelar orden"
+                            className="inline-flex items-center bg-red-600/20 hover:bg-red-600/40 text-red-300 p-1.5 rounded transition-colors"
+                            title="Cancelar orden" aria-label="Cancelar orden"
                           >
-                            🗑️
+                            <IconEliminar size={14} aria-hidden />
                           </button>
                         )}
                       </div>
@@ -460,14 +459,21 @@ export default function VentasTab({ token }: Props) {
       )}
 
       {/* ── Modal: Crear / Editar OV ── */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 rounded-2xl border border-gray-700 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-800 flex items-center justify-between">
-              <h3 className="text-lg font-bold">{editOV ? `✏️ Editar OV: ${editOV.ov_id}` : '➕ Nueva Orden de Venta'}</h3>
-              <button onClick={() => { setShowCreateModal(false); resetForm(); }} className="text-gray-400 hover:text-white text-xl">✕</button>
-            </div>
-            <div className="p-6 space-y-4">
+      <Modal
+        open={showCreateModal}
+        onClose={() => { setShowCreateModal(false); resetForm(); }}
+        size="2xl"
+        title={editOV
+          ? <span className="flex items-center gap-2"><IconEditar size={18} aria-hidden /> Editar OV: <span className="font-mono">{editOV.ov_id}</span></span>
+          : <span className="flex items-center gap-2"><IconNuevo size={18} aria-hidden /> Nueva Orden de Venta</span>}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => { setShowCreateModal(false); resetForm(); }}>Cancelar</Button>
+            <Button onClick={handleGuardar} disabled={saving} leftIcon={IconOk}>{saving ? 'Guardando...' : editOV ? 'Guardar Cambios' : 'Crear OV'}</Button>
+          </>
+        }
+      >
+            <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm text-gray-400 mb-1">ID Cliente *</label>
@@ -536,7 +542,7 @@ export default function VentasTab({ token }: Props) {
                           </div>
                           <div className="col-span-1 flex justify-center">
                             {formItems.length > 1 && (
-                              <button onClick={() => removeItem(idx)} className="text-red-400 hover:text-red-300 text-lg">🗑️</button>
+                              <button onClick={() => removeItem(idx)} className="text-red-400 hover:text-red-300" aria-label="Eliminar fila"><IconEliminar size={18} aria-hidden /></button>
                             )}
                           </div>
                         </div>
@@ -546,28 +552,18 @@ export default function VentasTab({ token }: Props) {
                 </div>
               )}
             </div>
-
-            <div className="p-6 border-t border-gray-800 flex justify-end gap-3">
-              <button onClick={() => { setShowCreateModal(false); resetForm(); }} className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm transition-colors">
-                Cancelar
-              </button>
-              <button onClick={handleGuardar} disabled={saving} className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 px-6 py-2 rounded-lg text-sm font-medium transition-colors">
-                {saving ? 'Guardando...' : editOV ? '✅ Guardar Cambios' : '✅ Crear OV'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      </Modal>
 
       {/* ── Modal: Detalle OV ── */}
-      {showDetalleModal && ordenDetalle && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 rounded-2xl border border-gray-700 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-800 flex items-center justify-between">
-              <h3 className="text-lg font-bold">📋 Detalle: <span className="text-blue-400">{ordenDetalle.ov_id}</span></h3>
-              <button onClick={() => setShowDetalleModal(false)} className="text-gray-400 hover:text-white text-xl">✕</button>
-            </div>
-            <div className="p-6 space-y-6">
+      <Modal
+        open={showDetalleModal && !!ordenDetalle}
+        onClose={() => setShowDetalleModal(false)}
+        size="3xl"
+        title={<span className="flex items-center gap-2"><IconDocumento size={18} aria-hidden /> Detalle: <span className="text-blue-400 font-mono">{ordenDetalle?.ov_id}</span></span>}
+        footer={<Button variant="secondary" onClick={() => setShowDetalleModal(false)}>Cerrar</Button>}
+      >
+        {ordenDetalle && (
+            <div className="space-y-6">
               <div className="grid grid-cols-3 gap-4">
                 <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700">
                   <p className="text-xs text-gray-500">Cliente</p>
@@ -586,7 +582,7 @@ export default function VentasTab({ token }: Props) {
               </div>
 
               <div>
-                <h4 className="text-sm font-semibold text-gray-400 mb-2">📦 Productos</h4>
+                <h4 className="text-sm font-semibold text-gray-300 mb-2 flex items-center gap-2"><IconInventario size={16} aria-hidden /> Productos</h4>
                 <div className="bg-gray-800/30 rounded-lg border border-gray-700 overflow-hidden">
                   <table className="w-full text-sm">
                     <thead className="bg-gray-800">
@@ -617,7 +613,7 @@ export default function VentasTab({ token }: Props) {
 
               {ordenDetalle.envios && ordenDetalle.envios.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-semibold text-gray-400 mb-2">🚚 Historial de Envíos</h4>
+                  <h4 className="text-sm font-semibold text-gray-300 mb-2 flex items-center gap-2"><IconLogistica size={16} aria-hidden /> Historial de Envíos</h4>
                   <div className="space-y-2">
                     {ordenDetalle.envios.map((envio: any) => (
                       <div key={envio.envio_id} className="bg-gray-800/30 rounded-lg p-3 border border-gray-700">
@@ -643,24 +639,23 @@ export default function VentasTab({ token }: Props) {
                 </div>
               )}
             </div>
-
-            <div className="p-6 border-t border-gray-800 flex justify-end">
-              <button onClick={() => setShowDetalleModal(false)} className="bg-gray-700 hover:bg-gray-600 px-6 py-2 rounded-lg text-sm transition-colors">
-                Cerrar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+        )}
+      </Modal>
 
       {/* ── Modal: Confirmar Cancelar OV ── */}
-      {deletingOV && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 rounded-2xl border border-red-800 w-full max-w-md">
-            <div className="p-6 border-b border-gray-800">
-              <h3 className="text-lg font-bold text-red-400">🗑️ Cancelar Orden de Venta</h3>
-            </div>
-            <div className="p-6 space-y-4">
+      <Modal
+        open={!!deletingOV}
+        onClose={() => setDeletingOV(null)}
+        title={<span className="flex items-center gap-2 text-red-400"><IconEliminar size={18} aria-hidden /> Cancelar Orden de Venta</span>}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setDeletingOV(null)}>No cancelar</Button>
+            <Button variant="danger" onClick={handleConfirmarEliminar} leftIcon={IconEliminar}>Sí, cancelar</Button>
+          </>
+        }
+      >
+        {deletingOV && (
+            <div className="space-y-4">
               <div className="bg-red-900/20 border border-red-600/40 rounded-lg p-4">
                 <p className="text-sm text-red-300 mb-3">¿Confirmas que deseas cancelar esta orden?</p>
                 <div className="space-y-1 text-sm">
@@ -678,19 +673,10 @@ export default function VentasTab({ token }: Props) {
                   </div>
                 </div>
               </div>
-              <p className="text-xs text-gray-500">La orden cambiará a estado "Cancelada" y se conservará en el historial.</p>
+              <p className="text-xs text-gray-400">La orden cambiará a estado "Cancelada" y se conservará en el historial.</p>
             </div>
-            <div className="p-6 border-t border-gray-800 flex justify-end gap-3">
-              <button onClick={() => setDeletingOV(null)} className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm transition-colors">
-                No cancelar
-              </button>
-              <button onClick={handleConfirmarEliminar} className="bg-red-700 hover:bg-red-800 px-6 py-2 rounded-lg text-sm font-medium transition-colors">
-                🗑️ Sí, cancelar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   );
 }

@@ -3,10 +3,13 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import Link from 'next/link';
 import { ModuleShell, LoadingSpinner } from '@/components/ui';
+import type { TabDef } from '@/components/ui/ModuleShell';
 import { getModuleTheme } from '@/lib/theme';
-import UserBadge from '@/components/UserBadge';
+import {
+  IconDashboard, IconDemanda, IconVentas, IconDocumento, IconLogistica,
+  IconDevoluciones, IconUsuarios,
+} from '@/lib/icons';
 import DashboardTab    from './DashboardTab';
 import VentasTab       from './VentasTab';
 import PlanVentasTab   from './PlanVentasTab';
@@ -16,15 +19,15 @@ import DemandaTab from './DemandaTab';
 import ReportesTab from './ReportesTab';
 import ClientesTab from './ClientesTab';
 
-const ALL_TABS = [
-  { id: 'dashboard',    label: '📊 Dashboard'   },
-  { id: 'demanda',      label: '📈 Demanda'      },
-  { id: 'ventas',       label: '💵 Ventas'       },
-  { id: 'plan-ventas',  label: '📋 Plan Ventas'  },
-  { id: 'control-despachos', label: '🚛 Control de Despachos' },
-  { id: 'devoluciones', label: '🔄 Devoluciones' },
-  { id: 'reportes',     label: '📑 Reportes'     },
-  { id: 'clientes',    label: '👥 Clientes'     },
+const ALL_TABS: TabDef[] = [
+  { id: 'dashboard',         label: 'Dashboard',           icon: IconDashboard },
+  { id: 'demanda',           label: 'Demanda',             icon: IconDemanda },
+  { id: 'ventas',            label: 'Ventas',              icon: IconVentas },
+  { id: 'plan-ventas',       label: 'Plan Ventas',         icon: IconDocumento },
+  { id: 'control-despachos', label: 'Control de Despachos', icon: IconLogistica },
+  { id: 'devoluciones',      label: 'Devoluciones',        icon: IconDevoluciones },
+  { id: 'reportes',          label: 'Reportes',            icon: IconDocumento },
+  { id: 'clientes',          label: 'Clientes',            icon: IconUsuarios },
 ];
 
 const THEME = getModuleTheme('ventas');
@@ -58,35 +61,6 @@ export default function VentasPage() {
 
   if (!token || (rol && !['admin', 'finanzas', 'ventas'].includes(rol))) return null;
 
-
-  const headerRight = (
-    <>
-      {['admin'].includes(rol || '') && (
-        <Link href="/" className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-          🏭 Producción
-        </Link>
-      )}
-      {['admin', 'finanzas'].includes(rol || '') && (
-        <Link href="/compras" className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-          🛒 Compras
-        </Link>
-      )}
-      {rol === 'admin' && (
-        <>
-          <Link href="/calidad"   className="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">🔬 Calidad</Link>
-          <Link href="/almacen"   className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">📦 Almacén</Link>
-          <Link href="/logistica" className="bg-teal-600 hover:bg-teal-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">🚛 Logística</Link>
-          <Link href="/maquinas"  className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">⚙️ Máquinas</Link>
-          <Link href="/admin"     className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">👑 Admin</Link>
-        </>
-      )}
-      <UserBadge rol={rol} username={username} />
-      <button onClick={logout} className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-        🚪 Salir
-      </button>
-    </>
-  );
-
   return (
     <ModuleShell
       moduleKey="ventas"
@@ -94,7 +68,9 @@ export default function VentasPage() {
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={setActiveTab}
-      headerRight={headerRight}
+      rol={rol}
+      username={username}
+      onLogout={logout}
     >
       {activeTab === 'dashboard'    && <DashboardTab    token={token} />}
       {activeTab === 'demanda'      && <DemandaTab      token={token} />}

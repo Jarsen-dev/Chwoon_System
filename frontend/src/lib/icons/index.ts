@@ -90,6 +90,8 @@ export {
 
   // Ventas / clientes
   Users as IconUsuarios,
+  Mail as IconEmail,
+  Phone as IconTelefono,
 
   // Admin
   Database as IconDatabase,

@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { getPlanesVentas, getPlanVentas, importarPlanVentas, autorizarVentasMasivo } from '@/lib/api'
 import type { PlanVentasSemana, PlanVentasItem, DiaSemana } from '@/types'
 import { calcularDIF, colorDIF } from '@/types'
+import { Button, LoadingSpinner } from '@/components/ui'
+import { IconEditar, IconOk, IconCerrar, IconAlertas, IconDocumento, IconRecepciones } from '@/lib/icons'
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
@@ -91,7 +93,7 @@ function CeldaDia({
 
         {/* Badge de estado */}
         {autorizado && (
-          <span className="text-xs text-green-500 font-medium">✓ Aut.</span>
+          <span className="inline-flex items-center gap-0.5 text-xs text-green-500 font-medium"><IconOk size={11} aria-hidden /> Aut.</span>
         )}
         {ovGen && (
           <span className="text-xs text-blue-400 font-mono truncate max-w-[80px]" title={ovGen}>
@@ -269,35 +271,28 @@ export default function PlanVentasTab({ token }: { token: string }) {
 
         <div className="flex items-center gap-2">
           {/* Modo edición */}
-          <button
+          <Button
+            variant={editando ? 'primary' : 'secondary'}
+            leftIcon={IconEditar}
             onClick={() => { setEditando(e => !e); setCambios({}) }}
-            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-              editando
-                ? 'bg-amber-600 hover:bg-amber-700 text-white'
-                : 'bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300'
-            }`}
           >
-            {editando ? '✎ Editando' : '✎ Editar'}
-          </button>
+            {editando ? 'Editando' : 'Editar'}
+          </Button>
 
           {/* Autorizar masivo */}
           {editando && (
-            <button
-              onClick={handleAutorizar}
-              disabled={autorizando}
-              className="px-3 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 rounded-lg text-sm font-bold transition-colors"
-            >
-              {autorizando ? 'Autorizando...' : '✓ Autorizar Pendientes'}
-            </button>
+            <Button onClick={handleAutorizar} disabled={autorizando} leftIcon={IconOk}>
+              {autorizando ? 'Autorizando...' : 'Autorizar Pendientes'}
+            </Button>
           )}
 
           {/* Importar Excel */}
-          <label className={`cursor-pointer px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+          <label className={`inline-flex items-center gap-2 cursor-pointer px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
             importing
               ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
-              : 'bg-blue-600 hover:bg-blue-700 text-white'
+              : 'bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-fg)]'
           }`}>
-            {importing ? 'Importando...' : '⬆ Importar CW PLAN'}
+            <IconRecepciones size={16} aria-hidden /> {importing ? 'Importando...' : 'Importar CW PLAN'}
             <input
               type="file"
               accept=".xlsx,.xls"
@@ -311,22 +306,22 @@ export default function PlanVentasTab({ token }: { token: string }) {
 
       {/* ── Alertas ── */}
       {error && (
-        <div className="bg-red-900/30 border border-red-500/40 rounded-lg px-4 py-3 text-sm text-red-400 flex justify-between">
-          <span>❌ {error}</span>
-          <button onClick={() => setError('')} className="text-red-500 hover:text-red-300">✕</button>
+        <div className="bg-red-900/30 border border-red-500/40 rounded-lg px-4 py-3 text-sm text-red-400 flex justify-between items-center">
+          <span className="flex items-center gap-2"><IconAlertas size={16} aria-hidden /> {error}</span>
+          <button onClick={() => setError('')} className="text-red-500 hover:text-red-300" aria-label="Cerrar"><IconCerrar size={16} aria-hidden /></button>
         </div>
       )}
       {success && (
-        <div className="bg-green-900/30 border border-green-500/40 rounded-lg px-4 py-3 text-sm text-green-400 flex justify-between">
-          <span>✓ {success}</span>
-          <button onClick={() => setSuccess('')} className="text-green-500 hover:text-green-300">✕</button>
+        <div className="bg-green-900/30 border border-green-500/40 rounded-lg px-4 py-3 text-sm text-green-400 flex justify-between items-center">
+          <span className="flex items-center gap-2"><IconOk size={16} aria-hidden /> {success}</span>
+          <button onClick={() => setSuccess('')} className="text-green-500 hover:text-green-300" aria-label="Cerrar"><IconCerrar size={16} aria-hidden /></button>
         </div>
       )}
 
       {/* ── Estado vacío ── */}
       {!loading && planes.length === 0 && (
-        <div className="text-center py-16 text-gray-500">
-          <p className="text-4xl mb-3">📋</p>
+        <div className="text-center py-16 text-gray-400">
+          <IconDocumento size={40} className="mx-auto mb-3 text-gray-600" aria-hidden />
           <p className="font-medium">Sin planes de venta</p>
           <p className="text-sm mt-1">Importa un Excel CW PLAN para comenzar</p>
         </div>
@@ -444,7 +439,7 @@ export default function PlanVentasTab({ token }: { token: string }) {
 
       {loading && (
         <div className="flex justify-center py-16">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400" />
+          <LoadingSpinner sizeClass="h-8 w-8" />
         </div>
       )}
     </div>
