@@ -6,6 +6,9 @@ import { getDashboardInyeccion } from '@/lib/api'
 import { toPng } from 'html-to-image'
 import jsPDF from 'jspdf'
 import {
+  IconGrafico, IconDocumento, IconActualizar, IconProduccion, IconParo, IconReciclar,
+} from '@/lib/icons'
+import {
   ResponsiveContainer,
   LineChart, Line, AreaChart, Area,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -30,20 +33,20 @@ function today(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
-function KpiCard({ title, value, sub, color = 'var(--inj-surface2)' }: { title: string; value: string; sub?: string; color?: string }) {
+function KpiCard({ title, value, sub, color = '#1c2333' }: { title: string; value: string; sub?: string; color?: string }) {
   return (
     <div
       style={{
         background: color,
-        border: '1px solid var(--inj-border)',
+        border: '1px solid #253041',
         borderRadius: 12,
         padding: 16,
         boxShadow: '0 1px 0 rgba(255,255,255,0.02) inset',
       }}
     >
-      <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--inj-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{title}</p>
-      <p style={{ fontSize: 28, fontWeight: 700, color: 'var(--inj-text)', marginTop: 6 }}>{value}</p>
-      {sub && <p style={{ fontSize: 11, color: 'var(--inj-muted)', marginTop: 6 }}>{sub}</p>}
+      <p style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{title}</p>
+      <p style={{ fontSize: 28, fontWeight: 700, color: '#e2e8f0', marginTop: 6 }}>{value}</p>
+      {sub && <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 6 }}>{sub}</p>}
     </div>
   )
 }
@@ -78,7 +81,7 @@ function GaugeChart({ value, label }: { value: number; label: string }) {
           {pct.toFixed(1)}%
         </text>
       </svg>
-      <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--inj-muted)', marginTop: -8 }}>{label}</p>
+      <p style={{ fontSize: 13, fontWeight: 500, color: '#9ca3af', marginTop: -8 }}>{label}</p>
     </div>
   )
 }
@@ -107,8 +110,8 @@ function ParetoChart({ data, xKey, yKey, title }: { data: any[]; xKey: string; y
   }, [data, yKey])
 
   return (
-    <div style={{ background: 'var(--inj-surface)', border: '1px solid var(--inj-border)', borderRadius: 12, padding: 16 }}>
-      <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--inj-text)', marginBottom: 12 }}>{title}</h4>
+    <div style={{ background: '#161b22', border: '1px solid #253041', borderRadius: 12, padding: 16 }}>
+      <h4 style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0', marginBottom: 12 }}>{title}</h4>
       <ResponsiveContainer width="100%" height={280}>
         <ComposedChart data={sorted} margin={{ top: 10, right: 20, bottom: 30, left: 10 }}>
           <CartesianGrid strokeDasharray="3 3" stroke={theme.grid} />
@@ -258,33 +261,34 @@ export default function DashboardInyeccionTab() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <h2 style={{ fontSize: 22, fontWeight: 700, color: 'var(--inj-text)' }}>📊 Dashboard — Inyección</h2>
+        <h2 style={{ fontSize: 22, fontWeight: 700, color: '#e2e8f0' }} className="flex items-center gap-2"><IconGrafico size={20} className="text-amber-400" aria-hidden /> Dashboard — Inyección</h2>
         <div className="flex gap-2">
           <button
             onClick={exportarPDF}
-            className="inj-btn inj-btn-red"
+            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-[13px] font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20"
           >
-            📄 Exportar PDF
+            <IconDocumento size={14} aria-hidden /> Exportar PDF
           </button>
           <button
             onClick={cargar}
             disabled={loading}
-            className="inj-btn inj-btn-ghost"
+            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-[13px] font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed bg-transparent text-gray-300 border border-gray-700 hover:bg-gray-800 hover:text-white"
+            aria-label="Actualizar"
           >
-            🔄
+            <IconActualizar size={14} className={loading ? 'animate-spin' : ''} />
           </button>
         </div>
       </div>
 
       {/* Filtros */}
-      <div style={{ background: 'var(--inj-surface)', border: '1px solid var(--inj-border)', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ background: '#161b22', border: '1px solid #253041', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div className="flex flex-wrap items-center gap-2">
-          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--inj-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Rápido:</span>
+          <span style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Rápido:</span>
           {(['hoy', 'semana', 'mes'] as const).map(r => (
             <button
               key={r}
               onClick={() => setRango(r)}
-              className="inj-btn inj-btn-ghost"
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-[13px] font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed bg-transparent text-gray-300 border border-gray-700 hover:bg-gray-800 hover:text-white"
               style={{ padding: '6px 10px' }}
             >
               {r === 'hoy' ? 'Hoy' : r === 'semana' ? 'Esta semana' : 'Este mes'}
@@ -294,40 +298,40 @@ export default function DashboardInyeccionTab() {
 
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
           <div>
-            <label className="inj-label">Agrupar</label>
-            <select value={groupBy} onChange={e => setGroupBy(e.target.value as any)} className="inj-select">
+            <label className="block text-[11px] font-bold uppercase tracking-[0.08em] text-gray-300 mb-1">Agrupar</label>
+            <select value={groupBy} onChange={e => setGroupBy(e.target.value as any)} className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-[13px] text-gray-200 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15 transition-colors">
               <option value="day">Día</option>
               <option value="week">Semana</option>
               <option value="month">Mes</option>
             </select>
           </div>
           <div>
-            <label className="inj-label">Desde</label>
-            <input type="date" value={fechaDesde} onChange={e => setFechaDesde(e.target.value)} className="inj-input" />
+            <label className="block text-[11px] font-bold uppercase tracking-[0.08em] text-gray-300 mb-1">Desde</label>
+            <input type="date" value={fechaDesde} onChange={e => setFechaDesde(e.target.value)} className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-[13px] text-gray-200 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15 transition-colors placeholder:text-gray-500" />
           </div>
           <div>
-            <label className="inj-label">Hasta</label>
-            <input type="date" value={fechaHasta} onChange={e => setFechaHasta(e.target.value)} className="inj-input" />
+            <label className="block text-[11px] font-bold uppercase tracking-[0.08em] text-gray-300 mb-1">Hasta</label>
+            <input type="date" value={fechaHasta} onChange={e => setFechaHasta(e.target.value)} className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-[13px] text-gray-200 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15 transition-colors placeholder:text-gray-500" />
           </div>
           <div>
-            <label className="inj-label">Turno</label>
-            <select value={filtroTurno} onChange={e => setFiltroTurno(e.target.value)} className="inj-select">
+            <label className="block text-[11px] font-bold uppercase tracking-[0.08em] text-gray-300 mb-1">Turno</label>
+            <select value={filtroTurno} onChange={e => setFiltroTurno(e.target.value)} className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-[13px] text-gray-200 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15 transition-colors">
               <option value="">Todos</option>
               <option value="DIA">DIA</option>
               <option value="NOCHE">NOCHE</option>
             </select>
           </div>
           <div>
-            <label className="inj-label">No. Parte</label>
-            <input value={filtroParte} onChange={e => setFiltroParte(e.target.value)} className="inj-input uppercase" placeholder="Filtrar..." />
+            <label className="block text-[11px] font-bold uppercase tracking-[0.08em] text-gray-300 mb-1">No. Parte</label>
+            <input value={filtroParte} onChange={e => setFiltroParte(e.target.value)} className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-[13px] text-gray-200 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15 transition-colors placeholder:text-gray-500 uppercase" placeholder="Filtrar..." />
           </div>
           <div>
-            <label className="inj-label">Cliente</label>
-            <input value={filtroCliente} onChange={e => setFiltroCliente(e.target.value)} className="inj-input" placeholder="Filtrar..." />
+            <label className="block text-[11px] font-bold uppercase tracking-[0.08em] text-gray-300 mb-1">Cliente</label>
+            <input value={filtroCliente} onChange={e => setFiltroCliente(e.target.value)} className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-[13px] text-gray-200 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15 transition-colors placeholder:text-gray-500" placeholder="Filtrar..." />
           </div>
           <div>
-            <label className="inj-label">Máquina</label>
-            <input value={filtroMaquina} onChange={e => setFiltroMaquina(e.target.value)} className="inj-input uppercase" placeholder="Filtrar..." />
+            <label className="block text-[11px] font-bold uppercase tracking-[0.08em] text-gray-300 mb-1">Máquina</label>
+            <input value={filtroMaquina} onChange={e => setFiltroMaquina(e.target.value)} className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-[13px] text-gray-200 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15 transition-colors placeholder:text-gray-500 uppercase" placeholder="Filtrar..." />
           </div>
         </div>
       </div>
@@ -353,23 +357,23 @@ export default function DashboardInyeccionTab() {
 
           {/* Gauges */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div style={{ background: 'var(--inj-surface)', border: '1px solid var(--inj-border)', borderRadius: 12, padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ background: '#161b22', border: '1px solid #253041', borderRadius: 12, padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <GaugeChart value={totales.produccion_porcentaje_promedio || 0} label="Producción % vs Meta" />
             </div>
-            <div style={{ background: 'var(--inj-surface)', border: '1px solid var(--inj-border)', borderRadius: 12, padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ background: '#161b22', border: '1px solid #253041', borderRadius: 12, padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <GaugeChart value={totales.scrap_porcentaje_promedio || 0} label="Scrap % vs Producción" />
             </div>
           </div>
 
           {/* PRODUCCIÓN */}
           <div className="space-y-4">
-            <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--inj-text)', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span className="inline-block w-2 h-6 rounded-full" style={{ background: '#10b981' }} /> 🏭 Producción
+            <h3 style={{ fontSize: 18, fontWeight: 700, color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span className="inline-block w-2 h-6 rounded-full" style={{ background: '#10b981' }} /> <IconProduccion size={18} aria-hidden /> Producción
             </h3>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div style={{ background: 'var(--inj-surface)', border: '1px solid var(--inj-border)', borderRadius: 12, padding: 16 }}>
-                <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--inj-text)', marginBottom: 12 }}>Producción vs Meta por Período</h4>
+              <div style={{ background: '#161b22', border: '1px solid #253041', borderRadius: 12, padding: 16 }}>
+                <h4 style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0', marginBottom: 12 }}>Producción vs Meta por Período</h4>
                 <ResponsiveContainer width="100%" height={300}>
                   <AreaChart data={prodMetaData} margin={{ top: 10, right: 20, bottom: 30, left: 10 }}>
                     <defs>
@@ -393,8 +397,8 @@ export default function DashboardInyeccionTab() {
                 </ResponsiveContainer>
               </div>
 
-              <div style={{ background: 'var(--inj-surface)', border: '1px solid var(--inj-border)', borderRadius: 12, padding: 16 }}>
-                <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--inj-text)', marginBottom: 12 }}>Producción % por Período</h4>
+              <div style={{ background: '#161b22', border: '1px solid #253041', borderRadius: 12, padding: 16 }}>
+                <h4 style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0', marginBottom: 12 }}>Producción % por Período</h4>
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={prodMetaData} margin={{ top: 10, right: 20, bottom: 30, left: 10 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={theme.grid} />
@@ -408,8 +412,8 @@ export default function DashboardInyeccionTab() {
                 </ResponsiveContainer>
               </div>
 
-              <div style={{ background: 'var(--inj-surface)', border: '1px solid var(--inj-border)', borderRadius: 12, padding: 16 }}>
-                <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--inj-text)', marginBottom: 12 }}>Producción por Máquina</h4>
+              <div style={{ background: '#161b22', border: '1px solid #253041', borderRadius: 12, padding: 16 }}>
+                <h4 style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0', marginBottom: 12 }}>Producción por Máquina</h4>
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={porMaquina} layout="vertical" margin={{ top: 10, right: 20, bottom: 10, left: 10 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={theme.grid} />
@@ -421,8 +425,8 @@ export default function DashboardInyeccionTab() {
                 </ResponsiveContainer>
               </div>
 
-              <div style={{ background: 'var(--inj-surface)', border: '1px solid var(--inj-border)', borderRadius: 12, padding: 16 }}>
-                <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--inj-text)', marginBottom: 12 }}>Distribución por Turno</h4>
+              <div style={{ background: '#161b22', border: '1px solid #253041', borderRadius: 12, padding: 16 }}>
+                <h4 style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0', marginBottom: 12 }}>Distribución por Turno</h4>
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
                     <Pie
@@ -450,13 +454,13 @@ export default function DashboardInyeccionTab() {
 
           {/* PAROS */}
           <div className="space-y-4">
-            <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--inj-text)', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span className="inline-block w-2 h-6 rounded-full" style={{ background: '#ef4444' }} /> 🛑 Paros
+            <h3 style={{ fontSize: 18, fontWeight: 700, color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span className="inline-block w-2 h-6 rounded-full" style={{ background: '#ef4444' }} /> <IconParo size={18} aria-hidden /> Paros
             </h3>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div style={{ background: 'var(--inj-surface)', border: '1px solid var(--inj-border)', borderRadius: 12, padding: 16 }}>
-                <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--inj-text)', marginBottom: 12 }}>Tiempo Paro por Período</h4>
+              <div style={{ background: '#161b22', border: '1px solid #253041', borderRadius: 12, padding: 16 }}>
+                <h4 style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0', marginBottom: 12 }}>Tiempo Paro por Período</h4>
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={porPeriodo} margin={{ top: 10, right: 20, bottom: 30, left: 10 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={theme.grid} />
@@ -468,8 +472,8 @@ export default function DashboardInyeccionTab() {
                 </ResponsiveContainer>
               </div>
 
-              <div style={{ background: 'var(--inj-surface)', border: '1px solid var(--inj-border)', borderRadius: 12, padding: 16 }}>
-                <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--inj-text)', marginBottom: 12 }}>Tiempo Paro por Máquina</h4>
+              <div style={{ background: '#161b22', border: '1px solid #253041', borderRadius: 12, padding: 16 }}>
+                <h4 style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0', marginBottom: 12 }}>Tiempo Paro por Máquina</h4>
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={porMaquina} layout="vertical" margin={{ top: 10, right: 20, bottom: 10, left: 10 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={theme.grid} />
@@ -481,8 +485,8 @@ export default function DashboardInyeccionTab() {
                 </ResponsiveContainer>
               </div>
 
-              <div style={{ background: 'var(--inj-surface)', border: '1px solid var(--inj-border)', borderRadius: 12, padding: 16 }}>
-                <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--inj-text)', marginBottom: 12 }}>Distribución de Paros por Motivo</h4>
+              <div style={{ background: '#161b22', border: '1px solid #253041', borderRadius: 12, padding: 16 }}>
+                <h4 style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0', marginBottom: 12 }}>Distribución de Paros por Motivo</h4>
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
                     <Pie
@@ -511,13 +515,13 @@ export default function DashboardInyeccionTab() {
 
           {/* SCRAP */}
           <div className="space-y-4">
-            <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--inj-text)', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span className="inline-block w-2 h-6 rounded-full" style={{ background: '#f97316' }} /> ♻️ Scrap
+            <h3 style={{ fontSize: 18, fontWeight: 700, color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span className="inline-block w-2 h-6 rounded-full" style={{ background: '#f97316' }} /> <IconReciclar size={18} aria-hidden /> Scrap
             </h3>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div style={{ background: 'var(--inj-surface)', border: '1px solid var(--inj-border)', borderRadius: 12, padding: 16 }}>
-                <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--inj-text)', marginBottom: 12 }}>Scrap por Período</h4>
+              <div style={{ background: '#161b22', border: '1px solid #253041', borderRadius: 12, padding: 16 }}>
+                <h4 style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0', marginBottom: 12 }}>Scrap por Período</h4>
                 <ResponsiveContainer width="100%" height={300}>
                   <ComposedChart data={porPeriodo} margin={{ top: 10, right: 20, bottom: 30, left: 10 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={theme.grid} />
@@ -532,8 +536,8 @@ export default function DashboardInyeccionTab() {
                 </ResponsiveContainer>
               </div>
 
-              <div style={{ background: 'var(--inj-surface)', border: '1px solid var(--inj-border)', borderRadius: 12, padding: 16 }}>
-                <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--inj-text)', marginBottom: 12 }}>Scrap por Motivo</h4>
+              <div style={{ background: '#161b22', border: '1px solid #253041', borderRadius: 12, padding: 16 }}>
+                <h4 style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0', marginBottom: 12 }}>Scrap por Motivo</h4>
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={porMotivoScrap} margin={{ top: 10, right: 20, bottom: 30, left: 10 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={theme.grid} />
@@ -545,8 +549,8 @@ export default function DashboardInyeccionTab() {
                 </ResponsiveContainer>
               </div>
 
-              <div style={{ background: 'var(--inj-surface)', border: '1px solid var(--inj-border)', borderRadius: 12, padding: 16 }}>
-                <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--inj-text)', marginBottom: 12 }}>Distribución de Scrap</h4>
+              <div style={{ background: '#161b22', border: '1px solid #253041', borderRadius: 12, padding: 16 }}>
+                <h4 style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0', marginBottom: 12 }}>Distribución de Scrap</h4>
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
                     <Pie
@@ -577,10 +581,10 @@ export default function DashboardInyeccionTab() {
           {/* Tabla Resumen */}
           {data?.registros_detalle?.length > 0 && (
             <div className="space-y-2">
-              <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--inj-text)' }}>📋 Registros Detalle</h3>
-              <div style={{ background: 'var(--inj-surface)', border: '1px solid var(--inj-border)', borderRadius: 12, overflowX: 'auto', maxHeight: 500, overflowY: 'auto' }}>
-                <table className="w-full text-xs" style={{ color: 'var(--inj-text)' }}>
-                  <thead style={{ background: 'var(--inj-surface2)', position: 'sticky', top: 0 }}>
+              <h3 style={{ fontSize: 18, fontWeight: 700, color: '#e2e8f0' }} className="flex items-center gap-2"><IconDocumento size={18} aria-hidden /> Registros Detalle</h3>
+              <div style={{ background: '#161b22', border: '1px solid #253041', borderRadius: 12, overflowX: 'auto', maxHeight: 500, overflowY: 'auto' }}>
+                <table className="w-full text-xs" style={{ color: '#e2e8f0' }}>
+                  <thead style={{ background: '#1c2333', position: 'sticky', top: 0 }}>
                     <tr>
                       <th className="px-3 py-2 text-left">Fecha</th>
                       <th className="px-3 py-2 text-left">Turno</th>
@@ -597,8 +601,8 @@ export default function DashboardInyeccionTab() {
                   </thead>
                   <tbody>
                     {data.registros_detalle.map((r: any) => (
-                      <tr key={r.id} style={{ borderTop: '1px solid var(--inj-border)' }}>
-                        <td className="px-3 py-2" style={{ color: 'var(--inj-muted)' }}>{r.fecha?.slice(0, 10) || '—'}</td>
+                      <tr key={r.id} style={{ borderTop: '1px solid #253041' }}>
+                        <td className="px-3 py-2" style={{ color: '#9ca3af' }}>{r.fecha?.slice(0, 10) || '—'}</td>
                         <td className="px-3 py-2">{r.turno}</td>
                         <td className="px-3 py-2" style={{ fontWeight: 600 }}>{r.numero_parte}</td>
                         <td className="px-3 py-2">{r.cliente}</td>
@@ -620,9 +624,9 @@ export default function DashboardInyeccionTab() {
       )}
 
       {!loading && !data && (
-        <div style={{ background: 'var(--inj-surface)', border: '1px solid var(--inj-border)', borderRadius: 12, padding: 48, textAlign: 'center' }}>
-          <p style={{ fontSize: 40, marginBottom: 12 }}>📊</p>
-          <p style={{ color: 'var(--inj-muted)' }}>No hay datos para mostrar. Ajusta los filtros.</p>
+        <div style={{ background: '#161b22', border: '1px solid #253041', borderRadius: 12, padding: 48, textAlign: 'center' }}>
+          <IconGrafico size={40} className="mx-auto mb-3 text-gray-500" aria-hidden />
+          <p style={{ color: '#9ca3af' }}>No hay datos para mostrar. Ajusta los filtros.</p>
         </div>
       )}
     </div>

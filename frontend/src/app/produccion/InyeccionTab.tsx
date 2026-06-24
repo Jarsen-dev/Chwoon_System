@@ -26,6 +26,13 @@ import { UbicacionAlmacen, ReporteManualInyeccion } from '@/types'
 import { PlanInyeccionItem, ReporteInyeccionGeneral } from '@/lib/api'
 import CuartoSecadoTab from './CuartoSecadoTab'
 import DashboardInyeccionTab from './DashboardInyeccionTab'
+import { Modal } from '@/components/ui'
+import {
+  IconMaquinas, IconSecado, IconGrafico, IconDocumento, IconDemanda,
+  IconCerrar, IconNuevo, IconActualizar, IconOk, IconAlertas, IconGuardar,
+  IconEliminar, IconEjecutar, IconSilo, IconSinMovimiento, IconPendiente,
+  IconVer, IconReciclar, IconTurnoDia, IconTurnoNoche, type LucideIcon,
+} from '@/lib/icons'
 
 
 type SubTab = 'produccion' | 'secado' | 'reporte' | 'reporte-manual' | 'dashboard'
@@ -94,30 +101,33 @@ function getTurnoFromISO(iso?: string): 'DIA' | 'NOCHE' {
 export default function InyeccionTab() {
   const [subTab, setSubTab] = useState<SubTab>('produccion')
 
-  const tabs: { id: SubTab; label: string; icon: string }[] = [
-    { id: 'produccion',     label: 'Producción',     icon: '⚙️' },
-    { id: 'secado',         label: 'Cuarto Secado',  icon: '🌡️' },
-    { id: 'reporte',        label: 'Reporte',        icon: '📊' },
-    { id: 'reporte-manual', label: 'Reporte Manual', icon: '📝' },
-    { id: 'dashboard',      label: 'Dashboard',      icon: '📈' },
+  const tabs: { id: SubTab; label: string; icon: LucideIcon }[] = [
+    { id: 'produccion',     label: 'Producción',     icon: IconMaquinas },
+    { id: 'secado',         label: 'Cuarto Secado',  icon: IconSecado },
+    { id: 'reporte',        label: 'Reporte',        icon: IconGrafico },
+    { id: 'reporte-manual', label: 'Reporte Manual', icon: IconDocumento },
+    { id: 'dashboard',      label: 'Dashboard',      icon: IconDemanda },
   ]
 
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-1 bg-gray-800 rounded-xl p-1">
-        {tabs.map(t => (
-          <button
-            key={t.id}
-            onClick={() => setSubTab(t.id)}
-            className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
-              subTab === t.id
-                ? 'bg-gray-900 text-amber-400 shadow-sm'
-                : 'text-gray-400 hover:text-gray-300'
-            }`}
-          >
-            {t.icon} {t.label}
-          </button>
-        ))}
+        {tabs.map(t => {
+          const TabIcon = t.icon
+          return (
+            <button
+              key={t.id}
+              onClick={() => setSubTab(t.id)}
+              className={`flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+                subTab === t.id
+                  ? 'bg-gray-900 text-amber-400 shadow-sm'
+                  : 'text-gray-300 hover:text-white'
+              }`}
+            >
+              <TabIcon size={16} aria-hidden /> {t.label}
+            </button>
+          )
+        })}
       </div>
       {subTab === 'produccion'     && <ProduccionSubTab />}
       {subTab === 'secado'         && <CuartoSecadoTab />}
@@ -332,30 +342,30 @@ function ProduccionSubTab() {
       {/* ── Header row ── */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
-          <div className="text-lg font-bold text-white">⚙️ Plan de Inyección</div>
-          <div className="text-[11px] text-gray-400 mt-0.5">
+          <div className="text-lg font-bold text-white flex items-center gap-2"><IconMaquinas size={20} className="text-amber-400" aria-hidden /> Plan de Inyección</div>
+          <div className="text-[11px] text-gray-300 mt-0.5">
             {pendientes.length} pendiente · {enProceso.length} en proceso · {finalizados.length} finalizado
           </div>
         </div>
         <div className="flex gap-2 flex-wrap">
           <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-amber-500 text-black border-amber-500 hover:bg-amber-400" onClick={() => setShowForm(!showForm)}>
-            {showForm ? '✕ Cancelar' : '＋ Nuevo Plan'}
+            {showForm ? <><IconCerrar size={13} aria-hidden /> Cancelar</> : <><IconNuevo size={13} aria-hidden /> Nuevo Plan</>}
           </button>
           <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20" onClick={() => fileRef.current?.click()}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2}><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Importar Excel
           </button>
           <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImportar} />
-          <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-transparent text-gray-400 border-gray-800 hover:text-white hover:border-gray-700 hover:bg-gray-800" onClick={cargar} disabled={loading}>
-            {loading ? '⟳' : '↻'} Actualizar
+          <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-transparent text-gray-300 border-gray-800 hover:text-white hover:border-gray-700 hover:bg-gray-800" onClick={cargar} disabled={loading}>
+            <IconActualizar size={13} className={loading ? 'animate-spin' : ''} aria-hidden /> Actualizar
           </button>
         </div>
       </div>
 
       {/* Alert */}
       {msg && (
-        <div className={`px-3.5 py-2.5 rounded-[7px] text-xs font-medium flex items-start gap-2 animate-[slide-in_0.2s_ease] ${msg.tipo === 'ok' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-red-500/10 text-red-400 border border-red-500/30'}`}>
-          {msg.tipo === 'ok' ? '✓' : '⚠'} {msg.texto}
+        <div className={`px-3.5 py-2.5 rounded-[7px] text-xs font-medium flex items-center gap-2 animate-[slide-in_0.2s_ease] ${msg.tipo === 'ok' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-red-500/10 text-red-400 border border-red-500/30'}`}>
+          {msg.tipo === 'ok' ? <IconOk size={14} aria-hidden /> : <IconAlertas size={14} aria-hidden />} {msg.texto}
         </div>
       )}
 
@@ -416,18 +426,18 @@ function ProduccionSubTab() {
                   }}
                 />
                 {partes.length > 1 && (
-                  <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20"
-                    onClick={() => setPartes(partes.filter((_, i) => i !== idx))}>✕</button>
+                  <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20" aria-label="Quitar"
+                    onClick={() => setPartes(partes.filter((_, i) => i !== idx))}><IconCerrar size={14} /></button>
                 )}
               </div>
             ))}
 
             <div className="flex gap-2 pt-1">
-              <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-transparent text-gray-400 border-gray-800 hover:text-white hover:border-gray-700 hover:bg-gray-800"
+              <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-transparent text-gray-300 border-gray-800 hover:text-white hover:border-gray-700 hover:bg-gray-800"
                 onClick={() => setPartes([...partes, { numero_parte: '', plan_piezas: '' }])}>
-                ＋ Agregar parte
+                <IconNuevo size={13} aria-hidden /> Agregar parte
               </button>
-              <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-amber-500 text-black border-amber-500 hover:bg-amber-400" onClick={handleGuardar}>💾 Guardar Plan</button>
+              <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-amber-500 text-black border-amber-500 hover:bg-amber-400" onClick={handleGuardar}><IconGuardar size={13} aria-hidden /> Guardar Plan</button>
             </div>
           </div>
         </div>
@@ -469,10 +479,10 @@ function ProduccionSubTab() {
                           </td>
                           <td className="c">
                             <div className="flex justify-center gap-1.5">
-                              <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20" onClick={() => handleIniciar(item.id)}>▶ Iniciar</button>
-                              <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20"
+                              <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20" onClick={() => handleIniciar(item.id)}><IconEjecutar size={13} aria-hidden /> Iniciar</button>
+                              <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20" aria-label="Eliminar"
                                 onClick={() => setEliminarModal({ id: item.id, numero_parte: item.numero_parte, maquina: item.maquina })}>
-                                🗑
+                                <IconEliminar size={14} />
                               </button>
                             </div>
                           </td>
@@ -508,11 +518,11 @@ function ProduccionSubTab() {
                     <span className="font-mono text-[13px] font-medium text-cyan-400">{item.numero_parte}</span>
                     {item.aux_silo && (
                       <span className="text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full inline-flex items-center gap-1 bg-cyan-500/10 text-cyan-400 border border-cyan-500/25">
-                        🏭 {item.aux_silo}
+                        <IconSilo size={11} aria-hidden /> {item.aux_silo}
                       </span>
                     )}
                     <span className={`text-[10px] font-semibold tracking-[0.06em] uppercase px-2 py-0.5 rounded-[20px] inline-flex items-center gap-1 ${enParo ? 'bg-red-500/10 text-red-400 border border-red-500/30 animate-[blink-pill_1s_ease-in-out_infinite]' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'}`}>
-                      {enParo ? '⬛ PARO' : '⬤ ACTIVO'}
+                      {enParo ? <><IconSinMovimiento size={11} aria-hidden /> PARO</> : <><span className="w-2 h-2 rounded-full bg-emerald-400" aria-hidden /> ACTIVO</>}
                     </span>
                     <div className="ml-auto">
                       <span className={`font-mono text-[22px] font-semibold text-white tracking-wide ${enParo ? ' text-red-400': ''}`}>
@@ -545,15 +555,15 @@ function ProduccionSubTab() {
                           onClick={() => puedAv && setAvanceModal({ id: item.id, cav: item.cav, numero_parte: item.numero_parte })}
                           title={puedAv ? '' : 'Ya se registró avance en esta franja horaria'}
                         >
-                          {puedAv ? '➕ Registrar Avance' : '⏳ Esperar siguiente hora'}
+                          {puedAv ? <><IconNuevo size={13} aria-hidden /> Registrar Avance</> : <><IconPendiente size={13} aria-hidden /> Esperar siguiente hora</>}
                         </button>
                         <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20"
                           onClick={() => setParoModal({ id: item.id, numero_parte: item.numero_parte, maquina: item.maquina })}>
-                          ⏸ Paro
+                          <IconSinMovimiento size={13} aria-hidden /> Paro
                         </button>
                         <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20"
                           onClick={() => setFinalizarModal({ id: item.id, numero_parte: item.numero_parte, maquina: item.maquina })}>
-                          ✓ Finalizar
+                          <IconOk size={13} aria-hidden /> Finalizar
                         </button>
                       </div>
                     ) : (
@@ -563,7 +573,7 @@ function ProduccionSubTab() {
                         </div>
                         <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-amber-500 text-black border-amber-500 hover:bg-amber-400"
                           onClick={() => setReanudarModal({ id: item.id, maquina: item.maquina, numero_parte: item.numero_parte })}>
-                          ▶ Reanudar
+                          <IconEjecutar size={13} aria-hidden /> Reanudar
                         </button>
                       </div>
                     )}
@@ -577,8 +587,8 @@ function ProduccionSubTab() {
 
       {pendientes.length === 0 && enProceso.length === 0 && (
         <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-          <div className="px-5 py-10 text-center text-gray-400">
-            <div className="text-[32px] mb-2 opacity-50">⚙️</div>
+          <div className="px-5 py-10 text-center text-gray-300">
+            <IconMaquinas size={32} className="mx-auto mb-2 text-gray-500" aria-hidden />
             <div className="text-[13px]">No hay órdenes activas. Crea un plan o importa desde Excel.</div>
           </div>
         </div>
@@ -620,150 +630,158 @@ function ProduccionSubTab() {
       {/* ═══ MODALS ═══ */}
 
       {/* Avance */}
-      {avanceModal && (
-        <div className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center p-4 backdrop-blur-[3px] animate-[fade-in_0.15s_ease]">
-          <div className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-[480px] shadow-[0_20px_60px_rgba(0,0,0,0.6)] animate-[modal-in_0.2s_ease]">
-            <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
-              <span className="text-sm font-bold text-white">➕ Registrar Avance</span>
-              <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-transparent text-gray-400 border-gray-800 hover:text-white hover:border-gray-700 hover:bg-gray-800"
-                onClick={() => { setAvanceModal(null); setAvanceCiclo(''); setAvanceContador('') }}>✕</button>
+      <Modal
+        open={!!avanceModal}
+        onClose={() => { setAvanceModal(null); setAvanceCiclo(''); setAvanceContador('') }}
+        size="md"
+        title={<span className="flex items-center gap-2"><IconNuevo size={16} className="text-amber-400" aria-hidden /> Registrar Avance</span>}
+        footer={
+          <>
+            <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-transparent text-gray-300 border-gray-800 hover:text-white hover:border-gray-700 hover:bg-gray-800" onClick={() => { setAvanceModal(null); setAvanceCiclo(''); setAvanceContador('') }}>Cancelar</button>
+            <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-amber-500 text-black border-amber-500 hover:bg-amber-400" disabled={!avanceCiclo || !avanceContador} onClick={handleAvanzar}>Registrar</button>
+          </>
+        }
+      >
+        {avanceModal && (
+          <div className="flex flex-col gap-3.5">
+            <div className="bg-gray-800 rounded-lg px-3.5 py-2.5 text-xs">
+              <span className="font-mono text-sm font-medium text-cyan-400">{avanceModal.numero_parte}</span>
+              <span className="text-gray-300 ml-2.5">Cav: {avanceModal.cav}</span>
             </div>
-            <div className="p-5 flex flex-col gap-3.5">
-              <div className="bg-gray-800 rounded-lg px-3.5 py-2.5 text-xs">
-                <span className="font-mono text-sm font-medium text-cyan-400">{avanceModal.numero_parte}</span>
-                <span className="text-gray-400 ml-2.5">Cav: {avanceModal.cav}</span>
+            {avanceCiclo && avanceContador && (
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3.5 py-2.5 text-center">
+                <span className="text-xs text-gray-300">Piezas a registrar: </span>
+                <span className="font-mono text-xl font-semibold text-amber-400 ml-1.5">
+                  {(parseInt(avanceContador || '0') * avanceModal.cav).toLocaleString()}
+                </span>
+                <span className="text-xs text-gray-300 ml-1.5">({avanceContador} × {avanceModal.cav} cav)</span>
               </div>
-              {avanceCiclo && avanceContador && (
-                <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3.5 py-2.5 text-center">
-                  <span className="text-xs text-gray-400">Piezas a registrar: </span>
-                  <span className="font-mono text-xl font-semibold text-amber-400 ml-1.5">
-                    {(parseInt(avanceContador || '0') * avanceModal.cav).toLocaleString()}
-                  </span>
-                  <span className="text-xs text-gray-400 ml-1.5">({avanceContador} × {avanceModal.cav} cav)</span>
-                </div>
-              )}
-              <div><label className="block text-[10px] font-bold tracking-[0.08em] uppercase text-gray-400 mb-[5px]">Tiempo de Ciclo (seg)</label>
-                <input className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none transition-colors duration-150 appearance-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15 placeholder:text-gray-400" type="number" min={0} step={0.1} value={avanceCiclo}
-                  onChange={e => setAvanceCiclo(e.target.value)} autoFocus placeholder="ej: 45" /></div>
-              <div><label className="block text-[10px] font-bold tracking-[0.08em] uppercase text-gray-400 mb-[5px]">Contador por Hora</label>
-                <input className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none transition-colors duration-150 appearance-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15 placeholder:text-gray-400" type="number" min={0} value={avanceContador}
-                  onChange={e => setAvanceContador(e.target.value)} placeholder="ej: 120" /></div>
-            </div>
-            <div className="px-5 py-3.5 border-t border-gray-800 flex gap-2 justify-end">
-              <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-transparent text-gray-400 border-gray-800 hover:text-white hover:border-gray-700 hover:bg-gray-800" onClick={() => { setAvanceModal(null); setAvanceCiclo(''); setAvanceContador('') }}>Cancelar</button>
-              <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-amber-500 text-black border-amber-500 hover:bg-amber-400" disabled={!avanceCiclo || !avanceContador} onClick={handleAvanzar}>Registrar</button>
-            </div>
+            )}
+            <div><label className="block text-[10px] font-bold tracking-[0.08em] uppercase text-gray-300 mb-[5px]">Tiempo de Ciclo (seg)</label>
+              <input className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none transition-colors duration-150 appearance-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15 placeholder:text-gray-400" type="number" min={0} step={0.1} value={avanceCiclo}
+                onChange={e => setAvanceCiclo(e.target.value)} autoFocus placeholder="ej: 45" /></div>
+            <div><label className="block text-[10px] font-bold tracking-[0.08em] uppercase text-gray-300 mb-[5px]">Contador por Hora</label>
+              <input className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none transition-colors duration-150 appearance-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15 placeholder:text-gray-400" type="number" min={0} value={avanceContador}
+                onChange={e => setAvanceContador(e.target.value)} placeholder="ej: 120" /></div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
 
       {/* Paro */}
-      {paroModal && (
-        <div className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center p-4 backdrop-blur-[3px] animate-[fade-in_0.15s_ease]">
-          <div className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-[480px] shadow-[0_20px_60px_rgba(0,0,0,0.6)] animate-[modal-in_0.2s_ease]">
-            <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
-              <span className="text-sm font-bold text-white">⏸ Registrar Paro</span>
+      <Modal
+        open={!!paroModal}
+        onClose={() => setParoModal(null)}
+        size="md"
+        title={<span className="flex items-center gap-2 text-red-400"><IconSinMovimiento size={16} aria-hidden /> Registrar Paro</span>}
+        footer={
+          <>
+            <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-transparent text-gray-300 border-gray-800 hover:text-white hover:border-gray-700 hover:bg-gray-800" onClick={() => setParoModal(null)}>Cancelar</button>
+            <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20" onClick={handleConfirmarParo}><IconSinMovimiento size={13} aria-hidden /> Confirmar Paro</button>
+          </>
+        }
+      >
+        {paroModal && (
+          <div className="flex flex-col gap-3">
+            <div className="text-sm text-gray-300">
+              Máquina <span className="text-white font-semibold">{paroModal.maquina}</span> · <span className="font-mono text-sm font-medium text-cyan-400">{paroModal.numero_parte}</span>
             </div>
-            <div className="p-5 flex flex-col gap-3">
-              <div className="text-sm text-gray-400">
-                Máquina <span className="text-white font-semibold">{paroModal.maquina}</span> · <span className="font-mono text-sm font-medium text-cyan-400">{paroModal.numero_parte}</span>
-              </div>
-              <div className="bg-amber-500/10 border border-amber-500/25 rounded-lg px-3 py-2.5 text-xs text-amber-400">El cronómetro de paro comenzará inmediatamente. El motivo se registra al reanudar.</div>
-            </div>
-            <div className="px-5 py-3.5 border-t border-gray-800 flex gap-2 justify-end">
-              <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-transparent text-gray-400 border-gray-800 hover:text-white hover:border-gray-700 hover:bg-gray-800" onClick={() => setParoModal(null)}>Cancelar</button>
-              <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20" onClick={handleConfirmarParo}>⏸ Confirmar Paro</button>
-            </div>
+            <div className="bg-amber-500/10 border border-amber-500/25 rounded-lg px-3 py-2.5 text-xs text-amber-400">El cronómetro de paro comenzará inmediatamente. El motivo se registra al reanudar.</div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
 
       {/* Reanudar */}
-      {reanudarModal && (
-        <div className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center p-4 backdrop-blur-[3px] animate-[fade-in_0.15s_ease]">
-          <div className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-[480px] shadow-[0_20px_60px_rgba(0,0,0,0.6)] animate-[modal-in_0.2s_ease]">
-            <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
-              <span className="text-sm font-bold text-white">▶ Reanudar — Registrar Motivo de Paro</span>
+      <Modal
+        open={!!reanudarModal}
+        onClose={() => { setReanudarModal(null); setReanudarMotivo(''); setReanudarSubMotivo(''); setReanudarComentarios('') }}
+        size="md"
+        title={<span className="flex items-center gap-2"><IconEjecutar size={16} className="text-amber-400" aria-hidden /> Reanudar — Registrar Motivo de Paro</span>}
+        footer={
+          <>
+            <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-transparent text-gray-300 border-gray-800 hover:text-white hover:border-gray-700 hover:bg-gray-800" onClick={() => {
+              setReanudarModal(null); setReanudarMotivo(''); setReanudarSubMotivo(''); setReanudarComentarios('')
+            }}>Cancelar</button>
+            <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-amber-500 text-black border-amber-500 hover:bg-amber-400"
+              disabled={!reanudarMotivo || (reanudarMotivo === 'Mantenimiento' && !reanudarSubMotivo)}
+              onClick={handleReanudar}><IconEjecutar size={13} aria-hidden /> Reanudar</button>
+          </>
+        }
+      >
+        {reanudarModal && (
+          <div className="flex flex-col gap-3">
+            <div className="text-xs text-gray-300">
+              {reanudarModal.maquina} · <span className="font-mono text-sm font-medium text-cyan-400">{reanudarModal.numero_parte}</span>
             </div>
-            <div className="p-5 flex flex-col gap-3">
-              <div className="text-xs text-gray-400">
-                {reanudarModal.maquina} · <span className="font-mono text-sm font-medium text-cyan-400">{reanudarModal.numero_parte}</span>
-              </div>
+            <div>
+              <label className="block text-[10px] font-bold tracking-[0.08em] uppercase text-gray-300 mb-[5px]">Motivo del Paro *</label>
+              <select className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none transition-colors duration-150 appearance-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15" value={reanudarMotivo} onChange={e => setReanudarMotivo(e.target.value)}>
+                <option value="">— Seleccionar —</option>
+                {MOTIVOS_PARO.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </div>
+            {reanudarMotivo === 'Mantenimiento' && (
               <div>
-                <label className="block text-[10px] font-bold tracking-[0.08em] uppercase text-gray-400 mb-[5px]">Motivo del Paro *</label>
-                <select className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none transition-colors duration-150 appearance-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15" value={reanudarMotivo} onChange={e => setReanudarMotivo(e.target.value)}>
+                <label className="block text-[10px] font-bold tracking-[0.08em] uppercase text-gray-300 mb-[5px]">Motivo de Mantenimiento *</label>
+                <select className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none transition-colors duration-150 appearance-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15" value={reanudarSubMotivo} onChange={e => setReanudarSubMotivo(e.target.value)}>
                   <option value="">— Seleccionar —</option>
-                  {MOTIVOS_PARO.map(m => <option key={m} value={m}>{m}</option>)}
+                  {MOTIVOS_MANTENIMIENTO.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
-              {reanudarMotivo === 'Mantenimiento' && (
-                <div>
-                  <label className="block text-[10px] font-bold tracking-[0.08em] uppercase text-gray-400 mb-[5px]">Motivo de Mantenimiento *</label>
-                  <select className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none transition-colors duration-150 appearance-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15" value={reanudarSubMotivo} onChange={e => setReanudarSubMotivo(e.target.value)}>
-                    <option value="">— Seleccionar —</option>
-                    {MOTIVOS_MANTENIMIENTO.map(m => <option key={m} value={m}>{m}</option>)}
-                  </select>
-                </div>
-              )}
-              <div>
-                <label className="block text-[10px] font-bold tracking-[0.08em] uppercase text-gray-400 mb-[5px]">Comentarios</label>
-                <textarea className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none transition-colors duration-150 appearance-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15" rows={2} value={reanudarComentarios}
-                  onChange={e => setReanudarComentarios(e.target.value)} placeholder="Describe lo ocurrido..." />
-              </div>
-            </div>
-            <div className="px-5 py-3.5 border-t border-gray-800 flex gap-2 justify-end">
-              <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-transparent text-gray-400 border-gray-800 hover:text-white hover:border-gray-700 hover:bg-gray-800" onClick={() => {
-                setReanudarModal(null); setReanudarMotivo(''); setReanudarSubMotivo(''); setReanudarComentarios('')
-              }}>Cancelar</button>
-              <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-amber-500 text-black border-amber-500 hover:bg-amber-400"
-                disabled={!reanudarMotivo || (reanudarMotivo === 'Mantenimiento' && !reanudarSubMotivo)}
-                onClick={handleReanudar}>▶ Reanudar</button>
+            )}
+            <div>
+              <label className="block text-[10px] font-bold tracking-[0.08em] uppercase text-gray-300 mb-[5px]">Comentarios</label>
+              <textarea className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none transition-colors duration-150 appearance-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15" rows={2} value={reanudarComentarios}
+                onChange={e => setReanudarComentarios(e.target.value)} placeholder="Describe lo ocurrido..." />
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
 
       {/* Finalizar */}
-      {finalizarModal && (
-        <div className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center p-4 backdrop-blur-[3px] animate-[fade-in_0.15s_ease]">
-          <div className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-[480px] shadow-[0_20px_60px_rgba(0,0,0,0.6)] animate-[modal-in_0.2s_ease]">
-            <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
-              <span className="text-sm font-bold text-white">✓ Finalizar Orden</span>
+      <Modal
+        open={!!finalizarModal}
+        onClose={() => setFinalizarModal(null)}
+        size="md"
+        title={<span className="flex items-center gap-2 text-emerald-400"><IconOk size={16} aria-hidden /> Finalizar Orden</span>}
+        footer={
+          <>
+            <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-transparent text-gray-300 border-gray-800 hover:text-white hover:border-gray-700 hover:bg-gray-800" onClick={() => setFinalizarModal(null)}>Cancelar</button>
+            <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20" onClick={handleConfirmarFinalizar}><IconOk size={13} aria-hidden /> Confirmar</button>
+          </>
+        }
+      >
+        {finalizarModal && (
+          <div className="flex flex-col gap-3">
+            <div className="text-sm text-gray-300">
+              <span className="text-white font-semibold">{finalizarModal.maquina}</span> · <span className="font-mono text-sm font-medium text-cyan-400">{finalizarModal.numero_parte}</span>
             </div>
-            <div className="p-5 flex flex-col gap-3">
-              <div className="text-sm text-gray-400">
-                <span className="text-white font-semibold">{finalizarModal.maquina}</span> · <span className="font-mono text-sm font-medium text-cyan-400">{finalizarModal.numero_parte}</span>
-              </div>
-              <div className="bg-amber-500/10 border border-amber-500/25 rounded-lg px-3 py-2.5 text-xs text-amber-400">Se creará el lote de inventario. Si hay una siguiente parte en secuencia, iniciará automáticamente.</div>
-            </div>
-            <div className="px-5 py-3.5 border-t border-gray-800 flex gap-2 justify-end">
-              <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-transparent text-gray-400 border-gray-800 hover:text-white hover:border-gray-700 hover:bg-gray-800" onClick={() => setFinalizarModal(null)}>Cancelar</button>
-              <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20" onClick={handleConfirmarFinalizar}>✓ Confirmar</button>
-            </div>
+            <div className="bg-amber-500/10 border border-amber-500/25 rounded-lg px-3 py-2.5 text-xs text-amber-400">Se creará el lote de inventario. Si hay una siguiente parte en secuencia, iniciará automáticamente.</div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
 
       {/* Eliminar */}
-      {eliminarModal && (
-        <div className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center p-4 backdrop-blur-[3px] animate-[fade-in_0.15s_ease]">
-          <div className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-[480px] shadow-[0_20px_60px_rgba(0,0,0,0.6)] animate-[modal-in_0.2s_ease]">
-            <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
-              <span className="text-sm font-bold text-white">🗑 Eliminar Registro</span>
+      <Modal
+        open={!!eliminarModal}
+        onClose={() => setEliminarModal(null)}
+        size="md"
+        title={<span className="flex items-center gap-2 text-red-400"><IconEliminar size={16} aria-hidden /> Eliminar Registro</span>}
+        footer={
+          <>
+            <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-transparent text-gray-300 border-gray-800 hover:text-white hover:border-gray-700 hover:bg-gray-800" onClick={() => setEliminarModal(null)}>Cancelar</button>
+            <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20" onClick={handleConfirmarEliminar}><IconEliminar size={13} aria-hidden /> Eliminar</button>
+          </>
+        }
+      >
+        {eliminarModal && (
+          <div className="flex flex-col gap-3">
+            <div className="text-sm text-gray-300">
+              <span className="text-white font-semibold">{eliminarModal.maquina}</span> · <span className="font-mono text-sm font-medium text-cyan-400">{eliminarModal.numero_parte}</span>
             </div>
-            <div className="p-5 flex flex-col gap-3">
-              <div className="text-sm text-gray-400">
-                <span className="text-white font-semibold">{eliminarModal.maquina}</span> · <span className="font-mono text-sm font-medium text-cyan-400">{eliminarModal.numero_parte}</span>
-              </div>
-              <div className="bg-red-500/10 border border-red-500/25 rounded-lg px-3 py-2.5 text-xs text-red-400">Esta acción no se puede deshacer.</div>
-            </div>
-            <div className="px-5 py-3.5 border-t border-gray-800 flex gap-2 justify-end">
-              <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-transparent text-gray-400 border-gray-800 hover:text-white hover:border-gray-700 hover:bg-gray-800" onClick={() => setEliminarModal(null)}>Cancelar</button>
-              <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20" onClick={handleConfirmarEliminar}>🗑 Eliminar</button>
-            </div>
+            <div className="bg-red-500/10 border border-red-500/25 rounded-lg px-3 py-2.5 text-xs text-red-400">Esta acción no se puede deshacer.</div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   )
 }
@@ -823,21 +841,21 @@ function ReporteSubTab() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-2.5">
         <div>
-          <div className="text-lg font-bold text-white">📊 Reporte de Inyección</div>
-          <div className="text-[11px] text-gray-400 mt-0.5">{reporte.length} registros</div>
+          <div className="text-lg font-bold text-white flex items-center gap-2"><IconGrafico size={20} className="text-amber-400" aria-hidden /> Reporte de Inyección</div>
+          <div className="text-[11px] text-gray-300 mt-0.5">{reporte.length} registros</div>
         </div>
         <div className="flex gap-2 flex-wrap items-center">
           <select className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none transition-colors duration-150 appearance-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15" value={filtroTurno} onChange={e => setFiltroTurno(e.target.value)}>
             <option value="">Ambos turnos</option>
-            <option value="DIA">☀️ DIA</option>
-            <option value="NOCHE">🌙 NOCHE</option>
+            <option value="DIA">DIA</option>
+            <option value="NOCHE">NOCHE</option>
           </select>
           <input className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none transition-colors duration-150 appearance-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15 placeholder:text-gray-400" type="date" value={fecha} onChange={e => setFecha(e.target.value)} />
           <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20" onClick={dlExcel}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2}><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Descargar Excel
           </button>
-          <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-transparent text-gray-400 border-gray-800 hover:text-white hover:border-gray-700 hover:bg-gray-800" onClick={cargar} disabled={loading}>{loading ? '⟳' : '↻'}</button>
+          <button className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold tracking-wide border border-transparent cursor-pointer transition-all duration-150 whitespace-nowrap disabled:opacity-[0.38] disabled:cursor-not-allowed bg-transparent text-gray-300 border-gray-800 hover:text-white hover:border-gray-700 hover:bg-gray-800" onClick={cargar} disabled={loading} aria-label="Actualizar"><IconActualizar size={13} className={loading ? 'animate-spin' : ''} /></button>
         </div>
       </div>
 
@@ -898,7 +916,7 @@ function ReporteSubTab() {
                         ? 'bg-amber-500/10 text-amber-400 border-amber-500/25'
                         : 'bg-violet-500/10 text-violet-400 border-violet-500/25'
                     }`}>
-                      {turno === 'DIA' ? '☀' : '☾'} {turno}
+                      {turno === 'DIA' ? <IconTurnoDia size={11} aria-hidden /> : <IconTurnoNoche size={11} aria-hidden />} {turno}
                     </span>
                   </td>
                   <td className="px-3 py-2.5"><span className="font-mono text-xs font-medium text-cyan-400">{row.numero_parte}</span></td>
@@ -1103,23 +1121,23 @@ function ReporteManualSubTab() {
 
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="text-lg font-bold text-white">📝 Reporte Manual — Inyección</div>
+        <div className="text-lg font-bold text-white flex items-center gap-2"><IconDocumento size={20} className="text-amber-400" aria-hidden /> Reporte Manual — Inyección</div>
         <div className="flex gap-2">
           <button className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 transition-colors" onClick={() => fileRef.current?.click()}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2}><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Importar Excel
           </button>
-          <button className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold text-gray-400 border border-gray-700 hover:text-white hover:bg-gray-800 transition-colors" onClick={cargar} disabled={loading}>{loading ? '⟳' : '↻'}</button>
+          <button className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold text-gray-300 border border-gray-700 hover:text-white hover:bg-gray-800 transition-colors" onClick={cargar} disabled={loading} aria-label="Actualizar"><IconActualizar size={14} className={loading ? 'animate-spin' : ''} /></button>
           <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImportar} />
         </div>
       </div>
 
       {msg && (
-        <div className={`px-3.5 py-2.5 rounded-lg text-xs font-medium flex items-start gap-2 ${
+        <div className={`px-3.5 py-2.5 rounded-lg text-xs font-medium flex items-center gap-2 ${
           msg.tipo === 'ok'
             ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
             : 'bg-red-500/10 text-red-400 border border-red-500/30'
-        }`}>{msg.tipo === 'ok' ? '✓' : '⚠'} {msg.texto}</div>
+        }`}>{msg.tipo === 'ok' ? <IconOk size={14} aria-hidden /> : <IconAlertas size={14} aria-hidden />} {msg.texto}</div>
       )}
 
       {/* ── SECCIÓN PRODUCCIÓN ── */}
@@ -1151,7 +1169,7 @@ function ReporteManualSubTab() {
       {/* ── PAROS ── */}
       <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
         <div className="px-4 py-3 bg-gray-800 border-b border-gray-700">
-          <span className="text-xs font-bold tracking-widest uppercase text-red-400">⏸ Paros</span>
+          <span className="inline-flex items-center gap-1.5 text-xs font-bold tracking-widest uppercase text-red-400"><IconSinMovimiento size={13} aria-hidden /> Paros</span>
         </div>
         <div className="p-4 flex flex-col gap-2.5">
           {parosRows.map((row, idx) => (
@@ -1171,8 +1189,8 @@ function ReporteManualSubTab() {
                     onChange={e => { const r = [...parosRows]; r[idx].tiempo = e.target.value; setParosRows(r) }} />
                 </div>
                 {parosRows.length > 1 && (
-                  <button className="px-2.5 py-2 rounded-lg text-xs font-semibold bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 transition-colors"
-                    onClick={() => setParosRows(parosRows.filter((_,i) => i !== idx))}>✕</button>
+                  <button className="px-2.5 py-2 rounded-lg text-xs font-semibold bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 transition-colors" aria-label="Quitar"
+                    onClick={() => setParosRows(parosRows.filter((_,i) => i !== idx))}><IconCerrar size={14} /></button>
                 )}
               </div>
               {row.motivo === 'Mantenimiento' && (
@@ -1194,9 +1212,9 @@ function ReporteManualSubTab() {
               )}
             </div>
           ))}
-          <button className="self-start inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-400 border border-gray-700 hover:text-white hover:bg-gray-800 transition-colors"
+          <button className="self-start inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-300 border border-gray-700 hover:text-white hover:bg-gray-800 transition-colors"
             onClick={() => setParosRows([...parosRows, { id: Date.now(), motivo: '', tiempo: '', subMotivo: '', subTiempo: '' }])}>
-            ＋ Agregar paro
+            <IconNuevo size={13} aria-hidden /> Agregar paro
           </button>
         </div>
       </div>
@@ -1204,7 +1222,7 @@ function ReporteManualSubTab() {
       {/* ── SCRAP ── */}
       <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
         <div className="px-4 py-3 bg-gray-800 border-b border-gray-700">
-          <span className="text-xs font-bold tracking-widest uppercase text-orange-400">♻ Scrap</span>
+          <span className="inline-flex items-center gap-1.5 text-xs font-bold tracking-widest uppercase text-orange-400"><IconReciclar size={13} aria-hidden /> Scrap</span>
         </div>
         <div className="p-4 flex flex-col gap-2.5">
           {scrapRows.map((row, idx) => (
@@ -1223,21 +1241,21 @@ function ReporteManualSubTab() {
                   onChange={e => { const r = [...scrapRows]; r[idx].cantidad = e.target.value; setScrapRows(r) }} />
               </div>
               {scrapRows.length > 1 && (
-                <button className="px-2.5 py-2 rounded-lg text-xs font-semibold bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 transition-colors"
-                  onClick={() => setScrapRows(scrapRows.filter((_,i) => i !== idx))}>✕</button>
+                <button className="px-2.5 py-2 rounded-lg text-xs font-semibold bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 transition-colors" aria-label="Quitar"
+                  onClick={() => setScrapRows(scrapRows.filter((_,i) => i !== idx))}><IconCerrar size={14} /></button>
               )}
             </div>
           ))}
-          <button className="self-start inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-400 border border-gray-700 hover:text-white hover:bg-gray-800 transition-colors"
+          <button className="self-start inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-300 border border-gray-700 hover:text-white hover:bg-gray-800 transition-colors"
             onClick={() => setScrapRows([...scrapRows, { id: Date.now(), motivo: '', cantidad: '' }])}>
-            ＋ Agregar scrap
+            <IconNuevo size={13} aria-hidden /> Agregar scrap
           </button>
         </div>
       </div>
 
       <button className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold bg-amber-500 text-black hover:bg-amber-400 transition-colors"
         onClick={handleConfirmar}>
-        💾 Confirmar y Guardar Reporte
+        <IconGuardar size={15} aria-hidden /> Confirmar y Guardar Reporte
       </button>
 
       {/* ── HISTORIAL ── */}
@@ -1273,7 +1291,7 @@ function ReporteManualSubTab() {
                         ? 'bg-amber-500/10 text-amber-400 border-amber-500/25'
                         : 'bg-violet-500/10 text-violet-400 border-violet-500/25'
                     }`}>
-                      {item.turno === 'DIA' ? '☀' : '☾'} {item.turno}
+                      {item.turno === 'DIA' ? <IconTurnoDia size={11} aria-hidden /> : <IconTurnoNoche size={11} aria-hidden />} {item.turno}
                     </span>
                   </td>
                   <td className="px-3 py-2.5"><span className="font-mono text-xs font-medium text-cyan-400">{item.numero_parte}</span></td>
@@ -1295,10 +1313,10 @@ function ReporteManualSubTab() {
                   </td>
                   <td className="px-3 py-2.5 text-center">
                     <div className="flex gap-1 justify-center">
-                      <button className="px-2 py-1 rounded text-xs font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/30 hover:bg-blue-500/20 transition-colors"
-                        onClick={() => setDetalleModal(item)}>👁 Ver</button>
-                      <button className="px-2 py-1 rounded text-xs font-semibold bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 transition-colors"
-                        onClick={() => setEliminarModal(item)}>🗑</button>
+                      <button className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/30 hover:bg-blue-500/20 transition-colors"
+                        onClick={() => setDetalleModal(item)}><IconVer size={13} aria-hidden /> Ver</button>
+                      <button className="inline-flex items-center px-2 py-1 rounded text-xs font-semibold bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 transition-colors" aria-label="Eliminar"
+                        onClick={() => setEliminarModal(item)}><IconEliminar size={13} /></button>
                     </div>
                   </td>
                 </tr>
@@ -1309,14 +1327,15 @@ function ReporteManualSubTab() {
       </div>
 
       {/* Modal: Detalle */}
-      {detalleModal && (
-        <div className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] flex flex-col">
-            <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between shrink-0">
-              <span className="text-sm font-bold text-white">📋 {detalleModal.numero_parte} — {detalleModal.cliente}</span>
-              <button className="text-gray-400 hover:text-white transition-colors text-lg leading-none" onClick={() => setDetalleModal(null)}>✕</button>
-            </div>
-            <div className="p-5 overflow-y-auto flex flex-col gap-4">
+      <Modal
+        open={!!detalleModal}
+        onClose={() => setDetalleModal(null)}
+        size="lg"
+        title={detalleModal ? <span className="flex items-center gap-2"><IconDocumento size={16} className="text-amber-400" aria-hidden /> {detalleModal.numero_parte} — {detalleModal.cliente}</span> : ''}
+        footer={<button className="px-4 py-2 rounded-lg text-xs font-semibold text-gray-300 border border-gray-700 hover:text-white hover:bg-gray-800 transition-colors" onClick={() => setDetalleModal(null)}>Cerrar</button>}
+      >
+        {detalleModal && (
+            <div className="flex flex-col gap-4">
               <div>
                 <div className="text-[10px] font-bold tracking-widest uppercase text-amber-400 mb-2">Producción</div>
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-2">
@@ -1394,33 +1413,31 @@ function ReporteManualSubTab() {
                 </div>
               )}
             </div>
-            <div className="px-5 py-3.5 border-t border-gray-800 flex gap-2 justify-end shrink-0">
-              <button className="px-4 py-2 rounded-lg text-xs font-semibold text-gray-400 border border-gray-700 hover:text-white hover:bg-gray-800 transition-colors" onClick={() => setDetalleModal(null)}>Cerrar</button>
-            </div>
-          </div>
-        </div>
-      )}
+        )}
+      </Modal>
 
       {/* Modal: Eliminar */}
-      {eliminarModal && (
-        <div className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-md shadow-2xl">
-            <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
-              <span className="text-sm font-bold text-white">🗑 Eliminar Registro</span>
+      <Modal
+        open={!!eliminarModal}
+        onClose={() => setEliminarModal(null)}
+        size="md"
+        title={<span className="flex items-center gap-2 text-red-400"><IconEliminar size={16} aria-hidden /> Eliminar Registro</span>}
+        footer={
+          <>
+            <button className="px-4 py-2 rounded-lg text-xs font-semibold text-gray-300 border border-gray-700 hover:text-white hover:bg-gray-800 transition-colors" onClick={() => setEliminarModal(null)}>Cancelar</button>
+            <button className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 transition-colors" onClick={handleEliminar}><IconEliminar size={13} aria-hidden /> Eliminar</button>
+          </>
+        }
+      >
+        {eliminarModal && (
+          <div className="flex flex-col gap-3">
+            <div className="text-sm text-gray-300">
+              <span className="font-mono text-sm font-medium text-cyan-400">{eliminarModal.numero_parte}</span> · {eliminarModal.cliente}
             </div>
-            <div className="p-5 flex flex-col gap-3">
-              <div className="text-sm text-gray-400">
-                <span className="font-mono text-sm font-medium text-cyan-400">{eliminarModal.numero_parte}</span> · {eliminarModal.cliente}
-              </div>
-              <div className="bg-red-500/10 border border-red-500/25 rounded-lg px-3 py-2.5 text-xs text-red-400">Esta acción no se puede deshacer.</div>
-            </div>
-            <div className="px-5 py-3.5 border-t border-gray-800 flex gap-2 justify-end">
-              <button className="px-4 py-2 rounded-lg text-xs font-semibold text-gray-400 border border-gray-700 hover:text-white hover:bg-gray-800 transition-colors" onClick={() => setEliminarModal(null)}>Cancelar</button>
-              <button className="px-4 py-2 rounded-lg text-xs font-semibold bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 transition-colors" onClick={handleEliminar}>🗑 Eliminar</button>
-            </div>
+            <div className="bg-red-500/10 border border-red-500/25 rounded-lg px-3 py-2.5 text-xs text-red-400">Esta acción no se puede deshacer.</div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   )
 }

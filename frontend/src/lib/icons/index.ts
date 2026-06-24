@@ -88,6 +88,7 @@ export {
   Thermometer as IconSecado,
   Camera as IconCamara,
   Container as IconSilo,
+  Recycle as IconReciclar,
 
   // Calidad
   PackageCheck as IconOQC,
