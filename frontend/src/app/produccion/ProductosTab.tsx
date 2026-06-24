@@ -14,6 +14,12 @@ import {
   importarProductosExcel,
   importarBomExcel,
 } from '@/lib/api'
+import { Modal, Button, LoadingSpinner } from '@/components/ui'
+import {
+  IconOk, IconAlertas, IconInfo, IconEliminar, IconLista, IconNuevo, IconGuardar,
+  IconBuscar, IconInventario, IconEditar, IconDocumento, IconPendiente,
+  IconSinMovimiento, IconInyeccion, IconCerrar, IconVer,
+} from '@/lib/icons'
 
 type ModalInfo = {
   title: string
@@ -78,8 +84,6 @@ export default function ProductosTab() {
   // Modales
   const [modalInfo, setModalInfo] = useState<ModalInfo>(null)
   const [confirmModal, setConfirmModal] = useState<ConfirmModal>(null)
-  const okButtonRef = useRef<HTMLButtonElement>(null)
-  const confirmButtonRef = useRef<HTMLButtonElement>(null)
 
   // Importar
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -107,14 +111,6 @@ export default function ProductosTab() {
 
   // Detalle Modal
   const [detalleModal, setDetalleModal] = useState<ProductoItem | null>(null)
-
-  useEffect(() => {
-    if (modalInfo && okButtonRef.current) okButtonRef.current.focus()
-  }, [modalInfo])
-
-  useEffect(() => {
-    if (confirmModal && confirmButtonRef.current) confirmButtonRef.current.focus()
-  }, [confirmModal])
 
   useEffect(() => {
     loadProductos()
@@ -585,221 +581,189 @@ export default function ProductosTab() {
 
   if (loading)
     return (
-      <div className="p-8 text-center text-xl font-semibold text-gray-400">
-        Cargando productos...
+      <div className="p-8 flex justify-center">
+        <LoadingSpinner label="Cargando productos..." />
       </div>
     )
 
+  const ModalIcon = modalInfo
+    ? (modalInfo.type === 'success' ? IconOk : modalInfo.type === 'error' ? IconAlertas : IconInfo)
+    : IconInfo
+  const modalTitleColor = modalInfo
+    ? (modalInfo.type === 'success' ? 'text-emerald-400' : modalInfo.type === 'error' ? 'text-red-400' : 'text-blue-400')
+    : ''
+
   return (
     <div className="relative">
-      {/* ════════════════ MODAL NOTIFICACIÓN ════════════════ */}
-      {modalInfo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-[3px]">
-          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] w-full max-w-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-800 flex items-center gap-2">
-              <span className={modalInfo.type === 'success' ? 'text-green-400' : modalInfo.type === 'error' ? 'text-red-400' : 'text-blue-400'}>
-                {modalInfo.type === 'success' ? '✅' : modalInfo.type === 'error' ? '❌' : 'ℹ️'}
-              </span>
-              <h3 className="text-sm font-bold text-white">{modalInfo.title}</h3>
-            </div>
-            <div className="p-6">
-              <p className="text-gray-300 text-base mb-6">{modalInfo.message}</p>
-              <div className="flex justify-end">
-                <button
-                  ref={okButtonRef}
-                  onClick={() => setModalInfo(null)}
-                  className={`px-6 py-2.5 rounded-lg font-bold text-white shadow-md transition ${
-                    modalInfo.type === 'success'
-                      ? 'bg-green-600 hover:bg-green-700'
-                      : modalInfo.type === 'error'
-                      ? 'bg-red-600 hover:bg-red-700'
-                      : 'bg-blue-600 hover:bg-blue-700'
-                  }`}
-                >
-                  Aceptar
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* MODAL NOTIFICACIÓN */}
+      <Modal
+        open={!!modalInfo}
+        onClose={() => setModalInfo(null)}
+        size="sm"
+        title={<span className={`flex items-center gap-2 ${modalTitleColor}`}><ModalIcon size={18} aria-hidden /> {modalInfo?.title}</span>}
+        footer={<Button variant="secondary" onClick={() => setModalInfo(null)}>Aceptar</Button>}
+      >
+        <p className="text-gray-300 text-sm">{modalInfo?.message}</p>
+      </Modal>
 
-      {/* ════════════════ MODAL CONFIRMAR ════════════════ */}
-      {confirmModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-[3px]">
-          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] w-full max-w-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-800 flex items-center gap-2">
-              <span className="text-red-400">⚠️</span>
-              <h3 className="text-sm font-bold text-white">{confirmModal.title}</h3>
-            </div>
-            <div className="p-6">
-              <p className="text-gray-300 text-base mb-6">{confirmModal.message}</p>
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={() => setConfirmModal(null)}
-                  className="px-5 py-2.5 rounded-lg font-medium text-gray-300 bg-gray-800 hover:bg-gray-700 transition"
-                >
-                  Cancelar
-                </button>
-                <button
-                  ref={confirmButtonRef}
-                  onClick={confirmModal.onConfirm}
-                  className="px-5 py-2.5 rounded-lg font-bold text-white bg-red-600 hover:bg-red-700 shadow-md transition"
-                >
-                  Confirmar
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* MODAL CONFIRMAR */}
+      <Modal
+        open={!!confirmModal}
+        onClose={() => setConfirmModal(null)}
+        size="sm"
+        title={<span className="flex items-center gap-2 text-red-400"><IconAlertas size={18} aria-hidden /> {confirmModal?.title}</span>}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setConfirmModal(null)}>Cancelar</Button>
+            <Button variant="danger" onClick={() => confirmModal?.onConfirm()} leftIcon={IconEliminar}>Confirmar</Button>
+          </>
+        }
+      >
+        <p className="text-gray-300 text-sm">{confirmModal?.message}</p>
+      </Modal>
 
-      {/* ════════════════ MODAL BOM ════════════════ */}
-      {bomModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-[3px]">
-          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] w-full max-w-lg overflow-hidden max-h-[90vh] flex flex-col">
-            <div className="px-5 py-4 border-b border-gray-800 flex items-center gap-2">
-              <span className="text-blue-400">📋</span>
-              <h3 className="text-sm font-bold text-white">BOM - {bomModal.sku}</h3>
-            </div>
-            <div className="p-6 overflow-y-auto flex-1">
-              {/* Lista actual */}
-              {bomModal.bom.length > 0 ? (
-                <table className="w-full text-sm mb-4">
-                  <thead className="bg-gray-800">
-                    <tr>
-                      <th className="p-2 text-left">No. de Parte Componente</th>
-                      <th className="p-2 text-center">Cantidad</th>
-                      <th className="p-2 text-center">Acción</th>
+      {/* MODAL BOM */}
+      <Modal
+        open={!!bomModal}
+        onClose={() => setBomModal(null)}
+        size="lg"
+        title={<span className="flex items-center gap-2 text-[var(--accent)]"><IconLista size={18} aria-hidden /> BOM - {bomModal?.sku}</span>}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setBomModal(null)}>Cancelar</Button>
+            <Button onClick={saveBom} leftIcon={IconGuardar}>Guardar BOM</Button>
+          </>
+        }
+      >
+        {bomModal && (
+          <>
+            {/* Lista actual */}
+            {bomModal.bom.length > 0 ? (
+              <table className="w-full text-sm mb-4">
+                <thead className="bg-gray-800">
+                  <tr>
+                    <th className="p-2 text-left text-gray-300">No. de Parte Componente</th>
+                    <th className="p-2 text-center text-gray-300">Cantidad</th>
+                    <th className="p-2 text-center text-gray-300">Acción</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bomModal.bom.map((item, idx) => (
+                    <tr key={idx} className="border-b border-gray-800">
+                      <td className="p-2 font-mono">{item.sku_componente}</td>
+                      <td className="p-2 text-center">{item.cantidad}</td>
+                      <td className="p-2 text-center">
+                        <button
+                          onClick={() => removeBomItem(idx)}
+                          className="text-red-400 hover:text-red-300 inline-flex"
+                          aria-label="Eliminar"
+                        >
+                          <IconEliminar size={15} />
+                        </button>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {bomModal.bom.map((item, idx) => (
-                      <tr key={idx} className="border-b">
-                        <td className="p-2 font-mono">{item.sku_componente}</td>
-                        <td className="p-2 text-center">{item.cantidad}</td>
-                        <td className="p-2 text-center">
-                          <button
-                            onClick={() => removeBomItem(idx)}
-                            className="text-red-400 hover:text-red-300"
-                          >
-                            🗑️
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <p className="text-gray-400 text-center mb-4">No hay componentes en el BOM.</p>
-              )}
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p className="text-gray-300 text-center mb-4">No hay componentes en el BOM.</p>
+            )}
 
-              {/* Agregar nuevo */}
-              <div className="flex gap-2 items-end">
-                <div className="flex-1">
-                  <label className="block text-xs font-semibold text-gray-400 mb-1">
-                    No. de Parte Componente
-                  </label>
-                  <input
-                    type="text"
-                    value={newBomItem.sku_componente}
-                    onChange={(e) =>
-                      setNewBomItem({ ...newBomItem, sku_componente: e.target.value })
-                    }
-                    className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
-                    placeholder="Ej: COMP-001"
-                  />
-                </div>
-                <div className="w-24">
-                  <label className="block text-xs font-semibold text-gray-400 mb-1">
-                    Cantidad
-                  </label>
-                  <input
-                    type="number"
-                    min="0.01"
-                    step="0.01"
-                    value={newBomItem.cantidad}
-                    onChange={(e) =>
-                      setNewBomItem({
-                        ...newBomItem,
-                        cantidad: parseFloat(e.target.value) || 0,
-                      })
-                    }
-                    className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
-                  />
-                </div>
-                <button
-                  onClick={addBomItem}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-500 transition text-sm font-medium"
-                >
-                  ➕
-                </button>
+            {/* Agregar nuevo */}
+            <div className="flex gap-2 items-end">
+              <div className="flex-1">
+                <label className="block text-xs font-semibold text-gray-300 mb-1">
+                  No. de Parte Componente
+                </label>
+                <input
+                  type="text"
+                  value={newBomItem.sku_componente}
+                  onChange={(e) =>
+                    setNewBomItem({ ...newBomItem, sku_componente: e.target.value })
+                  }
+                  className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                  placeholder="Ej: COMP-001"
+                />
               </div>
+              <div className="w-24">
+                <label className="block text-xs font-semibold text-gray-300 mb-1">
+                  Cantidad
+                </label>
+                <input
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={newBomItem.cantidad}
+                  onChange={(e) =>
+                    setNewBomItem({
+                      ...newBomItem,
+                      cantidad: parseFloat(e.target.value) || 0,
+                    })
+                  }
+                  className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                />
+              </div>
+              <Button onClick={addBomItem} aria-label="Agregar"><IconNuevo size={16} /></Button>
             </div>
-            <div className="border-t border-gray-800 px-5 py-3.5 flex justify-end gap-3">
-              <button
-                onClick={() => setBomModal(null)}
-                className="px-5 py-2 rounded-md text-sm font-medium text-gray-300 bg-gray-800 hover:bg-gray-700 transition"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={saveBom}
-                className="px-5 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-500 shadow-md transition"
-              >
-                💾 Guardar BOM
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
 
-      {/* ════════════════ MODAL INSPECCIÓN ════════════════ */}
-      {inspeccionModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-[3px]">
-          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] w-full max-w-lg overflow-hidden max-h-[90vh] flex flex-col">
-            <div className="px-5 py-4 border-b border-gray-800 flex items-center gap-2">
-              <span className="text-blue-400">🔍</span>
-              <h3 className="text-sm font-bold text-white">
-                Puntos de Inspección {inspeccionModal.tipo_control.toUpperCase()} - {inspeccionModal.sku}
-              </h3>
-            </div>
-            <div className="p-6 overflow-y-auto flex-1">
-              {inspeccionModal.puntos.length > 0 ? (
-                <table className="w-full text-sm mb-4">
-                  <thead className="bg-gray-800">
-                    <tr>
-                      <th className="p-2 text-left">Nombre</th>
-                      <th className="p-2 text-left">Especificación</th>
-                      <th className="p-2 text-left">Método</th>
-                      <th className="p-2 text-center">Acción</th>
+      {/* MODAL INSPECCIÓN */}
+      <Modal
+        open={!!inspeccionModal}
+        onClose={() => setInspeccionModal(null)}
+        size="lg"
+        title={
+          <span className="flex items-center gap-2 text-[var(--accent)]">
+            <IconBuscar size={18} aria-hidden /> Puntos de Inspección {inspeccionModal?.tipo_control.toUpperCase()} - {inspeccionModal?.sku}
+          </span>
+        }
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setInspeccionModal(null)}>Cancelar</Button>
+            <Button onClick={saveInspeccion} leftIcon={IconGuardar}>Guardar Puntos</Button>
+          </>
+        }
+      >
+        {inspeccionModal && (
+          <>
+            {inspeccionModal.puntos.length > 0 ? (
+              <table className="w-full text-sm mb-4">
+                <thead className="bg-gray-800">
+                  <tr>
+                    <th className="p-2 text-left text-gray-300">Nombre</th>
+                    <th className="p-2 text-left text-gray-300">Especificación</th>
+                    <th className="p-2 text-left text-gray-300">Método</th>
+                    <th className="p-2 text-center text-gray-300">Acción</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {inspeccionModal.puntos.map((punto, idx) => (
+                    <tr key={idx} className="border-b border-gray-800">
+                      <td className="p-2">{punto.nombre}</td>
+                      <td className="p-2 text-gray-300">{punto.especificacion}</td>
+                      <td className="p-2 text-gray-300">{punto.metodo}</td>
+                      <td className="p-2 text-center">
+                        <button
+                          onClick={() => removePuntoInspeccion(idx)}
+                          className="text-red-400 hover:text-red-300 inline-flex"
+                          aria-label="Eliminar"
+                        >
+                          <IconEliminar size={15} />
+                        </button>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {inspeccionModal.puntos.map((punto, idx) => (
-                      <tr key={idx} className="border-b">
-                        <td className="p-2">{punto.nombre}</td>
-                        <td className="p-2 text-gray-400">{punto.especificacion}</td>
-                        <td className="p-2 text-gray-400">{punto.metodo}</td>
-                        <td className="p-2 text-center">
-                          <button
-                            onClick={() => removePuntoInspeccion(idx)}
-                            className="text-red-400 hover:text-red-300"
-                          >
-                            🗑️
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <p className="text-gray-400 text-center mb-4">
-                  No hay puntos de inspección configurados.
-                </p>
-              )}
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p className="text-gray-300 text-center mb-4">
+                No hay puntos de inspección configurados.
+              </p>
+            )}
 
-              <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label className="block text-sm font-semibold text-gray-300 mb-1">Punto *</label>
                   <input
@@ -843,50 +807,22 @@ export default function ProductosTab() {
                       placeholder="Calibrador"
                     />
                   </div>
-                  <button
-                    onClick={addPuntoInspeccion}
-                    className="bg-blue-600 text-white px-3 py-2 rounded-md hover:bg-blue-500 transition text-sm font-medium"
-                  >
-                    ➕
-                  </button>
+                  <Button onClick={addPuntoInspeccion} aria-label="Agregar"><IconNuevo size={16} /></Button>
                 </div>
               </div>
-            </div>
-            <div className="border-t border-gray-800 px-5 py-3.5 flex justify-end gap-3">
-              <button
-                onClick={() => setInspeccionModal(null)}
-                className="px-5 py-2 rounded-md text-sm font-medium text-gray-300 bg-gray-800 hover:bg-gray-700 transition"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={saveInspeccion}
-                className="px-5 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-500 shadow-md transition"
-              >
-                💾 Guardar Puntos
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
 
-      {/* ════════════════ MODAL DETALLE ════════════════ */}
-      {detalleModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-[3px]">
-          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col">
-            <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-blue-400">📦</span>
-                <h3 className="text-sm font-bold text-white">Detalle: {detalleModal.sku}</h3>
-              </div>
-              <button
-                onClick={() => setDetalleModal(null)}
-                className="text-gray-400 hover:text-gray-200 text-lg"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="p-6 overflow-y-auto flex-1">
+      {/* MODAL DETALLE */}
+      <Modal
+        open={!!detalleModal}
+        onClose={() => setDetalleModal(null)}
+        size="2xl"
+        title={<span className="flex items-center gap-2 text-[var(--accent)]"><IconInventario size={18} aria-hidden /> Detalle: {detalleModal?.sku}</span>}
+      >
+        {detalleModal && (
+          <>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="font-semibold text-gray-400">No. de Parte:</span>
@@ -956,8 +892,8 @@ export default function ProductosTab() {
               {detalleModal.caracteristicas_inyeccion &&
                 Object.keys(detalleModal.caracteristicas_inyeccion).length > 0 && (
                   <div className="mt-4 p-3 bg-blue-500/10 rounded-lg">
-                    <h4 className="font-semibold text-blue-300 text-sm mb-2">
-                      🏭 Características de Inyección
+                    <h4 className="font-semibold text-blue-300 text-sm mb-2 flex items-center gap-2">
+                      <IconInyeccion size={15} aria-hidden /> Características de Inyección
                     </h4>
                     <div className="grid grid-cols-3 gap-2 text-xs">
                       {Object.entries(detalleModal.caracteristicas_inyeccion).map(([k, v]) => (
@@ -976,8 +912,8 @@ export default function ProductosTab() {
               {/* BOM */}
               {detalleModal.bom && detalleModal.bom.length > 0 && (
                 <div className="mt-4 p-3 bg-indigo-500/10 rounded-lg">
-                  <h4 className="font-semibold text-indigo-300 text-sm mb-2">
-                    📋 BOM ({detalleModal.bom.length} componentes)
+                  <h4 className="font-semibold text-indigo-300 text-sm mb-2 flex items-center gap-2">
+                    <IconLista size={15} aria-hidden /> BOM ({detalleModal.bom.length} componentes)
                   </h4>
                   <div className="grid grid-cols-2 gap-1 text-xs">
                     {detalleModal.bom.map((item: BomItem, idx: number) => (
@@ -988,18 +924,17 @@ export default function ProductosTab() {
                   </div>
                 </div>
               )}
-            </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
 
       {/* ════════════════ FORMULARIO ════════════════ */}
       <form
         onSubmit={handleSubmit}
         className="bg-gray-900 p-6 rounded-xl border border-gray-800 mb-6"
       >
-        <h2 className="text-lg font-bold text-gray-300 mb-4 pb-2 border-b">
-          {editing ? `✏️ Editar Producto: ${editing}` : '➕ Nuevo Producto'}
+        <h2 className="text-lg font-bold text-gray-300 mb-4 pb-2 border-b border-gray-800 flex items-center gap-2">
+          {editing ? <><IconEditar size={18} className="text-[var(--accent)]" aria-hidden /> Editar Producto: {editing}</> : <><IconNuevo size={18} className="text-[var(--accent)]" aria-hidden /> Nuevo Producto</>}
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1169,8 +1104,8 @@ export default function ProductosTab() {
         {/* Características de Inyección */}
         {showInyeccion && (
           <div className="mt-4 p-4 bg-blue-500/10 rounded-lg border border-blue-500/30">
-            <h3 className="text-sm font-bold text-blue-300 mb-3">
-              🏭 Características de Inyección
+            <h3 className="text-sm font-bold text-blue-300 mb-3 flex items-center gap-2">
+              <IconInyeccion size={15} aria-hidden /> Características de Inyección
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div>
@@ -1266,13 +1201,10 @@ export default function ProductosTab() {
         )}
 
         {/* Botones */}
-        <div className="mt-5 flex flex-wrap gap-3 border-t pt-4">
-          <button
-            type="submit"
-            className="bg-blue-600 text-white px-5 py-2.5 rounded font-medium hover:bg-blue-700 transition shadow-sm"
-          >
-            {editing ? '💾 Actualizar Producto' : '➕ Crear Producto'}
-          </button>
+        <div className="mt-5 flex flex-wrap gap-3 border-t border-gray-800 pt-4">
+          <Button type="submit" leftIcon={editing ? IconGuardar : IconNuevo}>
+            {editing ? 'Actualizar Producto' : 'Crear Producto'}
+          </Button>
           {!editing && (
             <>
               <input
@@ -1282,31 +1214,15 @@ export default function ProductosTab() {
                 accept=".xlsx,.xls"
                 className="hidden"
               />
-              <button
+              <Button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isImporting}
-                className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-400 ${
-                  isImporting ? 'bg-gray-400 cursor-not-allowed text-white' : 'bg-green-600 hover:bg-green-700 active:scale-95 text-white'
-                }`}
+                leftIcon={isImporting ? IconPendiente : IconDocumento}
+                className="bg-green-600 hover:bg-green-700 text-white"
               >
-                {isImporting ? (
-                  <>
-                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-                    </svg>
-                    Importando...
-                  </>
-                ) : (
-                  <>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6M4 20h16a1 1 0 001-1V5 a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/>
-                    </svg>
-                    Importar Productos
-                  </>
-                )}
-              </button>
+                {isImporting ? 'Importando...' : 'Importar Productos'}
+              </Button>
               <input
                 type="file"
                 ref={bomFileInputRef}
@@ -1314,29 +1230,21 @@ export default function ProductosTab() {
                 accept=".xlsx,.xls"
                 className="hidden"
               />
-              <button
+              <Button
                 type="button"
                 onClick={() => bomFileInputRef.current?.click()}
                 disabled={isImporting}
-                className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-400 ${
-                  isImporting ? 'bg-gray-400 cursor-not-allowed text-white' : 'bg-green-600 hover:bg-green-700 active:scale-95 text-white'
-                }`}
+                leftIcon={IconDocumento}
+                className="bg-green-600 hover:bg-green-700 text-white"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6M4 20h16a1 1 0 001-1V5 a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/>
-                </svg>
                 Importar BOM
-              </button>
+              </Button>
             </>
           )}
           {editing && (
-            <button
-              type="button"
-              onClick={resetForm}
-              className="bg-gray-500 text-white px-5 py-2.5 rounded font-medium hover:bg-gray-600 transition shadow-sm ml-auto"
-            >
-              ❌ Cancelar Edición
-            </button>
+            <Button type="button" variant="secondary" onClick={resetForm} leftIcon={IconCerrar} className="ml-auto">
+              Cancelar Edición
+            </Button>
           )}
         </div>
       </form>
@@ -1408,25 +1316,25 @@ export default function ProductosTab() {
           </span>
           <button
             onClick={() => handleBatchStatus('Activo')}
-            className="px-3 py-1.5 rounded text-xs font-medium text-white bg-green-600 hover:bg-green-700 transition"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium text-white bg-green-600 hover:bg-green-700 transition"
           >
-            ✅ Activar
+            <IconOk size={14} aria-hidden /> Activar
           </button>
           <button
             onClick={() => handleBatchStatus('Inactivo')}
-            className="px-3 py-1.5 rounded text-xs font-medium text-white bg-yellow-600 hover:bg-yellow-700 transition"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium text-white bg-yellow-600 hover:bg-yellow-700 transition"
           >
-            ⏸️ Desactivar
+            <IconSinMovimiento size={14} aria-hidden /> Desactivar
           </button>
           <button
             onClick={handleBatchDelete}
-            className="px-3 py-1.5 rounded text-xs font-medium text-white bg-red-600 hover:bg-red-700 transition"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium text-white bg-red-600 hover:bg-red-700 transition"
           >
-            🗑️ Eliminar
+            <IconEliminar size={14} aria-hidden /> Eliminar
           </button>
           <button
             onClick={() => setSelectedSkus(new Set())}
-            className="px-3 py-1.5 rounded text-xs font-medium text-gray-300 bg-gray-700 hover:bg-gray-300 transition ml-auto"
+            className="px-3 py-1.5 rounded text-xs font-medium text-gray-300 bg-gray-700 hover:bg-gray-600 transition ml-auto"
           >
             Deseleccionar
           </button>
@@ -1527,39 +1435,45 @@ export default function ProductosTab() {
                     }`}
                     title="Editar BOM"
                   >
-                    📋 {item.bom?.length || 0}
+                    <span className="inline-flex items-center gap-1"><IconLista size={13} aria-hidden /> {item.bom?.length || 0}</span>
                   </button>
                 </td>
-                <td className="p-3 text-center space-x-1">
-                  <button
-                    onClick={() => setDetalleModal(item)}
-                    className="text-gray-300 hover:text-slate-900 bg-gray-800 hover:bg-slate-100 p-1.5 rounded transition"
-                    title="Ver detalle"
-                  >
-                    👁️
-                  </button>
-                  <button
-                    onClick={() => handleEdit(item)}
-                    className="text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 p-1.5 rounded transition"
-                    title="Editar"
-                  >
-                    ✏️
-                  </button>
-                  <button
-                    onClick={() => handleDelete(item.sku)}
-                    className="text-red-400 hover:text-red-900 bg-red-500/100/10 hover:bg-red-500/20 p-1.5 rounded transition"
-                    title="Eliminar"
-                  >
-                    🗑️
-                  </button>
+                <td className="p-3 text-center">
+                  <div className="flex items-center justify-center gap-1">
+                    <button
+                      onClick={() => setDetalleModal(item)}
+                      className="text-gray-300 hover:text-white bg-gray-800 hover:bg-gray-700 p-1.5 rounded transition"
+                      title="Ver detalle"
+                      aria-label="Ver detalle"
+                    >
+                      <IconVer size={15} />
+                    </button>
+                    <button
+                      onClick={() => handleEdit(item)}
+                      className="text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 p-1.5 rounded transition"
+                      title="Editar"
+                      aria-label="Editar"
+                    >
+                      <IconEditar size={15} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(item.sku)}
+                      className="text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 p-1.5 rounded transition"
+                      title="Eliminar"
+                      aria-label="Eliminar"
+                    >
+                      <IconEliminar size={15} />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
         {productosFiltrados.length === 0 && (
-          <div className="p-10 text-center text-gray-400">
-            <span className="text-4xl block mb-2">📦</span>
+          <div className="p-10 text-center text-gray-300">
+            <IconInventario size={36} className="mx-auto mb-2 text-gray-500" aria-hidden />
+
             {hayFiltros ? (
               <>
                 No se encontraron productos con los filtros aplicados.
