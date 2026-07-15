@@ -10,6 +10,8 @@ import {
   UsuarioCreate,
   UsuarioUpdate,
   ProductoItem,
+  AyudaVisual,
+  ReindexAyudasResumen,
   ProductoCreate,
   ProductoUpdate,
   BomItem,
@@ -259,6 +261,35 @@ export async function importarBomExcel(
   if (!res.ok) {
     const err = await res.json()
     throw new Error(err.detail || 'Error al importar BOM')
+  }
+  return res.json()
+}
+
+// ==========================================
+// AYUDAS VISUALES
+// ==========================================
+export async function getAyudasVisuales(sku: string): Promise<AyudaVisual[]> {
+  const res = await fetch(`${API_URL}/ayudas-visuales/producto/${encodeURIComponent(sku)}`)
+  if (!res.ok) throw new Error('Error cargando ayudas visuales')
+  return res.json()
+}
+
+export function ayudaVisualThumbnailUrl(id: number): string {
+  return `${API_URL}/ayudas-visuales/${id}/thumbnail`
+}
+
+export function ayudaVisualPdfUrl(id: number): string {
+  return `${API_URL}/ayudas-visuales/${id}/pdf`
+}
+
+export async function reindexarAyudasVisuales(token: string): Promise<ReindexAyudasResumen> {
+  const res = await fetch(`${API_URL}/ayudas-visuales/reindexar`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.detail || 'Error al reindexar ayudas visuales')
   }
   return res.json()
 }

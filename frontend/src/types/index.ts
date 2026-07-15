@@ -61,6 +61,26 @@ export interface ProductoItem {
   caracteristicas_resina:    CaracteristicasResina
 }
 
+export interface AyudaVisual {
+  id:              number
+  sku:             string
+  nombre_archivo:  string
+  codigo_av:       string
+  ruta:            string
+  tiene_thumbnail: boolean
+}
+
+export interface ReindexAyudasResumen {
+  total_archivos:        number
+  indexados:             number
+  nuevos:                number
+  actualizados:          number
+  eliminados:            number
+  thumbnails_generados:  number
+  sin_producto:          string[]
+  errores:               string[]
+}
+
 export interface ProductoCreate {
   sku:                        string
   tipo?:                      string

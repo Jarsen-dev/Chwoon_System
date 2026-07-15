@@ -269,6 +269,10 @@ const nextConfig: NextConfig = {
         // Productos
         { source: '/productos',                     destination: `${BACKEND}/productos/` },
         { source: '/productos/:path*',              destination: `${BACKEND}/productos/:path*` },
+
+        // Ayudas Visuales
+        { source: '/ayudas-visuales',               destination: `${BACKEND}/ayudas-visuales/` },
+        { source: '/ayudas-visuales/:path*',        destination: `${BACKEND}/ayudas-visuales/:path*` },
       ],
 
       fallback: [],
