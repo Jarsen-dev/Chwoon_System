@@ -32,6 +32,7 @@ from app.models.psi_snapshot import PsiSnapshot
 from app.models.cliente import Cliente, ClienteEvento
 from app.models.maquina import Maquina
 from app.models.maquina_evento import MaquinaEvento
+from app.models.ayuda_visual import AyudaVisual
 
 __all__ = [
     "Parte",
@@ -75,4 +76,5 @@ __all__ = [
     "ClienteEvento",
     "Maquina",
     "MaquinaEvento",
+    "AyudaVisual",
 ]

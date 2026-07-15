@@ -1,6 +1,6 @@
 'use client'
 
-import { ProductoItem, ProductoCreate, ProductoUpdate, BomItem } from '@/types'
+import { ProductoItem, ProductoCreate, ProductoUpdate, BomItem, AyudaVisual } from '@/types'
 import { useEffect, useState, useMemo, useRef } from 'react'
 import {
   getProductos,
@@ -13,7 +13,12 @@ import {
   actualizarBom,
   importarProductosExcel,
   importarBomExcel,
+  getAyudasVisuales,
+  reindexarAyudasVisuales,
+  ayudaVisualThumbnailUrl,
+  ayudaVisualPdfUrl,
 } from '@/lib/api'
+import { useAuth } from '@/context/AuthContext'
 import { Modal, Button, LoadingSpinner } from '@/components/ui'
 import {
   IconOk, IconAlertas, IconInfo, IconEliminar, IconLista, IconNuevo, IconGuardar,
@@ -118,6 +123,12 @@ export default function ProductosTab() {
 
   // Detalle Modal
   const [detalleModal, setDetalleModal] = useState<ProductoItem | null>(null)
+
+  // Ayudas Visuales Modal
+  const { rol, token } = useAuth()
+  const [avModal, setAvModal] = useState<ProductoItem | null>(null)
+  const [ayudas, setAyudas] = useState<AyudaVisual[] | null>(null) // null = cargando
+  const [isReindexing, setIsReindexing] = useState(false)
 
   useEffect(() => {
     loadProductos()
@@ -587,6 +598,55 @@ export default function ProductosTab() {
     }
   }
 
+  // ── Ayudas Visuales ──
+  const openAvModal = async (item: ProductoItem) => {
+    setAvModal(item)
+    setAyudas(null)
+    try {
+      setAyudas(await getAyudasVisuales(item.sku))
+    } catch {
+      setAyudas([])
+      setModalInfo({
+        title: 'Error de Conexión',
+        message: 'No se pudieron cargar las ayudas visuales.',
+        type: 'error',
+      })
+    }
+  }
+
+  const handleReindexAyudas = async () => {
+    if (!token) return
+    setIsReindexing(true)
+    try {
+      const r = await reindexarAyudasVisuales(token)
+      const detalles = [
+        `Archivos PDF encontrados: ${r.total_archivos}`,
+        `Indexados: ${r.indexados} (${r.nuevos} nuevos, ${r.actualizados} actualizados)`,
+        `Eliminados: ${r.eliminados}`,
+        `Miniaturas generadas: ${r.thumbnails_generados}`,
+        r.sin_producto.length
+          ? `Sin producto asociado (${r.sin_producto.length}): ${r.sin_producto.slice(0, 10).join(', ')}${r.sin_producto.length > 10 ? '…' : ''}`
+          : '',
+        r.errores.length ? `Errores (${r.errores.length}): ${r.errores.slice(0, 5).join(' | ')}` : '',
+      ]
+        .filter(Boolean)
+        .join('\n')
+      setModalInfo({
+        title: 'Reindexado Completado',
+        message: detalles,
+        type: r.errores.length ? 'info' : 'success',
+      })
+    } catch (e) {
+      setModalInfo({
+        title: 'Error al Reindexar',
+        message: e instanceof Error ? e.message : 'Error al reindexar ayudas visuales.',
+        type: 'error',
+      })
+    } finally {
+      setIsReindexing(false)
+    }
+  }
+
   // ── Badges de controles ──
   const controlBadge = (control: string) => {
     const colors: Record<string, string> = {
@@ -641,7 +701,7 @@ export default function ProductosTab() {
         title={<span className={`flex items-center gap-2 ${modalTitleColor}`}><ModalIcon size={18} aria-hidden /> {modalInfo?.title}</span>}
         footer={<Button variant="secondary" onClick={() => setModalInfo(null)}>Aceptar</Button>}
       >
-        <p className="text-gray-300 text-sm">{modalInfo?.message}</p>
+        <p className="text-gray-300 text-sm whitespace-pre-line">{modalInfo?.message}</p>
       </Modal>
 
       {/* MODAL CONFIRMAR */}
@@ -984,6 +1044,65 @@ export default function ProductosTab() {
                 </div>
               )}
           </>
+        )}
+      </Modal>
+
+      {/* MODAL AYUDAS VISUALES */}
+      <Modal
+        open={!!avModal}
+        onClose={() => { setAvModal(null); setAyudas(null) }}
+        size="3xl"
+        title={<span className="flex items-center gap-2 text-amber-400"><IconDocumento size={18} aria-hidden /> Ayudas Visuales — {avModal?.sku}</span>}
+        footer={<Button variant="secondary" onClick={() => { setAvModal(null); setAyudas(null) }}>Cerrar</Button>}
+      >
+        {ayudas === null ? (
+          <div className="py-10 text-center">
+            <LoadingSpinner />
+            <p className="text-gray-400 text-sm mt-2">Cargando ayudas visuales...</p>
+          </div>
+        ) : ayudas.length === 0 ? (
+          <div className="py-10 text-center text-gray-400">
+            <IconDocumento size={36} className="mx-auto mb-2 text-gray-600" aria-hidden />
+            <p className="text-sm">Este producto no tiene ayudas visuales indexadas.</p>
+            <p className="text-xs text-gray-500 mt-1">
+              Verifica que el PDF incluya el No. de Parte en el nombre y ejecuta &quot;Reindexar AV&quot;.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            {ayudas.map((av) => (
+              <button
+                key={av.id}
+                type="button"
+                onClick={() => window.open(ayudaVisualPdfUrl(av.id), '_blank', 'noopener')}
+                className="group text-left bg-gray-800 hover:bg-gray-700 border border-gray-700 hover:border-amber-500/50 rounded-lg overflow-hidden transition"
+                title={`${av.nombre_archivo}\n${av.ruta}`}
+              >
+                <div className="w-full aspect-[3/4] bg-white flex items-center justify-center overflow-hidden">
+                  {av.tiene_thumbnail ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={ayudaVisualThumbnailUrl(av.id)}
+                      alt={av.nombre_archivo}
+                      loading="lazy"
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <IconDocumento size={40} className="text-gray-400" aria-hidden />
+                  )}
+                </div>
+                <div className="p-2">
+                  {av.codigo_av && (
+                    <p className="text-xs font-bold text-amber-400 truncate">{av.codigo_av}</p>
+                  )}
+                  <p className="text-xs text-gray-300 truncate">{av.nombre_archivo}</p>
+                  <p className="text-[10px] text-gray-500 truncate">
+                    {av.ruta.split('/').slice(0, -1).join(' / ') || '—'}
+                  </p>
+                </div>
+              </button>
+            ))}
+          </div>
         )}
       </Modal>
 
@@ -1353,6 +1472,17 @@ export default function ProductosTab() {
               >
                 Importar BOM
               </Button>
+              {(rol === 'admin' || rol === 'supervisor') && (
+                <Button
+                  type="button"
+                  onClick={handleReindexAyudas}
+                  disabled={isReindexing}
+                  leftIcon={isReindexing ? IconPendiente : IconDocumento}
+                  className="bg-amber-600 hover:bg-amber-700 text-white"
+                >
+                  {isReindexing ? 'Reindexando...' : 'Reindexar AV'}
+                </Button>
+              )}
             </>
           )}
           {editing && (
@@ -1561,6 +1691,14 @@ export default function ProductosTab() {
                       aria-label="Ver detalle"
                     >
                       <IconVer size={15} />
+                    </button>
+                    <button
+                      onClick={() => openAvModal(item)}
+                      className="text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 p-1.5 rounded transition"
+                      title="Ayudas visuales"
+                      aria-label="Ayudas visuales"
+                    >
+                      <IconDocumento size={15} />
                     </button>
                     <button
                       onClick={() => handleEdit(item)}

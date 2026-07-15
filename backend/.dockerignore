@@ -15,3 +15,6 @@ env/
 .git/
 .gitignore
 *.md
+
+# Ayudas visuales: llegan por volumen en runtime, no hornearlas en la imagen
+static/ayudas_visuales/

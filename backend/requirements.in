@@ -11,6 +11,7 @@ openpyxl>=3.1.0
 reportlab
 qrcode[pil]
 Pillow
+PyMuPDF
 scikit-learn
 numpy
 python-multipart

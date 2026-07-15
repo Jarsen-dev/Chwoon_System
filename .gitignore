@@ -45,3 +45,5 @@ pgadmin/pgpass
 
 # ── OpenCode ────────────────────────────────────
 .opencode/
+# ── Ayudas Visuales (PDFs + miniaturas, sincronizados por SSH — no van al repo) ──
+backend/static/ayudas_visuales/
