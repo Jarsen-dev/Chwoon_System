@@ -28,6 +28,7 @@ class Producto(Base):
     puntos_inspeccion_oqc = Column(JSON, default=list)
     bom = Column(JSON, default=list)
     caracteristicas_inyeccion = Column(JSON, default=dict)
+    caracteristicas_resina = Column(JSON, default=dict)
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

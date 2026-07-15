@@ -24,10 +24,17 @@ export interface CaracteristicasInyeccion {
   tipo_resina?: string
   resina?:      string
   densidad?:    number
-  peso?:        number
+  peso_spec?:   number
   peso_seco?:   number
   cav?:         number
   ciclo?:       number
+}
+
+export interface CaracteristicasResina {
+  tipo_resina?: string
+  grado?:       string
+  marca?:       string
+  cantidad?:    number
 }
 
 export interface ProductoItem {
@@ -51,6 +58,7 @@ export interface ProductoItem {
   puntos_inspeccion_oqc:     Record<string, any>[]
   bom:                       BomItem[]
   caracteristicas_inyeccion: CaracteristicasInyeccion
+  caracteristicas_resina:    CaracteristicasResina
 }
 
 export interface ProductoCreate {
@@ -67,6 +75,7 @@ export interface ProductoCreate {
   linea_produccion?:          string
   ubicacion?:                 string
   caracteristicas_inyeccion?: CaracteristicasInyeccion
+  caracteristicas_resina?:    CaracteristicasResina
 }
 
 export interface ProductoUpdate {
@@ -88,6 +97,7 @@ export interface ProductoUpdate {
   puntos_inspeccion_oqc?:     Record<string, any>[]
   bom?:                       BomItem[]
   caracteristicas_inyeccion?: CaracteristicasInyeccion
+  caracteristicas_resina?:    CaracteristicasResina
 }
 
 // ==========================================

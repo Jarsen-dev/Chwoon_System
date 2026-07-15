@@ -28,6 +28,7 @@ class ProductoBase(BaseModel):
     puntos_inspeccion_oqc: Optional[List[Dict[str, Any]]] = []
     bom: Optional[List[Dict[str, Any]]] = []
     caracteristicas_inyeccion: Optional[Dict[str, Any]] = {}
+    caracteristicas_resina: Optional[Dict[str, Any]] = {}
 
 
 class ProductoCreate(ProductoBase):
@@ -53,6 +54,7 @@ class ProductoUpdate(BaseModel):
     puntos_inspeccion_oqc: Optional[List[Dict[str, Any]]] = None
     bom: Optional[List[Dict[str, Any]]] = None
     caracteristicas_inyeccion: Optional[Dict[str, Any]] = None
+    caracteristicas_resina: Optional[Dict[str, Any]] = None
 
 
 class ProductoBomUpdate(BaseModel):

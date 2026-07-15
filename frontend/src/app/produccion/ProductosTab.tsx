@@ -37,7 +37,7 @@ const TIPOS_PRODUCTO = ['COMPONENTE', 'RESINA', 'PRODUCTO FINAL']
 const CLASES_PRODUCTO = ['PRE EXPANSIÓN', 'INYECCIÓN', 'ASSY']
 const UNIDADES_MEDIDA = ['PZA', 'KG', 'LT', 'MT', 'ROLLO', 'CAJA']
 const PROVEEDORES = ['SOLARPOL (HYUNDAI)', 'LG', 'CHEONG WOON', 'PLASTIC MANAGEMENT', 'HAENG SUNG']
-const ID_PROCESOS = ['ASSY', 'VENTA', 'CORTE']
+const ID_PROCESOS = ['ASSY', 'PACKING', 'BLOCK', 'CUTTING', 'MOLDE']
 const TIPOS_RESINA = ['EPS', 'EPP']
 
 export default function ProductosTab() {
@@ -72,10 +72,17 @@ export default function ProductosTab() {
     tipo_resina: '',
     resina: '',
     densidad: '',
-    peso: '',
+    peso_spec: '',
     peso_seco: '',
     cav: '',
     ciclo: '',
+  })
+  const [showResina, setShowResina] = useState(false)
+  const [resinaData, setResinaData] = useState({
+    tipo_resina: '',
+    grado: '',
+    marca: '',
+    cantidad: '',
   })
 
   // Selección múltiple
@@ -118,6 +125,7 @@ export default function ProductosTab() {
 
   useEffect(() => {
     setShowInyeccion(formData.clase_producto === 'INYECCIÓN')
+    setShowResina(formData.clase_producto === 'PRE EXPANSIÓN')
   }, [formData.clase_producto])
 
   const loadProductos = async () => {
@@ -196,10 +204,18 @@ export default function ProductosTab() {
             tipo_resina: inyeccionData.tipo_resina,
             resina: inyeccionData.resina,
             densidad: parseFloat(inyeccionData.densidad) || 0,
-            peso: parseFloat(inyeccionData.peso) || 0,
+            peso_spec: parseFloat(inyeccionData.peso_spec) || 0,
             peso_seco: parseFloat(inyeccionData.peso_seco) || 0,
             cav: parseInt(inyeccionData.cav) || 0,
             ciclo: parseFloat(inyeccionData.ciclo) || 0,
+            }
+        }
+        if (showResina) {
+            updatePayload.caracteristicas_resina = {
+            tipo_resina: resinaData.tipo_resina,
+            grado: resinaData.grado,
+            marca: resinaData.marca,
+            cantidad: parseFloat(resinaData.cantidad) || 0,
             }
         }
         await updateProducto(editing, updatePayload)
@@ -230,10 +246,18 @@ export default function ProductosTab() {
             tipo_resina: inyeccionData.tipo_resina,
             resina: inyeccionData.resina,
             densidad: parseFloat(inyeccionData.densidad) || 0,
-            peso: parseFloat(inyeccionData.peso) || 0,
+            peso_spec: parseFloat(inyeccionData.peso_spec) || 0,
             peso_seco: parseFloat(inyeccionData.peso_seco) || 0,
             cav: parseInt(inyeccionData.cav) || 0,
             ciclo: parseFloat(inyeccionData.ciclo) || 0,
+            }
+        }
+        if (showResina) {
+            createPayload.caracteristicas_resina = {
+            tipo_resina: resinaData.tipo_resina,
+            grado: resinaData.grado,
+            marca: resinaData.marca,
+            cantidad: parseFloat(resinaData.cantidad) || 0,
             }
         }
         await createProducto(createPayload)
@@ -272,10 +296,18 @@ export default function ProductosTab() {
         tipo_resina: item.caracteristicas_inyeccion.tipo_resina || '',
         resina: item.caracteristicas_inyeccion.resina || '',
         densidad: String(item.caracteristicas_inyeccion.densidad ?? ''),
-        peso: String(item.caracteristicas_inyeccion.peso ?? ''),
+        peso_spec: String(item.caracteristicas_inyeccion.peso_spec ?? ''),
         peso_seco: String(item.caracteristicas_inyeccion.peso_seco ?? ''),
         cav: String(item.caracteristicas_inyeccion.cav ?? ''),
         ciclo: String(item.caracteristicas_inyeccion.ciclo ?? ''),
+      })
+    }
+    if (item.caracteristicas_resina && Object.keys(item.caracteristicas_resina).length > 0) {
+      setResinaData({
+        tipo_resina: item.caracteristicas_resina.tipo_resina || '',
+        grado: item.caracteristicas_resina.grado || '',
+        marca: item.caracteristicas_resina.marca || '',
+        cantidad: String(item.caracteristicas_resina.cantidad ?? ''),
       })
     }
     setEditing(item.sku)
@@ -328,10 +360,16 @@ export default function ProductosTab() {
       tipo_resina: '',
       resina: '',
       densidad: '',
-      peso: '',
+      peso_spec: '',
       peso_seco: '',
       cav: '',
       ciclo: '',
+    })
+    setResinaData({
+      tipo_resina: '',
+      grado: '',
+      marca: '',
+      cantidad: '',
     })
   }
 
@@ -902,7 +940,28 @@ export default function ProductosTab() {
                             {k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}:
                           </span>{' '}
                           {String(v)}
-                          {(k === 'peso' || k === 'peso_seco') && ' Kg'}
+                          {(k === 'peso_spec' || k === 'peso_seco') && ' Kg'}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+              {/* Características de resina */}
+              {detalleModal.caracteristicas_resina &&
+                Object.keys(detalleModal.caracteristicas_resina).length > 0 && (
+                  <div className="mt-4 p-3 bg-blue-500/10 rounded-lg">
+                    <h4 className="font-semibold text-blue-300 text-sm mb-2 flex items-center gap-2">
+                      <IconInyeccion size={15} aria-hidden /> Características de Resina
+                    </h4>
+                    <div className="grid grid-cols-3 gap-2 text-xs">
+                      {Object.entries(detalleModal.caracteristicas_resina).map(([k, v]) => (
+                        <div key={k}>
+                          <span className="font-semibold text-gray-400">
+                            {k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}:
+                          </span>{' '}
+                          {String(v)}
+                          {k === 'cantidad' && ' Kg'}
                         </div>
                       ))}
                     </div>
@@ -981,10 +1040,10 @@ export default function ProductosTab() {
                 const t = formData.tipo
                 const c = formData.clase_producto
                 const p = inyeccionData.id_proceso
-                if (t === 'COMPONENTE' && c === 'INYECCIÓN' && (p === 'ASSY' || p === 'CORTE')) {
+                if (t === 'COMPONENTE' && c === 'INYECCIÓN' && (p === 'ASSY' || p === 'BLOCK')) {
                   return '→ Se asignará control LQC'
                 }
-                if (t === 'COMPONENTE' && c === 'INYECCIÓN' && p === 'VENTA') {
+                if (t === 'COMPONENTE' && c === 'INYECCIÓN' && p === 'PACKING') {
                   return '→ Se asignará control OQC'
                 }
                 if (t === 'PRODUCTO FINAL') {
@@ -1131,7 +1190,7 @@ export default function ProductosTab() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-400 mb-1">Resina</label>
+                <label className="block text-xs font-semibold text-gray-400 mb-1">Grado</label>
                 <input
                   type="text"
                   value={inyeccionData.resina}
@@ -1153,12 +1212,12 @@ export default function ProductosTab() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-400 mb-1">Peso</label>
+                <label className="block text-xs font-semibold text-gray-400 mb-1">Peso Spec</label>
                 <input
                     type="text"
                     inputMode="decimal"
-                    value={inyeccionData.peso}
-                    onChange={(e) => setInyeccionData({ ...inyeccionData, peso: e.target.value })}
+                    value={inyeccionData.peso_spec}
+                    onChange={(e) => setInyeccionData({ ...inyeccionData, peso_spec: e.target.value })}
                     className="w-full bg-gray-800 text-white border border-gray-600 p-1.5 rounded text-sm"
                     placeholder="0.00"
                 />
@@ -1192,6 +1251,61 @@ export default function ProductosTab() {
                     inputMode="decimal"
                     value={inyeccionData.ciclo}
                     onChange={(e) => setInyeccionData({ ...inyeccionData, ciclo: e.target.value })}
+                    className="w-full bg-gray-800 text-white border border-gray-600 p-1.5 rounded text-sm"
+                    placeholder="0.00"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Características de Resina */}
+        {showResina && (
+          <div className="mt-4 p-4 bg-blue-500/10 rounded-lg border border-blue-500/30">
+            <h3 className="text-sm font-bold text-blue-300 mb-3 flex items-center gap-2">
+              <IconInyeccion size={15} aria-hidden /> Características de Resina
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-400 mb-1">Tipo Resina</label>
+                <select
+                    value={resinaData.tipo_resina}
+                    onChange={(e) => setResinaData({ ...resinaData, tipo_resina: e.target.value })}
+                    className="w-full bg-gray-950 border border-gray-800 rounded-md px-2 py-1.5 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
+                >
+                    <option value="">-- Seleccionar --</option>
+                    {TIPOS_RESINA.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-400 mb-1">Grado</label>
+                <input
+                  type="text"
+                  value={resinaData.grado}
+                  onChange={(e) =>
+                    setResinaData({ ...resinaData, grado: e.target.value })
+                  }
+                  className="w-full bg-gray-800 text-white border border-gray-600 p-1.5 rounded text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-400 mb-1">Marca</label>
+                <input
+                  type="text"
+                  value={resinaData.marca}
+                  onChange={(e) =>
+                    setResinaData({ ...resinaData, marca: e.target.value })
+                  }
+                  className="w-full bg-gray-800 text-white border border-gray-600 p-1.5 rounded text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-400 mb-1">Cantidad (Kg)</label>
+                <input
+                    type="text"
+                    inputMode="decimal"
+                    value={resinaData.cantidad}
+                    onChange={(e) => setResinaData({ ...resinaData, cantidad: e.target.value })}
                     className="w-full bg-gray-800 text-white border border-gray-600 p-1.5 rounded text-sm"
                     placeholder="0.00"
                 />

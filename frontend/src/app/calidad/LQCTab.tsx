@@ -534,13 +534,13 @@ export default function LQCTab({ token }: Props) {
                     <div className="flex justify-between"><span className="text-gray-400">Tipo Resina:</span><span className="text-white">{loteInfo.caracteristicas_inyeccion.tipo_resina}</span></div>
                   )}
                   {loteInfo.caracteristicas_inyeccion.resina && (
-                    <div className="flex justify-between"><span className="text-gray-400">Resina:</span><span className="text-white">{loteInfo.caracteristicas_inyeccion.resina}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-400">Grado:</span><span className="text-white">{loteInfo.caracteristicas_inyeccion.resina}</span></div>
                   )}
                   {loteInfo.caracteristicas_inyeccion.densidad != null && (
                     <div className="flex justify-between"><span className="text-gray-400">Densidad:</span><span className="text-white font-mono">{loteInfo.caracteristicas_inyeccion.densidad}</span></div>
                   )}
-                  {loteInfo.caracteristicas_inyeccion.peso != null && (
-                    <div className="flex justify-between"><span className="text-gray-400">Peso:</span><span className="text-white font-mono">{loteInfo.caracteristicas_inyeccion.peso}</span></div>
+                  {loteInfo.caracteristicas_inyeccion.peso_spec != null && (
+                    <div className="flex justify-between"><span className="text-gray-400">Peso Spec:</span><span className="text-white font-mono">{loteInfo.caracteristicas_inyeccion.peso_spec}</span></div>
                   )}
                   {loteInfo.caracteristicas_inyeccion.peso_seco != null && (
                     <div className="flex justify-between"><span className="text-gray-400">Peso Seco:</span><span className="text-white font-mono">{loteInfo.caracteristicas_inyeccion.peso_seco}</span></div>

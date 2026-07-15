@@ -29,10 +29,10 @@ def asignar_controles(tipo: str, clase_producto: str = "", id_proceso: str = "")
     c = (clase_producto or "").strip().upper()
     p = (id_proceso or "").strip().upper()
     
-    if t == "COMPONENTE" and c == "INYECCIÓN" and p in ("ASSY", "CORTE"):
+    if t == "COMPONENTE" and c == "INYECCIÓN" and p in ("ASSY", "BLOCK"):
         return ["LQC"]
-    
-    if t == "COMPONENTE" and c == "INYECCIÓN" and p == "VENTA":
+
+    if t == "COMPONENTE" and c == "INYECCIÓN" and p == "PACKING":
         return ["OQC"]
     
     if t == "PRODUCTO FINAL":
@@ -90,6 +90,7 @@ async def crear_producto(data: ProductoCreate, db: AsyncSession = Depends(get_db
     d.setdefault("puntos_inspeccion_oqc", [])
     d.setdefault("bom", [])
     d.setdefault("caracteristicas_inyeccion", {})
+    d.setdefault("caracteristicas_resina", {})
     d["status"] = "Activo"
 
     db_obj = Producto(**d)
@@ -279,9 +280,9 @@ async def importar_productos(file: UploadFile = File(...), db: AsyncSession = De
                 except (ValueError, TypeError):
                     densidad = 0.0
                 try:
-                    peso = float(row.get("peso") or 0)
+                    peso_spec = float(row.get("peso_spec") or row.get("peso") or 0)
                 except (ValueError, TypeError):
-                    peso = 0.0
+                    peso_spec = 0.0
                 try:
                     peso_seco = float(row.get("peso_seco") or 0)
                 except (ValueError, TypeError):
@@ -296,7 +297,7 @@ async def importar_productos(file: UploadFile = File(...), db: AsyncSession = De
                     "tipo_resina": row.get("tipo_resina") or "",
                     "resina": row.get("resina") or "",
                     "densidad": densidad,
-                    "peso": peso,
+                    "peso_spec": peso_spec,
                     "peso_seco": peso_seco,
                     "cav": cav,
                 }
