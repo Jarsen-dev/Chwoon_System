@@ -14,6 +14,8 @@ export {
   User as IconUsuario,
   RefreshCw as IconActualizar,
   Search as IconBuscar,
+  ChevronLeft as IconAnterior,
+  ChevronRight as IconSiguiente,
 
   // Módulos
   Factory as IconProduccion,

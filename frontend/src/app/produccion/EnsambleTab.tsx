@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/context/AuthContext'
-import { OrdenProduccion as OrdenProduccionType, ProductoItem } from '@/types'
+import { OrdenProduccion as OrdenProduccionType, ProductoListItem, BomItem } from '@/types'
 import {
   getOrdenesProduccion,
   iniciarAssy,
   registrarPiezaAssy,
   finalizarAssy,
-  getProductos,
+  getProductosPage,
+  getProductoById,
   surtirMaterialPendiente,
 } from '@/lib/api'
 import { Button } from '@/components/ui'
@@ -23,7 +24,8 @@ export default function EnsambleTab() {
   const [loading, setLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [mensaje, setMensaje] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null)
-  const [productos, setProductos] = useState<ProductoItem[]>([])
+  const [productos, setProductos] = useState<ProductoListItem[]>([])
+  const [bomSeleccionado, setBomSeleccionado] = useState<BomItem[]>([])
 
   // Form
   const [formSku, setFormSku] = useState('')
@@ -51,15 +53,26 @@ export default function EnsambleTab() {
 
   const cargarProductos = async () => {
     try {
-      const prods = await getProductos()
-      setProductos(prods.filter(p =>
-        (p.clase_producto || '').toUpperCase() === 'ASSY' &&
-        (p.tipo || '').toUpperCase() === 'PRODUCTO FINAL'
-      ))
+      const page = await getProductosPage({ tipo: 'PRODUCTO FINAL', clase: 'ASSY', limit: 1000 })
+      setProductos(page.items)
     } catch { }
   }
 
   useEffect(() => { cargar(); cargarProductos() }, [token])
+
+  // El listado es ligero: el BOM del producto seleccionado se carga por id
+  useEffect(() => {
+    const item = productos.find(p => p.sku === formSku)
+    if (!item) {
+      setBomSeleccionado([])
+      return
+    }
+    let cancelado = false
+    getProductoById(item.id)
+      .then(p => { if (!cancelado) setBomSeleccionado(p.bom || []) })
+      .catch(() => { if (!cancelado) setBomSeleccionado([]) })
+    return () => { cancelado = true }
+  }, [formSku, productos])
 
   useEffect(() => {
     if (mensaje) {
@@ -135,7 +148,6 @@ export default function EnsambleTab() {
     }
   }
 
-  const productoSeleccionado = productos.find(p => p.sku === formSku)
   const activas = ordenes.filter(o => o.status !== 'Finalizado')
   const finalizadas = ordenes.filter(o => o.status === 'Finalizado')
 
@@ -169,7 +181,7 @@ export default function EnsambleTab() {
                 className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15">
                 <option value="">Seleccionar...</option>
                 {productos.map(p => (
-                  <option key={p.sku} value={p.sku}>{p.sku} — {p.modelo}</option>
+                  <option key={p.id} value={p.sku}>{p.sku} — {p.modelo}</option>
                 ))}
               </select>
             </div>
@@ -209,7 +221,7 @@ export default function EnsambleTab() {
           </div>
 
           {/* BOM Preview */}
-          {productoSeleccionado && productoSeleccionado.bom && productoSeleccionado.bom.length > 0 && (
+          {formSku && bomSeleccionado.length > 0 && (
             <div className="bg-gray-800 rounded-lg p-4">
               <h4 className="text-sm font-semibold text-gray-300 mb-2 flex items-center gap-2"><IconLista size={15} aria-hidden /> BOM — Lista de Materiales</h4>
               <table className="w-full text-sm">
@@ -221,7 +233,7 @@ export default function EnsambleTab() {
                   </tr>
                 </thead>
                 <tbody>
-                  {productoSeleccionado.bom.map((b, i) => (
+                  {bomSeleccionado.map((b, i) => (
                     <tr key={i} className="border-t border-gray-700">
                       <td className="py-1 font-mono">{b.sku_componente}</td>
                       <td className="py-1 text-right">{b.cantidad}</td>

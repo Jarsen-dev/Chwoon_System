@@ -61,6 +61,33 @@ export interface ProductoItem {
   caracteristicas_resina:    CaracteristicasResina
 }
 
+// Versión ligera para listados paginados (sin BOM, puntos de inspección ni características)
+export interface ProductoListItem {
+  id:                number
+  sku:               string
+  tipo:              string
+  clase_producto:    string
+  unidad_de_medida:  string
+  descripcion:       string
+  cantidad_carrito:  number
+  proveedor:         string
+  cliente:           string
+  cliente_id:        string
+  modelo:            string
+  linea_produccion:  string
+  ubicacion:         string
+  status:            string
+  controles_calidad: string[]
+  bom_count:         number
+}
+
+export interface ProductoPage {
+  items:  ProductoListItem[]
+  total:  number
+  limit:  number
+  offset: number
+}
+
 export interface AyudaVisual {
   id:              number
   sku:             string

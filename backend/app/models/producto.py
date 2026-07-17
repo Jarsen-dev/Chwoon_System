@@ -1,13 +1,14 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text, JSON
+from sqlalchemy import Column, Integer, String, DateTime, Text, JSON, UniqueConstraint
 from datetime import datetime
 from app.database import Base
 
 
 class Producto(Base):
     __tablename__ = "productos"
+    __table_args__ = (UniqueConstraint('sku', 'modelo', name='uq_productos_sku_modelo'),)
 
     id = Column(Integer, primary_key=True, index=True)
-    sku = Column(String(50), unique=True, index=True, nullable=False)
+    sku = Column(String(50), index=True, nullable=False)
     nombre = Column(String(300), default="")
     tipo = Column(String(50), default="")
     clase_producto = Column(String(50), default="")

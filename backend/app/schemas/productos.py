@@ -67,7 +67,7 @@ class PuntosInspeccionUpdate(BaseModel):
 
 
 class ProductoStatusUpdate(BaseModel):
-    skus: List[str]
+    ids: List[int]
     status: str
 
 
@@ -76,3 +76,34 @@ class Producto(ProductoBase):
 
     class Config:
         from_attributes = True
+
+
+class ProductoListItem(BaseModel):
+    """Versión ligera para listados: sin BOM, puntos de inspección ni características."""
+    id: int
+    sku: str
+    nombre: Optional[str] = ""
+    tipo: Optional[str] = ""
+    clase_producto: Optional[str] = ""
+    unidad_de_medida: Optional[str] = ""
+    descripcion: Optional[str] = ""
+    cantidad_carrito: Optional[int] = 0
+    proveedor: Optional[str] = ""
+    cliente: Optional[str] = ""
+    cliente_id: Optional[str] = ""
+    modelo: Optional[str] = ""
+    linea_produccion: Optional[str] = ""
+    ubicacion: Optional[str] = ""
+    status: Optional[str] = "Activo"
+    controles_calidad: Optional[List[str]] = []
+    bom_count: int = 0
+
+    class Config:
+        from_attributes = True
+
+
+class ProductoListPage(BaseModel):
+    items: List[ProductoListItem]
+    total: int
+    limit: int
+    offset: int

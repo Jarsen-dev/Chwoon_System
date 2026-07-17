@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 from typing import List, Optional
 import pandas as pd
 import io
@@ -14,6 +14,7 @@ from app.schemas.productos import (
     ProductoBomUpdate,
     PuntosInspeccionUpdate,
     ProductoStatusUpdate,
+    ProductoListPage,
 )
 
 router = APIRouter(prefix="/productos", tags=["productos"])
@@ -46,10 +47,64 @@ def asignar_controles(tipo: str, clase_producto: str = "", id_proceso: str = "")
     return []
 
 
-@router.get("/", response_model=List[ProductoSchema])
-async def listar_productos(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Producto).order_by(Producto.sku))
-    return result.scalars().all()
+@router.get("/", response_model=ProductoListPage)
+async def listar_productos(
+    search: Optional[str] = Query(None, description="Busca en SKU, modelo, descripción y cliente"),
+    tipo: Optional[str] = Query(None),
+    clase: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    limit: int = Query(50, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
+    db: AsyncSession = Depends(get_db),
+):
+    filtros = []
+    if search and search.strip():
+        q = f"%{search.strip()}%"
+        filtros.append(or_(
+            Producto.sku.ilike(q),
+            Producto.modelo.ilike(q),
+            Producto.descripcion.ilike(q),
+            Producto.cliente.ilike(q),
+            Producto.cliente_id.ilike(q),
+        ))
+    if tipo:
+        filtros.append(Producto.tipo == tipo)
+    if clase:
+        filtros.append(Producto.clase_producto == clase)
+    if status:
+        filtros.append(Producto.status == status)
+
+    total = (await db.execute(
+        select(func.count()).select_from(Producto).where(*filtros)
+    )).scalar_one()
+
+    result = await db.execute(
+        select(
+            Producto.id,
+            Producto.sku,
+            Producto.nombre,
+            Producto.tipo,
+            Producto.clase_producto,
+            Producto.unidad_de_medida,
+            Producto.descripcion,
+            Producto.cantidad_carrito,
+            Producto.proveedor,
+            Producto.cliente,
+            Producto.cliente_id,
+            Producto.modelo,
+            Producto.linea_produccion,
+            Producto.ubicacion,
+            Producto.status,
+            Producto.controles_calidad,
+            func.coalesce(func.json_array_length(Producto.bom), 0).label("bom_count"),
+        )
+        .where(*filtros)
+        .order_by(Producto.sku, Producto.id)
+        .limit(limit)
+        .offset(offset)
+    )
+    items = [dict(r) for r in result.mappings().all()]
+    return {"items": items, "total": total, "limit": limit, "offset": offset}
 
 
 @router.get("/search/sku", response_model=List[ProductoSchema])
@@ -70,14 +125,16 @@ async def buscar_producto_por_sku(
 
 @router.post("/", response_model=ProductoSchema)
 async def crear_producto(data: ProductoCreate, db: AsyncSession = Depends(get_db)):
-    existing = await db.execute(select(Producto).where(Producto.sku == data.sku.strip().upper()))
-    if existing.scalar_one_or_none():
-        raise HTTPException(400, f"Ya existe SKU: {data.sku}")
-
     d = data.model_dump()
     d["sku"] = d["sku"].strip().upper()
     d["modelo"] = (d.get("modelo") or "").strip().upper()
     d["tipo"] = (d.get("tipo") or "").strip().upper()
+
+    existing = await db.execute(
+        select(Producto).where(Producto.sku == d["sku"], Producto.modelo == d["modelo"])
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(400, f"Ya existe un producto con SKU {d['sku']} y Modelo {d['modelo']}")
     
     # Extraer clase e id_proceso para asignar controles
     clase = (d.get("clase_producto") or "").strip().upper()
@@ -100,18 +157,31 @@ async def crear_producto(data: ProductoCreate, db: AsyncSession = Depends(get_db
     return db_obj
 
 
-@router.get("/{sku}", response_model=ProductoSchema)
-async def obtener_producto(sku: str, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Producto).where(Producto.sku == sku.upper()))
+@router.get("/id/{producto_id}", response_model=ProductoSchema)
+async def obtener_producto_por_id(producto_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Producto).where(Producto.id == producto_id))
     p = result.scalar_one_or_none()
     if not p:
         raise HTTPException(404, "Producto no encontrado")
     return p
 
 
-@router.put("/{sku}", response_model=ProductoSchema)
-async def actualizar_producto(sku: str, data: ProductoUpdate, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Producto).where(Producto.sku == sku.upper()))
+@router.get("/{sku}", response_model=ProductoSchema)
+async def obtener_producto(sku: str, db: AsyncSession = Depends(get_db)):
+    # Puede haber varios productos con el mismo SKU (unicidad por sku+modelo);
+    # se devuelve el primero por modelo para las pantallas que buscan solo por SKU.
+    result = await db.execute(
+        select(Producto).where(Producto.sku == sku.upper()).order_by(Producto.modelo)
+    )
+    p = result.scalars().first()
+    if not p:
+        raise HTTPException(404, "Producto no encontrado")
+    return p
+
+
+@router.put("/{producto_id}", response_model=ProductoSchema)
+async def actualizar_producto(producto_id: int, data: ProductoUpdate, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Producto).where(Producto.id == producto_id))
     p = result.scalar_one_or_none()
     if not p:
         raise HTTPException(404, "Producto no encontrado")
@@ -138,12 +208,13 @@ async def actualizar_producto(sku: str, data: ProductoUpdate, db: AsyncSession =
     return p
 
 
-@router.delete("/{sku}")
-async def eliminar_producto(sku: str, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Producto).where(Producto.sku == sku.upper()))
+@router.delete("/{producto_id}")
+async def eliminar_producto(producto_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Producto).where(Producto.id == producto_id))
     p = result.scalar_one_or_none()
     if not p:
         raise HTTPException(404, "Producto no encontrado")
+    sku = p.sku
     await db.delete(p)
     await db.commit()
     return {"message": f"Producto {sku} eliminado"}
@@ -151,10 +222,10 @@ async def eliminar_producto(sku: str, db: AsyncSession = Depends(get_db)):
 
 @router.post("/delete-batch")
 async def eliminar_batch(data: dict, db: AsyncSession = Depends(get_db)):
-    skus = data.get("skus", [])
+    ids = data.get("ids", [])
     deleted = 0
-    for sku in skus:
-        result = await db.execute(select(Producto).where(Producto.sku == sku.upper()))
+    for producto_id in ids:
+        result = await db.execute(select(Producto).where(Producto.id == producto_id))
         p = result.scalar_one_or_none()
         if p:
             await db.delete(p)
@@ -166,8 +237,8 @@ async def eliminar_batch(data: dict, db: AsyncSession = Depends(get_db)):
 @router.post("/status-batch")
 async def cambiar_status(data: ProductoStatusUpdate, db: AsyncSession = Depends(get_db)):
     updated = 0
-    for sku in data.skus:
-        result = await db.execute(select(Producto).where(Producto.sku == sku.upper()))
+    for producto_id in data.ids:
+        result = await db.execute(select(Producto).where(Producto.id == producto_id))
         p = result.scalar_one_or_none()
         if p:
             p.status = data.status
@@ -176,9 +247,9 @@ async def cambiar_status(data: ProductoStatusUpdate, db: AsyncSession = Depends(
     return {"message": f"{updated} actualizado(s)"}
 
 
-@router.put("/{sku}/puntos-inspeccion")
-async def update_puntos(sku: str, data: PuntosInspeccionUpdate, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Producto).where(Producto.sku == sku.upper()))
+@router.put("/{producto_id}/puntos-inspeccion")
+async def update_puntos(producto_id: int, data: PuntosInspeccionUpdate, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Producto).where(Producto.id == producto_id))
     p = result.scalar_one_or_none()
     if not p:
         raise HTTPException(404, "Producto no encontrado")
@@ -193,9 +264,9 @@ async def update_puntos(sku: str, data: PuntosInspeccionUpdate, db: AsyncSession
     return {"message": f"Puntos {data.tipo_control.upper()} actualizados"}
 
 
-@router.put("/{sku}/bom")
-async def update_bom(sku: str, data: ProductoBomUpdate, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Producto).where(Producto.sku == sku.upper()))
+@router.put("/{producto_id}/bom")
+async def update_bom(producto_id: int, data: ProductoBomUpdate, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Producto).where(Producto.id == producto_id))
     p = result.scalar_one_or_none()
     if not p:
         raise HTTPException(404, "Producto no encontrado")
@@ -203,7 +274,7 @@ async def update_bom(sku: str, data: ProductoBomUpdate, db: AsyncSession = Depen
     p.bom = [item.model_dump() for item in data.bom]
     await db.commit()
     await db.refresh(p)
-    return {"message": f"BOM actualizado para {sku}"}
+    return {"message": f"BOM actualizado para {p.sku}"}
 
 
 @router.post("/importar")
@@ -239,21 +310,31 @@ async def importar_productos(file: UploadFile = File(...), db: AsyncSession = De
         }
 
         count = 0
+        omitidos = 0
+        sin_sku = 0
         for _, row in df.iterrows():
             sku = (row.get("sku") or row.get("numero_parte") or "").strip()
             modelo = (row.get("modelo") or row.get("nombre") or "").strip()
 
-            if not sku or not modelo:
+            if not sku:
+                sin_sku += 1
+                continue
+
+            result = await db.execute(
+                select(Producto).where(Producto.sku == sku, Producto.modelo == modelo)
+            )
+            if result.scalar_one_or_none():
+                omitidos += 1
                 continue
 
             tipo = row.get("tipo") or ""
             clase = (row.get("clase_producto") or row.get("clase") or "").strip().upper()
-            
+
             # Extraer id_proceso de características si es inyección
             id_proceso = ""
             if clase in ("INYECCIÓN", "INYECCION"):
                 id_proceso = (row.get("id_proceso") or "").strip().upper()
-            
+
             controles = asignar_controles(tipo, clase, id_proceso)
 
             clase_raw = (row.get("clase_producto") or row.get("clase") or "").strip()
@@ -264,7 +345,6 @@ async def importar_productos(file: UploadFile = File(...), db: AsyncSession = De
             proveedor = row.get("proveedor") or ""
             cliente = row.get("cliente") or ""
             cliente_id = row.get("cliente_id") or ""
-            modelo = row.get("modelo") or row.get("cliente_asociado") or ""
             linea = row.get("linea_produccion") or row.get("linea") or ""
             ubicacion = row.get("ubicacion") or ""
 
@@ -302,50 +382,39 @@ async def importar_productos(file: UploadFile = File(...), db: AsyncSession = De
                     "cav": cav,
                 }
 
-            result = await db.execute(select(Producto).where(Producto.sku == sku))
-            existing = result.scalar_one_or_none()
-
-            if existing:
-                existing.tipo = tipo
-                existing.clase_producto = clase
-                existing.unidad_de_medida = unidad
-                existing.descripcion = descripcion
-                existing.cantidad_carrito = cant_carrito
-                existing.proveedor = proveedor
-                existing.cliente = cliente
-                existing.cliente_id = cliente_id
-                existing.modelo = modelo
-                existing.linea_produccion = linea
-                existing.ubicacion = ubicacion
-                existing.controles_calidad = controles
-                if caract:
-                    existing.caracteristicas_inyeccion = caract
-            else:
-                db.add(Producto(
-                    sku=sku,
-                    tipo=tipo,
-                    clase_producto=clase,
-                    unidad_de_medida=unidad,
-                    descripcion=descripcion,
-                    cantidad_carrito=cant_carrito,
-                    proveedor=proveedor,
-                    cliente=cliente,
-                    cliente_id=cliente_id,
-                    modelo=modelo,
-                    linea_produccion=linea,
-                    ubicacion=ubicacion,
-                    status="Activo",
-                    controles_calidad=controles,
-                    puntos_inspeccion_iqc=[],
-                    puntos_inspeccion_lqc=[],
-                    puntos_inspeccion_oqc=[],
-                    bom=[],
-                    caracteristicas_inyeccion=caract if caract else {},
-                ))
+            db.add(Producto(
+                sku=sku,
+                tipo=tipo,
+                clase_producto=clase,
+                unidad_de_medida=unidad,
+                descripcion=descripcion,
+                cantidad_carrito=cant_carrito,
+                proveedor=proveedor,
+                cliente=cliente,
+                cliente_id=cliente_id,
+                modelo=modelo,
+                linea_produccion=linea,
+                ubicacion=ubicacion,
+                status="Activo",
+                controles_calidad=controles,
+                puntos_inspeccion_iqc=[],
+                puntos_inspeccion_lqc=[],
+                puntos_inspeccion_oqc=[],
+                bom=[],
+                caracteristicas_inyeccion=caract if caract else {},
+            ))
             count += 1
 
         await db.commit()
-        return {"message": f"{count} productos importados", "count": count}
+        return {
+            "message": (
+                f"{count} producto(s) nuevo(s) importado(s). {omitidos} ya existían y se omitieron. "
+                f"{sin_sku} fila(s) sin SKU fueron ignoradas."
+            ),
+            "count": count,
+            "omitidos": omitidos,
+            "sin_sku": sin_sku,
+        }
     except Exception as e:
         import traceback
         traceback.print_exc()

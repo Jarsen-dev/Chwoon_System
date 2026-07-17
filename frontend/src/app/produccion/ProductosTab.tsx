@@ -1,9 +1,10 @@
 'use client'
 
-import { ProductoItem, ProductoCreate, ProductoUpdate, BomItem, AyudaVisual } from '@/types'
-import { useEffect, useState, useMemo, useRef } from 'react'
+import { ProductoItem, ProductoListItem, ProductoCreate, ProductoUpdate, BomItem, AyudaVisual } from '@/types'
+import { useCallback, useEffect, useState, useRef } from 'react'
 import {
-  getProductos,
+  getProductosPage,
+  getProductoById,
   createProducto,
   updateProducto,
   deleteProducto,
@@ -19,7 +20,8 @@ import {
   ayudaVisualPdfUrl,
 } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
-import { Modal, Button, LoadingSpinner } from '@/components/ui'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
+import { Modal, Button, LoadingSpinner, Pagination } from '@/components/ui'
 import {
   IconOk, IconAlertas, IconInfo, IconEliminar, IconLista, IconNuevo, IconGuardar,
   IconBuscar, IconInventario, IconEditar, IconDocumento, IconPendiente,
@@ -38,6 +40,8 @@ type ConfirmModal = {
   onConfirm: () => void
 } | null
 
+const PAGE_SIZE = 50
+
 const TIPOS_PRODUCTO = ['COMPONENTE', 'RESINA', 'PRODUCTO FINAL']
 const CLASES_PRODUCTO = ['PRE EXPANSIÓN', 'INYECCIÓN', 'ASSY']
 const UNIDADES_MEDIDA = ['PZA', 'KG', 'LT', 'MT', 'ROLLO', 'CAJA']
@@ -46,14 +50,19 @@ const ID_PROCESOS = ['ASSY', 'PACKING', 'BLOCK', 'CUTTING', 'MOLDE']
 const TIPOS_RESINA = ['EPS', 'EPP']
 
 export default function ProductosTab() {
-  const [productos, setProductos] = useState<ProductoItem[]>([])
+  const [productos, setProductos] = useState<ProductoListItem[]>([])
+  const [total, setTotal] = useState(0)
+  const [offset, setOffset] = useState(0)
+  const [initialLoading, setInitialLoading] = useState(true)
   const [loading, setLoading] = useState(true)
+  const [detalleLoadingId, setDetalleLoadingId] = useState<number | null>(null)
 
   // Filtros
   const [busqueda, setBusqueda] = useState('')
   const [filtroTipo, setFiltroTipo] = useState('')
   const [filtroStatus, setFiltroStatus] = useState('')
   const [filtroClase, setFiltroClase] = useState('')
+  const busquedaDebounced = useDebouncedValue(busqueda, 300)
 
   // Formulario principal
   const [formData, setFormData] = useState({
@@ -70,7 +79,7 @@ export default function ProductosTab() {
     linea_produccion: '',
     ubicacion: '',
   })
-  const [editing, setEditing] = useState<string | null>(null)
+  const [editing, setEditing] = useState<number | null>(null)
   const [showInyeccion, setShowInyeccion] = useState(false)
   const [inyeccionData, setInyeccionData] = useState({
     id_proceso: '',
@@ -91,7 +100,7 @@ export default function ProductosTab() {
   })
 
   // Selección múltiple
-  const [selectedSkus, setSelectedSkus] = useState<Set<string>>(new Set())
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
 
   // Modales
   const [modalInfo, setModalInfo] = useState<ModalInfo>(null)
@@ -104,6 +113,7 @@ export default function ProductosTab() {
 
   // BOM Modal
   const [bomModal, setBomModal] = useState<{
+    id: number
     sku: string
     bom: { sku_componente: string; cantidad: number }[]
   } | null>(null)
@@ -111,6 +121,7 @@ export default function ProductosTab() {
 
   // Inspección Modal
   const [inspeccionModal, setInspeccionModal] = useState<{
+    id: number
     sku: string
     tipo_control: string
     puntos: Record<string, any>[]
@@ -126,61 +137,63 @@ export default function ProductosTab() {
 
   // Ayudas Visuales Modal
   const { rol, token } = useAuth()
-  const [avModal, setAvModal] = useState<ProductoItem | null>(null)
+  const [avModal, setAvModal] = useState<ProductoListItem | null>(null)
   const [ayudas, setAyudas] = useState<AyudaVisual[] | null>(null) // null = cargando
   const [isReindexing, setIsReindexing] = useState(false)
-
-  useEffect(() => {
-    loadProductos()
-  }, [])
 
   useEffect(() => {
     setShowInyeccion(formData.clase_producto === 'INYECCIÓN')
     setShowResina(formData.clase_producto === 'PRE EXPANSIÓN')
   }, [formData.clase_producto])
 
-  const loadProductos = async () => {
-    try {
-      const data = await getProductos()
-      setProductos(data)
-    } catch {
-      setModalInfo({
-        title: 'Error de Conexión',
-        message: 'No se pudieron cargar los productos.',
-        type: 'error',
-      })
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // ── Opciones únicas para filtros ──
-  const tiposUnicos = useMemo(
-    () => [...new Set(productos.map((p) => p.tipo).filter(Boolean))].sort(),
-    [productos]
+  // ── Carga paginada (búsqueda y filtros server-side) ──
+  const loadProductos = useCallback(
+    async (signal?: AbortSignal) => {
+      setLoading(true)
+      try {
+        const data = await getProductosPage(
+          {
+            search: busquedaDebounced,
+            tipo: filtroTipo,
+            clase: filtroClase,
+            status: filtroStatus,
+            limit: PAGE_SIZE,
+            offset,
+          },
+          signal
+        )
+        setProductos(data.items)
+        setTotal(data.total)
+        setLoading(false)
+        setInitialLoading(false)
+        // Si la página quedó fuera de rango (p.ej. tras borrar), regresar a la última válida
+        if (data.total > 0 && offset >= data.total) {
+          setOffset(Math.floor((data.total - 1) / PAGE_SIZE) * PAGE_SIZE)
+        }
+      } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') return
+        setLoading(false)
+        setInitialLoading(false)
+        setModalInfo({
+          title: 'Error de Conexión',
+          message: 'No se pudieron cargar los productos.',
+          type: 'error',
+        })
+      }
+    },
+    [busquedaDebounced, filtroTipo, filtroClase, filtroStatus, offset]
   )
-  const clasesUnicas = useMemo(
-    () => [...new Set(productos.map((p) => p.clase_producto).filter(Boolean))].sort(),
-    [productos]
-  )
 
-  // ── Filtrado ──
-  const productosFiltrados = useMemo(() => {
-    const q = busqueda.toLowerCase().trim()
-    return productos.filter((item) => {
-      const pasaBusqueda =
-        !q ||
-        (item.sku || '').toLowerCase().includes(q) ||
-        (item.modelo || '').toLowerCase().includes(q) ||
-        (item.descripcion || '').toLowerCase().includes(q) ||
-        (item.cliente || '').toLowerCase().includes(q) ||
-        (item.cliente_id || '').toLowerCase().includes(q)
-      const pasaTipo = !filtroTipo || item.tipo === filtroTipo
-      const pasaStatus = !filtroStatus || item.status === filtroStatus
-      const pasaClase = !filtroClase || item.clase_producto === filtroClase
-      return pasaBusqueda && pasaTipo && pasaStatus && pasaClase
-    })
-  }, [productos, busqueda, filtroTipo, filtroStatus, filtroClase])
+  // Cambiar búsqueda o filtros regresa a la primera página
+  useEffect(() => {
+    setOffset(0)
+  }, [busquedaDebounced, filtroTipo, filtroClase, filtroStatus])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    loadProductos(controller.signal)
+    return () => controller.abort()
+  }, [loadProductos])
 
   const hayFiltros = busqueda || filtroTipo || filtroStatus || filtroClase
 
@@ -189,6 +202,25 @@ export default function ProductosTab() {
     setFiltroTipo('')
     setFiltroStatus('')
     setFiltroClase('')
+  }
+
+  // ── Detalle bajo demanda ──
+  // El listado es ligero (sin BOM, puntos de inspección ni características);
+  // las acciones que los necesitan cargan el producto completo por id.
+  const abrirConDetalle = async (id: number, abrir: (p: ProductoItem) => void) => {
+    setDetalleLoadingId(id)
+    try {
+      const producto = await getProductoById(id)
+      abrir(producto)
+    } catch (error) {
+      setModalInfo({
+        title: 'Error',
+        message: error instanceof Error ? error.message : 'No se pudo cargar el producto.',
+        type: 'error',
+      })
+    } finally {
+      setDetalleLoadingId(null)
+    }
   }
 
   // ── CRUD ──
@@ -232,7 +264,7 @@ export default function ProductosTab() {
         await updateProducto(editing, updatePayload)
         setModalInfo({
             title: '¡Actualizado!',
-            message: `El producto ${editing} fue actualizado.`,
+            message: `El producto ${formData.sku} fue actualizado.`,
             type: 'success',
         })
         setEditing(null)
@@ -321,18 +353,18 @@ export default function ProductosTab() {
         cantidad: String(item.caracteristicas_resina.cantidad ?? ''),
       })
     }
-    setEditing(item.sku)
+    setEditing(item.id)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const handleDelete = (sku: string) => {
+  const handleDelete = (id: number, sku: string) => {
     setConfirmModal({
       title: 'Confirmar Eliminación',
       message: `¿Estás seguro de eliminar el producto "${sku}"?`,
       onConfirm: async () => {
         setConfirmModal(null)
         try {
-          await deleteProducto(sku)
+          await deleteProducto(id)
           loadProductos()
           setModalInfo({
             title: '¡Eliminado!',
@@ -385,37 +417,45 @@ export default function ProductosTab() {
   }
 
   // ── Selección múltiple ──
-  const toggleSelect = (sku: string) => {
-    setSelectedSkus((prev) => {
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) => {
       const next = new Set(prev)
-      if (next.has(sku)) next.delete(sku)
-      else next.add(sku)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
       return next
     })
   }
 
+  // Selecciona/deselecciona la página visible; la selección persiste entre páginas
+  const todaLaPaginaSeleccionada =
+    productos.length > 0 && productos.every((p) => selectedIds.has(p.id))
+
   const toggleSelectAll = () => {
-    if (selectedSkus.size === productosFiltrados.length) {
-      setSelectedSkus(new Set())
-    } else {
-      setSelectedSkus(new Set(productosFiltrados.map((p) => p.sku)))
-    }
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (todaLaPaginaSeleccionada) {
+        productos.forEach((p) => next.delete(p.id))
+      } else {
+        productos.forEach((p) => next.add(p.id))
+      }
+      return next
+    })
   }
 
   const handleBatchDelete = () => {
-    if (selectedSkus.size === 0) return
+    if (selectedIds.size === 0) return
     setConfirmModal({
       title: 'Eliminar Seleccionados',
-      message: `¿Eliminar ${selectedSkus.size} producto(s)? Esta acción no se puede deshacer.`,
+      message: `¿Eliminar ${selectedIds.size} producto(s)? Esta acción no se puede deshacer.`,
       onConfirm: async () => {
         setConfirmModal(null)
         try {
-          await deleteProductosBatch(Array.from(selectedSkus))
-          setSelectedSkus(new Set())
+          await deleteProductosBatch(Array.from(selectedIds))
+          setSelectedIds(new Set())
           loadProductos()
           setModalInfo({
             title: '¡Eliminados!',
-            message: `${selectedSkus.size} producto(s) eliminado(s).`,
+            message: `${selectedIds.size} producto(s) eliminado(s).`,
             type: 'success',
           })
         } catch (error: any) {
@@ -430,14 +470,14 @@ export default function ProductosTab() {
   }
 
   const handleBatchStatus = async (status: string) => {
-    if (selectedSkus.size === 0) return
+    if (selectedIds.size === 0) return
     try {
-      await cambiarStatusProductos(Array.from(selectedSkus), status)
-      setSelectedSkus(new Set())
+      await cambiarStatusProductos(Array.from(selectedIds), status)
+      setSelectedIds(new Set())
       loadProductos()
       setModalInfo({
         title: '¡Actualizado!',
-        message: `${selectedSkus.size} producto(s) cambiado(s) a "${status}".`,
+        message: `${selectedIds.size} producto(s) cambiado(s) a "${status}".`,
         type: 'success',
       })
     } catch (error: any) {
@@ -454,7 +494,7 @@ export default function ProductosTab() {
       const result = await importarProductosExcel(file)
       setModalInfo({
         title: '¡Importación Exitosa!',
-        message: `Se importaron/actualizaron ${result.count} productos.`,
+        message: `Se importaron ${result.count} producto(s) nuevo(s). ${result.omitidos} ya existían y no se modificaron.${result.sin_sku > 0 ? ` ${result.sin_sku} fila(s) sin SKU fueron ignoradas.` : ''}`,
         type: 'success',
       })
       loadProductos()
@@ -497,6 +537,7 @@ export default function ProductosTab() {
   // ── BOM Modal ──
   const openBomModal = (item: ProductoItem) => {
     setBomModal({
+      id: item.id,
       sku: item.sku,
       bom: [...(item.bom || [])],
     })
@@ -538,7 +579,7 @@ export default function ProductosTab() {
   const saveBom = async () => {
     if (!bomModal) return
     try {
-      await actualizarBom(bomModal.sku, bomModal.bom)
+      await actualizarBom(bomModal.id, bomModal.bom)
       setBomModal(null)
       loadProductos()
       setModalInfo({
@@ -556,6 +597,7 @@ export default function ProductosTab() {
     const campo = `puntos_inspeccion_${tipo.toLowerCase()}` as keyof ProductoItem
     const puntos = (item[campo] as Record<string, any>[]) || []
     setInspeccionModal({
+      id: item.id,
       sku: item.sku,
       tipo_control: tipo,
       puntos: [...puntos],
@@ -582,7 +624,7 @@ export default function ProductosTab() {
     if (!inspeccionModal) return
     try {
       await actualizarPuntosInspeccion(
-        inspeccionModal.sku,
+        inspeccionModal.id,
         inspeccionModal.tipo_control,
         inspeccionModal.puntos
       )
@@ -599,7 +641,7 @@ export default function ProductosTab() {
   }
 
   // ── Ayudas Visuales ──
-  const openAvModal = async (item: ProductoItem) => {
+  const openAvModal = async (item: ProductoListItem) => {
     setAvModal(item)
     setAyudas(null)
     try {
@@ -677,7 +719,7 @@ export default function ProductosTab() {
     )
   }
 
-  if (loading)
+  if (initialLoading)
     return (
       <div className="p-8 flex justify-center">
         <LoadingSpinner label="Cargando productos..." />
@@ -1112,7 +1154,7 @@ export default function ProductosTab() {
         className="bg-gray-900 p-6 rounded-xl border border-gray-800 mb-6"
       >
         <h2 className="text-lg font-bold text-gray-300 mb-4 pb-2 border-b border-gray-800 flex items-center gap-2">
-          {editing ? <><IconEditar size={18} className="text-[var(--accent)]" aria-hidden /> Editar Producto: {editing}</> : <><IconNuevo size={18} className="text-[var(--accent)]" aria-hidden /> Nuevo Producto</>}
+          {editing ? <><IconEditar size={18} className="text-[var(--accent)]" aria-hidden /> Editar Producto: {formData.sku}</> : <><IconNuevo size={18} className="text-[var(--accent)]" aria-hidden /> Nuevo Producto</>}
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1129,13 +1171,12 @@ export default function ProductosTab() {
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-300 mb-1">Modelo *</label>
+            <label className="block text-sm font-semibold text-gray-300 mb-1">Modelo</label>
             <input
               type="text"
               value={formData.modelo}
               onChange={(e) => setFormData({ ...formData, modelo: e.target.value })}
               className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
-              required
               placeholder="Modelo del producto"
             />
           </div>
@@ -1495,20 +1536,28 @@ export default function ProductosTab() {
 
       {/* ════════════════ BARRA DE FILTROS ════════════════ */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
-        <input
-          type="text"
-          value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
-          placeholder="Buscar SKU, nombre, descripción, cliente..."
-          className="flex-1 min-w-[200px] bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 placeholder:text-gray-400"
-        />
+        <div className="relative flex-1 min-w-[200px]">
+          <input
+            type="text"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Buscar SKU, nombre, descripción, cliente..."
+            className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 placeholder:text-gray-400"
+          />
+          {loading && (
+            <span
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 rounded-full border-2 border-gray-600 border-t-blue-400 animate-spin"
+              aria-label="Buscando..."
+            />
+          )}
+        </div>
         <select
           value={filtroTipo}
           onChange={(e) => setFiltroTipo(e.target.value)}
           className="bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
         >
           <option value="">Todos los Tipos</option>
-          {tiposUnicos.map((t) => (
+          {TIPOS_PRODUCTO.map((t) => (
             <option key={t} value={t}>
               {t}
             </option>
@@ -1520,7 +1569,7 @@ export default function ProductosTab() {
           className="bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
         >
           <option value="">Todas las Clases</option>
-          {clasesUnicas.map((c) => (
+          {CLASES_PRODUCTO.map((c) => (
             <option key={c} value={c}>
               {c}
             </option>
@@ -1545,18 +1594,16 @@ export default function ProductosTab() {
             </button>
           )}
           <span className="bg-gray-800 text-gray-400 text-xs font-semibold px-3 py-2 rounded-lg whitespace-nowrap border border-gray-800">
-            {productosFiltrados.length === productos.length
-              ? `${productos.length} producto${productos.length !== 1 ? 's' : ''}`
-              : `${productosFiltrados.length} de ${productos.length} productos`}
+            {total} producto{total !== 1 ? 's' : ''}
           </span>
         </div>
       </div>
 
       {/* ════════════════ ACCIONES BATCH ════════════════ */}
-      {selectedSkus.size > 0 && (
+      {selectedIds.size > 0 && (
         <div className="flex items-center gap-3 mb-4 p-3 bg-blue-500/10 rounded-lg border border-blue-500/30">
           <span className="text-sm font-semibold text-blue-300">
-            {selectedSkus.size} seleccionado(s)
+            {selectedIds.size} seleccionado(s)
           </span>
           <button
             onClick={() => handleBatchStatus('Activo')}
@@ -1577,7 +1624,7 @@ export default function ProductosTab() {
             <IconEliminar size={14} aria-hidden /> Eliminar
           </button>
           <button
-            onClick={() => setSelectedSkus(new Set())}
+            onClick={() => setSelectedIds(new Set())}
             className="px-3 py-1.5 rounded text-xs font-medium text-gray-300 bg-gray-700 hover:bg-gray-600 transition ml-auto"
           >
             Deseleccionar
@@ -1593,10 +1640,7 @@ export default function ProductosTab() {
               <th className="p-3 text-center w-10">
                 <input
                   type="checkbox"
-                  checked={
-                    productosFiltrados.length > 0 &&
-                    selectedSkus.size === productosFiltrados.length
-                  }
+                  checked={todaLaPaginaSeleccionada}
                   onChange={toggleSelectAll}
                   className="rounded"
                 />
@@ -1613,18 +1657,18 @@ export default function ProductosTab() {
             </tr>
           </thead>
           <tbody>
-            {productosFiltrados.map((item) => (
+            {productos.map((item) => (
               <tr
-                key={item.sku}
+                key={item.id}
                 className={`border-b last:border-b-0 hover:bg-blue-500/10/30 transition ${
-                  selectedSkus.has(item.sku) ? 'bg-blue-500/10' : ''
+                  selectedIds.has(item.id) ? 'bg-blue-500/10' : ''
                 }`}
               >
                 <td className="p-3 text-center">
                   <input
                     type="checkbox"
-                    checked={selectedSkus.has(item.sku)}
-                    onChange={() => toggleSelect(item.sku)}
+                    checked={selectedIds.has(item.id)}
+                    onChange={() => toggleSelect(item.id)}
                     className="rounded"
                   />
                 </td>
@@ -1657,8 +1701,9 @@ export default function ProductosTab() {
                     {(item.controles_calidad || []).map((ctrl: string) => (
                     <button
                         key={ctrl}
-                        onClick={() => openInspeccionModal(item, ctrl)}
-                        className="cursor-pointer hover:scale-110 transition-transform"
+                        onClick={() => abrirConDetalle(item.id, (p) => openInspeccionModal(p, ctrl))}
+                        disabled={detalleLoadingId === item.id}
+                        className="cursor-pointer hover:scale-110 transition-transform disabled:opacity-50"
                         title={`Editar puntos ${ctrl}`}
                     >
                         {controlBadge(ctrl)}
@@ -1671,22 +1716,24 @@ export default function ProductosTab() {
                 </td>
                 <td className="p-3 text-center">
                   <button
-                    onClick={() => openBomModal(item)}
-                    className={`px-2 py-1 rounded text-xs font-medium transition ${
-                      item.bom && item.bom.length > 0
+                    onClick={() => abrirConDetalle(item.id, openBomModal)}
+                    disabled={detalleLoadingId === item.id}
+                    className={`px-2 py-1 rounded text-xs font-medium transition disabled:opacity-50 ${
+                      item.bom_count > 0
                         ? 'bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30'
                         : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
                     }`}
                     title="Editar BOM"
                   >
-                    <span className="inline-flex items-center gap-1"><IconLista size={13} aria-hidden /> {item.bom?.length || 0}</span>
+                    <span className="inline-flex items-center gap-1"><IconLista size={13} aria-hidden /> {item.bom_count}</span>
                   </button>
                 </td>
                 <td className="p-3 text-center">
                   <div className="flex items-center justify-center gap-1">
                     <button
-                      onClick={() => setDetalleModal(item)}
-                      className="text-gray-300 hover:text-white bg-gray-800 hover:bg-gray-700 p-1.5 rounded transition"
+                      onClick={() => abrirConDetalle(item.id, setDetalleModal)}
+                      disabled={detalleLoadingId === item.id}
+                      className="text-gray-300 hover:text-white bg-gray-800 hover:bg-gray-700 p-1.5 rounded transition disabled:opacity-50"
                       title="Ver detalle"
                       aria-label="Ver detalle"
                     >
@@ -1701,15 +1748,16 @@ export default function ProductosTab() {
                       <IconDocumento size={15} />
                     </button>
                     <button
-                      onClick={() => handleEdit(item)}
-                      className="text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 p-1.5 rounded transition"
+                      onClick={() => abrirConDetalle(item.id, handleEdit)}
+                      disabled={detalleLoadingId === item.id}
+                      className="text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 p-1.5 rounded transition disabled:opacity-50"
                       title="Editar"
                       aria-label="Editar"
                     >
                       <IconEditar size={15} />
                     </button>
                     <button
-                      onClick={() => handleDelete(item.sku)}
+                      onClick={() => handleDelete(item.id, item.sku)}
                       className="text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 p-1.5 rounded transition"
                       title="Eliminar"
                       aria-label="Eliminar"
@@ -1722,7 +1770,7 @@ export default function ProductosTab() {
             ))}
           </tbody>
         </table>
-        {productosFiltrados.length === 0 && (
+        {productos.length === 0 && !loading && (
           <div className="p-10 text-center text-gray-300">
             <IconInventario size={36} className="mx-auto mb-2 text-gray-500" aria-hidden />
 
@@ -1743,8 +1791,11 @@ export default function ProductosTab() {
         )}
       </div>
 
-      <div className="mt-4 text-sm font-medium text-gray-400 text-right">
-        Mostrando {productosFiltrados.length} de {productos.length} productos
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <Pagination total={total} limit={PAGE_SIZE} offset={offset} onChange={setOffset} />
+        <div className="ml-auto text-sm font-medium text-gray-400">
+          Mostrando {productos.length} de {total} productos
+        </div>
       </div>
     </div>
   )

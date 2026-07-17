@@ -5,11 +5,11 @@ import { useAuth } from '@/context/AuthContext'
 import { OrdenProduccion as OrdenProduccionType, UbicacionAlmacen, EstadoSilo, SuministroSilo } from '@/types'
 import {
   getOrdenesProduccion, iniciarPreExpansion, registrarProduccionParcial,
-  registrarDatosProceso, finalizarPreExpansion, getProductos, getSilosProduccion, getSilosAux,
+  registrarDatosProceso, finalizarPreExpansion, getProductosPage, getProductoById, getSilosProduccion, getSilosAux,
   getEstadoSilos, descargarEstadoSilosExcel, getSuministros, crearSuministro,
   descargarReportePreexpansionExcel,
 } from '@/lib/api'
-import { ProductoItem } from '@/types'
+import { ProductoListItem } from '@/types'
 import { Modal, Button } from '@/components/ui'
 import {
   IconPreExpansion, IconSilo, IconLogistica, IconLista, IconCerrar, IconNuevo,
@@ -133,7 +133,7 @@ function LotesSubTab() {
   const [loading, setLoading]           = useState(false)
   const [showForm, setShowForm]         = useState(false)
   const [mensaje, setMensaje]           = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null)
-  const [productos, setProductos]       = useState<ProductoItem[]>([])
+  const [productos, setProductos]       = useState<ProductoListItem[]>([])
   const [ubicacionesSilos, setUbicacionesSilos] = useState<UbicacionAlmacen[]>([])
 
   // Form nuevo lote
@@ -180,8 +180,8 @@ function LotesSubTab() {
 
   const cargarProductos = async () => {
     try {
-      const prods = await getProductos()
-      setProductos(prods.filter((p: ProductoItem) => (p.tipo || '').toUpperCase() === 'RESINA'))
+      const page = await getProductosPage({ tipo: 'RESINA', limit: 1000 })
+      setProductos(page.items)
     } catch {}
   }
 
@@ -202,16 +202,27 @@ function LotesSubTab() {
     return () => clearTimeout(t)
   }, [mensaje])
 
-  // BOM
-  const bomComponentes: BomComponente[] = useMemo(() => {
-    if (!formSkuResina) return []
+  // BOM — el listado es ligero, así que el BOM del producto seleccionado se carga por id
+  const [bomComponentes, setBomComponentes] = useState<BomComponente[]>([])
+
+  useEffect(() => {
     const prod = productos.find(p => p.sku === formSkuResina)
-    if (!prod?.bom?.length) return []
-    return prod.bom.map((c: any) => ({
-      sku_componente: c.sku_componente || '',
-      nombre_componente: c.nombre_componente || c.sku_componente || '',
-      cantidad: c.cantidad || 0,
-    }))
+    if (!prod || prod.bom_count === 0) {
+      setBomComponentes([])
+      return
+    }
+    let cancelado = false
+    getProductoById(prod.id)
+      .then(p => {
+        if (cancelado) return
+        setBomComponentes((p.bom || []).map((c: any) => ({
+          sku_componente: c.sku_componente || '',
+          nombre_componente: c.nombre_componente || c.sku_componente || '',
+          cantidad: c.cantidad || 0,
+        })))
+      })
+      .catch(() => { if (!cancelado) setBomComponentes([]) })
+    return () => { cancelado = true }
   }, [formSkuResina, productos])
 
   useEffect(() => { setFormSkuMP(''); setFormCantUsada('') }, [formSkuResina])
@@ -367,7 +378,7 @@ function LotesSubTab() {
                 className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15">
                 <option value="">Seleccionar...</option>
                 {productos.map(p => (
-                  <option key={p.sku} value={p.sku}>{p.sku} — {p.modelo}</option>
+                  <option key={p.id} value={p.sku}>{p.sku} — {p.modelo}</option>
                 ))}
               </select>
             </div>

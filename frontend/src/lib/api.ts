@@ -10,6 +10,7 @@ import {
   UsuarioCreate,
   UsuarioUpdate,
   ProductoItem,
+  ProductoPage,
   AyudaVisual,
   ReindexAyudasResumen,
   ProductoCreate,
@@ -109,9 +110,38 @@ export async function importarExcelInventario(
 // ==========================================
 // PRODUCTOS
 // ==========================================
-export async function getProductos(): Promise<ProductoItem[]> {
-  const res = await fetch(`${API_URL}/productos/`)
+export interface GetProductosParams {
+  search?: string
+  tipo?: string
+  clase?: string
+  status?: string
+  limit?: number
+  offset?: number
+}
+
+export async function getProductosPage(
+  params: GetProductosParams = {},
+  signal?: AbortSignal
+): Promise<ProductoPage> {
+  const qs = new URLSearchParams()
+  if (params.search?.trim()) qs.set('search', params.search.trim())
+  if (params.tipo) qs.set('tipo', params.tipo)
+  if (params.clase) qs.set('clase', params.clase)
+  if (params.status) qs.set('status', params.status)
+  if (params.limit != null) qs.set('limit', String(params.limit))
+  if (params.offset != null) qs.set('offset', String(params.offset))
+  const query = qs.toString()
+  const res = await fetch(`${API_URL}/productos/${query ? `?${query}` : ''}`, { signal })
   if (!res.ok) throw new Error('Error al obtener productos')
+  return res.json()
+}
+
+export async function getProductoById(id: number): Promise<ProductoItem> {
+  const res = await fetch(`${API_URL}/productos/id/${id}`)
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Producto no encontrado')
+  }
   return res.json()
 }
 
@@ -149,11 +179,11 @@ export async function createProducto(
 }
 
 export async function updateProducto(
-  sku: string,
+  id: number,
   data: ProductoUpdate
 ): Promise<ProductoItem> {
   const res = await fetch(
-    `${API_URL}/productos/${encodeURIComponent(sku)}`,
+    `${API_URL}/productos/${id}`,
     {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -167,46 +197,46 @@ export async function updateProducto(
   return res.json()
 }
 
-export async function deleteProducto(sku: string): Promise<void> {
+export async function deleteProducto(id: number): Promise<void> {
   const res = await fetch(
-    `${API_URL}/productos/${encodeURIComponent(sku)}`,
+    `${API_URL}/productos/${id}`,
     { method: 'DELETE' }
   )
   if (!res.ok) throw new Error('Error al eliminar producto')
 }
 
 export async function deleteProductosBatch(
-  skus: string[]
+  ids: number[]
 ): Promise<{ message: string }> {
   const res = await fetch(`${API_URL}/productos/delete-batch`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ skus }),
+    body: JSON.stringify({ ids }),
   })
   if (!res.ok) throw new Error('Error al eliminar productos')
   return res.json()
 }
 
 export async function cambiarStatusProductos(
-  skus: string[],
+  ids: number[],
   status: string
 ): Promise<{ message: string }> {
   const res = await fetch(`${API_URL}/productos/status-batch`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ skus, status }),
+    body: JSON.stringify({ ids, status }),
   })
   if (!res.ok) throw new Error('Error al cambiar status')
   return res.json()
 }
 
 export async function actualizarPuntosInspeccion(
-  sku: string,
+  id: number,
   tipo_control: string,
   puntos: Record<string, any>[]
 ): Promise<{ message: string }> {
   const res = await fetch(
-    `${API_URL}/productos/${encodeURIComponent(sku)}/puntos-inspeccion`,
+    `${API_URL}/productos/${id}/puntos-inspeccion`,
     {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -218,11 +248,11 @@ export async function actualizarPuntosInspeccion(
 }
 
 export async function actualizarBom(
-  sku: string,
+  id: number,
   bom: BomItem[]
 ): Promise<{ message: string }> {
   const res = await fetch(
-    `${API_URL}/productos/${encodeURIComponent(sku)}/bom`,
+    `${API_URL}/productos/${id}/bom`,
     {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -235,7 +265,7 @@ export async function actualizarBom(
 
 export async function importarProductosExcel(
   file: File
-): Promise<{ message: string; count: number }> {
+): Promise<{ message: string; count: number; omitidos: number; sin_sku: number }> {
   const fd = new FormData()
   fd.append('file', file)
   const res = await fetch(`${API_URL}/productos/importar`, {
