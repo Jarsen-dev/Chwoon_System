@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState, useRef } from 'react'
 import {
   getProductosPage,
   getProductoById,
+  getProducto,
   createProducto,
   updateProducto,
   deleteProducto,
@@ -25,7 +26,7 @@ import { Modal, Button, LoadingSpinner, Pagination } from '@/components/ui'
 import {
   IconOk, IconAlertas, IconInfo, IconEliminar, IconLista, IconNuevo, IconGuardar,
   IconBuscar, IconInventario, IconEditar, IconDocumento, IconPendiente,
-  IconSinMovimiento, IconInyeccion, IconCerrar, IconVer,
+  IconSinMovimiento, IconInyeccion, IconCerrar, IconVer, IconDesplegar,
 } from '@/lib/icons'
 
 type ModalInfo = {
@@ -45,6 +46,13 @@ const PAGE_SIZE = 50
 const TIPOS_PRODUCTO = ['COMPONENTE', 'RESINA', 'PRODUCTO FINAL']
 const CLASES_PRODUCTO = ['PRE EXPANSIÓN', 'INYECCIÓN', 'ASSY']
 const UNIDADES_MEDIDA = ['PZA', 'KG', 'LT', 'MT', 'ROLLO', 'CAJA']
+const UNIDADES_BOM = [
+  { value: 'pza', label: 'Pieza (pza)' },
+  { value: 'm', label: 'Metro (m)' },
+]
+// Unidad a mostrar: la guardada gana; BOMs legados sin unidad se infieren de la cantidad
+const unidadBom = (item: BomItem) =>
+  item.unidad || (Number.isInteger(item.cantidad) ? 'pza' : 'm')
 const PROVEEDORES = ['SOLARPOL (HYUNDAI)', 'LG', 'CHEONG WOON', 'PLASTIC MANAGEMENT', 'HAENG SUNG']
 const ID_PROCESOS = ['ASSY', 'PACKING', 'BLOCK', 'CUTTING', 'MOLDE']
 const TIPOS_RESINA = ['EPS', 'EPP']
@@ -115,9 +123,17 @@ export default function ProductosTab() {
   const [bomModal, setBomModal] = useState<{
     id: number
     sku: string
-    bom: { sku_componente: string; cantidad: number }[]
+    bom: BomItem[]
   } | null>(null)
-  const [newBomItem, setNewBomItem] = useState({ sku_componente: '', cantidad: 1 })
+  const [newBomItem, setNewBomItem] = useState<BomItem>({
+    sku_componente: '',
+    descripcion: '',
+    cantidad: 1,
+    unidad: 'pza',
+  })
+  const [descripcionEditada, setDescripcionEditada] = useState(false)
+  const [bomEditIdx, setBomEditIdx] = useState<number | null>(null)
+  const [bomEditDraft, setBomEditDraft] = useState<BomItem | null>(null)
 
   // Inspección Modal
   const [inspeccionModal, setInspeccionModal] = useState<{
@@ -134,6 +150,12 @@ export default function ProductosTab() {
 
   // Detalle Modal
   const [detalleModal, setDetalleModal] = useState<ProductoItem | null>(null)
+  const [bomDetalleAbierto, setBomDetalleAbierto] = useState(false)
+
+  const abrirDetalleModal = (p: ProductoItem) => {
+    setBomDetalleAbierto(false)
+    setDetalleModal(p)
+  }
 
   // Ayudas Visuales Modal
   const { rol, token } = useAuth()
@@ -535,19 +557,41 @@ export default function ProductosTab() {
   }
 
   // ── BOM Modal ──
+  const resetNewBomItem = () => {
+    setNewBomItem({ sku_componente: '', descripcion: '', cantidad: 1, unidad: 'pza' })
+    setDescripcionEditada(false)
+  }
+
   const openBomModal = (item: ProductoItem) => {
     setBomModal({
       id: item.id,
       sku: item.sku,
-      bom: [...(item.bom || [])],
+      bom: (item.bom || []).map((b) => ({ ...b })),
     })
-    setNewBomItem({ sku_componente: '', cantidad: 1 })
+    resetNewBomItem()
+    setBomEditIdx(null)
+    setBomEditDraft(null)
+  }
+
+  // Auto-llenar la descripción con la del catálogo al salir del input de No. de Parte
+  const autollenarDescripcion = async () => {
+    const sku = newBomItem.sku_componente.trim().toUpperCase()
+    if (!sku || descripcionEditada) return
+    try {
+      const prod = await getProducto(sku)
+      // No pisar una descripción que el usuario ya haya escrito mientras cargaba
+      setNewBomItem((prev) =>
+        prev.descripcion ? prev : { ...prev, descripcion: prod.descripcion || '' }
+      )
+    } catch {
+      // No existe en el catálogo: se deja capturar manualmente
+    }
   }
 
   const addBomItem = () => {
     if (!bomModal || !newBomItem.sku_componente.trim()) return
     const exists = bomModal.bom.some(
-      (b) => b.sku_componente === newBomItem.sku_componente.toUpperCase()
+      (b) => b.sku_componente === newBomItem.sku_componente.trim().toUpperCase()
     )
     if (exists) {
       setModalInfo({
@@ -563,17 +607,60 @@ export default function ProductosTab() {
         ...bomModal.bom,
         {
           sku_componente: newBomItem.sku_componente.trim().toUpperCase(),
+          descripcion: (newBomItem.descripcion || '').trim(),
           cantidad: newBomItem.cantidad,
+          unidad: newBomItem.unidad,
         },
       ],
     })
-    setNewBomItem({ sku_componente: '', cantidad: 1 })
+    resetNewBomItem()
   }
 
   const removeBomItem = (index: number) => {
     if (!bomModal) return
     const updated = bomModal.bom.filter((_, i) => i !== index)
     setBomModal({ ...bomModal, bom: updated })
+    if (bomEditIdx === index) {
+      setBomEditIdx(null)
+      setBomEditDraft(null)
+    }
+  }
+
+  // ── Edición en línea de componentes del BOM ──
+  const startEditBom = (index: number) => {
+    if (!bomModal) return
+    setBomEditIdx(index)
+    setBomEditDraft({ ...bomModal.bom[index], unidad: unidadBom(bomModal.bom[index]) })
+  }
+
+  const cancelEditBom = () => {
+    setBomEditIdx(null)
+    setBomEditDraft(null)
+  }
+
+  const confirmEditBom = () => {
+    if (!bomModal || bomEditIdx === null || !bomEditDraft) return
+    const sku = bomEditDraft.sku_componente.trim().toUpperCase()
+    if (!sku) return
+    const duplicado = bomModal.bom.some(
+      (b, i) => i !== bomEditIdx && b.sku_componente === sku
+    )
+    if (duplicado) {
+      setModalInfo({
+        title: 'Duplicado',
+        message: 'Ese componente ya está en el BOM.',
+        type: 'error',
+      })
+      return
+    }
+    const updated = [...bomModal.bom]
+    updated[bomEditIdx] = {
+      ...bomEditDraft,
+      sku_componente: sku,
+      descripcion: (bomEditDraft.descripcion || '').trim(),
+    }
+    setBomModal({ ...bomModal, bom: updated })
+    cancelEditBom()
   }
 
   const saveBom = async () => {
@@ -782,27 +869,111 @@ export default function ProductosTab() {
               <table className="w-full text-sm mb-4">
                 <thead className="bg-gray-800">
                   <tr>
-                    <th className="p-2 text-left text-gray-300">No. de Parte Componente</th>
+                    <th className="p-2 text-left text-gray-300">No. de Parte</th>
+                    <th className="p-2 text-left text-gray-300">Descripción</th>
                     <th className="p-2 text-center text-gray-300">Cantidad</th>
+                    <th className="p-2 text-center text-gray-300">Unidad</th>
                     <th className="p-2 text-center text-gray-300">Acción</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {bomModal.bom.map((item, idx) => (
-                    <tr key={idx} className="border-b border-gray-800">
-                      <td className="p-2 font-mono">{item.sku_componente}</td>
-                      <td className="p-2 text-center">{item.cantidad}</td>
-                      <td className="p-2 text-center">
-                        <button
-                          onClick={() => removeBomItem(idx)}
-                          className="text-red-400 hover:text-red-300 inline-flex"
-                          aria-label="Eliminar"
-                        >
-                          <IconEliminar size={15} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {bomModal.bom.map((item, idx) =>
+                    bomEditIdx === idx && bomEditDraft ? (
+                      <tr key={idx} className="border-b border-gray-800 bg-blue-500/10">
+                        <td className="p-2">
+                          <input
+                            type="text"
+                            value={bomEditDraft.sku_componente}
+                            onChange={(e) =>
+                              setBomEditDraft({ ...bomEditDraft, sku_componente: e.target.value })
+                            }
+                            className="w-full bg-gray-950 border border-gray-800 rounded-md px-2 py-1.5 text-xs text-white font-mono outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                          />
+                        </td>
+                        <td className="p-2">
+                          <input
+                            type="text"
+                            value={bomEditDraft.descripcion || ''}
+                            onChange={(e) =>
+                              setBomEditDraft({ ...bomEditDraft, descripcion: e.target.value })
+                            }
+                            className="w-full bg-gray-950 border border-gray-800 rounded-md px-2 py-1.5 text-xs text-white outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                          />
+                        </td>
+                        <td className="p-2">
+                          <input
+                            type="number"
+                            min="0.01"
+                            step="0.01"
+                            value={bomEditDraft.cantidad}
+                            onChange={(e) =>
+                              setBomEditDraft({
+                                ...bomEditDraft,
+                                cantidad: parseFloat(e.target.value) || 0,
+                              })
+                            }
+                            className="w-20 bg-gray-950 border border-gray-800 rounded-md px-2 py-1.5 text-xs text-white text-center outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                          />
+                        </td>
+                        <td className="p-2">
+                          <select
+                            value={bomEditDraft.unidad}
+                            onChange={(e) =>
+                              setBomEditDraft({ ...bomEditDraft, unidad: e.target.value })
+                            }
+                            className="bg-gray-950 border border-gray-800 rounded-md px-2 py-1.5 text-xs text-white outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                          >
+                            {UNIDADES_BOM.map((u) => (
+                              <option key={u.value} value={u.value}>{u.label}</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="p-2 text-center whitespace-nowrap">
+                          <button
+                            onClick={confirmEditBom}
+                            className="text-green-400 hover:text-green-300 inline-flex mr-2"
+                            title="Confirmar"
+                            aria-label="Confirmar"
+                          >
+                            <IconOk size={15} />
+                          </button>
+                          <button
+                            onClick={cancelEditBom}
+                            className="text-gray-400 hover:text-gray-300 inline-flex"
+                            title="Cancelar"
+                            aria-label="Cancelar"
+                          >
+                            <IconCerrar size={15} />
+                          </button>
+                        </td>
+                      </tr>
+                    ) : (
+                      <tr key={idx} className="border-b border-gray-800">
+                        <td className="p-2 font-mono">{item.sku_componente}</td>
+                        <td className="p-2 text-gray-300">{item.descripcion || '—'}</td>
+                        <td className="p-2 text-center">{item.cantidad}</td>
+                        <td className="p-2 text-center text-gray-300">{unidadBom(item)}</td>
+                        <td className="p-2 text-center whitespace-nowrap">
+                          <button
+                            onClick={() => startEditBom(idx)}
+                            className="text-blue-400 hover:text-blue-300 inline-flex mr-2"
+                            title="Editar"
+                            aria-label="Editar"
+                          >
+                            <IconEditar size={15} />
+                          </button>
+                          <button
+                            onClick={() => removeBomItem(idx)}
+                            className="text-red-400 hover:text-red-300 inline-flex"
+                            title="Eliminar"
+                            aria-label="Eliminar"
+                          >
+                            <IconEliminar size={15} />
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  )}
                 </tbody>
               </table>
             ) : (
@@ -810,10 +981,10 @@ export default function ProductosTab() {
             )}
 
             {/* Agregar nuevo */}
-            <div className="flex gap-2 items-end">
-              <div className="flex-1">
+            <div className="flex gap-2 items-end flex-wrap">
+              <div className="flex-1 min-w-[140px]">
                 <label className="block text-xs font-semibold text-gray-300 mb-1">
-                  No. de Parte Componente
+                  No. de Parte
                 </label>
                 <input
                   type="text"
@@ -821,8 +992,24 @@ export default function ProductosTab() {
                   onChange={(e) =>
                     setNewBomItem({ ...newBomItem, sku_componente: e.target.value })
                   }
+                  onBlur={autollenarDescripcion}
                   className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:ring-2 focus:ring-[var(--accent)]"
                   placeholder="Ej: COMP-001"
+                />
+              </div>
+              <div className="flex-1 min-w-[160px]">
+                <label className="block text-xs font-semibold text-gray-300 mb-1">
+                  Descripción
+                </label>
+                <input
+                  type="text"
+                  value={newBomItem.descripcion || ''}
+                  onChange={(e) => {
+                    setDescripcionEditada(true)
+                    setNewBomItem({ ...newBomItem, descripcion: e.target.value })
+                  }}
+                  className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                  placeholder="Se llena al capturar el No. de Parte"
                 />
               </div>
               <div className="w-24">
@@ -842,6 +1029,20 @@ export default function ProductosTab() {
                   }
                   className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:ring-2 focus:ring-[var(--accent)]"
                 />
+              </div>
+              <div className="w-32">
+                <label className="block text-xs font-semibold text-gray-300 mb-1">
+                  Unidad
+                </label>
+                <select
+                  value={newBomItem.unidad}
+                  onChange={(e) => setNewBomItem({ ...newBomItem, unidad: e.target.value })}
+                  className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                >
+                  {UNIDADES_BOM.map((u) => (
+                    <option key={u.value} value={u.value}>{u.label}</option>
+                  ))}
+                </select>
               </div>
               <Button onClick={addBomItem} aria-label="Agregar"><IconNuevo size={16} /></Button>
             </div>
@@ -1070,19 +1271,36 @@ export default function ProductosTab() {
                   </div>
                 )}
 
-              {/* BOM */}
+              {/* BOM — desplegable, cerrado por defecto */}
               {detalleModal.bom && detalleModal.bom.length > 0 && (
                 <div className="mt-4 p-3 bg-indigo-500/10 rounded-lg">
-                  <h4 className="font-semibold text-indigo-300 text-sm mb-2 flex items-center gap-2">
-                    <IconLista size={15} aria-hidden /> BOM ({detalleModal.bom.length} componentes)
-                  </h4>
-                  <div className="grid grid-cols-2 gap-1 text-xs">
-                    {detalleModal.bom.map((item: BomItem, idx: number) => (
-                    <div key={idx}>
-                        <span className="font-mono">{item.sku_componente}</span> × {item.cantidad}
-                    </div>
-                    ))}
-                  </div>
+                  <button
+                    onClick={() => setBomDetalleAbierto((v) => !v)}
+                    aria-expanded={bomDetalleAbierto}
+                    className="w-full flex items-center justify-between gap-2 font-semibold text-indigo-300 text-sm"
+                  >
+                    <span className="flex items-center gap-2">
+                      <IconLista size={15} aria-hidden /> BOM ({detalleModal.bom.length} componentes)
+                    </span>
+                    <IconDesplegar
+                      size={16}
+                      aria-hidden
+                      className={`transition-transform ${bomDetalleAbierto ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+                  {bomDetalleAbierto && (
+                    <ul className="list-disc pl-5 mt-2 space-y-1 text-xs text-gray-200">
+                      {detalleModal.bom.map((item: BomItem, idx: number) => (
+                        <li key={idx}>
+                          <span className="font-mono">{item.sku_componente}</span>
+                          {' — '}
+                          <span className="text-gray-300">{item.descripcion || '—'}</span>
+                          {' — '}
+                          <span className="font-medium">{item.cantidad} {unidadBom(item)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               )}
           </>
@@ -1731,7 +1949,7 @@ export default function ProductosTab() {
                 <td className="p-3 text-center">
                   <div className="flex items-center justify-center gap-1">
                     <button
-                      onClick={() => abrirConDetalle(item.id, setDetalleModal)}
+                      onClick={() => abrirConDetalle(item.id, abrirDetalleModal)}
                       disabled={detalleLoadingId === item.id}
                       className="text-gray-300 hover:text-white bg-gray-800 hover:bg-gray-700 p-1.5 rounded transition disabled:opacity-50"
                       title="Ver detalle"

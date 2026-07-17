@@ -5,6 +5,8 @@ from typing import Optional, List, Dict, Any
 class BomItem(BaseModel):
     sku_componente: str
     cantidad: float
+    descripcion: Optional[str] = ""
+    unidad: Optional[str] = ""  # 'pza' | 'm' | '' (legado: se infiere de la cantidad)
 
 
 class ProductoBase(BaseModel):

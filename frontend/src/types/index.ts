@@ -17,6 +17,8 @@ export interface InventarioItem {
 export interface BomItem {
   sku_componente: string
   cantidad:       number
+  descripcion?:   string
+  unidad?:        string // 'pza' | 'm' | '' (legado: se infiere de la cantidad)
 }
 
 export interface CaracteristicasInyeccion {

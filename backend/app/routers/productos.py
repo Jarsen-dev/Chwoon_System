@@ -163,7 +163,30 @@ async def obtener_producto_por_id(producto_id: int, db: AsyncSession = Depends(g
     p = result.scalar_one_or_none()
     if not p:
         raise HTTPException(404, "Producto no encontrado")
-    return p
+
+    # Completar descripciones del BOM desde el catálogo para items que no traen
+    # una guardada (BOMs legados o importados de Excel). Se responde con una
+    # copia para no marcar la columna JSON del ORM como modificada.
+    resp = ProductoSchema.model_validate(p).model_dump()
+    bom = resp.get("bom") or []
+    skus_sin_descripcion = {
+        item["sku_componente"]
+        for item in bom
+        if item.get("sku_componente") and not item.get("descripcion")
+    }
+    if skus_sin_descripcion:
+        result = await db.execute(
+            select(Producto.sku, Producto.descripcion)
+            .where(Producto.sku.in_(skus_sin_descripcion))
+            .order_by(Producto.sku, Producto.modelo)
+        )
+        descripciones: dict = {}
+        for sku, descripcion in result.all():
+            descripciones.setdefault(sku, descripcion)
+        for item in bom:
+            if not item.get("descripcion"):
+                item["descripcion"] = descripciones.get(item.get("sku_componente"), "") or ""
+    return resp
 
 
 @router.get("/{sku}", response_model=ProductoSchema)

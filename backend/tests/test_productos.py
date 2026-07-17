@@ -81,11 +81,46 @@ def test_detalle_por_id(client):
     assert r.status_code == 200, r.text
     data = r.json()
     assert data["sku"] == "TP-DET-001"
-    assert data["bom"] == [{"sku_componente": "COMP-9", "cantidad": 3}]
+    # El detalle enriquece el BOM con descripcion ('' si el componente no está en catálogo)
+    assert data["bom"] == [{"sku_componente": "COMP-9", "cantidad": 3, "descripcion": ""}]
     assert "puntos_inspeccion_iqc" in data
 
     r = client.get("/productos/id/999999")
     assert r.status_code == 404
+
+
+def test_bom_persiste_descripcion_unidad(client):
+    creado = _crear(client, "TP-BOM-001")
+    bom = [
+        {"sku_componente": "COMP-A", "cantidad": 2, "descripcion": "Descripción editada", "unidad": "pza"},
+        {"sku_componente": "COMP-B", "cantidad": 1.5, "descripcion": "Cable especial", "unidad": "m"},
+    ]
+    r = client.put(f"/productos/{creado['id']}/bom", json={"bom": bom})
+    assert r.status_code == 200, r.text
+
+    r = client.get(f"/productos/id/{creado['id']}")
+    data = r.json()
+    assert data["bom"][0] == bom[0]
+    assert data["bom"][1] == bom[1]
+
+
+def test_bom_enriquece_descripcion_desde_catalogo(client):
+    _crear(client, "TP-COMP-CAT", descripcion="Descripción del catálogo")
+    padre = _crear(
+        client,
+        "TP-BOM-002",
+        bom=[
+            {"sku_componente": "TP-COMP-CAT", "cantidad": 3},           # sin descripción → se enriquece
+            {"sku_componente": "TP-NO-EXISTE", "cantidad": 1},          # no está en catálogo → queda vacía
+            {"sku_componente": "COMP-C", "cantidad": 2, "descripcion": "Propia"},  # guardada → no se pisa
+        ],
+    )
+    r = client.get(f"/productos/id/{padre['id']}")
+    assert r.status_code == 200, r.text
+    bom = r.json()["bom"]
+    assert bom[0]["descripcion"] == "Descripción del catálogo"
+    assert bom[1]["descripcion"] == ""
+    assert bom[2]["descripcion"] == "Propia"
 
 
 def test_detalle_por_sku_con_duplicados(client):

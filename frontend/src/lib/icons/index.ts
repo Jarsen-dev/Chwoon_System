@@ -16,6 +16,7 @@ export {
   Search as IconBuscar,
   ChevronLeft as IconAnterior,
   ChevronRight as IconSiguiente,
+  ChevronDown as IconDesplegar,
 
   // Módulos
   Factory as IconProduccion,
