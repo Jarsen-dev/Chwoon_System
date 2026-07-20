@@ -54,7 +54,6 @@ const UNIDADES_BOM = [
 // Unidad a mostrar: la guardada gana; BOMs legados sin unidad se infieren de la cantidad
 const unidadBom = (item: BomItem) =>
   item.unidad || (Number.isInteger(item.cantidad) ? 'pza' : 'm')
-const PROVEEDORES = ['SOLARPOL (HYUNDAI)', 'LG', 'CHEONG WOON', 'PLASTIC MANAGEMENT', 'HAENG SUNG']
 const ID_PROCESOS = ['ASSY', 'PACKING', 'BLOCK', 'CUTTING', 'MOLDE']
 const TIPOS_RESINA = ['EPS', 'EPP']
 
@@ -1480,14 +1479,13 @@ export default function ProductosTab() {
           </div>
           <div>
             <label className="block text-sm font-semibold text-gray-300 mb-1">Proveedor</label>
-            <select
+            <input
+                type="text"
                 value={formData.proveedor}
                 onChange={(e) => setFormData({ ...formData, proveedor: e.target.value })}
                 className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
-            >
-                <option value="">-- Seleccionar --</option>
-                {PROVEEDORES.map((p) => <option key={p} value={p}>{p}</option>)}
-            </select>
+                placeholder="Nombre del proveedor"
+            />
           </div>
           <div>
             <label className="block text-sm font-semibold text-gray-300 mb-1">Cliente</label>
