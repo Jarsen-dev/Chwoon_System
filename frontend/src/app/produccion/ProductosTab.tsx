@@ -269,7 +269,7 @@ export default function ProductosTab() {
             id_proceso: inyeccionData.id_proceso,
             tipo_resina: inyeccionData.tipo_resina,
             resina: inyeccionData.resina,
-            densidad: parseFloat(inyeccionData.densidad) || 0,
+            densidad: inyeccionData.densidad,
             peso_spec: parseFloat(inyeccionData.peso_spec) || 0,
             peso_seco: parseFloat(inyeccionData.peso_seco) || 0,
             cav: parseInt(inyeccionData.cav) || 0,
@@ -311,7 +311,7 @@ export default function ProductosTab() {
             id_proceso: inyeccionData.id_proceso,
             tipo_resina: inyeccionData.tipo_resina,
             resina: inyeccionData.resina,
-            densidad: parseFloat(inyeccionData.densidad) || 0,
+            densidad: inyeccionData.densidad,
             peso_spec: parseFloat(inyeccionData.peso_spec) || 0,
             peso_seco: parseFloat(inyeccionData.peso_seco) || 0,
             cav: parseInt(inyeccionData.cav) || 0,
@@ -1583,11 +1583,10 @@ export default function ProductosTab() {
                 <label className="block text-xs font-semibold text-gray-400 mb-1">Densidad</label>
                 <input
                     type="text"
-                    inputMode="decimal"
                     value={inyeccionData.densidad}
                     onChange={(e) => setInyeccionData({ ...inyeccionData, densidad: e.target.value })}
                     className="w-full bg-gray-800 text-white border border-gray-600 p-1.5 rounded text-sm"
-                    placeholder="0.00"
+                    placeholder="0.062(15x)"
                 />
               </div>
               <div>

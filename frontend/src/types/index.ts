@@ -25,7 +25,7 @@ export interface CaracteristicasInyeccion {
   id_proceso?:  string
   tipo_resina?: string
   resina?:      string
-  densidad?:    number
+  densidad?:    string | number
   peso_spec?:   number
   peso_seco?:   number
   cav?:         number
