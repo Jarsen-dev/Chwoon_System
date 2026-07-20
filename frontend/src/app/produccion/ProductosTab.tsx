@@ -49,6 +49,7 @@ const UNIDADES_MEDIDA = ['PZA', 'KG', 'LT', 'MT', 'ROLLO', 'CAJA']
 const UNIDADES_BOM = [
   { value: 'pza', label: 'Pieza (pza)' },
   { value: 'm', label: 'Metro (m)' },
+  { value: 'kg', label: 'Kilogramo (Kg)' },
 ]
 // Unidad a mostrar: la guardada gana; BOMs legados sin unidad se infieren de la cantidad
 const unidadBom = (item: BomItem) =>
