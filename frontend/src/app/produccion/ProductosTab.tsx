@@ -853,7 +853,7 @@ export default function ProductosTab() {
       <Modal
         open={!!bomModal}
         onClose={() => setBomModal(null)}
-        size="lg"
+        size="3xl"
         title={<span className="flex items-center gap-2 text-[var(--accent)]"><IconLista size={18} aria-hidden /> BOM - {bomModal?.sku}</span>}
         footer={
           <>
@@ -866,7 +866,8 @@ export default function ProductosTab() {
           <>
             {/* Lista actual */}
             {bomModal.bom.length > 0 ? (
-              <table className="w-full text-sm mb-4">
+              <div className="overflow-x-auto mb-4">
+              <table className="w-full text-sm">
                 <thead className="bg-gray-800">
                   <tr>
                     <th className="p-2 text-left text-gray-300">No. de Parte</th>
@@ -976,6 +977,7 @@ export default function ProductosTab() {
                   )}
                 </tbody>
               </table>
+              </div>
             ) : (
               <p className="text-gray-300 text-center mb-4">No hay componentes en el BOM.</p>
             )}
@@ -1054,7 +1056,7 @@ export default function ProductosTab() {
       <Modal
         open={!!inspeccionModal}
         onClose={() => setInspeccionModal(null)}
-        size="lg"
+        size="3xl"
         title={
           <span className="flex items-center gap-2 text-[var(--accent)]">
             <IconBuscar size={18} aria-hidden /> Puntos de Inspección {inspeccionModal?.tipo_control.toUpperCase()} - {inspeccionModal?.sku}
@@ -1070,7 +1072,8 @@ export default function ProductosTab() {
         {inspeccionModal && (
           <>
             {inspeccionModal.puntos.length > 0 ? (
-              <table className="w-full text-sm mb-4">
+              <div className="overflow-x-auto mb-4">
+              <table className="w-full text-sm">
                 <thead className="bg-gray-800">
                   <tr>
                     <th className="p-2 text-left text-gray-300">Nombre</th>
@@ -1098,6 +1101,7 @@ export default function ProductosTab() {
                   ))}
                 </tbody>
               </table>
+              </div>
             ) : (
               <p className="text-gray-300 text-center mb-4">
                 No hay puntos de inspección configurados.
@@ -1159,7 +1163,7 @@ export default function ProductosTab() {
       <Modal
         open={!!detalleModal}
         onClose={() => setDetalleModal(null)}
-        size="2xl"
+        size="3xl"
         title={<span className="flex items-center gap-2 text-[var(--accent)]"><IconInventario size={18} aria-hidden /> Detalle: {detalleModal?.sku}</span>}
       >
         {detalleModal && (
@@ -1311,7 +1315,7 @@ export default function ProductosTab() {
       <Modal
         open={!!avModal}
         onClose={() => { setAvModal(null); setAyudas(null) }}
-        size="3xl"
+        size="4xl"
         title={<span className="flex items-center gap-2 text-amber-400"><IconDocumento size={18} aria-hidden /> Ayudas Visuales — {avModal?.sku}</span>}
         footer={<Button variant="secondary" onClick={() => { setAvModal(null); setAyudas(null) }}>Cerrar</Button>}
       >
