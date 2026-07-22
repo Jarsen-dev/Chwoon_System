@@ -1293,17 +1293,28 @@ export default function ProductosTab() {
                     />
                   </button>
                   {bomDetalleAbierto && (
-                    <ul className="list-disc pl-5 mt-2 space-y-1 text-xs text-gray-200">
-                      {detalleModal.bom.map((item: BomItem, idx: number) => (
-                        <li key={idx}>
-                          <span className="font-mono">{item.sku_componente}</span>
-                          {' — '}
-                          <span className="text-gray-300">{item.descripcion || '—'}</span>
-                          {' — '}
-                          <span className="font-medium">{item.cantidad} {unidadBom(item)}</span>
-                        </li>
-                      ))}
-                    </ul>
+                    <div className="overflow-x-auto mt-2">
+                      <table className="w-full text-xs">
+                        <thead className="bg-gray-800">
+                          <tr>
+                            <th className="p-2 text-left text-gray-300">No. de Parte</th>
+                            <th className="p-2 text-left text-gray-300">Descripción</th>
+                            <th className="p-2 text-center text-gray-300">Cantidad</th>
+                            <th className="p-2 text-center text-gray-300">Unidad</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {detalleModal.bom.map((item: BomItem, idx: number) => (
+                            <tr key={idx} className="border-b border-gray-800">
+                              <td className="p-2 font-mono">{item.sku_componente}</td>
+                              <td className="p-2 text-gray-300">{item.descripcion || '—'}</td>
+                              <td className="p-2 text-center font-medium">{item.cantidad}</td>
+                              <td className="p-2 text-center text-gray-300">{unidadBom(item)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   )}
                 </div>
               )}
