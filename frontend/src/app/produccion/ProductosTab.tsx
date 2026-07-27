@@ -1772,7 +1772,7 @@ export default function ProductosTab() {
             type="text"
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Buscar SKU, nombre, descripción, cliente..."
+            placeholder="Buscar SKU, modelo, descripción, cliente, proveedor..."
             className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 placeholder:text-gray-400"
           />
           {loading && (

@@ -49,7 +49,7 @@ def asignar_controles(tipo: str, clase_producto: str = "", id_proceso: str = "")
 
 @router.get("/", response_model=ProductoListPage)
 async def listar_productos(
-    search: Optional[str] = Query(None, description="Busca en SKU, modelo, descripción y cliente"),
+    search: Optional[str] = Query(None, description="Busca en SKU, modelo, descripción, cliente y proveedor"),
     tipo: Optional[str] = Query(None),
     clase: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
@@ -66,6 +66,7 @@ async def listar_productos(
             Producto.descripcion.ilike(q),
             Producto.cliente.ilike(q),
             Producto.cliente_id.ilike(q),
+            Producto.proveedor.ilike(q),
         ))
     if tipo:
         filtros.append(Producto.tipo == tipo)
