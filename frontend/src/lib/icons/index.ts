@@ -90,6 +90,9 @@ export {
   Syringe as IconInyeccion,
   Thermometer as IconSecado,
   Camera as IconCamara,
+  QrCode as IconQR,
+  Smartphone as IconCelular,
+  Upload as IconSubir,
   Container as IconSilo,
   Recycle as IconReciclar,
 
