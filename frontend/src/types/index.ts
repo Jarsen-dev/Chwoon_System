@@ -313,6 +313,7 @@ export const TABS_POR_MODULO: Record<string, { id: string; label: string }[]> = 
   almacen: [
     { id: 'dashboard',    label: '📊 Dashboard'   },
     { id: 'recepciones',  label: '📥 Recepciones' },
+    { id: 'recepciones-ocr', label: '📸 Recepciones por Foto' },
     { id: 'inventario',   label: '📦 Inventario'  },
     { id: 'ubicaciones',  label: '📍 Ubicaciones' },
     { id: 'traslados',    label: '🔄 Traslados'   },
@@ -944,6 +945,78 @@ export interface OrdenCompraAlmacen {
   aprobado_por?:        string
   items:                OrdenCompraAlmacenItem[]
   recepciones?:         RecepcionAlmacen[]
+}
+
+// ==========================================
+// ALMACÉN — Recepciones por Foto (OCR)
+// ==========================================
+export interface RemisionOCRItem {
+  numero_parte: string | null
+  cantidad:     number | null
+}
+
+export interface RemisionOCRResultado {
+  tipo_detectado:  string
+  tipo_conocido:   boolean
+  proveedor:       string | null
+  numero_remision: string | null
+  po:              string | null
+  fecha:           string | null
+  items:           RemisionOCRItem[]
+  foto_path:       string
+  advertencias:    string[]
+  ocr_ok:          boolean
+  error:           string
+}
+
+export interface RemisionRecepcionItem {
+  id:                number
+  numero_parte:      string
+  cantidad:          number
+  descripcion?:      string | null
+  unidad_de_medida?: string | null
+}
+
+export interface RemisionRecepcion {
+  id:              number
+  proveedor:       string
+  numero_remision: string
+  po?:             string | null
+  fecha:           string
+  tipo_documento:  string
+  foto_path:       string
+  advertencias?:   string[] | null
+  creado_por:      string
+  fecha_captura:   string
+  items:           RemisionRecepcionItem[]
+}
+
+export interface RemisionesRecepcionPage {
+  items: RemisionRecepcion[]
+  total: number
+}
+
+export interface RemisionCreatePayload {
+  proveedor:       string
+  numero_remision: string
+  po?:             string | null
+  fecha:           string
+  tipo_documento:  string
+  foto_path:       string
+  ocr_raw?:        Record<string, unknown> | null
+  advertencias?:   string[] | null
+  items:           { numero_parte: string; cantidad: number }[]
+  nuevo_formato?:  { tipo_documento: string } | null
+}
+
+export interface QrSesionRemision {
+  session_id: string
+  expira_en:  string
+}
+
+export interface QrSesionEstado {
+  estado: string
+  valida: boolean
 }
 
 // ==========================================

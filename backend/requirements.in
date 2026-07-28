@@ -21,3 +21,4 @@ apscheduler
 pytz
 alembic
 psycopg2-binary
+httpx

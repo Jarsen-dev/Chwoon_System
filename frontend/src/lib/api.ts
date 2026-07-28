@@ -43,7 +43,13 @@ import {
   MaquinaEstado,
   MaquinaEvento,
   MaquinaCreate,
-  MaquinaUpdate
+  MaquinaUpdate,
+  RemisionOCRResultado,
+  RemisionRecepcion,
+  RemisionesRecepcionPage,
+  RemisionCreatePayload,
+  QrSesionRemision,
+  QrSesionEstado
 } from '@/types'
 
 const API_URL = ''
@@ -1656,6 +1662,111 @@ export async function cancelarPicking(token: string, pickingId: string): Promise
   if (!res.ok) {
     const err = await res.json()
     throw new Error(err.detail || 'Error al cancelar picking')
+  }
+  return res.json()
+}
+
+// ==========================================
+// ALMACÉN — Recepciones por Foto (OCR)
+// ==========================================
+export async function ocrRemision(token: string, file: File): Promise<RemisionOCRResultado> {
+  const fd = new FormData()
+  fd.append('file', file)
+  const res = await fetch(`${API_URL}/api/remisiones/ocr`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: fd,
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al procesar la imagen')
+  }
+  return res.json()
+}
+
+export async function ocrRemisionDesdeSesion(token: string, sessionId: string): Promise<RemisionOCRResultado> {
+  const res = await fetch(`${API_URL}/api/remisiones/ocr/desde-sesion/${sessionId}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al procesar la foto de la sesión')
+  }
+  return res.json()
+}
+
+export async function crearRemision(token: string, payload: RemisionCreatePayload): Promise<RemisionRecepcion> {
+  const res = await fetch(`${API_URL}/api/remisiones`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al guardar la remisión')
+  }
+  return res.json()
+}
+
+export async function getRemisionesPage(
+  token: string,
+  limit: number,
+  offset: number,
+  signal?: AbortSignal,
+): Promise<RemisionesRecepcionPage> {
+  const res = await fetch(`${API_URL}/api/remisiones?limit=${limit}&offset=${offset}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    signal,
+  })
+  if (!res.ok) throw new Error('Error cargando remisiones')
+  return res.json()
+}
+
+/** Nombre de archivo de una foto de remisión a partir de su foto_path relativo. */
+export function remisionFotoNombre(fotoPath: string): string {
+  return fotoPath.split('/').pop() || fotoPath
+}
+
+export async function getRemisionFotoBlob(token: string, fotoPath: string): Promise<Blob> {
+  const nombre = remisionFotoNombre(fotoPath)
+  const res = await fetch(`${API_URL}/api/remisiones/foto/${encodeURIComponent(nombre)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('No se pudo cargar la foto')
+  return res.blob()
+}
+
+export async function crearQrSesionRemision(token: string): Promise<QrSesionRemision> {
+  const res = await fetch(`${API_URL}/api/remisiones/qr-session`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al crear la sesión QR')
+  }
+  return res.json()
+}
+
+// Sin token: lo consulta la página móvil pública y el polling del desktop
+export async function getQrSesionEstado(sessionId: string): Promise<QrSesionEstado> {
+  const res = await fetch(`${API_URL}/api/remisiones/qr-session/${sessionId}`)
+  if (!res.ok) throw new Error('Error consultando la sesión')
+  return res.json()
+}
+
+// Sin token: la página móvil sube la foto autenticada solo por el UUID de sesión
+export async function subirFotoQrSesion(sessionId: string, file: File): Promise<QrSesionEstado> {
+  const fd = new FormData()
+  fd.append('file', file)
+  const res = await fetch(`${API_URL}/api/remisiones/qr-session/${sessionId}/upload`, {
+    method: 'POST',
+    body: fd,
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.detail || 'Error al subir la foto')
   }
   return res.json()
 }

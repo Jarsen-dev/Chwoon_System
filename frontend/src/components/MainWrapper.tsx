@@ -19,7 +19,8 @@ export default function MainWrapper({
                      pathname?.startsWith('/partes') ||
                      pathname?.startsWith('/etiquetas') ||
                      pathname?.startsWith('/almacen') ||
-                     pathname?.startsWith('/logistica')
+                     pathname?.startsWith('/logistica') ||
+                     pathname?.startsWith('/movil')
 
   if (fullScreen) return <>{children}</>
 

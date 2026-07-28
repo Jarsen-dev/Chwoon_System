@@ -47,3 +47,5 @@ pgadmin/pgpass
 .opencode/
 # ── Ayudas Visuales (PDFs + miniaturas, sincronizados por SSH — no van al repo) ──
 backend/static/ayudas_visuales/
+# ── Fotos de remisiones (evidencia capturada en runtime — no van al repo) ──
+backend/static/remisiones/

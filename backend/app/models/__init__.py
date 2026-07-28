@@ -33,6 +33,8 @@ from app.models.cliente import Cliente, ClienteEvento
 from app.models.maquina import Maquina
 from app.models.maquina_evento import MaquinaEvento
 from app.models.ayuda_visual import AyudaVisual
+from app.models.remision_recepcion import RemisionRecepcion, RemisionRecepcionItem
+from app.models.remision_qr_sesion import RemisionQrSesion
 
 __all__ = [
     "Parte",
@@ -77,4 +79,7 @@ __all__ = [
     "Maquina",
     "MaquinaEvento",
     "AyudaVisual",
+    "RemisionRecepcion",
+    "RemisionRecepcionItem",
+    "RemisionQrSesion",
 ]
