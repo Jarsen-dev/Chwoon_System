@@ -70,9 +70,15 @@ const API_URL = ''
 // aunque el puerto esté expuesto y el firewall lo permita. Usando el mismo host
 // con el que el navegador ya cargó la página (localhost, IP de VPN, etc.) se
 // evita ese salto y funciona para cualquier dispositivo.
+//
+// El protocolo, en cambio, SIEMPRE es http: así se haya cargado la página por
+// https (nginx delante, ej. acceso por Tailscale) — el puerto 8000 es uvicorn
+// puro, sin TLS. Heredar window.location.protocol mandaba un handshake TLS a
+// un puerto que solo habla HTTP plano: el navegador lo reporta como "Failed to
+// fetch" sin ninguna petición que llegue a loguearse en el backend.
 const DIRECT_API_URL =
   typeof window !== 'undefined' && window.location.hostname
-    ? `${window.location.protocol}//${window.location.hostname}:8000`
+    ? `http://${window.location.hostname}:8000`
     : process.env.NEXT_PUBLIC_API_URL || API_URL
 
 // ==========================================
