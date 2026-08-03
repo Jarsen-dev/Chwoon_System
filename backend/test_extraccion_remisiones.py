@@ -1,19 +1,24 @@
 """
 Prueba local rápida del OCR de remisiones, sin FastAPI de por medio.
-Úsala para validar el flujo few-shot contra el servidor Ollama ANTES de
-probar los endpoints (flujo de validación local en WSL2).
+Úsala para validar el flujo Tesseract → clasificación TF-IDF → estructuración
+con Ollama ANTES de probar los endpoints (flujo de validación local en WSL2).
 
 Uso (dentro del contenedor o con el venv del backend):
   dcl exec -w /app backend python test_extraccion_remisiones.py ruta/a/foto_nueva.jpg
 
-Requiere OLLAMA_HOST / OLLAMA_VISION_MODEL en el entorno (o usa los defaults).
+Requiere OLLAMA_HOST / OLLAMA_TEXT_MODEL en el entorno (o usa los defaults),
+y tesseract-ocr instalado (ya viene en la imagen Docker del backend).
 """
 
 import asyncio
 import json
 import sys
 
-from app.services.ocr_remisiones import extraer_con_ejemplos, listar_tipos_documento
+from app.services.ocr_remisiones import (
+    _texto_ocr_desde_imagen,
+    extraer_con_ejemplos,
+    listar_tipos_documento,
+)
 
 
 async def main():
@@ -27,7 +32,11 @@ async def main():
     with open(ruta, "rb") as f:
         imagen_bytes = f.read()
 
-    print(f"Analizando {ruta} ...\n")
+    print(f"Texto OCR (Tesseract) de {ruta}:\n{'-' * 40}")
+    print(_texto_ocr_desde_imagen(imagen_bytes))
+    print("-" * 40)
+
+    print(f"\nAnalizando {ruta} ...\n")
     resultado = await extraer_con_ejemplos(imagen_bytes)
 
     print(f"Tipo detectado: {resultado.tipo_detectado}")

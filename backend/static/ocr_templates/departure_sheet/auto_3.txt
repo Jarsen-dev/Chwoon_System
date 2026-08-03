@@ -1,0 +1,71 @@
+i a anes
+
+26/5/26, 10:41 2.™-
+
+4
+
+Supplier
+
+Ta Sub inv
+Receiver
+
+Departure No
+Departure Date
+NPX2605003257 1
+
+2026-05-26
+
+1
+NPX2605003257
+
+2026-05-26
+
+Wy
+
+lh |
+WL |
+PRED
+
+WA
+
+aR Pie EN TAE Ins ES OA TS ae
+
+Departure Location
+
+Departure Sheet (General)
+
+Total Qty : 630
+
+Pa O x
+
+pei. ee eet wee 7 ico 2
+et Cneond o MOXIc ‘i
+$ 1
+
+4 E NE $
+hak
+ak
+
+MX001868 (SDTO90508FM1) Inspection : Non-Inspection Page ¿1/1 Counting |_ Inspection | key Puncher |
+
+ENMN_SS DELTA TECH MEXICO S.A DE C.V, | Warehouse Keeper  : Local QC Type : 1QC
+
+: RAW-PCHW / RAW CHEONG WOON MEXIC( WMS ¿N Date : 27-MAY-26 | A
+
+‘LG Electronics MN_Refrigerator Division / N Departure Type : PU-SCS Time : 10:41:44 4 ,
+Part NO Item Desc Departure Qty Currency Subinventory PO NO PO Qty Remain Qty Due Date UOM
+Market Item Spec Location Price Locator Work Order WIP Liné” Supplier Ref NO Comment Cnt
+MCZ.65377801 Duct,Insulation 630 USD RAW-PCHW 2026-05-26 EACH
+2 MOLD ABS A206 BLACK T2.0 - CHW 0
+
+meet
+
+AAT AN fl i ón
+
+A AA
+
+MIZ65381401 Duct, Insulation 630 USD RAW-PCHW 2026-05-26 EACH
+2 MOLD ABS A206 BLACK T2.0 - CHW A
+
+O a
+

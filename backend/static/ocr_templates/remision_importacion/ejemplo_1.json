@@ -1,0 +1,32 @@
+{
+  "proveedor": "CHEONG WOON HIGHTECH CO. LTD",
+  "numero_remision": "CWM260428-02",
+  "po": null,
+  "fecha": "2026-04-28",
+  "items": [
+    {
+      "numero_parte": "MEE41477236",
+      "cantidad": 17500.0
+    },
+    {
+      "numero_parte": "MEE62525201",
+      "cantidad": 5400.0
+    },
+    {
+      "numero_parte": "MEE61842424",
+      "cantidad": 8000.0
+    },
+    {
+      "numero_parte": "MEE41477207",
+      "cantidad": 4000.0
+    },
+    {
+      "numero_parte": "MEE61842438",
+      "cantidad": 6000.0
+    },
+    {
+      "numero_parte": "MEE61842459",
+      "cantidad": 5200.0
+    }
+  ]
+}

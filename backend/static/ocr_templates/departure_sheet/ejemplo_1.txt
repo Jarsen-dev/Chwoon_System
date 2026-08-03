@@ -1,0 +1,28 @@
+Departure Location
+Departure Sheet (General) >
+supplier mine bir nit Inspection Non-Inspection Page 1/1
+SS DELTA TECH MEXICO S.A DE C.V,_| Warehouse Keeper —: Local QC Type : 190
+To Subire RAW-PCHW / RAW CHEONG WOON MEXICC WMS N Date 26-MAY-26
+recolvor LG Electronics MN_ Refrigerator Division JN Departure Type : PU-SCS Time : 16:55:24
+Part NO “ana Ete ua O A
+Departure ant cana: Item Desc Departure Qty Currency Subinventory PONO Due Date WOM
+Departure = = poeta Spee Location Price Locator Work Order WIP Line Supplier Ref NO Comment Cot.
+05031 1C265377801 Duct, Insulation 630 USD RAW-PCHW 2026-05-25 EACH
+5 z MOLD ABS A206 BLACK 72.0 - so ©
+
+| ZO -CÍZ
+
+00 IN ON sun 60 2/0 -p 13
+
+SO.
+npxos0si03161 MCZ55361401 Duct, Insulation 630 USD RAW-PCHW AZ ens EM
+2026-05-25 2 MOLD ABS A206 BLACK T2.0 - Fe cHw
+
+IEEE IAN runs 6
+
+ang Noor Mexico
+S.A. DE CV.
+
+25 MAY 2005 ree
+
+1QC 1

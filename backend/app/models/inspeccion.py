@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, JSON, Enum as SAEnum
+from sqlalchemy import Column, Float, Integer, String, DateTime, JSON, Enum as SAEnum
 from datetime import datetime, timezone, timedelta
 import enum
 from app.database import Base
@@ -38,6 +38,8 @@ class Inspeccion(Base):
     resultados_puntos      = Column(JSON, default=[])
     oc_origen              = Column(String(100), nullable=True)
     op_origen              = Column(String(100), nullable=True)
-    cantidad_inspeccionada = Column(Integer, default=0)
+    # Float, no Integer: las cantidades de remisión son Numeric(12,2) y las de
+    # inventario ya son Float — una caja de 2.5 kg no debe guardarse como 2 o 3
+    cantidad_inspeccionada = Column(Float, default=0)
     notas                  = Column(String(500), nullable=True)
     created_at             = Column(DateTime, default=_ahora_naive)

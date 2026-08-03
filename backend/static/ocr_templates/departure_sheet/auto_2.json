@@ -1,0 +1,16 @@
+{
+  "proveedor": "DELTA TECH MEXICO S.A. DE C.V.",
+  "numero_remision": "NPX26050032571 | NPX26050032572",
+  "po": null,
+  "fecha": "2026-05-27",
+  "items": [
+    {
+      "numero_parte": "MCZ65377801",
+      "cantidad": 630.0
+    },
+    {
+      "numero_parte": "MCZ65381401",
+      "cantidad": 630.0
+    }
+  ]
+}

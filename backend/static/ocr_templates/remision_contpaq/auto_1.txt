@@ -1,0 +1,28 @@
+UNTPAQ i TES |
+
+fecha 28/May/2026
+NUEVA 210
+GLOBAL BOX ‘
+an Rafael
+GBO220905DU1 Guadalupe 67110
+Nuevo León México
+Cliente CHEONG WOON MEXICO
+RFC CWM0206278J7
+Domicilio; CARRETERA APODACA A JUAREZ 2156
+Telefono: Colonia: REAL HACIENDA DE CP: 66644
+Localidad: APODACA Estado: NUEVO LEON Pais: MEXICO
+Cantidad
+
+110.000000 — SEMAN CAJA COMPONENTES.
+306,000000 [(Ninguno) [3890JL8005J PACKING DOOR
+
+[95.000000  [(Ninguno)
+
+cero Pesos 00/100 Mf : el s 0.00
+
+Emitido por:
+
+CONTPAQr
+
+Hoja 1
+

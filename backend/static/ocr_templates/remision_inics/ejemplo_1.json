@@ -1,0 +1,12 @@
+{
+  "proveedor": "INICS AMERICA S.A. DE C.V.",
+  "numero_remision": "270526",
+  "po": null,
+  "fecha": "2026-05-27",
+  "items": [
+    {
+      "numero_parte": "W11774463",
+      "cantidad": 3000.0
+    }
+  ]
+}

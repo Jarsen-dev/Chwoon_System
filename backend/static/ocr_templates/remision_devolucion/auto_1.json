@@ -1,0 +1,12 @@
+{
+  "proveedor": "CHEONG WOON MEXICO S.A. DE C.V.",
+  "numero_remision": "80381",
+  "po": null,
+  "fecha": "2026-05-26",
+  "items": [
+    {
+      "numero_parte": "EAD63913607",
+      "cantidad": 110.0
+    }
+  ]
+}

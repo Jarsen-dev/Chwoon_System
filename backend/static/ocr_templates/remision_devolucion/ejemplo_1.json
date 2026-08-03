@@ -1,0 +1,12 @@
+{
+  "proveedor": "CHEONG WOON MEXICO S.A. DE C.V.",
+  "numero_remision": "80372",
+  "po": null,
+  "fecha": "2026-05-26",
+  "items": [
+    {
+      "numero_parte": "MAM66023826",
+      "cantidad": 500.0
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_
+from sqlalchemy import select, func, or_, case
 from typing import List, Optional
 import pandas as pd
 import io
@@ -15,6 +15,7 @@ from app.schemas.productos import (
     PuntosInspeccionUpdate,
     ProductoStatusUpdate,
     ProductoListPage,
+    ProductoSugerencia,
 )
 
 router = APIRouter(prefix="/productos", tags=["productos"])
@@ -122,6 +123,66 @@ async def buscar_producto_por_sku(
     query = query.order_by(func.length(Producto.sku)).limit(20)
     result = await db.execute(query)
     return result.scalars().all()
+
+
+# Letras que a mano (o en una foto) se confunden con dígitos. Se normalizan en
+# AMBOS lados de la comparación, así que teclear "MCZ6S377801" encuentra
+# "MCZ65377801" sin dejar de encontrar las coincidencias literales.
+CONFUSIONES_DESDE = "OISBZ"
+CONFUSIONES_HACIA = "01582"
+
+
+def _escapar_like(texto: str) -> str:
+    """Neutraliza los comodines de LIKE en texto tecleado por el usuario —
+    sin esto, escribir '%' en el campo listaría el catálogo completo."""
+    return texto.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+@router.get("/sugerencias", response_model=List[ProductoSugerencia])
+async def sugerencias_sku(
+    q: str = Query(..., min_length=2, description="Texto parcial del No. Parte"),
+    limit: int = Query(8, ge=1, le=25),
+    db: AsyncSession = Depends(get_db),
+):
+    """Autocompletado de No. Parte, tolerante a confusiones de escritura a mano.
+
+    Distinto de /search/sku: devuelve solo 3 campos (viaja en cada pulsación),
+    deduplica SKUs (la unicidad del catálogo es (sku, modelo), no sku solo) y
+    ordena por relevancia real en vez de por longitud del SKU.
+    """
+    termino = _escapar_like(q.strip().upper())
+    if len(termino) < 2:
+        return []
+
+    normalizado = termino.translate(str.maketrans(CONFUSIONES_DESDE, CONFUSIONES_HACIA))
+    sku_norm = func.translate(func.upper(Producto.sku), CONFUSIONES_DESDE, CONFUSIONES_HACIA)
+    relevancia = case(
+        (sku_norm == normalizado, 0),                              # coincidencia exacta
+        (sku_norm.like(f"{normalizado}%", escape="\\"), 1),        # empieza con
+        else_=2,                                                   # lo contiene
+    )
+
+    result = await db.execute(
+        select(Producto.sku, Producto.descripcion, Producto.nombre, Producto.unidad_de_medida)
+        .where(sku_norm.like(f"%{normalizado}%", escape="\\"))
+        .order_by(relevancia, func.length(Producto.sku), Producto.sku)
+        .limit(limit * 4)  # margen para deduplicar antes de recortar
+    )
+
+    vistos, salida = set(), []
+    for sku, descripcion, nombre, unidad in result:
+        if sku in vistos:
+            continue
+        vistos.add(sku)
+        # mismo fallback que usa remisiones.py al snapshotear el item
+        salida.append(ProductoSugerencia(
+            sku=sku,
+            descripcion=(descripcion or nombre or ""),
+            unidad_de_medida=unidad or "",
+        ))
+        if len(salida) >= limit:
+            break
+    return salida
 
 
 @router.post("/", response_model=ProductoSchema)

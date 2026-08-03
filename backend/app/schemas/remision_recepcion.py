@@ -1,8 +1,11 @@
 from datetime import date, datetime
 from decimal import Decimal
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel
+
+# Zebra ZD220 (etiqueta individual, vía agente) u hoja carta en la HP de red
+Destino = Literal["zebra", "carta"]
 
 
 # ── OCR ──────────────────────────────────────────────────────────────
@@ -65,6 +68,22 @@ class RemisionItemOut(BaseModel):
         from_attributes = True
 
 
+class EtiquetaOut(BaseModel):
+    id: int
+    lote_id: str
+    numero_parte: str
+    descripcion: Optional[str] = None
+    cantidad: float
+    unidad_de_medida: Optional[str] = None
+    secuencia: int
+    fecha_recepcion: date
+    # Derivado del último ImpresionTrabajo: pendiente | enviado | impreso | error
+    estado_impresion: str = "pendiente"
+
+    class Config:
+        from_attributes = True
+
+
 class RemisionOut(BaseModel):
     id: int
     proveedor: str
@@ -77,6 +96,7 @@ class RemisionOut(BaseModel):
     creado_por: str
     fecha_captura: datetime
     items: List[RemisionItemOut] = []
+    etiquetas: List[EtiquetaOut] = []
 
     class Config:
         from_attributes = True
@@ -85,6 +105,25 @@ class RemisionOut(BaseModel):
 class RemisionesPage(BaseModel):
     items: List[RemisionOut]
     total: int
+
+
+# ── Etiquetas de lote ────────────────────────────────────────────────
+
+class EtiquetaItemSolicitud(BaseModel):
+    """Una partida de la remisión y las cantidades de cada etiqueta a imprimir."""
+    item_id: int
+    cantidades: List[Decimal]
+
+
+class EtiquetasCreate(BaseModel):
+    items: List[EtiquetaItemSolicitud]
+    # Default 'zebra': es como se imprimía antes de que existiera la hoja carta
+    destino: Destino = "zebra"
+
+
+class ReimprimirIn(BaseModel):
+    """Destino de una reimpresión; sin él se repite el del trabajo original."""
+    destino: Optional[Destino] = None
 
 
 # ── Sesiones QR ──────────────────────────────────────────────────────

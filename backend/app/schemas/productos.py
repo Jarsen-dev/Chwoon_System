@@ -109,3 +109,12 @@ class ProductoListPage(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+class ProductoSugerencia(BaseModel):
+    """Payload mínimo para el autocompletado de No. Parte: solo lo que se
+    muestra en el dropdown y lo que se copia al renglón al elegir. Se mantiene
+    aparte de ProductoListItem porque esto viaja en cada pulsación de tecla."""
+    sku: str
+    descripcion: str = ""
+    unidad_de_medida: str = ""

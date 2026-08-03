@@ -1,0 +1,20 @@
+{
+  "proveedor": "GLOBAL BOX",
+  "numero_remision": "1233",
+  "po": null,
+  "fecha": "2026-05-28",
+  "items": [
+    {
+      "numero_parte": "3890JL2020A",
+      "cantidad": 110.0
+    },
+    {
+      "numero_parte": "3890JL8005J",
+      "cantidad": 306.0
+    },
+    {
+      "numero_parte": "3890JL8005K",
+      "cantidad": 96.0
+    }
+  ]
+}

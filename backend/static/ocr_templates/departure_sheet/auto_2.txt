@@ -1,0 +1,49 @@
+rasan ee ee nnn nee
+
+MX001868 (SDTO90508FM1)
+
+aa ENMN SS DELTA TECH MEXICO S.A DE CV, | Warehouse Keeper  : Local QC Type : 1QC
+Ta Sub inv RAW-PCHW / RAW CHEONG WOON MEXIC( WMS N Date 27-MAY-26
+Receiver LG Electronics MN_Refrigerator Division / N Departure Type : PU-SCS Time 10:41:44 E
+Departure No Part NO Ttem Desc Departure Qty Currency Subinventory PO NO
+Departure De “ns Item Spec Location Price Locator Work Order
+npx26050032571  MiZ65377801 Duct, Insulation 630 USD RAW-PCHW
+2026-05-26 2 MOLD ABS A206 BLACK T2.0 -
+Milk IM A muro + 60
+ICO
+
+PX26050 2265381401 Duct, Insulation 630 USD RAW-PCHW
+
+2026-05-2 - MOLD ABS A206 BLACK T2.0 -
+Total Qty : 630
+
+LI
+
+MIT
+
+l= JA
+2. 4 pe
+
+Inspection
+
+eparture Sheet (General)
+
+: Non-Inspection Page 1/1
+
+sare setae 3
+
+'
+
+Countin: g E
+
+Inspection Key Puncher |
+
+oo 7
+0)
+PO Qty Remain Qty Due Date UOM
+WIP Liné Supplier Ref NO Comment Cnt
+2026-05-26 EACH
+CHW 0
+2026-05-26 EACH
+CHW 0
+

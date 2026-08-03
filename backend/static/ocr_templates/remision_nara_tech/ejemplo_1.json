@@ -1,0 +1,32 @@
+{
+  "proveedor": "NARA TECH S.A. DE C.V.",
+  "numero_remision": "11709",
+  "po": null,
+  "fecha": "2026-05-26",
+  "items": [
+    {
+      "numero_parte": "MBN62787901",
+      "cantidad": 2970.0
+    },
+    {
+      "numero_parte": "MCK66608901",
+      "cantidad": 3000.0
+    },
+    {
+      "numero_parte": "MCZ64235301",
+      "cantidad": 1600.0
+    },
+    {
+      "numero_parte": "MEA66394401",
+      "cantidad": 700.0
+    },
+    {
+      "numero_parte": "MFC62269501",
+      "cantidad": 2760.0
+    },
+    {
+      "numero_parte": "MJH62374302",
+      "cantidad": 720.0
+    }
+  ]
+}

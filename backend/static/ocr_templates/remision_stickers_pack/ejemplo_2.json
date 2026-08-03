@@ -1,0 +1,40 @@
+{
+  "proveedor": "STICKER'S PACK S.A. DE C.V.",
+  "numero_remision": "A 83560",
+  "po": null,
+  "fecha": "2026-05-26",
+  "items": [
+    {
+      "numero_parte": "ACZ74010526-01",
+      "cantidad": 1000.0
+    },
+    {
+      "numero_parte": "AEQ72909603-01",
+      "cantidad": 3000.0
+    },
+    {
+      "numero_parte": "AEQ72909613-01",
+      "cantidad": 6500.0
+    },
+    {
+      "numero_parte": "MEZ67492101",
+      "cantidad": 4500.0
+    },
+    {
+      "numero_parte": "MEZ67492104",
+      "cantidad": 1000.0
+    },
+    {
+      "numero_parte": "MEZ67492105",
+      "cantidad": 8500.0
+    },
+    {
+      "numero_parte": "MEZ67492112",
+      "cantidad": 1000.0
+    },
+    {
+      "numero_parte": "MEZ67492114",
+      "cantidad": 3500.0
+    }
+  ]
+}

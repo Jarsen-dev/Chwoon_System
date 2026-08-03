@@ -1,0 +1,12 @@
+{
+  "proveedor": "CHEONG WOON HIGHTECH CO., LTD",
+  "numero_remision": "CWM260420-03",
+  "po": null,
+  "fecha": "2026-04-20",
+  "items": [
+    {
+      "numero_parte": "MEN62061302",
+      "cantidad": 4800.0
+    }
+  ]
+}

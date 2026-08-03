@@ -1,0 +1,61 @@
+Folio Fiscal UUID ) FECHA 3 { FACTURA
+504368F5-B903-41BD-BC61-7BE7920FDD98 29-05-2026 11:26 am — eres
+
+( Emisor del Comprobante Fiscal - CFDi v4.0
+‘SCA PALLETS PRODUCTION
+Spectrum 306 Parque Industrial Stiva Aeropuerto
+Apodaca Nuevo León Mexico ¢.p. 66626
+RFC: SPP9701101C1 Régimen Fsical: 601 General de Ley Personas Morales
+Certificado del Emisor: 00001000000711245929 Vendedor: José Carlos Perez Martinez Y)
+
+Datos del CLIENTE: 844
+CHEONG WOON MEXICO
+Carretera Apodaca A Juarez 2156 Real Hacienda De Huinala Apodaca Nuevo León Mexico C.p. 66644
+RFC: CWM0206278J7 Régimen Fiscal: 601 General de Ley Personas Morales
+
+=
+Uso CFDI: G03 Forma Pago: 99 Metodo Pago: PPD Crédito: 30 Días Fecha de Pago: 28-06-2026 OC: MAY-SCA-CM-04
+
+Pedido: 996
+
+DESCRIPCION PRECIO IMPORTE
+
+PALLET 43.25 X 45.25 NO. carseat có Hr 543.77 125,942.50
+Unidad. H87 ProdServ, 01010101. Objstolmp:02 Iva 16% $21,750.80 Pedido: 996 CveProd. 2451
+
+SubTotal: 135,942.50
+IVA: 21,750.80
+RetlVA: 0.00
+
+|| Retisr: 0.00
+= CIENTO CINCUENTA Y SIETE MIL SEISCIENTOS NOVENTA Y TRES PESOS 30/100 mn) TOTAL: |$ 157,693.30
+A
+
+( Sello Digital del CFDI )
+
+A EI RAN
+EA beer acne E CONEA or MORADA asco
+
+( Sello Digital del SAT ]
+
+pPeThoLavqnd5gzl SpphbeCooRDOPD A
+A A AE ar TIE DS
+
+LA ECONO NON aa tnt TAMOS TONE yal ToexOpa07/ Psa ETCNENGLOUHCT opie
+
+A TIE LEA Ot gis ateaconyigez pega ateeteoaateahetn# DIGAS ICAA pal A OLEO
+
+SrtcidavnbblwadghcHjet/Stnekkkoqindsnatioasanj leet sanaventgcounrocobw==
+
+i aura as
+
+( Cadena Original del Timbre Fiscal Digital del SAT “a
+
+Aa en eaten ten ttn tne UL er oe CWO BG
+Y ED/ CCAA 3m] BE] aOnsRaRghuptSFl oRLCABLerTRUESAUROMDLOOT EE TORR abdeasassectagaqescas sqscucwegynansane0OOvRT
+
+po de com;
+ip iprobante: Ingreso —>- Lugar de expedición: 66626 Eanha da Timhrann: SNORE rana Es a.
+
+CED v4.0.
+

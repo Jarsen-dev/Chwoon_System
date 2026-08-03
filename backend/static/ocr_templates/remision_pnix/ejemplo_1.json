@@ -1,0 +1,12 @@
+{
+  "proveedor": "GROUP PNIX S.A DE C.V.",
+  "numero_remision": "004",
+  "po": null,
+  "fecha": "2026-05-26",
+  "items": [
+    {
+      "numero_parte": "FAB30480501",
+      "cantidad": 18000.0
+    }
+  ]
+}

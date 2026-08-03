@@ -1,0 +1,12 @@
+{
+  "proveedor": "STARION MONTERREY MEXICO S.A. DE C.V.",
+  "numero_remision": "NPX26050032370",
+  "po": null,
+  "fecha": "2026-05-27",
+  "items": [
+    {
+      "numero_parte": "MCZ62713203",
+      "cantidad": 238.0
+    }
+  ]
+}

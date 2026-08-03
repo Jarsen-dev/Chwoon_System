@@ -1,0 +1,12 @@
+{
+  "proveedor": "SCA PALLETS PRODUCTION S.A. DE C.V.",
+  "numero_remision": "F 18788",
+  "po": null,
+  "fecha": "2026-05-29",
+  "items": [
+    {
+      "numero_parte": "MGA61841013",
+      "cantidad": 250.0
+    }
+  ]
+}

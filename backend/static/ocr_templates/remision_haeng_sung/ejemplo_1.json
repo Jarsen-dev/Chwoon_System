@@ -1,0 +1,16 @@
+{
+  "proveedor": "HAENG SUNG ELECTRONICS MONTERREY DE MEXICO",
+  "numero_remision": "18404",
+  "po": null,
+  "fecha": "2026-05-26",
+  "items": [
+    {
+      "numero_parte": "EAD65941008",
+      "cantidad": 360.0
+    },
+    {
+      "numero_parte": "EAD63913524",
+      "cantidad": 650.0
+    }
+  ]
+}

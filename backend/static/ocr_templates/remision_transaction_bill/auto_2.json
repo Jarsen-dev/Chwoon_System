@@ -1,0 +1,12 @@
+{
+  "proveedor": "CHEONG WOON MEXICO S.A. DE C.V.",
+  "numero_remision": "14849154",
+  "po": null,
+  "fecha": "2026-05-26",
+  "items": [
+    {
+      "numero_parte": "RAA32339217",
+      "cantidad": 4500.0
+    }
+  ]
+}

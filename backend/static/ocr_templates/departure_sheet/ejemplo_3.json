@@ -1,0 +1,20 @@
+{
+  "proveedor": "ILSAN ELECTRONICS MONTERREY MEXICO S.A DE C.V.",
+  "numero_remision": "NPX26050032094",
+  "po": null,
+  "fecha": "2026-05-26",
+  "items": [
+    {
+      "numero_parte": "EBR59400502",
+      "cantidad": 1680
+    },
+    {
+      "numero_parte": "EBR59400502",
+      "cantidad": 310
+    },
+    {
+      "numero_parte": "MCZ62692601",
+      "cantidad": 410
+    }
+  ]
+}

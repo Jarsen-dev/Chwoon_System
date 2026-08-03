@@ -1,0 +1,23 @@
+Departure Sheet (General)
+
+Supplier : MX009532 (OPL180525UQ5) Inspection : Non-Inspection Page Inspection Key Puncher
+ENMN_Ormen Plastics S.A. de C.V. MX00953 Warehouse Keeper Local QC Type
+
+To Sub inv : RAW-PCHW / RAW CHEONG WOON MEXIC( WMS N Date
+
+Receiver + LG Electronics MN_Refrigerator Division / N Departure Type : PU-SCS Time
+
+Departure No Part NO Ttem Desc Departure Qty Currency Subinventory Remain Qty ‘Due Date “YOM
+Departure Date__ Market Ttem Spec Location Price Locator WIP Line _ Suppfier Ref NO_ Comment at
+NPX26050035202  MCZ62692501 Duct, Connector 600 USD RAW-PCHW 2026-05-28 EACH
+2026-05-27 2 MOLD PP RM60 NATURAL T2.0 66 0
+
+Quantum T 20 8 23 cuft
+
+|
+CL LL en
+i
+
+¿10D
+DS (300
+

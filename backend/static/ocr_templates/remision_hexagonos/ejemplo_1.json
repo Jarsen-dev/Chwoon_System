@@ -1,0 +1,12 @@
+{
+  "proveedor": "HEXAGONOS MEXICANOS S.A. DE C.V.",
+  "numero_remision": "2870",
+  "po": null,
+  "fecha": "2026-05-27",
+  "items": [
+    {
+      "numero_parte": "MFZ61870527",
+      "cantidad": 6000.0
+    }
+  ]
+}

@@ -75,6 +75,14 @@ body {
 }
 
 /* ────────────────────────────────────────────────
+   Íconos de <input type="date"> en blanco (tema oscuro)
+   ──────────────────────────────────────────────── */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  cursor: pointer;
+}
+
+/* ────────────────────────────────────────────────
    Keyframes (used by Producción/Compras screens via animate-[...])
    ──────────────────────────────────────────────── */
 @keyframes blink-pill {

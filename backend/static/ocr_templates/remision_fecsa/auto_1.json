@@ -1,0 +1,28 @@
+{
+  "proveedor": "FABRICA DE EMPAQUES CORRUGADOS JR S.A. DE C.V.",
+  "numero_remision": "REM 1846",
+  "po": null,
+  "fecha": "2026-05-26",
+  "items": [
+    {
+      "numero_parte": "MFZ61841813",
+      "cantidad": 40000.0
+    },
+    {
+      "numero_parte": "AGG75859108",
+      "cantidad": 40000.0
+    },
+    {
+      "numero_parte": "AGG75859107",
+      "cantidad": 20000.0
+    },
+    {
+      "numero_parte": "MEG64998709",
+      "cantidad": 75000.0
+    },
+    {
+      "numero_parte": "MFZ61841709",
+      "cantidad": 20000.0
+    }
+  ]
+}

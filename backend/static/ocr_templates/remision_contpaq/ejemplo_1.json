@@ -1,0 +1,12 @@
+{
+  "proveedor": "GLOBAL BOX",
+  "numero_remision": "1230",
+  "po": null,
+  "fecha": "2026-05-25",
+  "items": [
+    {
+      "numero_parte": "MFZ64671902",
+      "cantidad": 1976
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "proveedor": "KCUM S.A. DE C.V.",
+  "numero_remision": "8893",
+  "po": null,
+  "fecha": "2026-05-27",
+  "items": [
+    {
+      "numero_parte": "MDS67578004",
+      "cantidad": 2400.0
+    },
+    {
+      "numero_parte": "MDS38809441",
+      "cantidad": 9000.0
+    },
+    {
+      "numero_parte": "5400JJ2042T",
+      "cantidad": 2000.0
+    },
+    {
+      "numero_parte": "MDS65972401",
+      "cantidad": 200.0
+    },
+    {
+      "numero_parte": "5400JA2031D",
+      "cantidad": 2300.0
+    },
+    {
+      "numero_parte": "MDS67110130",
+      "cantidad": 6000.0
+    },
+    {
+      "numero_parte": "5400JA3094N",
+      "cantidad": 1000.0
+    },
+    {
+      "numero_parte": "MDS65972406",
+      "cantidad": 5000.0
+    }
+  ]
+}

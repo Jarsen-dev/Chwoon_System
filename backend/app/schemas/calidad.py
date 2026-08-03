@@ -1,6 +1,31 @@
 from pydantic import BaseModel
 from typing import Optional, List, Any
-from datetime import datetime
+from datetime import date, datetime
+
+
+# ── Lote escaneable en IQC (etiqueta de una recepción por foto) ───────
+class LoteEtiquetaOut(BaseModel):
+    """Lo que IQC necesita al escanear el QR de una etiqueta de lote.
+
+    Una etiqueta = una caja = un lote de inventario, así que `cantidad` es la
+    de ESA caja, no la de la partida completa.
+    """
+    lote_id: str
+    sku_producto: str
+    nombre_producto: Optional[str] = None
+    cantidad: float
+    unidad_de_medida: Optional[str] = None
+    secuencia: int
+    total_etiquetas: int
+    fecha_recepcion: date
+    # Origen: la hoja de remisión física
+    proveedor: str
+    numero_remision: str
+    po: Optional[str] = None
+    fecha_hoja: date
+    tipo_documento: str
+    # Estado actual en inventario ("Pendiente IQC" | "Aprobado" | "Rechazado")
+    estado_calidad: str
 
 
 # ── Inspección ────────────────────────────────────────────────────────
@@ -19,7 +44,7 @@ class InspeccionCreate(BaseModel):
     resultados_puntos: List[PuntoResultado] = []
     oc_origen: Optional[str] = None
     op_origen: Optional[str] = None
-    cantidad_inspeccionada: Optional[int] = 0
+    cantidad_inspeccionada: Optional[float] = 0
     notas: Optional[str] = None
 
 
@@ -36,7 +61,7 @@ class InspeccionResponse(BaseModel):
     resultados_puntos: Any
     oc_origen: Optional[str]
     op_origen: Optional[str]
-    cantidad_inspeccionada: int
+    cantidad_inspeccionada: float
     notas: Optional[str]
     created_at: Optional[datetime]
 

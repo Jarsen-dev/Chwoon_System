@@ -1,0 +1,84 @@
+{
+  "proveedor": "KRAEM S.A. DE C.V.",
+  "numero_remision": "119047",
+  "po": null,
+  "fecha": "2026-05-26",
+  "items": [
+    {
+      "numero_parte": "5210JJ3001B",
+      "cantidad": 10500.0
+    },
+    {
+      "numero_parte": "5400JJ2004Q",
+      "cantidad": 2800.0
+    },
+    {
+      "numero_parte": "5400JJ2004R",
+      "cantidad": 2800.0
+    },
+    {
+      "numero_parte": "5400JJ2042U",
+      "cantidad": 4400.0
+    },
+    {
+      "numero_parte": "5400JJ3004C",
+      "cantidad": 30000.0
+    },
+    {
+      "numero_parte": "5400JJ3006D",
+      "cantidad": 6750.0
+    },
+    {
+      "numero_parte": "5400JJ3006Y",
+      "cantidad": 26000.0
+    },
+    {
+      "numero_parte": "MCK67525801",
+      "cantidad": 1950.0
+    },
+    {
+      "numero_parte": "MDS30069205",
+      "cantidad": 3600.0
+    },
+    {
+      "numero_parte": "MDS38809409",
+      "cantidad": 2100.0
+    },
+    {
+      "numero_parte": "MDS38809424",
+      "cantidad": 2820.0
+    },
+    {
+      "numero_parte": "MDS63671402",
+      "cantidad": 800.0
+    },
+    {
+      "numero_parte": "MDS63911402",
+      "cantidad": 750.0
+    },
+    {
+      "numero_parte": "MDS64279301",
+      "cantidad": 3000.0
+    },
+    {
+      "numero_parte": "MDS65630901",
+      "cantidad": 500.0
+    },
+    {
+      "numero_parte": "MDS65631102",
+      "cantidad": 1000.0
+    },
+    {
+      "numero_parte": "MDS67031101",
+      "cantidad": 420.0
+    },
+    {
+      "numero_parte": "MDS67031102",
+      "cantidad": 2100.0
+    },
+    {
+      "numero_parte": "MEU62303504",
+      "cantidad": 1000.0
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "proveedor": "FABRICA DE EMPAQUES CORRUGADOS JR S.A. DE C.V.",
+  "numero_remision": "REM 1849",
+  "po": null,
+  "fecha": "2026-05-27",
+  "items": [
+    {
+      "numero_parte": "CAR29082201",
+      "cantidad": 100.0
+    },
+    {
+      "numero_parte": "CAR29082202",
+      "cantidad": 200.0
+    }
+  ]
+}

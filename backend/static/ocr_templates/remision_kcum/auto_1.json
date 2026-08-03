@@ -1,0 +1,16 @@
+{
+  "proveedor": "KCUM S.A. DE C.V.",
+  "numero_remision": "8896",
+  "po": null,
+  "fecha": "2026-05-27",
+  "items": [
+    {
+      "numero_parte": "3880JL1002A",
+      "cantidad": 2000.0
+    },
+    {
+      "numero_parte": "5210JJ3006B",
+      "cantidad": 1400.0
+    }
+  ]
+}

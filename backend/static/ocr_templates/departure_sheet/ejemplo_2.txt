@@ -1,0 +1,27 @@
+Departure Location
+
+A
+1126, 454 *
+25/512 Departure Sheet (General)
+MX001868 (SDTO90508FM1) Inspection Non- Inspection Page 1/1
+supplier __2 ENMN_SS DELTA TECH MEXICO S.A DE C.V,_| Warehouse Keeper: Local QC Type : 100
++ RAW-PCHW / RAW CHEONG WOON MEXICC WMS N Date 26-MAY-26
+To Sub int LG Electronics MN_Refrigerator Division / N Departure Type + PU-SCS Time 16:54:45
+Receiver Part NO Ttem Desc Departure Qty Currency Subinventory eRe
+o
+Dep pe Market Item Spec Location Price Locator Work Order WIP tine Suppfier Ref NO ad —
+MCZ62692601 Duct,Connector 750 uso RAW-PCHW y
+2 MOLD PP RM60 NATURAL T2.0 e
+Quantum T 20 & 23 cuft Duct
+connector L Zee c/2
+(SO
+| | | ll | ll ll l ll Il ll ll Ill l ll — E ES
+| ll || <s
+
+ina zom/scs/index.do:isessionid=00A1067F3A3DA7ARCOOADA7ORFIARAN? ners M1 m
+
+| CG Cneong Woon
+GP! SABE CS
+iste
+
+ECISP

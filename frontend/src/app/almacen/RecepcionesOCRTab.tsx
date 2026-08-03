@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Modal, Button, FormInput, LoadingSpinner, Pagination } from '@/components/ui';
+import { Modal, Button, FormInput, LoadingSpinner, Pagination, VisorFoto, AutocompleteSku } from '@/components/ui';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import {
   IconCamara,
   IconCelular,
@@ -11,26 +12,52 @@ import {
   IconEliminar,
   IconVer,
   IconActualizar,
+  IconEtiquetas,
+  IconTag,
+  IconDocumento,
 } from '@/lib/icons';
 import {
   ocrRemision,
   ocrRemisionDesdeSesion,
   crearRemision,
   getRemisionesPage,
+  getTiposDocumentoRemision,
   getRemisionFotoBlob,
   crearQrSesionRemision,
   getQrSesionEstado,
   getProducto,
+  getRemision,
+  reimprimirEtiquetaRemision,
+  getDestinosImpresion,
 } from '@/lib/api';
 import type {
   RemisionOCRResultado,
   RemisionRecepcion,
   RemisionCreatePayload,
+  DestinoImpresion,
+  DestinoImpresionId,
 } from '@/types';
+import ModalEtiquetas from './ModalEtiquetas';
 
 interface Props { token: string }
 
 const PAGE_SIZE = 50;
+
+// Estado del último trabajo de impresión de una etiqueta. Importa porque el
+// backend solo encola: si el agente de Windows está apagado, "pendiente" es la
+// única señal de que la etiqueta todavía no salió físicamente.
+const ESTADO_ETIQUETA: Record<string, string> = {
+  pendiente: 'bg-amber-500/15 text-amber-300',
+  enviado: 'bg-blue-500/15 text-blue-300',
+  impreso: 'bg-emerald-500/15 text-emerald-300',
+  error: 'bg-red-500/15 text-red-300',
+};
+const ESTADO_ETIQUETA_TEXTO: Record<string, string> = {
+  pendiente: 'En cola',
+  enviado: 'Enviada',
+  impreso: 'Impresa',
+  error: 'Error',
+};
 
 interface ItemForm {
   numero_parte: string;
@@ -47,6 +74,25 @@ const ITEM_VACIO: ItemForm = {
   numero_parte: '', cantidad: '', descripcion: '', unidad_de_medida: '',
   encontrado: null, advertencia: false,
 };
+
+// Una hoja física puede traer varias remisiones impresas juntas (para ahorrar
+// papel); cada una es un bloque independiente que se guarda como su propio
+// registro, todos apuntando a la misma foto.
+interface BloqueForm {
+  proveedor: string;
+  numeroRemision: string;
+  po: string;
+  fecha: string;
+  items: ItemForm[];
+}
+
+function bloqueVacio(): BloqueForm {
+  return { proveedor: '', numeroRemision: '', po: '', fecha: '', items: [{ ...ITEM_VACIO }] };
+}
+
+function clonarBloque(bloque: BloqueForm): BloqueForm {
+  return { ...bloque, items: bloque.items.map(it => ({ ...it })) };
+}
 
 // Estilo ámbar para campos que el OCR no pudo leer (nunca inventados: llegan vacíos)
 const WARN_CLASS = 'border-amber-500 focus:border-amber-500 focus:ring-amber-500/40 bg-amber-500/5';
@@ -75,11 +121,9 @@ export default function RecepcionesOCRTab({ token }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ── Formulario de revisión ─────────────────────────────────────
-  const [proveedor, setProveedor] = useState('');
-  const [numeroRemision, setNumeroRemision] = useState('');
-  const [po, setPo] = useState('');
-  const [fecha, setFecha] = useState('');
-  const [items, setItems] = useState<ItemForm[]>([]);
+  // Un bloque por remisión detectada en la foto (normalmente 1; "Añadir nueva
+  // remisión" agrega más cuando la hoja trae varias impresas juntas).
+  const [bloques, setBloques] = useState<BloqueForm[]>([bloqueVacio()]);
   const [warnPaths, setWarnPaths] = useState<Set<string>>(new Set());
   const [erroresForm, setErroresForm] = useState<Record<string, string>>({});
   const [guardando, setGuardando] = useState(false);
@@ -108,6 +152,26 @@ export default function RecepcionesOCRTab({ token }: Props) {
   const [detalle, setDetalle] = useState<RemisionRecepcion | null>(null);
   const [detalleFotoUrl, setDetalleFotoUrl] = useState<string | null>(null);
 
+  // ── Etiquetas de lote ──────────────────────────────────────────
+  const [etiquetasDe, setEtiquetasDe] = useState<RemisionRecepcion | null>(null);
+  const [reimprimiendo, setReimprimiendo] = useState<number | null>(null);
+  const [destinos, setDestinos] = useState<DestinoImpresion[]>([]);
+
+  // ── Filtros del listado (patrón ProductosTab) ────────────────────
+  const [busqueda, setBusqueda] = useState('');
+  const [filtroFechaRecepcion, setFiltroFechaRecepcion] = useState('');
+  const [filtroFechaHoja, setFiltroFechaHoja] = useState('');
+  const [filtroFormato, setFiltroFormato] = useState('');
+  const busquedaDebounced = useDebouncedValue(busqueda, 300);
+  const [formatosDisponibles, setFormatosDisponibles] = useState<string[]>([]);
+  const hayFiltros = Boolean(busqueda || filtroFechaRecepcion || filtroFechaHoja || filtroFormato);
+  const limpiarFiltros = () => {
+    setBusqueda('');
+    setFiltroFechaRecepcion('');
+    setFiltroFechaHoja('');
+    setFiltroFormato('');
+  };
+
   // ── Mensajes con auto-dismiss (patrón RecepcionesTab) ──────────
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -119,13 +183,55 @@ export default function RecepcionesOCRTab({ token }: Props) {
     msgTimerRef.current = setTimeout(() => { setSuccessMsg(''); setErrorMsg(''); }, 15000);
   }, []);
 
+  // ── Etiquetas: enviar a imprimir y reimprimir sueltas ──────────
+  // Al abrir un detalle con etiquetas se refrescan las impresoras: entre una
+  // apertura y otra el agente pudo caerse o la HP quedarse sin red.
+  useEffect(() => {
+    if (!detalle?.etiquetas.length) return;
+    let vigente = true;
+    getDestinosImpresion(token)
+      .then(lista => { if (vigente) setDestinos(lista.filter(d => d.disponible)); })
+      .catch(() => { if (vigente) setDestinos([]); });
+    return () => { vigente = false; };
+  }, [detalle?.id, detalle?.etiquetas.length, token]);
+
+  const trasImprimir = (mensaje: string) => {
+    setEtiquetasDe(null);
+    mostrarMsg('ok', mensaje);
+    // Refresca el listado: la remisión ya tiene etiquetas y su botón de
+    // imprimir desaparece; las etiquetas quedan en el modal de detalle.
+    setRefreshKey(k => k + 1);
+  };
+
+  const reimprimirEtiqueta = async (etiquetaId: number, destino: DestinoImpresionId) => {
+    setReimprimiendo(etiquetaId);
+    try {
+      await reimprimirEtiquetaRemision(token, etiquetaId, destino);
+      if (detalle) setDetalle(await getRemision(token, detalle.id));
+      mostrarMsg('ok', destino === 'carta'
+        ? 'Etiqueta impresa en hoja carta'
+        : 'Etiqueta reenviada a la Zebra');
+    } catch (e) {
+      mostrarMsg('error', e instanceof Error ? e.message : 'No se pudo reimprimir la etiqueta');
+    } finally {
+      setReimprimiendo(null);
+    }
+  };
+
   // ══════════════════════════════════════════════════════════════
   // Listado paginado (patrón ProductosTab: server-side, AbortController)
   // ══════════════════════════════════════════════════════════════
   useEffect(() => {
     const controller = new AbortController();
     setLoadingList(true);
-    getRemisionesPage(token, PAGE_SIZE, offset, controller.signal)
+    getRemisionesPage(token, {
+      search: busquedaDebounced,
+      fecha_recepcion: filtroFechaRecepcion,
+      fecha_hoja: filtroFechaHoja,
+      formato: filtroFormato,
+      limit: PAGE_SIZE,
+      offset,
+    }, controller.signal)
       .then(data => {
         setRemisiones(data.items);
         setTotal(data.total);
@@ -136,7 +242,17 @@ export default function RecepcionesOCRTab({ token }: Props) {
       .catch(err => { if (err.name !== 'AbortError') mostrarMsg('error', err.message); })
       .finally(() => setLoadingList(false));
     return () => controller.abort();
-  }, [token, offset, refreshKey, mostrarMsg]);
+  }, [token, busquedaDebounced, filtroFechaRecepcion, filtroFechaHoja, filtroFormato, offset, refreshKey, mostrarMsg]);
+
+  // Cambiar búsqueda o filtros regresa a la primera página
+  useEffect(() => {
+    setOffset(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [busquedaDebounced, filtroFechaRecepcion, filtroFechaHoja, filtroFormato]);
+
+  useEffect(() => {
+    getTiposDocumentoRemision(token).then(setFormatosDisponibles).catch(() => {});
+  }, [token]);
 
   // ══════════════════════════════════════════════════════════════
   // Foto (blob autenticado — patrón ValidacionTab)
@@ -166,12 +282,11 @@ export default function RecepcionesOCRTab({ token }: Props) {
   // ══════════════════════════════════════════════════════════════
   const cargarResultado = useCallback((res: RemisionOCRResultado) => {
     setResultado(res);
+    // El OCR devuelve paths sin prefijo ("fecha", "items[0].cantidad"); solo se
+    // conoce el bloque 0 (única remisión que la IA extrae de la foto) — las que
+    // se agreguen luego con "Añadir nueva remisión" son copias del usuario.
     const warns = new Set(res.advertencias);
-    setProveedor(res.proveedor ?? '');
-    setNumeroRemision(res.numero_remision ?? '');
-    setPo(res.po ?? '');
     const f = parseFechaOCR(res.fecha);
-    setFecha(f);
     if (res.fecha && !f) warns.add('fecha'); // fecha ilegible para el parser → tratar como faltante
     const itemsForm: ItemForm[] = (res.items.length ? res.items : [null]).map((it, i) => ({
       numero_parte: it?.numero_parte ?? '',
@@ -181,12 +296,21 @@ export default function RecepcionesOCRTab({ token }: Props) {
       encontrado: null,
       advertencia: warns.has(`items[${i}].numero_parte`) || warns.has(`items[${i}].cantidad`),
     }));
-    setItems(itemsForm);
-    setWarnPaths(warns);
+    setBloques([{
+      proveedor: res.proveedor ?? '',
+      numeroRemision: res.numero_remision ?? '',
+      po: res.po ?? '',
+      fecha: f,
+      items: itemsForm,
+    }]);
+    setWarnPaths(new Set(Array.from(warns).map(p => `remisiones[0].${p}`)));
     setErroresForm({});
     setNombreFormato('');
     setFase('revision');
-    if (!res.tipo_conocido) setModalNuevoFormato(true);
+    // Solo se pide "formato nuevo" cuando la IA sí corrió y clasificó como
+    // desconocido; si ocr_ok es false (timeout/IA caída) no sabemos el tipo,
+    // así que no hay que ensuciar el catálogo de templates con eso.
+    if (res.ocr_ok && !res.tipo_conocido) setModalNuevoFormato(true);
     if (!res.ocr_ok) {
       mostrarMsg('error', res.error || 'La IA no pudo leer el documento; captura los campos manualmente. La foto ya quedó guardada.');
     }
@@ -195,8 +319,10 @@ export default function RecepcionesOCRTab({ token }: Props) {
   // Completar descripción/unidad de los items que el OCR sí leyó
   useEffect(() => {
     if (fase !== 'revision') return;
-    items.forEach((it, i) => {
-      if (it.numero_parte && it.encontrado === null) void buscarProducto(i, it.numero_parte, false);
+    bloques.forEach((bloque, b) => {
+      bloque.items.forEach((it, i) => {
+        if (it.numero_parte && it.encontrado === null) void buscarProducto(b, i, it.numero_parte, false);
+      });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fase]);
@@ -220,18 +346,20 @@ export default function RecepcionesOCRTab({ token }: Props) {
     }
   };
 
-  const buscarProducto = async (idx: number, sku: string, avisar: boolean) => {
+  const actualizarItem = (b: number, idx: number, patch: Partial<ItemForm>) => {
+    setBloques(prev => prev.map((bloque, bi) => bi !== b
+      ? bloque
+      : { ...bloque, items: bloque.items.map((it, i) => i === idx ? { ...it, ...patch } : it) }));
+  };
+
+  const buscarProducto = async (b: number, idx: number, sku: string, avisar: boolean) => {
     const limpio = sku.trim().toUpperCase();
     if (!limpio) return;
     try {
       const p = await getProducto(limpio);
-      setItems(prev => prev.map((it, i) => i === idx
-        ? { ...it, numero_parte: limpio, descripcion: p.descripcion || '', unidad_de_medida: p.unidad_de_medida || '', encontrado: true }
-        : it));
+      actualizarItem(b, idx, { numero_parte: limpio, descripcion: p.descripcion || '', unidad_de_medida: p.unidad_de_medida || '', encontrado: true });
     } catch {
-      setItems(prev => prev.map((it, i) => i === idx
-        ? { ...it, numero_parte: limpio, descripcion: '', unidad_de_medida: '', encontrado: false }
-        : it));
+      actualizarItem(b, idx, { numero_parte: limpio, descripcion: '', unidad_de_medida: '', encontrado: false });
       if (avisar) setSkuNoRegistrado(limpio);
     }
   };
@@ -283,19 +411,20 @@ export default function RecepcionesOCRTab({ token }: Props) {
   // ══════════════════════════════════════════════════════════════
   const validar = (): string | null => {
     const errores: Record<string, string> = {};
-    if (!proveedor.trim()) errores.proveedor = 'Obligatorio';
-    if (!numeroRemision.trim()) errores.numero_remision = 'Obligatorio';
-    if (!fecha) errores.fecha = 'Obligatorio';
-    if (items.length === 0) return 'Agrega al menos un item';
-    items.forEach((it, i) => {
-      if (!it.numero_parte.trim()) errores[`items[${i}].numero_parte`] = 'Obligatorio';
-      const cant = parseFloat(it.cantidad);
-      if (!it.cantidad || isNaN(cant) || cant <= 0) errores[`items[${i}].cantidad`] = 'Cantidad inválida';
-      if (it.encontrado === false) errores[`items[${i}].numero_parte`] = 'No registrado en Productos';
+    bloques.forEach((bloque, b) => {
+      if (!bloque.proveedor.trim()) errores[`remisiones[${b}].proveedor`] = 'Obligatorio';
+      if (!bloque.numeroRemision.trim()) errores[`remisiones[${b}].numero_remision`] = 'Obligatorio';
+      if (!bloque.fecha) errores[`remisiones[${b}].fecha`] = 'Obligatorio';
+      bloque.items.forEach((it, i) => {
+        if (!it.numero_parte.trim()) errores[`remisiones[${b}].items[${i}].numero_parte`] = 'Obligatorio';
+        const cant = parseFloat(it.cantidad);
+        if (!it.cantidad || isNaN(cant) || cant <= 0) errores[`remisiones[${b}].items[${i}].cantidad`] = 'Cantidad inválida';
+        if (it.encontrado === false) errores[`remisiones[${b}].items[${i}].numero_parte`] = 'No registrado en Productos';
+      });
     });
     setErroresForm(errores);
     if (Object.keys(errores).length > 0) return 'Corrige los campos marcados en rojo';
-    if (resultado && !resultado.tipo_conocido && !nombreFormato.trim()) {
+    if (resultado && resultado.ocr_ok && !resultado.tipo_conocido && !nombreFormato.trim()) {
       setModalNuevoFormato(true);
       return 'Este formato es nuevo: asígnale un nombre para guardarlo como template';
     }
@@ -308,42 +437,58 @@ export default function RecepcionesOCRTab({ token }: Props) {
     if (!resultado) return;
 
     // Los items sin verificar se validan también en el backend (400 con lista)
-    const noEncontrado = items.find(it => it.encontrado === false);
+    const noEncontrado = bloques.flatMap(b => b.items).find(it => it.encontrado === false);
     if (noEncontrado) { setSkuNoRegistrado(noEncontrado.numero_parte); return; }
 
     setGuardando(true);
+    // El tipo de documento y el "formato nuevo" son del documento completo, no
+    // de cada remisión: solo la primera llamada propone crear el template; las
+    // siguientes reusan el tipo ya resuelto (si se repitiera nuevo_formato, el
+    // backend respondería 409 porque el slug ya existiría).
+    let tipoResuelto = resultado.tipo_detectado;
+    let nuevoFormatoPend = resultado.ocr_ok && !resultado.tipo_conocido && nombreFormato.trim()
+      ? { tipo_documento: nombreFormato.trim() }
+      : null;
+    let guardadas = 0;
     try {
-      const payload: RemisionCreatePayload = {
-        proveedor: proveedor.trim(),
-        numero_remision: numeroRemision.trim(),
-        po: po.trim() || null,
-        fecha,
-        tipo_documento: resultado.tipo_detectado,
-        foto_path: resultado.foto_path,
-        ocr_raw: resultado.ocr_ok ? {
-          proveedor: resultado.proveedor, numero_remision: resultado.numero_remision,
-          po: resultado.po, fecha: resultado.fecha, items: resultado.items,
-        } : null,
-        advertencias: resultado.advertencias,
-        items: items.map(it => ({
-          numero_parte: it.numero_parte.trim().toUpperCase(),
-          cantidad: parseFloat(it.cantidad),
-        })),
-        nuevo_formato: !resultado.tipo_conocido && nombreFormato.trim()
-          ? { tipo_documento: nombreFormato.trim() }
-          : null,
-      };
-      await crearRemision(token, payload);
-      mostrarMsg('ok', `Remisión ${payload.numero_remision} guardada correctamente`);
+      for (const bloque of bloques) {
+        const payload: RemisionCreatePayload = {
+          proveedor: bloque.proveedor.trim(),
+          numero_remision: bloque.numeroRemision.trim(),
+          po: bloque.po.trim() || null,
+          fecha: bloque.fecha,
+          tipo_documento: tipoResuelto,
+          foto_path: resultado.foto_path,
+          ocr_raw: resultado.ocr_ok ? {
+            proveedor: resultado.proveedor, numero_remision: resultado.numero_remision,
+            po: resultado.po, fecha: resultado.fecha, items: resultado.items,
+          } : null,
+          advertencias: resultado.advertencias,
+          items: bloque.items.map(it => ({
+            numero_parte: it.numero_parte.trim().toUpperCase(),
+            cantidad: parseFloat(it.cantidad),
+          })),
+          nuevo_formato: nuevoFormatoPend,
+        };
+        const creada = await crearRemision(token, payload);
+        guardadas++;
+        tipoResuelto = creada.tipo_documento;
+        nuevoFormatoPend = null;
+      }
+      mostrarMsg('ok', `${guardadas} remisión${guardadas !== 1 ? 'es' : ''} guardada${guardadas !== 1 ? 's' : ''} correctamente`);
       cancelarRevision();
       setOffset(0);
       setRefreshKey(k => k + 1);
     } catch (err) {
+      // Las primeras `guardadas` ya quedaron en la BD (no hay transacción entre
+      // llamadas): se sacan del formulario para no reenviarlas duplicadas y se
+      // deja el resto listo para corregir y reintentar.
+      if (guardadas > 0) setBloques(prev => prev.slice(guardadas));
       const msg = err instanceof Error ? err.message : 'Error al guardar';
       if (msg.includes('no registrados en Productos')) {
         setSkuNoRegistrado(msg);
       } else {
-        mostrarMsg('error', msg);
+        mostrarMsg('error', guardadas > 0 ? `${guardadas} remisión(es) ya guardada(s). ${msg}` : msg);
       }
     } finally {
       setGuardando(false);
@@ -353,8 +498,8 @@ export default function RecepcionesOCRTab({ token }: Props) {
   const cancelarRevision = () => {
     setFase('captura');
     setResultado(null);
-    setProveedor(''); setNumeroRemision(''); setPo(''); setFecha('');
-    setItems([]); setWarnPaths(new Set()); setErroresForm({});
+    setBloques([bloqueVacio()]);
+    setWarnPaths(new Set()); setErroresForm({});
     setNombreFormato(''); setModalNuevoFormato(false);
   };
 
@@ -364,7 +509,11 @@ export default function RecepcionesOCRTab({ token }: Props) {
   const esWarn = (path: string) => (resultado && !resultado.ocr_ok) || warnPaths.has(path);
   const clase = (path: string) =>
     erroresForm[path] ? '' : (esWarn(path) ? WARN_CLASS : '');
-  const primerWarn = ['proveedor', 'numero_remision', 'fecha', ...items.map((_, i) => `items[${i}].numero_parte`)]
+  const primerWarn = bloques
+    .flatMap((bloque, b) => [
+      `remisiones[${b}].proveedor`, `remisiones[${b}].numero_remision`, `remisiones[${b}].fecha`,
+      ...bloque.items.map((_, i) => `remisiones[${b}].items[${i}].numero_parte`),
+    ])
     .find(p => esWarn(p) || erroresForm[p]);
 
   const inputFile = (
@@ -436,7 +585,9 @@ export default function RecepcionesOCRTab({ token }: Props) {
               <p className="text-xs text-gray-400">
                 Formato detectado:{' '}
                 <span className={resultado.tipo_conocido ? 'text-[var(--accent)] font-semibold' : 'text-amber-400 font-semibold'}>
-                  {resultado.tipo_conocido ? resultado.tipo_detectado : 'desconocido (formato nuevo)'}
+                  {resultado.tipo_conocido
+                    ? resultado.tipo_detectado
+                    : resultado.ocr_ok ? 'desconocido (formato nuevo)' : 'no determinado (IA no disponible)'}
                 </span>
               </p>
             </div>
@@ -449,129 +600,149 @@ export default function RecepcionesOCRTab({ token }: Props) {
 
           <div className="flex flex-col lg:flex-row gap-6">
             {/* Foto original */}
-            <div className="lg:w-1/2 bg-gray-950 rounded-xl border border-gray-800 p-2 flex items-start justify-center lg:sticky lg:top-0 self-start max-h-[75vh] overflow-auto">
-              {fotoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={fotoUrl} alt="Foto de la remisión" className="max-w-full h-auto rounded-lg" />
-              ) : (
-                <div className="p-12"><LoadingSpinner label="Cargando foto…" /></div>
-              )}
+            <div className="lg:w-1/2 lg:sticky lg:top-0 self-start">
+              <VisorFoto src={fotoUrl} alt="Foto de la remisión" alturaClase="h-[70vh]" />
             </div>
 
             {/* Formulario */}
             <div className="lg:w-1/2 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div ref={primerWarn === 'proveedor' ? primerFaltanteRef : undefined} className="sm:col-span-2">
-                  <FormInput
-                    label="Proveedor *"
-                    value={proveedor}
-                    onChange={e => setProveedor(e.target.value)}
-                    error={erroresForm.proveedor}
-                    className={clase('proveedor')}
-                    placeholder={esWarn('proveedor') ? 'La IA no pudo leerlo — captúralo de la foto' : ''}
-                  />
-                </div>
-                <div ref={primerWarn === 'numero_remision' ? primerFaltanteRef : undefined}>
-                  <FormInput
-                    label="No. Remisión *"
-                    value={numeroRemision}
-                    onChange={e => setNumeroRemision(e.target.value)}
-                    error={erroresForm.numero_remision}
-                    className={clase('numero_remision')}
-                    placeholder={esWarn('numero_remision') ? 'Ilegible — captúralo' : ''}
-                  />
-                </div>
-                <FormInput
-                  label="Purchase Order (PO)"
-                  value={po}
-                  onChange={e => setPo(e.target.value)}
-                  className={clase('po')}
-                  placeholder="Opcional"
-                />
-                <div ref={primerWarn === 'fecha' ? primerFaltanteRef : undefined}>
-                  <FormInput
-                    label="Fecha *"
-                    type="date"
-                    value={fecha}
-                    onChange={e => setFecha(e.target.value)}
-                    error={erroresForm.fecha}
-                    className={clase('fecha')}
-                  />
-                </div>
-              </div>
-
-              {/* Items */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-300">
-                    Items ({items.length})
-                  </h3>
-                  <Button size="sm" variant="ghost" leftIcon={IconNuevo}
-                    onClick={() => setItems(prev => [...prev, { ...ITEM_VACIO }])}>
-                    Agregar renglón
-                  </Button>
-                </div>
-                <div className="space-y-3">
-                  {items.map((it, i) => (
-                    <div
-                      key={i}
-                      ref={primerWarn === `items[${i}].numero_parte` ? primerFaltanteRef : undefined}
-                      className={`rounded-lg border p-3 space-y-3 ${it.advertencia || esWarn(`items[${i}].numero_parte`) || esWarn(`items[${i}].cantidad`)
-                        ? 'border-amber-500/50 bg-amber-500/5' : 'border-gray-800 bg-gray-950'}`}
-                    >
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <FormInput
-                          label="No. Parte *"
-                          inputSize="sm"
-                          value={it.numero_parte}
-                          onChange={e => setItems(prev => prev.map((x, j) => j === i
-                            ? { ...x, numero_parte: e.target.value, encontrado: null, descripcion: '', unidad_de_medida: '' }
-                            : x))}
-                          onBlur={() => void buscarProducto(i, it.numero_parte, true)}
-                          error={erroresForm[`items[${i}].numero_parte`]}
-                          className={clase(`items[${i}].numero_parte`)}
-                          placeholder={esWarn(`items[${i}].numero_parte`) ? 'Ilegible — captúralo' : ''}
-                        />
-                        <FormInput
-                          label="Cantidad *"
-                          inputSize="sm"
-                          type="number"
-                          min="0"
-                          step="any"
-                          value={it.cantidad}
-                          onChange={e => setItems(prev => prev.map((x, j) => j === i ? { ...x, cantidad: e.target.value } : x))}
-                          error={erroresForm[`items[${i}].cantidad`]}
-                          className={clase(`items[${i}].cantidad`)}
-                          placeholder={esWarn(`items[${i}].cantidad`) ? 'Ilegible' : ''}
-                        />
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <FormInput label="Descripción" inputSize="sm" value={it.descripcion} readOnly disabled
-                          placeholder={it.encontrado === false ? 'Producto NO registrado' : 'Se llena del catálogo'} />
-                        <div className="flex items-end gap-2">
-                          <div className="flex-1">
-                            <FormInput label="Unidad" inputSize="sm" value={it.unidad_de_medida} readOnly disabled
-                              placeholder="—" />
-                          </div>
-                          {items.length > 1 && (
-                            <button
-                              onClick={() => setItems(prev => prev.filter((_, j) => j !== i))}
-                              className="p-2 rounded-lg text-red-400 bg-red-500/10 hover:bg-red-500/20 transition"
-                              title="Quitar renglón"
-                            >
-                              <IconEliminar size={16} aria-hidden />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                      {it.encontrado === false && (
-                        <p className="text-xs text-red-400">
-                          Este número de parte no existe en Productos — regístralo primero.
-                        </p>
+              {bloques.map((bloque, b) => (
+                <div key={b} className="space-y-4">
+                  {bloques.length > 1 && (
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-bold text-white">Remisión {b + 1}</h3>
+                      {b > 0 && (
+                        <button
+                          onClick={() => setBloques(prev => prev.filter((_, bi) => bi !== b))}
+                          className="inline-flex items-center gap-1 text-xs text-red-400 hover:underline underline-offset-2"
+                        >
+                          <IconEliminar size={13} aria-hidden /> Quitar esta remisión
+                        </button>
                       )}
                     </div>
-                  ))}
+                  )}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div ref={primerWarn === `remisiones[${b}].proveedor` ? primerFaltanteRef : undefined} className="sm:col-span-2">
+                      <FormInput
+                        label="Proveedor *"
+                        value={bloque.proveedor}
+                        onChange={e => setBloques(prev => prev.map((bl, bi) => bi === b ? { ...bl, proveedor: e.target.value } : bl))}
+                        error={erroresForm[`remisiones[${b}].proveedor`]}
+                        className={clase(`remisiones[${b}].proveedor`)}
+                        placeholder={esWarn(`remisiones[${b}].proveedor`) ? 'La IA no pudo leerlo — captúralo de la foto' : ''}
+                      />
+                    </div>
+                    <div ref={primerWarn === `remisiones[${b}].numero_remision` ? primerFaltanteRef : undefined}>
+                      <FormInput
+                        label="No. Remisión *"
+                        value={bloque.numeroRemision}
+                        onChange={e => setBloques(prev => prev.map((bl, bi) => bi === b ? { ...bl, numeroRemision: e.target.value } : bl))}
+                        error={erroresForm[`remisiones[${b}].numero_remision`]}
+                        className={clase(`remisiones[${b}].numero_remision`)}
+                        placeholder={esWarn(`remisiones[${b}].numero_remision`) ? 'Ilegible — captúralo' : ''}
+                      />
+                    </div>
+                    <FormInput
+                      label="Purchase Order (PO)"
+                      value={bloque.po}
+                      onChange={e => setBloques(prev => prev.map((bl, bi) => bi === b ? { ...bl, po: e.target.value } : bl))}
+                      className={clase(`remisiones[${b}].po`)}
+                      placeholder="Opcional"
+                    />
+                    <div ref={primerWarn === `remisiones[${b}].fecha` ? primerFaltanteRef : undefined}>
+                      <FormInput
+                        label="Fecha *"
+                        type="date"
+                        value={bloque.fecha}
+                        onChange={e => setBloques(prev => prev.map((bl, bi) => bi === b ? { ...bl, fecha: e.target.value } : bl))}
+                        error={erroresForm[`remisiones[${b}].fecha`]}
+                        className={clase(`remisiones[${b}].fecha`)}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Items */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-300">
+                        Items ({bloque.items.length})
+                      </h4>
+                      <Button size="sm" variant="ghost" leftIcon={IconNuevo}
+                        onClick={() => setBloques(prev => prev.map((bl, bi) => bi === b ? { ...bl, items: [...bl.items, { ...ITEM_VACIO }] } : bl))}>
+                        Agregar renglón
+                      </Button>
+                    </div>
+                    <div className="space-y-3">
+                      {bloque.items.map((it, i) => (
+                        <div
+                          key={i}
+                          ref={primerWarn === `remisiones[${b}].items[${i}].numero_parte` ? primerFaltanteRef : undefined}
+                          className={`rounded-lg border p-3 space-y-3 ${it.advertencia || esWarn(`remisiones[${b}].items[${i}].numero_parte`) || esWarn(`remisiones[${b}].items[${i}].cantidad`)
+                            ? 'border-amber-500/50 bg-amber-500/5' : 'border-gray-800 bg-gray-950'}`}
+                        >
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <AutocompleteSku
+                              label="No. Parte *"
+                              inputSize="sm"
+                              value={it.numero_parte}
+                              onChange={valor => actualizarItem(b, i, { numero_parte: valor, encontrado: null, descripcion: '', unidad_de_medida: '' })}
+                              onSelect={s => actualizarItem(b, i, { numero_parte: s.sku, descripcion: s.descripcion, unidad_de_medida: s.unidad_de_medida, encontrado: true })}
+                              // Ya validado al elegir de la lista: no se repite la
+                              // consulta ni se arriesga el modal de "no registrado".
+                              onBlur={() => { if (it.encontrado !== true) void buscarProducto(b, i, it.numero_parte, true); }}
+                              error={erroresForm[`remisiones[${b}].items[${i}].numero_parte`]}
+                              className={clase(`remisiones[${b}].items[${i}].numero_parte`)}
+                              placeholder={esWarn(`remisiones[${b}].items[${i}].numero_parte`) ? 'Ilegible — captúralo' : ''}
+                            />
+                            <FormInput
+                              label="Cantidad *"
+                              inputSize="sm"
+                              type="number"
+                              min="0"
+                              step="any"
+                              value={it.cantidad}
+                              onChange={e => actualizarItem(b, i, { cantidad: e.target.value })}
+                              error={erroresForm[`remisiones[${b}].items[${i}].cantidad`]}
+                              className={clase(`remisiones[${b}].items[${i}].cantidad`)}
+                              placeholder={esWarn(`remisiones[${b}].items[${i}].cantidad`) ? 'Ilegible' : ''}
+                            />
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <FormInput label="Descripción" inputSize="sm" value={it.descripcion} readOnly disabled
+                              placeholder={it.encontrado === false ? 'Producto NO registrado' : 'Se llena del catálogo'} />
+                            <div className="flex items-end gap-2">
+                              <div className="flex-1">
+                                <FormInput label="Unidad" inputSize="sm" value={it.unidad_de_medida} readOnly disabled
+                                  placeholder="—" />
+                              </div>
+                              {bloque.items.length > 1 && (
+                                <button
+                                  onClick={() => setBloques(prev => prev.map((bl, bi) => bi === b ? { ...bl, items: bl.items.filter((_, j) => j !== i) } : bl))}
+                                  className="p-2 rounded-lg text-red-400 bg-red-500/10 hover:bg-red-500/20 transition"
+                                  title="Quitar renglón"
+                                >
+                                  <IconEliminar size={16} aria-hidden />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          {it.encontrado === false && (
+                            <p className="text-xs text-red-400">
+                              Este número de parte no existe en Productos — regístralo primero.
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
+              ))}
+
+              <div>
+                <Button size="sm" variant="ghost" leftIcon={IconNuevo}
+                  onClick={() => setBloques(prev => [...prev, clonarBloque(prev[prev.length - 1])])}>
+                  Añadir nueva remisión
+                </Button>
               </div>
 
               {!resultado.tipo_conocido && (
@@ -617,6 +788,81 @@ export default function RecepcionesOCRTab({ token }: Props) {
           </div>
         </div>
 
+        <div className="flex flex-wrap items-end gap-2 mb-4">
+          <div className="flex flex-col gap-1 flex-1 min-w-[200px]">
+            <label htmlFor="filtro-busqueda" className="text-xs font-semibold uppercase tracking-wider text-gray-300">
+              Búsqueda
+            </label>
+            <div className="relative">
+              <input
+                id="filtro-busqueda"
+                type="text"
+                value={busqueda}
+                onChange={e => setBusqueda(e.target.value)}
+                placeholder="Buscar proveedor, no. remisión, PO, no. parte, descripción, cantidad..."
+                className="w-full bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 placeholder:text-gray-400"
+              />
+              {loadingList && (
+                <span
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 rounded-full border-2 border-gray-600 border-t-blue-400 animate-spin"
+                  aria-label="Buscando..."
+                />
+              )}
+            </div>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="filtro-fecha-recepcion" className="text-xs font-semibold uppercase tracking-wider text-gray-300">
+              Fecha recepción
+            </label>
+            <input
+              id="filtro-fecha-recepcion"
+              type="date"
+              value={filtroFechaRecepcion}
+              onChange={e => setFiltroFechaRecepcion(e.target.value)}
+              className="bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="filtro-fecha-hoja" className="text-xs font-semibold uppercase tracking-wider text-gray-300">
+              Fecha hoja
+            </label>
+            <input
+              id="filtro-fecha-hoja"
+              type="date"
+              value={filtroFechaHoja}
+              onChange={e => setFiltroFechaHoja(e.target.value)}
+              className="bg-gray-950 border border-gray-800 rounded-md px-2.5 py-2 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="filtro-formato" className="text-xs font-semibold uppercase tracking-wider text-gray-300">
+              Formato
+            </label>
+            <select
+              id="filtro-formato"
+              value={filtroFormato}
+              onChange={e => setFiltroFormato(e.target.value)}
+              // h-[34px]: el select mide 36px por defecto y quedaría 2px fuera de línea
+              className="h-[34px] bg-gray-950 border border-gray-800 rounded-md px-2.5 py-1.5 text-xs text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
+            >
+              <option value="">Todos los Formatos</option>
+              {formatosDisponibles.map(f => (
+                <option key={f} value={f}>{f}</option>
+              ))}
+            </select>
+          </div>
+          {hayFiltros && (
+            <div className="flex items-center gap-2 ml-auto pb-2">
+              <button
+                onClick={limpiarFiltros}
+                className="text-xs text-gray-400 hover:text-red-400 underline underline-offset-2 transition-colors"
+              >
+                Limpiar filtros
+              </button>
+            </div>
+          )}
+        </div>
+
         <div className="overflow-x-auto max-h-[600px] rounded-lg border border-gray-800">
           <table className="w-full text-sm">
             <thead className="sticky top-0 bg-gray-950 z-10">
@@ -649,14 +895,27 @@ export default function RecepcionesOCRTab({ token }: Props) {
                   </td>
                   <td className="px-4 py-3 text-right text-gray-300">{r.items.length}</td>
                   <td className="px-4 py-3 text-gray-400">{r.creado_por}</td>
-                  <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => setDetalle(r)}
-                      className="p-1.5 rounded-lg text-[var(--accent)] hover:bg-gray-800 transition"
-                      title="Ver detalle y foto"
-                    >
-                      <IconVer size={16} aria-hidden />
-                    </button>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-end gap-1">
+                      <button
+                        onClick={() => setDetalle(r)}
+                        className="p-1.5 rounded-lg text-[var(--accent)] hover:bg-gray-800 transition"
+                        title="Ver detalle y foto"
+                      >
+                        <IconVer size={16} aria-hidden />
+                      </button>
+                      {/* Solo mientras no se hayan generado: después se reimprime
+                          etiqueta por etiqueta desde el modal de detalle */}
+                      {r.etiquetas.length === 0 && (
+                        <button
+                          onClick={() => setEtiquetasDe(r)}
+                          className="p-1.5 rounded-lg text-[var(--accent)] hover:bg-gray-800 transition"
+                          title="Imprimir etiquetas de lote"
+                        >
+                          <IconEtiquetas size={16} aria-hidden />
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -681,7 +940,7 @@ export default function RecepcionesOCRTab({ token }: Props) {
             <>
               <div className="bg-white p-4 rounded-xl">
                 <QRCodeSVG
-                  value={`${typeof window !== 'undefined' ? window.location.origin : ''}/movil/${qrSessionId}`}
+                  value={`${process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : '')}/movil/${qrSessionId}`}
                   size={200}
                 />
               </div>
@@ -746,13 +1005,8 @@ export default function RecepcionesOCRTab({ token }: Props) {
       >
         {detalle && (
           <div className="flex flex-col lg:flex-row gap-6">
-            <div className="lg:w-1/2 bg-gray-950 rounded-xl border border-gray-800 p-2 flex items-start justify-center max-h-[65vh] overflow-auto">
-              {detalleFotoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={detalleFotoUrl} alt="Foto de la remisión" className="max-w-full h-auto rounded-lg" />
-              ) : (
-                <div className="p-12"><LoadingSpinner label="Cargando foto…" /></div>
-              )}
+            <div className="lg:w-1/2">
+              <VisorFoto src={detalleFotoUrl} alt="Foto de la remisión" alturaClase="h-[65vh]" />
             </div>
             <div className="lg:w-1/2 space-y-4 text-sm">
               <div className="grid grid-cols-2 gap-3">
@@ -781,10 +1035,75 @@ export default function RecepcionesOCRTab({ token }: Props) {
                   ))}
                 </tbody>
               </table>
+
+              {detalle.etiquetas.length > 0 && (
+                <div>
+                  <p className="text-xs text-gray-500 uppercase mb-2">
+                    Etiquetas de lote ({detalle.etiquetas.length})
+                  </p>
+                  <table className="w-full text-sm border border-gray-800 rounded-lg overflow-hidden">
+                    <thead className="bg-gray-950 text-xs uppercase text-gray-400">
+                      <tr>
+                        <th className="px-3 py-2 text-left">Lote ID</th>
+                        <th className="px-3 py-2 text-left">No. Parte</th>
+                        <th className="px-3 py-2 text-right">Cantidad</th>
+                        <th className="px-3 py-2 text-left">Estado</th>
+                        <th className="px-3 py-2" />
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-800">
+                      {detalle.etiquetas.map(et => (
+                        <tr key={et.id}>
+                          <td className="px-3 py-2 text-white font-mono text-xs">{et.lote_id}</td>
+                          <td className="px-3 py-2 text-gray-300 font-mono text-xs">{et.numero_parte}</td>
+                          <td className="px-3 py-2 text-right text-gray-200">{et.cantidad.toLocaleString('es-MX')}</td>
+                          <td className="px-3 py-2">
+                            <span className={`text-xs px-2 py-0.5 rounded whitespace-nowrap ${ESTADO_ETIQUETA[et.estado_impresion] || 'bg-gray-800 text-gray-300'}`}>
+                              {ESTADO_ETIQUETA_TEXTO[et.estado_impresion] || et.estado_impresion}
+                            </span>
+                          </td>
+                          {/* Un botón por impresora disponible: con una sola queda
+                              igual que antes, sin menús de por medio */}
+                          <td className="px-3 py-2">
+                            <div className="flex items-center justify-end gap-1">
+                              {destinos.length === 0 && (
+                                <span className="text-xs text-gray-600">Sin impresora</span>
+                              )}
+                              {destinos.map(d => {
+                                const Icono = d.id === 'carta' ? IconDocumento : IconTag;
+                                return (
+                                  <button
+                                    key={d.id}
+                                    onClick={() => reimprimirEtiqueta(et.id, d.id)}
+                                    disabled={reimprimiendo === et.id}
+                                    className="p-1.5 rounded-lg text-[var(--accent)] hover:bg-gray-800 transition disabled:opacity-40"
+                                    title={`Reimprimir en ${d.nombre}`}
+                                  >
+                                    <Icono size={15} aria-hidden />
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         )}
       </Modal>
+
+      {/* ── MODAL: imprimir etiquetas de lote ────────────────────── */}
+      <ModalEtiquetas
+        open={etiquetasDe !== null}
+        remision={etiquetasDe}
+        token={token}
+        onClose={() => setEtiquetasDe(null)}
+        onImpreso={trasImprimir}
+      />
     </div>
   );
 }

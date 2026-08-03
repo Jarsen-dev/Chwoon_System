@@ -1,0 +1,12 @@
+{
+  "proveedor": "Ormen Plastics S.A. de C.V.",
+  "numero_remision": "NPX26050035202",
+  "po": null,
+  "fecha": "2026-05-28",
+  "items": [
+    {
+      "numero_parte": "MCZ62692501",
+      "cantidad": 600.0
+    }
+  ]
+}

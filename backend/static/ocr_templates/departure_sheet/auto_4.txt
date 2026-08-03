@@ -1,0 +1,36 @@
+26/5/26, 9:14
+
+Departure Location
+
+Departure Sheet (General)
+
+Supplier : MX001275 (SMM020625JI18) Inspection : Non-Inspection Page :1/1 Inspection
+ENMN_STARION MONTERREY MEXICO S.A. [ Warehouse Keeper  : Local QC Type : 1QC
+To Sub inv : RAW-PCHW / RAW CHEONG WOON MEXIC( WMS óN Date : 27-MAY-26
+Receiver : LG Electronics MN_Refrigerator Division / N Departure Type : PU-SCS Time : 09:14:54
+Departure No Part NO Item Desc Departure Qty Currency Subinventory PO NO PO Qty - (Remain Qty Due Date “VOM
+Departure Date__ Market Item Spec Location Price Locator Work Order WIP Line Supplier Ref NO Comment Cnt
+NPX26050032370 | MCZ62713203 Duct,Connector 238 USD RAW-PCHW 2026-05-25 EACH
+2026-05-26 2 MOLD PP RM60 NATURAL T2.5 2026052600037 0
+Memphis PJT Duct,Connector(C)-L A
+| i
+NPX26050032371 MCZ62892301 Duct,Multi 382 USD RAW-PCHW 2026-05-27 EACH
+2026-05-26 2 MOLD HIPS HI450 SUPER WHITE - 2026052600037 0
+T2.5 QUANTUM-B 22CUFT
+TT
+| | Total Qty : 382
+NPX26050032372  MCZ65407902 Duct,Connector 1,368 USD RAW-PC 2026-05-27 EACH
+2026-05-26 2 MOLD PP RM60 BLACK T2.5 QT20 2026052600037 0
+a
+E
+NES CCOO MN peau 9
+ELLA tee! | 25 MAY 202 |
+h dx
+se dE fg | E
+A eae
+ve > E)
+O ina
+111
+
+https://pu-scs.lge.com/scs/index.do
+

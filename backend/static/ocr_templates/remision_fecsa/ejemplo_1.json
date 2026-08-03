@@ -1,0 +1,28 @@
+{
+  "proveedor": "FABRICA DE EMPAQUES CORRUGADOS JR S.A. DE C.V.",
+  "numero_remision": "1844",
+  "po": null,
+  "fecha": "2026-05-25",
+  "items": [
+    {
+      "numero_parte": "MCR67327502",
+      "cantidad": 4800.0
+    },
+    {
+      "numero_parte": "AGG75859108",
+      "cantidad": 60.0
+    },
+    {
+      "numero_parte": "AGG75859107",
+      "cantidad": 20.0
+    },
+    {
+      "numero_parte": "MFZ61841709",
+      "cantidad": 100.0
+    },
+    {
+      "numero_parte": "MFZ61841813",
+      "cantidad": 80.0
+    }
+  ]
+}

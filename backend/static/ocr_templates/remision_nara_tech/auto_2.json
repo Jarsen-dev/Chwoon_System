@@ -1,0 +1,12 @@
+{
+  "proveedor": "NARA TECH S.A. DE C.V.",
+  "numero_remision": "11742",
+  "po": null,
+  "fecha": "2026-05-29",
+  "items": [
+    {
+      "numero_parte": "MJH62374301",
+      "cantidad": 720.0
+    }
+  ]
+}

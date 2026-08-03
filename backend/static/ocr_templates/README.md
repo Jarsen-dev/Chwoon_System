@@ -1,27 +1,70 @@
 # ocr_templates — ejemplos few-shot para OCR de remisiones
 
-Cada subcarpeta es un **tipo de documento** y contiene 1-2 ejemplos reales ya
-etiquetados a mano: la foto (`ejemplo_N.jpg|.jpeg|.png`) y su JSON correcto
-(`ejemplo_N.json`). El servicio `app/services/ocr_remisiones.py` los envía a
-Ollama como conversación few-shot — no se entrena ningún modelo.
+Cada subcarpeta es un **tipo de documento** y contiene ejemplos reales ya
+etiquetados: la foto (`.jpg|.jpeg|.png`), su JSON correcto (`.json`) y el texto
+que Tesseract leyó de esa foto, cacheado en `.txt`. El servicio
+`app/services/ocr_remisiones.py` usa el `.txt` para clasificar (similitud de
+texto, no visión) y como ejemplo few-shot al pedirle al modelo de texto que
+estructure el OCR de una foto nueva en JSON — no se entrena ningún modelo.
+
+Si falta el `.txt`, se genera solo la primera vez que se necesita (OCR sobre
+la imagen guardada) y se cachea para las siguientes — no hace falta correr
+nada a mano.
+
+## Dos clases de ejemplo
+
+| | `ejemplo_N.*` (curados) | `auto_N.*` (auto-aprendidos) |
+|---|---|---|
+| Origen | El usuario da de alta un formato nuevo desde la UI | Cada recepción confirmada de un formato **ya conocido** |
+| Límite | `MAX_EJEMPLOS_CURADOS` (2) | `MAX_EJEMPLOS_AUTO` (4), rotando FIFO |
+| Se borran solos | Nunca | Sí, el más viejo al llegar al límite |
+| Se mandan a Ollama | Sí (hasta `MAX_EJEMPLOS_PROMPT`) | No |
+
+Los auto-aprendidos son los que hacen que el clasificador **mejore con el uso**
+en vez de quedarse congelado en las 1-2 fotos iniciales. Solo entran al corpus
+de clasificación, nunca al prompt: si crecieran el prompt, cada recepción haría
+la extracción más lenta y llenaría el contexto del modelo.
+
+No toda foto se aprende — se descarta si su OCR trae menos de
+`MIN_CHARS_TEMPLATE` caracteres (foto ilegible) o si es casi idéntica a un
+ejemplo que ya existe (misma foto resubida).
 
 ## Estructura
 
 ```
 ocr_templates/
 ├── departure_sheet/
-│   ├── ejemplo_1.jpg      ← FALTA: colocar foto (hoja con 2 items MCZ65377801/MCZ65381401)
+│   ├── ejemplo_1.jpeg
 │   ├── ejemplo_1.json
-│   ├── ejemplo_2.jpg      ← FALTA: colocar foto (hoja "Counting 1", MCZ62692601 × 750)
-│   └── ejemplo_2.json
+│   ├── ejemplo_1.txt      ← se autogenera (OCR cacheado)
+│   ├── ejemplo_2.jpeg
+│   ├── ejemplo_2.json
+│   ├── ejemplo_2.txt
+│   ├── auto_1.jpg         ← aprendido de una recepción confirmada
+│   ├── auto_1.json
+│   └── auto_1.txt
 └── ipa_remision/
-    ├── ejemplo_1.jpg      ← FALTA: colocar foto (remisión IPA 40069, MFZ61870525 × 5000)
-    └── ejemplo_1.json
+    ├── ejemplo_1.jpeg
+    ├── ejemplo_1.json
+    └── ejemplo_1.txt
 ```
 
 Un JSON sin su imagen acompañante se ignora (warning en logs del backend), así
 que el sistema funciona aunque falten las fotos — solo que ese tipo no estará
 disponible para clasificación/extracción hasta colocarlas.
+
+## Calibración del clasificador
+
+El clasificador vectoriza por **n-gramas de caracteres** (`char_wb`, 3-5), no
+por palabras: el texto viene de OCR y un carácter mal leído destruye la palabra
+completa como token. Medido sobre las fotos reales, con 20% de ruido de OCR el
+acierto pasa de 43% (palabras) a 88% (n-gramas).
+
+`OCR_UMBRAL_SIMILITUD` (default 0.20) es la similitud mínima para aceptar un
+tipo. Referencias medidas: verdaderos positivos 0.41-0.76; documentos de formato
+ajeno (CFDI, recibo de nómina, carta porte) no pasan de 0.149. Para recalibrar,
+ver el log `clasificación TF-IDF` del backend, que imprime score, segundo mejor
+tipo y margen.
 
 ## Esquema del JSON
 

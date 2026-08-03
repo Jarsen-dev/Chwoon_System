@@ -35,6 +35,8 @@ from app.models.maquina_evento import MaquinaEvento
 from app.models.ayuda_visual import AyudaVisual
 from app.models.remision_recepcion import RemisionRecepcion, RemisionRecepcionItem
 from app.models.remision_qr_sesion import RemisionQrSesion
+from app.models.remision_etiqueta import RemisionEtiqueta
+from app.models.impresion_trabajo import ImpresionTrabajo
 
 __all__ = [
     "Parte",
@@ -82,4 +84,6 @@ __all__ = [
     "RemisionRecepcion",
     "RemisionRecepcionItem",
     "RemisionQrSesion",
+    "RemisionEtiqueta",
+    "ImpresionTrabajo",
 ]

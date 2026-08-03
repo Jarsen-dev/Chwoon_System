@@ -43,6 +43,15 @@ class RemisionRecepcion(Base):
         cascade="all, delete-orphan",
         lazy="selectin",
     )
+    # selectin: el listado necesita saber si ya se imprimieron etiquetas para
+    # ocultar el botón, sin una segunda llamada por renglón
+    etiquetas = relationship(
+        "RemisionEtiqueta",
+        back_populates="remision",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="RemisionEtiqueta.id",
+    )
 
 
 class RemisionRecepcionItem(Base):

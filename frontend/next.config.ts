@@ -123,6 +123,7 @@ const nextConfig: NextConfig = {
         { source: '/calidad/scrap/',                destination: `${BACKEND}/calidad/scrap/` },
         { source: '/calidad/dashboard',             destination: `${BACKEND}/calidad/dashboard` },
         { source: '/calidad/dashboard/',            destination: `${BACKEND}/calidad/dashboard/` },
+        { source: '/calidad/lote/:path*',           destination: `${BACKEND}/calidad/lote/:path*` },
         { source: '/calidad/limpiar/:path*',        destination: `${BACKEND}/calidad/limpiar/:path*` },
 
         // ── ALMACÉN API (beforeFiles) ──

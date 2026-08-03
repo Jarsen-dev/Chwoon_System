@@ -23,6 +23,7 @@ import {
   PlanVentasSemana,
   CalidadDashboard,
   InspeccionCalidad,
+  LoteEtiquetaInfo,
   RegistroScrapItem,
   ProductoPuntosInspeccion,
   AlmacenDashboard,
@@ -48,11 +49,31 @@ import {
   RemisionRecepcion,
   RemisionesRecepcionPage,
   RemisionCreatePayload,
+  RemisionEtiqueta,
+  EtiquetasCreatePayload,
+  DestinoImpresion,
+  DestinoImpresionId,
   QrSesionRemision,
   QrSesionEstado
 } from '@/types'
 
 const API_URL = ''
+
+// Llamadas OCR (Recepciones por Foto) van directo al backend, sin pasar por el
+// proxy de Next.js: Ollama puede tardar 30-120s en clasificar/extraer y el
+// proxy corta la conexión (ECONNRESET) mucho antes de que el backend responda.
+//
+// El host se toma de window.location en vez de NEXT_PUBLIC_API_URL (fijo en
+// build time) porque cuando la misma máquina que corre el stack se conecta a
+// sí misma usando su IP de VPN/LAN (ej. escritorio hace OCR tras subida por
+// QR desde el celular), el hairpin NAT de esa IP falla (ERR_CONNECTION_TIMED_OUT)
+// aunque el puerto esté expuesto y el firewall lo permita. Usando el mismo host
+// con el que el navegador ya cargó la página (localhost, IP de VPN, etc.) se
+// evita ese salto y funciona para cualquier dispositivo.
+const DIRECT_API_URL =
+  typeof window !== 'undefined' && window.location.hostname
+    ? `${window.location.protocol}//${window.location.hostname}:8000`
+    : process.env.NEXT_PUBLIC_API_URL || API_URL
 
 // ==========================================
 // INVENTARIO PLANTA
@@ -166,6 +187,25 @@ export async function searchProductos(sku: string): Promise<ProductoItem[]> {
     const err = await res.json()
     throw new Error(err.detail || 'Error buscando productos')
   }
+  return res.json()
+}
+
+/** Sugerencia ligera para el autocompletado de No. Parte (viaja en cada tecla). */
+export interface SugerenciaSku {
+  sku: string
+  descripcion: string
+  unidad_de_medida: string
+}
+
+export async function getSugerenciasSku(
+  q: string,
+  signal?: AbortSignal,
+): Promise<SugerenciaSku[]> {
+  const res = await fetch(
+    `${API_URL}/productos/sugerencias?q=${encodeURIComponent(q)}&limit=8`,
+    { signal },
+  )
+  if (!res.ok) throw new Error('Error buscando números de parte')
   return res.json()
 }
 
@@ -1004,17 +1044,6 @@ export async function limpiarDevolucionesFinalizadas(token: string, dias: number
   return res.json()
 }
 
-export async function getInfoLote(token: string, loteId: string): Promise<any> {
-  const res = await fetch(`${API_URL}/finanzas/lote/${encodeURIComponent(loteId)}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  if (!res.ok) {
-    const err = await res.json()
-    throw new Error(err.detail || 'Lote no encontrado')
-  }
-  return res.json()
-}
-
 // ==========================================
 // CALIDAD — Dashboard
 // ==========================================
@@ -1098,6 +1127,22 @@ export async function descargarPdfInspeccion(token: string, inspeccionId: string
 // ==========================================
 // CALIDAD — Puntos de inspección
 // ==========================================
+/**
+ * Resuelve el QR de una etiqueta de lote para IQC. Sustituye al viejo
+ * getInfoLote (/finanzas/lote/{id}), que parseaba el string del lote y
+ * adivinaba el SKU con un ILIKE sobre recepciones_compra.
+ */
+export async function getLoteEtiqueta(token: string, loteId: string): Promise<LoteEtiquetaInfo> {
+  const res = await fetch(`${API_URL}/calidad/lote/${encodeURIComponent(loteId)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.detail || 'Lote no encontrado')
+  }
+  return res.json()
+}
+
 export async function getPuntosInspeccion(token: string, sku: string): Promise<ProductoPuntosInspeccion> {
   const res = await fetch(`${API_URL}/calidad/puntos-inspeccion/${encodeURIComponent(sku)}`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -1672,25 +1717,25 @@ export async function cancelarPicking(token: string, pickingId: string): Promise
 export async function ocrRemision(token: string, file: File): Promise<RemisionOCRResultado> {
   const fd = new FormData()
   fd.append('file', file)
-  const res = await fetch(`${API_URL}/api/remisiones/ocr`, {
+  const res = await fetch(`${DIRECT_API_URL}/api/remisiones/ocr`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
     body: fd,
   })
   if (!res.ok) {
-    const err = await res.json()
+    const err = await res.json().catch(() => ({}))
     throw new Error(err.detail || 'Error al procesar la imagen')
   }
   return res.json()
 }
 
 export async function ocrRemisionDesdeSesion(token: string, sessionId: string): Promise<RemisionOCRResultado> {
-  const res = await fetch(`${API_URL}/api/remisiones/ocr/desde-sesion/${sessionId}`, {
+  const res = await fetch(`${DIRECT_API_URL}/api/remisiones/ocr/desde-sesion/${sessionId}`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
   })
   if (!res.ok) {
-    const err = await res.json()
+    const err = await res.json().catch(() => ({}))
     throw new Error(err.detail || 'Error al procesar la foto de la sesión')
   }
   return res.json()
@@ -1709,18 +1754,103 @@ export async function crearRemision(token: string, payload: RemisionCreatePayloa
   return res.json()
 }
 
+export interface GetRemisionesParams {
+  search?: string
+  fecha_recepcion?: string // YYYY-MM-DD
+  fecha_hoja?: string // YYYY-MM-DD
+  formato?: string
+  limit?: number
+  offset?: number
+}
+
 export async function getRemisionesPage(
   token: string,
-  limit: number,
-  offset: number,
+  params: GetRemisionesParams = {},
   signal?: AbortSignal,
 ): Promise<RemisionesRecepcionPage> {
-  const res = await fetch(`${API_URL}/api/remisiones?limit=${limit}&offset=${offset}`, {
+  const qs = new URLSearchParams()
+  if (params.search?.trim()) qs.set('search', params.search.trim())
+  if (params.fecha_recepcion) qs.set('fecha_recepcion', params.fecha_recepcion)
+  if (params.fecha_hoja) qs.set('fecha_hoja', params.fecha_hoja)
+  if (params.formato) qs.set('formato', params.formato)
+  if (params.limit != null) qs.set('limit', String(params.limit))
+  if (params.offset != null) qs.set('offset', String(params.offset))
+  const query = qs.toString()
+  const res = await fetch(`${API_URL}/api/remisiones${query ? `?${query}` : ''}`, {
     headers: { Authorization: `Bearer ${token}` },
     signal,
   })
   if (!res.ok) throw new Error('Error cargando remisiones')
   return res.json()
+}
+
+export async function getTiposDocumentoRemision(token: string): Promise<string[]> {
+  const res = await fetch(`${API_URL}/api/remisiones/tipos-documento`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error cargando tipos de documento')
+  return res.json()
+}
+
+export async function getRemision(token: string, id: number): Promise<RemisionRecepcion> {
+  const res = await fetch(`${API_URL}/api/remisiones/${id}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error cargando la remisión')
+  return res.json()
+}
+
+/**
+ * Impresoras a las que se puede mandar una etiqueta ahora mismo. La Zebra está
+ * disponible mientras su agente de Windows siga sondeando; la HP, mientras
+ * responda en el 9100.
+ */
+export async function getDestinosImpresion(token: string): Promise<DestinoImpresion[]> {
+  const res = await fetch(`${API_URL}/api/impresion/destinos`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Error consultando las impresoras disponibles')
+  return res.json()
+}
+
+/**
+ * Genera las etiquetas de lote de una remisión y las manda a imprimir.
+ * En la Zebra queda encolado para el agente de Windows; en hoja carta el backend
+ * imprime en línea, así que un fallo aquí significa que no se creó nada
+ * (ver gateway/README_impresion.md).
+ */
+export async function crearEtiquetasRemision(
+  token: string,
+  remisionId: number,
+  payload: EtiquetasCreatePayload,
+): Promise<RemisionEtiqueta[]> {
+  const res = await fetch(`${API_URL}/api/remisiones/${remisionId}/etiquetas`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.detail || 'No se pudieron generar las etiquetas')
+  }
+  return res.json()
+}
+
+/** Sin `destino` se repite por donde salió la primera vez. */
+export async function reimprimirEtiquetaRemision(
+  token: string,
+  etiquetaId: number,
+  destino?: DestinoImpresionId,
+): Promise<void> {
+  const res = await fetch(`${API_URL}/api/remisiones/etiquetas/${etiquetaId}/reimprimir`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ destino: destino ?? null }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.detail || 'No se pudo reimprimir la etiqueta')
+  }
 }
 
 /** Nombre de archivo de una foto de remisión a partir de su foto_path relativo. */
@@ -1743,7 +1873,7 @@ export async function crearQrSesionRemision(token: string): Promise<QrSesionRemi
     headers: { Authorization: `Bearer ${token}` },
   })
   if (!res.ok) {
-    const err = await res.json()
+    const err = await res.json().catch(() => ({}))
     throw new Error(err.detail || 'Error al crear la sesión QR')
   }
   return res.json()

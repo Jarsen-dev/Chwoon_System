@@ -1,0 +1,16 @@
+{
+  "proveedor": "INNOVATION PACKING AUTOMOTORES",
+  "numero_remision": "40082",
+  "po": null,
+  "fecha": "2026-05-29",
+  "items": [
+    {
+      "numero_parte": "MFZ61870531",
+      "cantidad": 5000
+    },
+    {
+      "numero_parte": "MFZ61870532",
+      "cantidad": 5000
+    }
+  ]
+}

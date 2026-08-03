@@ -125,6 +125,13 @@ export {
   Ban as IconInactivo,
   Landmark as IconBanco,
   Star as IconEstrella,
+
+  // Visor de foto (zoom / rotación)
+  ZoomIn as IconZoomIn,
+  ZoomOut as IconZoomOut,
+  RotateCw as IconRotarDerecha,
+  RotateCcw as IconRotarIzquierda,
+  Maximize as IconAjustar,
 } from 'lucide-react';
 
 export type { LucideIcon } from 'lucide-react';

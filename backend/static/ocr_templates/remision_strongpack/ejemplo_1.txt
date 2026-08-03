@@ -1,0 +1,74 @@
+a RUGRAPACK
+
+Calle: INDUSTRIA ALIMENTICIA No. LT 5 Int: MZ 11 entre AV. INDUSTRIA
+DE LATRANSFORMACION yLT 5 MZ 1, Col. EL COLORADO, Cpa
+EL MARQUES, QUERETARO, MEXICO y
+
+cha de Emisión”
+
+StrongPack
+
+Regimen Fiscal: (601)General de Ley Personas Morales ,
+Folio Fiscal; BO9S7ECT#a60A=4F 28-9260-£90194534704
+
+No. Certificado Digital Timbrado
+Comprobante fiscal digital: ()ingreso Fecha y hora de certificación:
+Forma de pago: (99)Por definir 2026-05-26T12:00:00
+Método de pago:
+
+(PPD)Pago en parcialidades o diferido
+Uso de CFDI: (G01)Adquisición de mercancías.
+
+PEDIDO No. MA Y-RUGRAP-OVEN AC3
+EL MARQUES QUERETARO
+Descripción
+
+Datos del Cliente
+ICHEONG WOON MEXICO
+
+RFC:CWM 020627SJ7
+
+Calle: CARRETERA APODACA A JUAREZ No. 2156 entre
+CALLE RIO ORINOCO y CALLE PADRE MIER, CP: 66644,
+Ciudad Apodaca, Apodaca, Nuevo León,
+
+Teléfono:81 17590592
+
+Régimen fiscal:
+(601)Ganeral de Ley Personas Morales
+
+Cantidad U.M. Clave Art. Clave SAT, UM.SAT. Precio Uni. Importe
+
+14121500 |H87
+
+DOSCIENTOS DIECINUEVE MIL SEISCIENTOS [Subtotal 189,340.00
+TREINTA Y CUATRO PESOS 40/100 M.N. — [Descuento 0.00
+
+WM ip _ R LV.A, 30,294.40
+
+Total 219,634.40
+
+“Este documento es una representación impresa de un CFDI"
+
+Sello digital del CFDI:
+UJKSJxI8Xf JkvLEB pa 1 gR]VBKJms JEX149fUqZGV/f nl! hCGEn 1 5rjg78u7+PVzdSWOmgplbSeV HY gloAovObPEV3DROx5K
+Yzatbuw IP4gZznl&J6yk2ph1fBLdgNNH+zKnve 1lc+WtRSCiL sw PJ10Wj2GWen/OHLy91uBigHEXSEFKiuhGk+RxrMcaF1z+S194
+
+Número de serie del Certificado de Sello Digital del SAT:
+00001000000723806214
+
+Número de serle del Certificado de Sello Digital :
+00001000000516892601
+
+Cadena original del complemento de certificación digital del SAT:
+
+-11BD957EC1-360A-4F28-936D-E901945347D4/2026-05-26712:00:00[TSPOB0724QW6|
+bUJk5Jxl8XfJkvLEBipa i gRiV8K Jms JEX169fUgZGU/fenl1 hCGEN15rjg78u7+PVzdSWOmgpIbSeVHY gloAovObPEv3bROx5i4
+
+Y zatbuw IP4g2znlEJ6yk2ph if BLdgNNH+zKnvettlc+WIRSCiLsw PJ1 oWj2GWen/OHL y91uBigHEXSEFKiuhGktRerMcaF1z+S194
+r3Vxvb5sLpF2W4bjtK8Nd0SDOF2gRvFT4s7GeCeDLMyFufEY KjUgib TEAA Xr JERXkQkiw 7HaUw BonHBmB74NiTIHUdMfcxsf6V+0
+
+Sello digital del SAT:
+
+SodbVoXAjakte51nXXyR2KRUWRQOHHOrViHy!XPWFdzrMioSCARVRUphxzlXog87hz y iNTIODFHMcU9H9M7CC+yLhZ 10HhYjG0Q0
+el9VxC04Us8T7d36VrrZ+V6mZSk/uFTmNmxc2z GO/MWV cWN9lgUN4dLekOe/SvdgiTNibNXz3vSqEe2vCiSY o1qNeFZLJ6Cqc9C

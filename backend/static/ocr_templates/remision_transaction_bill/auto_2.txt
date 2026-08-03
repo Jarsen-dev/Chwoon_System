@@ -1,0 +1,21 @@
+| W-Keeper | Manager
+
+Transaction Bill
+(Dept: Customer)
+
+Customer ]
+
+Approval
+
+Warehouse Keeper
+26-MAY-2026 10:33:16 14849154 MX001274 ENMN_CHEONG WOON MEXICO S.A. DE C.V._MX00 RESN
+UOM. Description Spec Issue Date Quantity Sales Price Sales Amount | Return
+
+RAA32339217 KG Resin,EPS B-S (KING PEARL) Nat 26-MAY-2026 4,500 1.51850 6,833.25
+
+1 Ñ |
+{ r Jact
+A
+Total 4,500 Total
+marco.laraMARCOLARA NT 22.115.2
+

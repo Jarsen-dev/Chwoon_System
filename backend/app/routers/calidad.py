@@ -12,9 +12,12 @@ from app.models.registro_scrap import RegistroScrap
 from app.models.producto import Producto
 from app.models.lote_inventario import LoteInventario, MovimientoLote
 from app.models.orden_compra import OrdenCompra
+from app.models.remision_etiqueta import RemisionEtiqueta
+from app.models.remision_recepcion import RemisionRecepcion
 from app.services.proveedor_score import registrar_evento
 from app.schemas.calidad import (
     InspeccionCreate, InspeccionResponse,
+    LoteEtiquetaOut,
     ScrapCreate, ScrapResponse,
     CalidadDashboard,
 )
@@ -38,6 +41,26 @@ def ahora_local():
 def generar_inspeccion_id(tipo: str) -> str:
     now = ahora_local()
     return f"INS-{tipo}-{now.strftime('%d%m%y%H%M%S')}"
+
+
+async def generar_inspeccion_id_unico(db: AsyncSession, tipo: str) -> str:
+    """inspeccion_id libre, con sufijo solo si hace falta.
+
+    El formato tiene resolución de segundos, así que inspeccionar varias cajas
+    seguidas (una etiqueta = una caja) chocaba contra el índice único. En el
+    caso normal el id queda idéntico al documentado; solo al empatar el segundo
+    se le añade -2, -3, …
+    """
+    base = generar_inspeccion_id(tipo)
+    candidato = base
+    for intento in range(2, 100):
+        existe = (await db.execute(
+            select(Inspeccion.id).where(Inspeccion.inspeccion_id == candidato)
+        )).scalar()
+        if existe is None:
+            return candidato
+        candidato = f"{base}-{intento}"
+    raise HTTPException(status_code=500, detail="No se pudo generar un inspeccion_id único")
 
 
 def generar_scrap_id() -> str:
@@ -156,6 +179,71 @@ async def get_calidad_dashboard(
 
 
 # ══════════════════════════════════════════════════════════════════════
+# LOTE ESCANEABLE (etiqueta de recepción por foto)
+# ══════════════════════════════════════════════════════════════════════
+
+@router.get("/lote/{lote_id}", response_model=LoteEtiquetaOut)
+@router.get("/lote/{lote_id}/", response_model=LoteEtiquetaOut)
+async def obtener_lote_etiqueta(
+    lote_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    """Resuelve el QR de una etiqueta de lote para la inspección IQC.
+
+    Busca la fila exacta en `remisiones_etiquetas` — a diferencia del viejo
+    /finanzas/lote/{id}, que parseaba el string y adivinaba el SKU con un ILIKE
+    sobre recepciones_compra.
+    """
+    require_calidad_role(current_user)
+
+    etiqueta = (await db.execute(
+        select(RemisionEtiqueta).where(RemisionEtiqueta.lote_id == lote_id)
+    )).scalars().first()
+    if not etiqueta:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No existe ninguna etiqueta de lote '{lote_id}'",
+        )
+
+    remision = await db.get(RemisionRecepcion, etiqueta.remision_id)
+    if not remision:
+        raise HTTPException(
+            status_code=404,
+            detail=f"La etiqueta '{lote_id}' quedó huérfana de su remisión",
+        )
+
+    # Cuántas cajas tiene esta partida — para mostrar "Caja N de M"
+    total_etiquetas = (await db.execute(
+        select(func.count(RemisionEtiqueta.id))
+        .where(RemisionEtiqueta.item_id == etiqueta.item_id)
+    )).scalar() or 1
+
+    # El lote se crea junto con la etiqueta; si faltara (etiquetas anteriores a
+    # este cambio) se reporta como pendiente y la inspección lo creará.
+    lote = (await db.execute(
+        select(LoteInventario).where(LoteInventario.lote_id == lote_id)
+    )).scalars().first()
+
+    return LoteEtiquetaOut(
+        lote_id=etiqueta.lote_id,
+        sku_producto=etiqueta.numero_parte,
+        nombre_producto=etiqueta.descripcion,
+        cantidad=float(etiqueta.cantidad),
+        unidad_de_medida=etiqueta.unidad_de_medida,
+        secuencia=etiqueta.secuencia,
+        total_etiquetas=total_etiquetas,
+        fecha_recepcion=etiqueta.fecha_recepcion,
+        proveedor=remision.proveedor,
+        numero_remision=remision.numero_remision,
+        po=remision.po,
+        fecha_hoja=remision.fecha,
+        tipo_documento=remision.tipo_documento,
+        estado_calidad=lote.estado_calidad if lote else "Pendiente IQC",
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════
 # INSPECCIONES — CRUD
 # ══════════════════════════════════════════════════════════════════════
 
@@ -168,7 +256,7 @@ async def registrar_inspeccion(
 ):
     require_calidad_role(current_user)
 
-    inspeccion_id = generar_inspeccion_id(data.tipo_inspeccion)
+    inspeccion_id = await generar_inspeccion_id_unico(db, data.tipo_inspeccion)
 
     inspeccion = Inspeccion(
         inspeccion_id=inspeccion_id,

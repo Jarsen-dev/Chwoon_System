@@ -9,18 +9,29 @@ Prefijo /api/remisiones: ya proxeado por la regla catch-all /api/:path* de
 next.config.ts y exento del middleware de roles del frontend.
 """
 
+import asyncio
+import logging
 import re
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
-from sqlalchemy import delete, func, select
+from sqlalchemy import Date, String, cast, delete, exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_almacen, get_db
+from app.models.impresion_trabajo import (
+    ESTADO_IMPRESO,
+    ESTADO_PENDIENTE as ESTADO_PENDIENTE_IMPRESION,
+    FORMATO_PDF,
+    FORMATO_ZPL,
+    ImpresionTrabajo,
+)
+from app.models.lote_inventario import LoteInventario, MovimientoLote
 from app.models.producto import Producto
+from app.models.remision_etiqueta import RemisionEtiqueta
 from app.models.remision_qr_sesion import (
     ESTADO_PENDIENTE,
     ESTADO_SUBIDA,
@@ -30,6 +41,8 @@ from app.models.remision_qr_sesion import (
 from app.models.remision_recepcion import RemisionRecepcion, RemisionRecepcionItem
 from app.models.usuario import Usuario
 from app.schemas.remision_recepcion import (
+    EtiquetaOut,
+    EtiquetasCreate,
     QrSesionEstado,
     QrSesionOut,
     RemisionCreate,
@@ -37,8 +50,11 @@ from app.schemas.remision_recepcion import (
     RemisionOCRItem,
     RemisionOCRResponse,
     RemisionOut,
+    ReimprimirIn,
 )
-from app.services import ocr_remisiones
+from app.services import impresion_red, ocr_remisiones, pdf_etiquetas, zpl_etiquetas
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/remisiones", tags=["remisiones"])
 
@@ -212,6 +228,16 @@ async def crear_remision(
         )
 
     tipo_documento = payload.tipo_documento
+    template_json = {
+        "proveedor": payload.proveedor,
+        "numero_remision": payload.numero_remision,
+        "po": payload.po,
+        "fecha": payload.fecha.isoformat(),
+        "items": [
+            {"numero_parte": i.numero_parte.strip().upper(), "cantidad": float(i.cantidad)}
+            for i in payload.items
+        ],
+    }
     if payload.nuevo_formato:
         # Formato nuevo: además del registro se guarda foto + JSON corregido
         # como template para futuras recepciones de este proveedor/formato
@@ -221,23 +247,32 @@ async def crear_remision(
                 status_code=409,
                 detail=f"Ya existe un template llamado '{slug}'; usa otro nombre",
             )
-        template_json = {
-            "proveedor": payload.proveedor,
-            "numero_remision": payload.numero_remision,
-            "po": payload.po,
-            "fecha": payload.fecha.isoformat(),
-            "items": [
-                {"numero_parte": i.numero_parte.strip().upper(), "cantidad": float(i.cantidad)}
-                for i in payload.items
-            ],
-        }
         try:
-            ocr_remisiones.guardar_template(
-                slug, foto.read_bytes(), template_json, extension=foto.suffix
+            # guardar_template ahora también corre OCR local (Tesseract) para
+            # cachear el texto del ejemplo — es CPU-bound, va a un hilo aparte
+            # para no bloquear el event loop.
+            await asyncio.to_thread(
+                ocr_remisiones.guardar_template,
+                slug, foto.read_bytes(), template_json, extension=foto.suffix,
             )
         except ValueError as e:
             raise HTTPException(status_code=409, detail=str(e))
         tipo_documento = slug
+    elif tipo_documento in ocr_remisiones.listar_tipos_documento():
+        # Formato YA conocido: esta recepción confirmada por el usuario es un
+        # ejemplo etiquetado gratis. Sumarlo hace que el clasificador mejore con
+        # el uso en vez de quedarse congelado en las 1-2 fotos iniciales.
+        # Es best-effort: si falla, la recepción se guarda igual.
+        try:
+            await asyncio.to_thread(
+                ocr_remisiones.agregar_ejemplo_auto,
+                tipo_documento, foto.read_bytes(), template_json, extension=foto.suffix,
+            )
+        except Exception as e:
+            logger.warning(
+                "No se pudo aprender de la recepción de '%s' (%s); se guarda igual",
+                tipo_documento, e,
+            )
 
     remision = RemisionRecepcion(
         proveedor=payload.proveedor.strip(),
@@ -275,20 +310,69 @@ async def crear_remision(
 async def listar_remisiones(
     limit: int = 50,
     offset: int = 0,
+    search: str | None = None,
+    fecha_recepcion: date | None = None,
+    fecha_hoja: date | None = None,
+    formato: str | None = None,
     db: AsyncSession = Depends(get_db),
     user: Usuario = Depends(get_current_almacen),
 ):
     limit = max(1, min(limit, 200))
     offset = max(0, offset)
 
-    total = (await db.execute(select(func.count(RemisionRecepcion.id)))).scalar() or 0
+    filtros = []
+    if search and search.strip():
+        q = f"%{search.strip()}%"
+        item_match = exists(
+            select(RemisionRecepcionItem.id).where(
+                RemisionRecepcionItem.remision_id == RemisionRecepcion.id,
+                or_(
+                    RemisionRecepcionItem.numero_parte.ilike(q),
+                    RemisionRecepcionItem.descripcion.ilike(q),
+                    cast(RemisionRecepcionItem.cantidad, String).ilike(q),
+                ),
+            )
+        )
+        filtros.append(or_(
+            RemisionRecepcion.proveedor.ilike(q),
+            RemisionRecepcion.numero_remision.ilike(q),
+            RemisionRecepcion.po.ilike(q),
+            item_match,
+        ))
+    if fecha_recepcion:
+        filtros.append(cast(RemisionRecepcion.fecha_captura, Date) == fecha_recepcion)
+    if fecha_hoja:
+        filtros.append(RemisionRecepcion.fecha == fecha_hoja)
+    if formato:
+        filtros.append(RemisionRecepcion.tipo_documento == formato)
+
+    total = (await db.execute(
+        select(func.count(RemisionRecepcion.id)).where(*filtros)
+    )).scalar() or 0
     result = await db.execute(
         select(RemisionRecepcion)
+        .where(*filtros)
         .order_by(RemisionRecepcion.fecha_captura.desc())
         .offset(offset)
         .limit(limit)
     )
     return RemisionesPage(items=result.scalars().all(), total=total)
+
+
+@router.get("/tipos-documento")
+@router.get("/tipos-documento/")
+async def listar_tipos_documento_remision(
+    db: AsyncSession = Depends(get_db),
+    user: Usuario = Depends(get_current_almacen),
+):
+    """Valores distintos de tipo_documento ya presentes en recepciones
+    registradas — usado para poblar el filtro 'Formato' del listado."""
+    result = await db.execute(
+        select(RemisionRecepcion.tipo_documento)
+        .distinct()
+        .order_by(RemisionRecepcion.tipo_documento)
+    )
+    return result.scalars().all()
 
 
 @router.get("/foto/{nombre}")
@@ -372,3 +456,345 @@ async def subir_foto_qr_sesion(
     sesion.estado = ESTADO_SUBIDA
     await db.commit()
     return QrSesionEstado(estado=sesion.estado, valida=True)
+
+
+# ══════════════════════════════════════════════════════════════════════
+# ETIQUETAS DE LOTE
+# ══════════════════════════════════════════════════════════════════════
+# Estas rutas van al final a propósito: `/{remision_id}` es un catch-all y
+# taparía a /tipos-documento, /foto/... y /qr-session/... si se declarara antes.
+
+NO_ALFANUM_RE = re.compile(r"[^A-Z0-9]")
+
+
+def _sufijo(texto: str, n: int = 4) -> str:
+    """Últimos `n` caracteres alfanuméricos, en mayúsculas.
+
+    'CWM260420-04' → '2004', 'A 83332' → '3332', '27' → '0027'.
+    """
+    limpio = NO_ALFANUM_RE.sub("", (texto or "").upper())
+    return limpio[-n:].rjust(n, "0")
+
+
+def _escapar_like(texto: str) -> str:
+    """El prefijo del lote_id trae '_', que en LIKE es comodín de un carácter."""
+    return texto.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+async def _siguiente_secuencia(db: AsyncSession, prefijo: str) -> int:
+    """Siguiente `n` libre para un prefijo de lote_id.
+
+    En el caso normal arranca en 1 por partida. Si dos remisiones del mismo día
+    terminan en los mismos 4 dígitos y traen la misma parte, sigue contando en
+    vez de chocar contra el índice único de lote_id.
+    """
+    maximo = (await db.execute(
+        select(func.max(RemisionEtiqueta.secuencia)).where(
+            RemisionEtiqueta.lote_id.like(f"{_escapar_like(prefijo)}%", escape="\\")
+        )
+    )).scalar()
+    return (maximo or 0) + 1
+
+
+@router.post("/etiquetas/{etiqueta_id}/reimprimir", status_code=202)
+@router.post("/etiquetas/{etiqueta_id}/reimprimir/", status_code=202)
+async def reimprimir_etiqueta(
+    etiqueta_id: int,
+    payload: ReimprimirIn | None = None,
+    db: AsyncSession = Depends(get_db),
+    user: Usuario = Depends(get_current_almacen),
+):
+    """Vuelve a sacar una etiqueta ya generada (se rompió, salió mal, se despegó).
+
+    En la Zebra se reusa el ZPL guardado, así que la etiqueta reimpresa es byte
+    por byte la misma. En hoja carta se regenera desde el snapshot que guarda
+    `remisiones_etiquetas` —que es inmutable— y sale una sola etiqueta en la
+    esquina de la hoja.
+    """
+    etiqueta = await db.get(RemisionEtiqueta, etiqueta_id)
+    if not etiqueta:
+        raise HTTPException(status_code=404, detail="Etiqueta no encontrada")
+
+    original = (await db.execute(
+        select(ImpresionTrabajo)
+        .where(ImpresionTrabajo.etiqueta_id == etiqueta_id)
+        .order_by(ImpresionTrabajo.id)
+        .limit(1)
+    )).scalars().first()
+    if not original:
+        raise HTTPException(
+            status_code=409,
+            detail="La etiqueta no tiene un trabajo de impresión previo que reusar",
+        )
+
+    destino = (payload.destino if payload else None) or (
+        "carta" if original.formato == FORMATO_PDF else "zebra"
+    )
+
+    if destino == "carta":
+        try:
+            await impresion_red.enviar_pdf(
+                pdf_etiquetas.generar_pdf([pdf_etiquetas.DatosEtiqueta(
+                    lote_id=etiqueta.lote_id,
+                    numero_parte=etiqueta.numero_parte,
+                    descripcion=etiqueta.descripcion,
+                    cantidad=etiqueta.cantidad,
+                    unidad_de_medida=etiqueta.unidad_de_medida,
+                    fecha_recepcion=etiqueta.fecha_recepcion,
+                )]),
+                f"Reimpresion {etiqueta.lote_id}",
+            )
+        except Exception as exc:
+            logger.error("No se pudo reimprimir %s en hoja carta: %s", etiqueta.lote_id, exc)
+            raise HTTPException(
+                status_code=502,
+                detail=(
+                    f"No se pudo imprimir en {impresion_red.NOMBRE} "
+                    f"({impresion_red.HOST}:{impresion_red.PUERTO})"
+                ),
+            )
+        ahora = _ahora()
+        db.add(ImpresionTrabajo(
+            etiqueta_id=etiqueta.id,
+            impresora=impresion_red.NOMBRE,
+            formato=FORMATO_PDF,
+            zpl=None,
+            estado=ESTADO_IMPRESO,
+            creado_por=user.username,
+            enviado_en=ahora,
+            terminado_en=ahora,
+        ))
+        await db.commit()
+        return {"detail": f"Etiqueta {etiqueta.lote_id} impresa en hoja carta"}
+
+    if original.formato != FORMATO_ZPL or not original.zpl:
+        # Se imprimió en hoja carta y ahora se pide por la Zebra: no hay ZPL que
+        # reusar, se genera del mismo snapshot inmutable de la etiqueta.
+        zpl = zpl_etiquetas.generar_zpl(
+            lote_id=etiqueta.lote_id,
+            numero_parte=etiqueta.numero_parte,
+            descripcion=etiqueta.descripcion,
+            cantidad=etiqueta.cantidad,
+            unidad_de_medida=etiqueta.unidad_de_medida,
+            fecha_recepcion=etiqueta.fecha_recepcion,
+        )
+    else:
+        zpl = original.zpl
+
+    db.add(ImpresionTrabajo(
+        etiqueta_id=etiqueta.id,
+        impresora=zpl_etiquetas.IMPRESORA_DEFAULT,
+        formato=FORMATO_ZPL,
+        zpl=zpl,
+        estado=ESTADO_PENDIENTE_IMPRESION,
+        creado_por=user.username,
+    ))
+    await db.commit()
+    return {"detail": f"Etiqueta {etiqueta.lote_id} reencolada"}
+
+
+@router.get("/{remision_id}", response_model=RemisionOut)
+@router.get("/{remision_id}/", response_model=RemisionOut)
+async def obtener_remision(
+    remision_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: Usuario = Depends(get_current_almacen),
+):
+    """Una remisión con sus items y etiquetas — refresca el modal de detalle
+    después de imprimir sin recargar todo el listado."""
+    result = await db.execute(
+        select(RemisionRecepcion).where(RemisionRecepcion.id == remision_id)
+    )
+    remision = result.scalars().first()
+    if not remision:
+        raise HTTPException(status_code=404, detail="Remisión no encontrada")
+    return remision
+
+
+@router.post("/{remision_id}/etiquetas", response_model=list[EtiquetaOut], status_code=201)
+@router.post("/{remision_id}/etiquetas/", response_model=list[EtiquetaOut], status_code=201)
+async def crear_etiquetas(
+    remision_id: int,
+    payload: EtiquetasCreate,
+    db: AsyncSession = Depends(get_db),
+    user: Usuario = Depends(get_current_almacen),
+):
+    """Genera las etiquetas de lote de una remisión y las manda a imprimir.
+
+    Según el destino:
+
+    - `zebra` — el contenedor no alcanza la Zebra (USB en la PC de Windows), así
+      que deja el ZPL en `impresion_trabajos` y el agente lo reclama y lo manda RAW.
+    - `carta` — la HP está en la red: se arma el PDF con todas las etiquetas en
+      grilla 2 x 4 y se manda **antes** del commit. Si la impresora falla se
+      revierte todo; tener el lote dado de alta sin la etiqueta pegada en la caja
+      es peor que no haber hecho nada.
+    """
+    result = await db.execute(
+        select(RemisionRecepcion).where(RemisionRecepcion.id == remision_id)
+    )
+    remision = result.scalars().first()
+    if not remision:
+        raise HTTPException(status_code=404, detail="Remisión no encontrada")
+    if remision.etiquetas:
+        raise HTTPException(
+            status_code=409,
+            detail="Esta remisión ya tiene etiquetas generadas; usa la reimpresión individual",
+        )
+
+    items_por_id = {it.id: it for it in remision.items}
+    if not payload.items:
+        raise HTTPException(status_code=422, detail="No se indicó ninguna etiqueta a imprimir")
+
+    # Validar TODO antes de escribir nada: o salen todas las etiquetas o ninguna
+    for solicitud in payload.items:
+        item = items_por_id.get(solicitud.item_id)
+        if item is None:
+            raise HTTPException(
+                status_code=422,
+                detail=f"La partida {solicitud.item_id} no pertenece a esta remisión",
+            )
+        if not solicitud.cantidades:
+            raise HTTPException(
+                status_code=422,
+                detail=f"La partida {item.numero_parte} no tiene ninguna etiqueta",
+            )
+        if any(c <= 0 for c in solicitud.cantidades):
+            raise HTTPException(
+                status_code=422,
+                detail=f"Hay cantidades en cero o negativas en {item.numero_parte}",
+            )
+        total = sum(solicitud.cantidades)
+        if total > item.cantidad:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"La suma de las etiquetas de {item.numero_parte} ({total}) "
+                    f"excede la cantidad recibida ({item.cantidad})"
+                ),
+            )
+
+    # astimezone: Postgres devuelve la captura en UTC; sin convertir a UTC-6 una
+    # recepción de las 20:00 caería en el día siguiente y el lote_id sería otro
+    fecha_recepcion = _aware(remision.fecha_captura).astimezone(TZ_LOCAL).date()
+    sufijo_remision = _sufijo(remision.numero_remision)
+    # lotes_inventario / movimientos_lote guardan DateTime sin timezone
+    ahora_naive = _ahora().replace(tzinfo=None)
+    creadas: list[RemisionEtiqueta] = []
+    a_imprimir: list[pdf_etiquetas.DatosEtiqueta] = []
+    es_carta = payload.destino == "carta"
+
+    for solicitud in payload.items:
+        item = items_por_id[solicitud.item_id]
+        prefijo = f"{fecha_recepcion:%Y%m%d}_{sufijo_remision}_{_sufijo(item.numero_parte)}_"
+        secuencia = await _siguiente_secuencia(db, prefijo)
+
+        for cantidad in solicitud.cantidades:
+            lote_id = f"{prefijo}{secuencia}"
+            etiqueta = RemisionEtiqueta(
+                remision_id=remision.id,
+                item_id=item.id,
+                lote_id=lote_id,
+                numero_parte=item.numero_parte,
+                descripcion=item.descripcion,
+                cantidad=cantidad,
+                unidad_de_medida=item.unidad_de_medida,
+                secuencia=secuencia,
+                fecha_recepcion=fecha_recepcion,
+                creado_por=user.username,
+            )
+            if es_carta:
+                a_imprimir.append(pdf_etiquetas.DatosEtiqueta(
+                    lote_id=lote_id,
+                    numero_parte=item.numero_parte,
+                    descripcion=item.descripcion,
+                    cantidad=cantidad,
+                    unidad_de_medida=item.unidad_de_medida,
+                    fecha_recepcion=fecha_recepcion,
+                ))
+                # La HP imprime abajo, en línea: el trabajo nace ya resuelto
+                etiqueta.trabajos.append(ImpresionTrabajo(
+                    impresora=impresion_red.NOMBRE,
+                    formato=FORMATO_PDF,
+                    zpl=None,
+                    estado=ESTADO_IMPRESO,
+                    creado_por=user.username,
+                    enviado_en=_ahora(),
+                    terminado_en=_ahora(),
+                ))
+            else:
+                etiqueta.trabajos.append(ImpresionTrabajo(
+                    impresora=zpl_etiquetas.IMPRESORA_DEFAULT,
+                    formato=FORMATO_ZPL,
+                    zpl=zpl_etiquetas.generar_zpl(
+                        lote_id=lote_id,
+                        numero_parte=item.numero_parte,
+                        descripcion=item.descripcion,
+                        cantidad=cantidad,
+                        unidad_de_medida=item.unidad_de_medida,
+                        fecha_recepcion=fecha_recepcion,
+                    ),
+                    estado=ESTADO_PENDIENTE_IMPRESION,
+                    creado_por=user.username,
+                ))
+            db.add(etiqueta)
+
+            # La etiqueta ES el lote: se crea aquí, con el mismo lote_id que va
+            # en el QR, para que Calidad pueda escanearla en IQC y al aprobarla
+            # caiga sola en "Pendientes de Ubicar" (estado Aprobado + sin ubicación).
+            db.add(LoteInventario(
+                lote_id=lote_id,
+                sku_producto=item.numero_parte,
+                cantidad_actual=float(cantidad),
+                cantidad_inicial=float(cantidad),
+                ubicacion_id=None,
+                fecha_recepcion=ahora_naive,
+                oc_origen=None,           # esta recepción no viene de una OC
+                estado_calidad="Pendiente IQC",
+                numero_remision=remision.numero_remision,
+                bultos=1,                 # una etiqueta = un bulto
+            ))
+            db.add(MovimientoLote(
+                lote_id=lote_id,
+                fecha=ahora_naive,
+                tipo="RECEPCION_REMISION",
+                cantidad=float(cantidad),
+                detalles={
+                    "remision_id": remision.id,
+                    "numero_remision": remision.numero_remision,
+                    "proveedor": remision.proveedor,
+                    "capturo": user.username,
+                },
+            ))
+
+            creadas.append(etiqueta)
+            secuencia += 1
+
+    if es_carta:
+        # Imprimir ANTES del commit: si la HP no contesta, la remisión se queda
+        # sin etiquetas ni lotes y se puede reintentar sin limpiar nada a mano.
+        try:
+            await impresion_red.enviar_pdf(
+                pdf_etiquetas.generar_pdf(a_imprimir),
+                f"Etiquetas remision {remision.numero_remision}",
+            )
+        except Exception as exc:
+            await db.rollback()
+            logger.error("No se pudo imprimir en hoja carta: %s", exc)
+            raise HTTPException(
+                status_code=502,
+                detail=(
+                    f"No se pudo imprimir en {impresion_red.NOMBRE} "
+                    f"({impresion_red.HOST}:{impresion_red.PUERTO}). "
+                    "No se generó ninguna etiqueta; revisa la impresora y vuelve a intentar."
+                ),
+            )
+
+    await db.commit()
+    # Re-consultar para que selectin cargue `trabajos` (de ahí sale estado_impresion)
+    result = await db.execute(
+        select(RemisionEtiqueta)
+        .where(RemisionEtiqueta.id.in_([e.id for e in creadas]))
+        .order_by(RemisionEtiqueta.id)
+    )
+    return result.scalars().all()

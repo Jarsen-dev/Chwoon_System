@@ -3,43 +3,40 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import {
-  getInfoLote,
+  getLoteEtiqueta,
   getPuntosInspeccion,
   registrarInspeccion,
   descargarPdfInspeccion,
 } from '@/lib/api';
-import type { PuntoResultado, ProductoPuntosInspeccion } from '@/types';
+import type { PuntoResultado, ProductoPuntosInspeccion, LoteEtiquetaInfo } from '@/types';
 import { Button } from '@/components/ui';
 import {
   IconBuscar, IconAlertas, IconCerrar, IconOk, IconCalidad, IconInventario,
-  IconCompras, IconDocumento, IconPendiente, IconCamara,
+  IconRecepciones, IconDocumento, IconPendiente, IconCamara,
 } from '@/lib/icons';
 
 interface Props {
   token: string;
 }
 
-interface LoteInfo {
-  lote_id: string;
-  sku_producto: string;
-  nombre_producto?: string;
-  oc_id: string;
-  nombre_proveedor?: string;
-  cantidad_total_recibida: number;
-  cantidad_requerida?: number;
-  precio_unitario?: number;
-  moneda?: string;
-  status_oc?: string;
-  total_recepciones: number;
-}
-
 type ModoVista = 'scanner' | 'info' | 'inspeccion' | 'resultado';
+
+/** Lote de etiqueta de recepción: AAAAMMDD_remisión_parte_N (ej. 20260731_1846_7801_1).
+ *  Es lo ÚNICO que IQC acepta — los lotes con guiones del flujo de OC ya no. */
+const LOTE_ETIQUETA_RE = /^\d{8}_[A-Z0-9]{4}_[A-Z0-9]{4}_\d+$/;
+
+const MSG_FORMATO_INVALIDO =
+  'Este código no es una etiqueta de lote válida. Escanea el QR de la etiqueta impresa de la recepción.';
+
+/** Algunos escáneres emiten "?" en lugar de "_" según la distribución del
+ *  teclado — mismo tratamiento que ScannerTab y CuartoSecadoTab. */
+const normalizarLote = (texto: string) => texto.toUpperCase().replace(/\?/g, '_');
 
 export default function IQCTab({ token }: Props) {
   // ── Estado ────────────────────────────────────────────────────────
   const [modo, setModo] = useState<ModoVista>('scanner');
   const [inputValue, setInputValue] = useState('');
-  const [loteInfo, setLoteInfo] = useState<LoteInfo | null>(null);
+  const [loteInfo, setLoteInfo] = useState<LoteEtiquetaInfo | null>(null);
   const [puntosProducto, setPuntosProducto] = useState<ProductoPuntosInspeccion | null>(null);
   const [resultadosPuntos, setResultadosPuntos] = useState<PuntoResultado[]>([]);
   const [notas, setNotas] = useState('');
@@ -87,7 +84,16 @@ export default function IQCTab({ token }: Props) {
 
   // ── Procesar escaneo ──────────────────────────────────────────────
   const procesarLote = useCallback(async (loteId: string) => {
-    if (!loteId.trim()) return;
+    const codigo = normalizarLote(loteId.trim());
+    if (!codigo) return;
+
+    // Se valida antes de salir a la red: cualquier cosa que no sea una etiqueta
+    // de lote (incluidos los lotes con guiones del flujo de OC) se rechaza aquí.
+    if (!LOTE_ETIQUETA_RE.test(codigo)) {
+      setError(MSG_FORMATO_INVALIDO);
+      setSuccess('');
+      return;
+    }
 
     setLoading(true);
     setError('');
@@ -95,7 +101,7 @@ export default function IQCTab({ token }: Props) {
 
     try {
       // 1. Obtener info del lote
-      const info = await getInfoLote(token, loteId);
+      const info = await getLoteEtiqueta(token, codigo);
       setLoteInfo(info);
 
       // 2. Obtener puntos de inspección del producto
@@ -148,7 +154,7 @@ export default function IQCTab({ token }: Props) {
             void scanner.stop().then(() => {
               scannerRef.current = null;
               setScannerOpen(false);
-              const normalizado = decodedText.replace(/'/g, '-').toUpperCase();
+              const normalizado = normalizarLote(decodedText);
               setInputValue(normalizado);
               void procesarLoteRef.current(normalizado);
             });
@@ -185,8 +191,7 @@ export default function IQCTab({ token }: Props) {
 
   // ── Handlers input ────────────────────────────────────────────────
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Reemplazar apóstrofe (') por guion (-) para el formato del lote
-    const valor = e.target.value.replace(/'/g, '-').toUpperCase();
+    const valor = normalizarLote(e.target.value);
     setInputValue(valor);
 
     if (scanTimer.current) clearTimeout(scanTimer.current);
@@ -257,8 +262,9 @@ export default function IQCTab({ token }: Props) {
           especificacion: p.especificacion || '',
           resultado: p.resultado || 'No evaluado',
         })),
-        oc_origen: loteInfo.oc_id,
-        cantidad_inspeccionada: loteInfo.cantidad_total_recibida,
+        // Sin oc_origen: esta recepción viene de una hoja de remisión, no de
+        // una OC (por eso tampoco corre el scoring de proveedor en el backend).
+        cantidad_inspeccionada: loteInfo.cantidad,
         notas: notas || undefined,
       });
 
@@ -334,7 +340,7 @@ export default function IQCTab({ token }: Props) {
                   value={inputValue}
                   onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
-                  placeholder="Escanear código QR del lote..."
+                  placeholder="Escanear el QR de la etiqueta de lote..."
                   className="flex-1 bg-gray-800 border-2 border-cyan-500/50 rounded-xl px-6 py-5 text-xl
                              text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400
                              focus:ring-2 focus:ring-cyan-400/30 transition-all"
@@ -364,8 +370,10 @@ export default function IQCTab({ token }: Props) {
               </div>
             </div>
             <p className="text-gray-500 text-sm mt-3 text-center">
-              Formato esperado: <span className="text-cyan-400 font-mono">YYYYMMDD-XXXX-N</span>
-              {' '}(el escáner convierte automáticamente <span className="text-yellow-400">&apos;</span> → <span className="text-cyan-400">-</span>)
+              Solo se acepta la etiqueta de lote de la recepción:{' '}
+              <span className="text-cyan-400 font-mono">AAAAMMDD_remisión_parte_N</span>
+              {' '}— ej. <span className="text-cyan-400 font-mono">20260731_1846_7801_1</span>
+              {' '}(el escáner convierte automáticamente <span className="text-yellow-400">?</span> → <span className="text-cyan-400">_</span>)
             </p>
           </div>
         </div>
@@ -384,6 +392,17 @@ export default function IQCTab({ token }: Props) {
               <Button onClick={iniciarInspeccion} leftIcon={IconCalidad}>Iniciar Inspección</Button>
             </div>
           </div>
+
+          {/* Ya inspeccionado antes: se avisa pero no se bloquea — re-inspeccionar
+              tras un retrabajo es legítimo y el backend sobrescribe el estado. */}
+          {loteInfo.estado_calidad !== 'Pendiente IQC' && (
+            <div className="bg-amber-500/10 border border-amber-500/30 text-amber-300 rounded-xl px-4 py-3 text-sm flex items-center gap-2">
+              <IconAlertas size={18} aria-hidden />
+              Esta caja ya fue inspeccionada — estado actual:{' '}
+              <span className="font-semibold">{loteInfo.estado_calidad}</span>.
+              Si continúas, el resultado se reemplazará.
+            </div>
+          )}
 
           {/* Tarjetas de información */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -404,51 +423,45 @@ export default function IQCTab({ token }: Props) {
                   <span className="text-white">{loteInfo.nombre_producto || 'N/A'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Cantidad Recibida:</span>
-                  <span className="text-white font-semibold">{loteInfo.cantidad_total_recibida}</span>
-                </div>
-                {loteInfo.cantidad_requerida && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Cantidad Requerida:</span>
-                    <span className="text-white">{loteInfo.cantidad_requerida}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Orden de Compra */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 p-6 space-y-3">
-              <h3 className="text-lg font-semibold text-emerald-400 flex items-center gap-2"><IconCompras size={18} aria-hidden /> Orden de Compra</h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-400">OC:</span>
-                  <span className="font-mono text-white">{loteInfo.oc_id}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Proveedor:</span>
-                  <span className="text-white">{loteInfo.nombre_proveedor || 'N/A'}</span>
-                </div>
-                {loteInfo.precio_unitario && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Precio Unitario:</span>
-                    <span className="text-white">
-                      {new Intl.NumberFormat('es-MX', { style: 'currency', currency: loteInfo.moneda || 'MXN' })
-                        .format(loteInfo.precio_unitario)}
-                    </span>
-                  </div>
-                )}
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Status OC:</span>
-                  <span className={`font-medium ${
-                    loteInfo.status_oc === 'Completada' ? 'text-green-400' :
-                    loteInfo.status_oc === 'Parcial' ? 'text-yellow-400' : 'text-gray-400'
-                  }`}>
-                    {loteInfo.status_oc || 'N/A'}
+                  <span className="text-gray-400">Cantidad de esta caja:</span>
+                  <span className="text-white font-semibold">
+                    {loteInfo.cantidad.toLocaleString('es-MX')} {loteInfo.unidad_de_medida || ''}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Recepciones:</span>
-                  <span className="text-white">{loteInfo.total_recepciones}</span>
+                  <span className="text-gray-400">Bulto:</span>
+                  <span className="text-white">Caja {loteInfo.secuencia} de {loteInfo.total_etiquetas}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Remisión */}
+            <div className="bg-gray-900 rounded-xl border border-gray-700 p-6 space-y-3">
+              <h3 className="text-lg font-semibold text-emerald-400 flex items-center gap-2"><IconRecepciones size={18} aria-hidden /> Remisión</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between gap-3">
+                  <span className="text-gray-400 shrink-0">Proveedor:</span>
+                  <span className="text-white text-right">{loteInfo.proveedor}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">No. Remisión:</span>
+                  <span className="font-mono text-white">{loteInfo.numero_remision}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">PO:</span>
+                  <span className="text-white">{loteInfo.po || '—'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Fecha de la hoja:</span>
+                  <span className="text-white">{loteInfo.fecha_hoja}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Recibido:</span>
+                  <span className="text-white">{loteInfo.fecha_recepcion}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Formato:</span>
+                  <span className="text-gray-300 text-xs bg-gray-800 px-2 py-0.5 rounded">{loteInfo.tipo_documento}</span>
                 </div>
               </div>
             </div>

@@ -1,0 +1,16 @@
+{
+  "proveedor": "STRONGPACK",
+  "numero_remision": "4255",
+  "po": null,
+  "fecha": "2026-05-26",
+  "items": [
+    {
+      "numero_parte": "0526",
+      "cantidad": 10000.0
+    },
+    {
+      "numero_parte": "0519",
+      "cantidad": 14000.0
+    }
+  ]
+}

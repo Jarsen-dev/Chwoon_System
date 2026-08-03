@@ -676,6 +676,26 @@ export interface PuntoResultado {
   resultado: string  // "Conforme" | "No Conforme"
 }
 
+/** Lo que devuelve GET /calidad/lote/{id} al escanear una etiqueta en IQC.
+ *  Una etiqueta = una caja = un lote, así que `cantidad` es la de esa caja. */
+export interface LoteEtiquetaInfo {
+  lote_id:           string
+  sku_producto:      string
+  nombre_producto?:  string | null
+  cantidad:          number
+  unidad_de_medida?: string | null
+  secuencia:         number
+  total_etiquetas:   number
+  fecha_recepcion:   string
+  proveedor:         string
+  numero_remision:   string
+  po?:               string | null
+  fecha_hoja:        string
+  tipo_documento:    string
+  /** Pendiente IQC | Aprobado | Rechazado */
+  estado_calidad:    string
+}
+
 export interface InspeccionCalidad {
   id: number
   inspeccion_id: string
@@ -977,6 +997,19 @@ export interface RemisionRecepcionItem {
   unidad_de_medida?: string | null
 }
 
+export interface RemisionEtiqueta {
+  id:                number
+  lote_id:           string
+  numero_parte:      string
+  descripcion?:      string | null
+  cantidad:          number
+  unidad_de_medida?: string | null
+  secuencia:         number
+  fecha_recepcion:   string
+  /** pendiente | enviado | impreso | error */
+  estado_impresion:  string
+}
+
 export interface RemisionRecepcion {
   id:              number
   proveedor:       string
@@ -989,6 +1022,24 @@ export interface RemisionRecepcion {
   creado_por:      string
   fecha_captura:   string
   items:           RemisionRecepcionItem[]
+  etiquetas:       RemisionEtiqueta[]
+}
+
+/** Zebra ZD220 (una etiqueta por vez) u hoja carta en la HP de red (8 por hoja) */
+export type DestinoImpresionId = 'zebra' | 'carta'
+
+export interface DestinoImpresion {
+  id:          DestinoImpresionId
+  nombre:      string
+  disponible:  boolean
+  /** Por qué no está disponible, o dónde está si sí */
+  detalle:     string
+}
+
+/** Cantidades de cada etiqueta a imprimir, agrupadas por partida */
+export interface EtiquetasCreatePayload {
+  items:    { item_id: number; cantidades: number[] }[]
+  destino?: DestinoImpresionId
 }
 
 export interface RemisionesRecepcionPage {

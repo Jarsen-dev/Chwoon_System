@@ -1,0 +1,62 @@
+. HEXAGONOS MEXICANOS a
+Hexágonos side Ñ )
+y) Mexicanos HME8810119P0 > Factura: 28707
+on Maravilla La Zimex, CP: 66358, Santa Catarina, Nuovo Fecha; 27/May/2026
+Tol.: 8183886165 Miter de Expedición: CP: OO
+
+601 - General de Ley Personas Morales
+
+CLIENT
+
+Nombre: CHEONG WOON MEXICO
+R.F.C.: CWM020627SJ7
+
+Carretera Apodaca Juarez 2156-A, Col. Real Hacienda de Huinala, C.P.66644, Apodaca, Nuevo León, México
+601 - General de Ley Personas Morales ‘
+Moneda: MXN - Peso Mexicano
+
+Tipo de cambio: 1.000000
+
+Forma de pago: 99 - Por definir
+Método de pago: PPD - Pago en parcialidades o diferido
+Uso de cfdi: G01 - Adquisición de Exportacion: 01 - No aplica
+
+Orden de Compra: MACHO?
+
+'ACIONES:
+
+IMPORTE CON LETRA: SubTotal: 5
+NOVENTA Y CUATRO MIL TRESCIENTOS SETENTA Y SIETE PESOS 60/100 ube ©
+MN. Retencion: 5
+
+5
+
+Total Comprobante:
+
+Tipo de Relación: -  CFDI Relacionado:
+
+Serie del Certificado del emisor: 00001000000720960680
+No. de serle del Certificado del SAT: 00001000000709182898
+
+Fecha y hora de certificación: 2026-05-27T08:36:55
+Folio Fiscal - UUID: 7F474F8C-9861-4942-8649-4148AB1D2A20 ¡Qe 1
+SELLO DIGITAL DEL CFDI
+
+fomes” YE DOCE IAPVE SNIE AZUIAJOCHSOAL DONT AZ
+DO OA viO ados EE Mba TRUE evo ns sen oes
+SvwcM: UW HBWP\ yv EZnZS\
+
+Usk POVOTPE308 1¢3ybY Bpy300+ XDHAE: ST wEWBKFPapec¥a48REGXRODDNCIy! IRN ISK,
+
+SELLO SAT
+YAA eun fF peMDa3 TSBs 176452524 98/UGOKE vm
+Peer cr A carey os IO GORE OOUCWORY
+WANVERIOLMWBOT Si Lan Jousc Lat NTNSaroncconrF ax SAO a aran one
+WimegciNCTvale nG20==
+CADENA ORIGINAL
+4 86-0861-4042-8649-4148AB 1D2A2C/2026-05-27T08:36:55)MASOB SidaPvewSeaWitezADWUWc430
+Bassas SS E OY RENO GRO ESO CEGAN NOS IOZO TOY ACT ZSci MALL]
+O DR ESOPO ToMENEK) Papo SABRESKROOONC y ISA EK MUI TAE EZOROSASIOg == 0000 1000007091920 ]
+
+ESTE DOCUMENTO ES UNA REPRESENTACION IMPRESA DE UN CFDI 4.0
+
