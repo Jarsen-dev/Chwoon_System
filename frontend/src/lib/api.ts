@@ -59,28 +59,6 @@ import {
 
 const API_URL = ''
 
-// Llamadas OCR (Recepciones por Foto) van directo al backend, sin pasar por el
-// proxy de Next.js: Ollama puede tardar 30-120s en clasificar/extraer y el
-// proxy corta la conexión (ECONNRESET) mucho antes de que el backend responda.
-//
-// El host se toma de window.location en vez de NEXT_PUBLIC_API_URL (fijo en
-// build time) porque cuando la misma máquina que corre el stack se conecta a
-// sí misma usando su IP de VPN/LAN (ej. escritorio hace OCR tras subida por
-// QR desde el celular), el hairpin NAT de esa IP falla (ERR_CONNECTION_TIMED_OUT)
-// aunque el puerto esté expuesto y el firewall lo permita. Usando el mismo host
-// con el que el navegador ya cargó la página (localhost, IP de VPN, etc.) se
-// evita ese salto y funciona para cualquier dispositivo.
-//
-// El protocolo, en cambio, SIEMPRE es http: así se haya cargado la página por
-// https (nginx delante, ej. acceso por Tailscale) — el puerto 8000 es uvicorn
-// puro, sin TLS. Heredar window.location.protocol mandaba un handshake TLS a
-// un puerto que solo habla HTTP plano: el navegador lo reporta como "Failed to
-// fetch" sin ninguna petición que llegue a loguearse en el backend.
-const DIRECT_API_URL =
-  typeof window !== 'undefined' && window.location.hostname
-    ? `http://${window.location.hostname}:8000`
-    : process.env.NEXT_PUBLIC_API_URL || API_URL
-
 // ==========================================
 // INVENTARIO PLANTA
 // ==========================================
@@ -1720,10 +1698,17 @@ export async function cancelarPicking(token: string, pickingId: string): Promise
 // ==========================================
 // ALMACÉN — Recepciones por Foto (OCR)
 // ==========================================
+// URL relativa como todo lo demás: una absoluta a un puerto propio (ej.
+// :8000) rompe bajo HTTPS sin importar el protocolo que se use — https falla
+// el handshake contra un puerto sin TLS, y http lo bloquea el navegador como
+// Mixed Content. Ollama puede tardar hasta ~45s en frío, así que el proxy que
+// esté delante (nginx en producción) necesita un proxy_read_timeout generoso
+// específicamente para /api/remisiones/ocr, o corta la conexión antes de que
+// el backend alcance a responder.
 export async function ocrRemision(token: string, file: File): Promise<RemisionOCRResultado> {
   const fd = new FormData()
   fd.append('file', file)
-  const res = await fetch(`${DIRECT_API_URL}/api/remisiones/ocr`, {
+  const res = await fetch(`${API_URL}/api/remisiones/ocr`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
     body: fd,
@@ -1736,7 +1721,7 @@ export async function ocrRemision(token: string, file: File): Promise<RemisionOC
 }
 
 export async function ocrRemisionDesdeSesion(token: string, sessionId: string): Promise<RemisionOCRResultado> {
-  const res = await fetch(`${DIRECT_API_URL}/api/remisiones/ocr/desde-sesion/${sessionId}`, {
+  const res = await fetch(`${API_URL}/api/remisiones/ocr/desde-sesion/${sessionId}`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
   })
