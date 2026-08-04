@@ -106,9 +106,9 @@ VECTORIZER_KWARGS = {"analyzer": "char_wb", "ngram_range": (3, 5)}
 # modelo ya caliente responden más rápido. Se consulta /api/ps (TIMEOUT_PS)
 # para elegir el timeout adecuado. Más cortos que cuando esto usaba el modelo
 # de visión: este modelo es ~4x más chico y no hay tokens de imagen que procesar.
-TIMEOUT_PS = 5.0
-TIMEOUT_ESTRUCTURACION_FRIO = 45.0
-TIMEOUT_ESTRUCTURACION_CALIENTE = 20.0
+TIMEOUT_PS = float(os.getenv("OCR_TIMEOUT_PS", "5"))
+TIMEOUT_ESTRUCTURACION_FRIO = float(os.getenv("OCR_TIMEOUT_FRIO", "90"))
+TIMEOUT_ESTRUCTURACION_CALIENTE = float(os.getenv("OCR_TIMEOUT_CALIENTE", "30"))
 
 EXTENSIONES_IMG = (".jpg", ".jpeg", ".png")
 
