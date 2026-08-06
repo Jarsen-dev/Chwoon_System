@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, JSON
+from sqlalchemy import Column, Integer, String, Float, DateTime, JSON
 from datetime import datetime
 from app.database import Base
 
@@ -14,16 +14,16 @@ class OrdenTraslado(Base):
     creado_por  = Column(String(50), nullable=True)
 
 
-class OrdenTrasladoProduccion(Base):
-    """Traslados de material hacia líneas de producción."""
-    __tablename__ = "ordenes_traslado_produccion"
+class RegistroSalidaProduccion(Base):
+    """Registro de una salida de material de almacén hacia una ubicación de producción,
+    generado por el flujo de escaneo FIFO en la sub-tab Traslados."""
+    __tablename__ = "registros_salida_produccion"
 
-    id                       = Column(Integer, primary_key=True, index=True)
-    id_traslado              = Column(String(100), unique=True, nullable=False, index=True)
-    op_id_origen             = Column(String(100), nullable=False)
-    linea_produccion_destino = Column(String(200), nullable=True)
-    fecha_creacion           = Column(DateTime, default=datetime.utcnow)
-    status                   = Column(String(50), default="Pendiente", index=True)
-    items                    = Column(JSON, default=list)
-    historial                = Column(JSON, default=list)
-    creado_por               = Column(String(50), nullable=True)
+    id                          = Column(Integer, primary_key=True, index=True)
+    fecha                       = Column(DateTime, nullable=False, index=True)
+    lote_id                     = Column(String(150), nullable=False, index=True)
+    sku_producto                = Column(String(100), nullable=False, index=True)
+    cantidad                    = Column(Float, nullable=False)
+    ubicacion_almacen_nombre    = Column(String(200), nullable=False)
+    ubicacion_produccion_nombre = Column(String(200), nullable=False)
+    creado_por                  = Column(String(50), nullable=True)

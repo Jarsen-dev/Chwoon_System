@@ -114,6 +114,59 @@ function parseFechaOCR(valor: string | null): string {
   return isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
 }
 
+// Las fotos que manda un celular rondan los 4 MB (3072×4096). Tesseract no
+// necesita tanto: bajarlas antes de subir acelera el envío desde la red de la
+// planta y deja de llenar el disco con evidencia gigante.
+const LADO_MAXIMO = 2000;
+const CALIDAD_JPEG = 0.85;
+
+/** Reescala la foto en el navegador. Si algo falla (formato raro, canvas
+ *  bloqueado) regresa el archivo original: subir de más es preferible a no
+ *  poder recibir la remisión. */
+async function reescalarFoto(file: File): Promise<File> {
+  if (!file.type.startsWith('image/')) return file;
+  let bitmap: ImageBitmap;
+  try {
+    // El canvas descarta el EXIF, así que la rotación hay que aplicarla a los
+    // píxeles aquí o se pierde. Explícito porque el default varía entre
+    // navegadores; el OSD de Tesseract agradece la foto ya derecha.
+    bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+  } catch {
+    return file;
+  }
+  try {
+    const escala = Math.min(1, LADO_MAXIMO / Math.max(bitmap.width, bitmap.height));
+    if (escala === 1) return file;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bitmap.width * escala);
+    canvas.height = Math.round(bitmap.height * escala);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return file;
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+
+    const blob = await new Promise<Blob | null>(resolve =>
+      canvas.toBlob(resolve, 'image/jpeg', CALIDAD_JPEG));
+    if (!blob || blob.size >= file.size) return file;
+
+    const nombre = file.name.replace(/\.[^.]+$/, '') || 'remision';
+    return new File([blob], `${nombre}.jpg`, { type: 'image/jpeg' });
+  } catch {
+    return file;
+  } finally {
+    bitmap.close();
+  }
+}
+
+/** AbortSignal.timeout lanza un DOMException con mensaje en inglés
+ *  ("signal timed out"); no sirve para el operador. */
+function mensajeError(err: unknown, fallback: string): string {
+  if (err instanceof DOMException && (err.name === 'TimeoutError' || err.name === 'AbortError')) {
+    return 'El servidor no respondió a tiempo. La foto puede haberse guardado; revisa el historial antes de reintentar.';
+  }
+  return err instanceof Error ? err.message : fallback;
+}
+
 export default function RecepcionesOCRTab({ token }: Props) {
   // ── Captura / OCR ──────────────────────────────────────────────
   const [fase, setFase] = useState<Fase>('captura');
@@ -338,11 +391,11 @@ export default function RecepcionesOCRTab({ token }: Props) {
   const procesarArchivo = async (file: File) => {
     setFase('procesando');
     try {
-      const res = await ocrRemision(token, file);
+      const res = await ocrRemision(token, await reescalarFoto(file));
       cargarResultado(res);
     } catch (err) {
       setFase('captura');
-      mostrarMsg('error', err instanceof Error ? err.message : 'Error al procesar la imagen');
+      mostrarMsg('error', mensajeError(err, 'Error al procesar la imagen'));
     }
   };
 
@@ -390,7 +443,7 @@ export default function RecepcionesOCRTab({ token }: Props) {
               cargarResultado(res);
             } catch (err) {
               setFase('captura');
-              mostrarMsg('error', err instanceof Error ? err.message : 'Error al procesar la foto');
+              mostrarMsg('error', mensajeError(err, 'Error al procesar la foto'));
             }
           } else if (!estado.valida) {
             detenerPollQR();

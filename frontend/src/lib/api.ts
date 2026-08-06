@@ -29,10 +29,11 @@ import {
   AlmacenDashboard,
   UbicacionAlmacen,
   LoteInventario,
+  LotesInventarioPage,
   MovimientoLote as MovimientoLoteType,
-  InventarioConsolidado,
   EmbarqueAlmacen,
-  TrasladoProduccion,
+  VerificarLoteTraslado,
+  RegistrosSalidaProduccionPage,
   ReporteEmbarqueItem,
   TrazabilidadLote,
   OrdenProduccion as OrdenProduccionType,
@@ -1373,27 +1374,39 @@ export async function getSilosAux(token: string): Promise<UbicacionAlmacen[]> {
 // ==========================================
 // ALMACÉN — Inventario de Lotes
 // ==========================================
+export interface GetLotesInventarioParams {
+  estado?: string
+  sku?: string
+  ubicacion_id?: number
+  search?: string
+  fecha_inicio?: string // YYYY-MM-DD
+  fecha_fin?: string // YYYY-MM-DD
+  orden?: 'recientes' | 'antiguos'
+  limit?: number
+  offset?: number
+}
+
 export async function getLotesInventario(
   token: string,
-  params?: { estado?: string; sku?: string; ubicacion_id?: number }
-): Promise<LoteInventario[]> {
+  params: GetLotesInventarioParams = {},
+  signal?: AbortSignal,
+): Promise<LotesInventarioPage> {
   const sp = new URLSearchParams()
-  if (params?.estado) sp.append('estado', params.estado)
-  if (params?.sku) sp.append('sku', params.sku)
-  if (params?.ubicacion_id) sp.append('ubicacion_id', params.ubicacion_id.toString())
+  if (params.estado) sp.set('estado', params.estado)
+  if (params.sku?.trim()) sp.set('sku', params.sku.trim())
+  if (params.ubicacion_id != null) sp.set('ubicacion_id', String(params.ubicacion_id))
+  if (params.search?.trim()) sp.set('search', params.search.trim())
+  if (params.fecha_inicio) sp.set('fecha_inicio', params.fecha_inicio)
+  if (params.fecha_fin) sp.set('fecha_fin', params.fecha_fin)
+  if (params.orden) sp.set('orden', params.orden)
+  if (params.limit != null) sp.set('limit', String(params.limit))
+  if (params.offset != null) sp.set('offset', String(params.offset))
   const qs = sp.toString()
   const res = await fetch(`${API_URL}/almacen/inventario${qs ? `?${qs}` : ''}`, {
     headers: { Authorization: `Bearer ${token}` },
+    signal,
   })
   if (!res.ok) throw new Error('Error al obtener inventario')
-  return res.json()
-}
-
-export async function getInventarioConsolidado(token: string): Promise<InventarioConsolidado[]> {
-  const res = await fetch(`${API_URL}/almacen/inventario/consolidado`, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  if (!res.ok) throw new Error('Error al obtener inventario consolidado')
   return res.json()
 }
 
@@ -1458,6 +1471,21 @@ export async function scrapInventario(token: string, loteId: string, data: {
   return res.json()
 }
 
+export async function solicitarModificacionLote(token: string, loteId: string, data: {
+  motivo: string; mensaje: string
+}): Promise<{ message: string }> {
+  const res = await fetch(`${API_URL}/almacen/inventario/${encodeURIComponent(loteId)}/solicitud-modificacion`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.detail || 'Error al enviar la solicitud')
+  }
+  return res.json()
+}
+
 export async function transferirEntreUbicaciones(token: string, data: {
   sku: string; nombre_producto: string; cantidad: number; origen_nombre: string; destino_nombre: string
 }): Promise<{ message: string; nuevo_lote_id: string }> {
@@ -1489,52 +1517,60 @@ export async function consumirFifo(token: string, data: {
 }
 
 // ==========================================
-// ALMACÉN — Traslados a Producción
+// ALMACÉN — Traslados a Producción (escaneo FIFO)
 // ==========================================
-export async function getTrasladosProduccion(token: string, status?: string): Promise<TrasladoProduccion[]> {
-  const params = status ? `?status=${status}` : ''
-  const res = await fetch(`${API_URL}/almacen/traslados-produccion${params}`, {
+export async function verificarLoteTraslado(token: string, loteId: string): Promise<VerificarLoteTraslado> {
+  const res = await fetch(`${API_URL}/almacen/traslados/verificar-lote/${encodeURIComponent(loteId)}`, {
     headers: { Authorization: `Bearer ${token}` },
   })
-  if (!res.ok) throw new Error('Error al obtener traslados')
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.detail || 'Lote no encontrado')
+  }
   return res.json()
 }
 
-export async function getHistorialTrasladosProduccion(token: string): Promise<TrasladoProduccion[]> {
-  const res = await fetch(`${API_URL}/almacen/traslados-produccion/historial`, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  if (!res.ok) throw new Error('Error al obtener historial de traslados')
-  return res.json()
-}
-
-export async function crearTrasladoProduccion(token: string, data: {
-  op_id: string; plan_de_consumo: { sku: string; cantidad: number }[]; linea_produccion?: string
-}): Promise<{ message: string; id_traslado: string }> {
-  const res = await fetch(`${API_URL}/almacen/traslados-produccion`, {
+export async function surtirMaterial(token: string, data: {
+  ubicacion_produccion_id: number
+  items: { lote_id: string; sku_producto: string; cantidad: number }[]
+}): Promise<{ message: string; registrados: number }> {
+  const res = await fetch(`${API_URL}/almacen/traslados/surtir`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify(data),
   })
   if (!res.ok) {
-    const err = await res.json()
-    throw new Error(err.detail || 'Error al crear traslado')
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.detail || 'Error al surtir material')
   }
   return res.json()
 }
 
-export async function ejecutarMovimientoParcial(token: string, trasladoId: string, data: {
-  movimientos: { sku: string; cantidad_a_mover: number }[]; autorizador: string
-}): Promise<{ message: string; nuevo_status: string }> {
-  const res = await fetch(`${API_URL}/almacen/traslados-produccion/${trasladoId}/ejecutar`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify(data),
+export interface GetRegistrosSalidaProduccionParams {
+  search?: string
+  fecha_inicio?: string // YYYY-MM-DD
+  fecha_fin?: string // YYYY-MM-DD
+  limit?: number
+  offset?: number
+}
+
+export async function getRegistrosSalidaProduccion(
+  token: string,
+  params: GetRegistrosSalidaProduccionParams = {},
+  signal?: AbortSignal,
+): Promise<RegistrosSalidaProduccionPage> {
+  const sp = new URLSearchParams()
+  if (params.search?.trim()) sp.set('search', params.search.trim())
+  if (params.fecha_inicio) sp.set('fecha_inicio', params.fecha_inicio)
+  if (params.fecha_fin) sp.set('fecha_fin', params.fecha_fin)
+  if (params.limit != null) sp.set('limit', String(params.limit))
+  if (params.offset != null) sp.set('offset', String(params.offset))
+  const qs = sp.toString()
+  const res = await fetch(`${API_URL}/almacen/traslados/registros${qs ? `?${qs}` : ''}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    signal,
   })
-  if (!res.ok) {
-    const err = await res.json()
-    throw new Error(err.detail || 'Error al ejecutar movimiento')
-  }
+  if (!res.ok) throw new Error('Error al obtener registros de traslados')
   return res.json()
 }
 
@@ -1701,10 +1737,25 @@ export async function cancelarPicking(token: string, pickingId: string): Promise
 // URL relativa como todo lo demás: una absoluta a un puerto propio (ej.
 // :8000) rompe bajo HTTPS sin importar el protocolo que se use — https falla
 // el handshake contra un puerto sin TLS, y http lo bloquea el navegador como
-// Mixed Content. Ollama puede tardar hasta ~45s en frío, así que el proxy que
-// esté delante (nginx en producción) necesita un proxy_read_timeout generoso
-// específicamente para /api/remisiones/ocr, o corta la conexión antes de que
-// el backend alcance a responder.
+// Mixed Content. Ollama puede tardar mucho en frío, así que TODOS los proxies
+// de la cadena necesitan un timeout generoso o cortan la conexión antes de que
+// el backend alcance a responder, y el navegador recibe un 500 con HTML en vez
+// de la respuesta real. El invariante es:
+//   OCR_PRESUPUESTO_TOTAL (backend, 100s)
+//     < experimental.proxyTimeout (next.config.ts, 120s)
+//     < OCR_TIMEOUT_MS (aquí, 130s)
+//     < proxy_read_timeout (nginx en producción, 180s)
+const OCR_TIMEOUT_MS = 130_000
+
+// El backend responde 200 + ocr_ok=false cuando la IA falla, así que un !res.ok
+// aquí es un problema de transporte, no de lectura. Se incluye el status porque
+// el cuerpo de un error del proxy es HTML: el .json() falla y sin esto el
+// mensaje quedaba en un genérico que ocultaba de dónde venía la falla.
+async function errorOCR(res: Response, fallback: string): Promise<Error> {
+  const err = await res.json().catch(() => ({}))
+  return new Error(err.detail || `${fallback} (HTTP ${res.status})`)
+}
+
 export async function ocrRemision(token: string, file: File): Promise<RemisionOCRResultado> {
   const fd = new FormData()
   fd.append('file', file)
@@ -1712,11 +1763,9 @@ export async function ocrRemision(token: string, file: File): Promise<RemisionOC
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
     body: fd,
+    signal: AbortSignal.timeout(OCR_TIMEOUT_MS),
   })
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error(err.detail || 'Error al procesar la imagen')
-  }
+  if (!res.ok) throw await errorOCR(res, 'Error al procesar la imagen')
   return res.json()
 }
 
@@ -1724,11 +1773,9 @@ export async function ocrRemisionDesdeSesion(token: string, sessionId: string): 
   const res = await fetch(`${API_URL}/api/remisiones/ocr/desde-sesion/${sessionId}`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
+    signal: AbortSignal.timeout(OCR_TIMEOUT_MS),
   })
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error(err.detail || 'Error al procesar la foto de la sesión')
-  }
+  if (!res.ok) throw await errorOCR(res, 'Error al procesar la foto de la sesión')
   return res.json()
 }
 

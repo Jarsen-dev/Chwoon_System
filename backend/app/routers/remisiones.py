@@ -92,9 +92,19 @@ async def _guardar_foto(file: UploadFile) -> tuple[str, bytes]:
     ext = Path(file.filename or "").suffix.lower()
     if ext not in EXTENSIONES_FOTO:
         ext = ".jpg"
-    FOTOS_ROOT.mkdir(parents=True, exist_ok=True)
     nombre = f"{uuid.uuid4()}{ext}"
-    (FOTOS_ROOT / nombre).write_bytes(contenido)
+    try:
+        FOTOS_ROOT.mkdir(parents=True, exist_ok=True)
+        (FOTOS_ROOT / nombre).write_bytes(contenido)
+    except OSError as e:
+        # Permisos del volumen o disco lleno: sin la foto no hay evidencia ni
+        # OCR posible, así que se corta aquí con un mensaje entendible en vez
+        # de un 500 opaco.
+        logger.error("OCR remisiones: no se pudo guardar la foto (%s)", e)
+        raise HTTPException(
+            status_code=507,
+            detail="No se pudo guardar la foto en el servidor; avisa a sistemas",
+        )
     return f"remisiones/{nombre}", contenido
 
 
@@ -107,6 +117,29 @@ def _foto_absoluta(foto_path: str) -> Path:
     if not path.is_relative_to(FOTOS_ROOT.resolve()) or not path.is_file():
         raise HTTPException(status_code=404, detail="Foto no encontrada")
     return path
+
+
+async def _extraer_acotado(contenido: bytes):
+    """extraer_con_ejemplos con un techo duro de tiempo. El servicio ya degrada
+    solo ante fallas de Tesseract/Ollama, pero sus timeouts son por etapa: este
+    acota el total para que el endpoint responda SIEMPRE antes de que el proxy
+    de Next corte la conexión (y el navegador reciba un 500 en vez del 200 con
+    ocr_ok=false que habilita la captura manual)."""
+    try:
+        return await asyncio.wait_for(
+            ocr_remisiones.extraer_con_ejemplos(contenido),
+            timeout=ocr_remisiones.PRESUPUESTO_TOTAL,
+        )
+    except asyncio.TimeoutError:
+        logger.error(
+            "OCR remisiones: presupuesto total de %ss agotado",
+            ocr_remisiones.PRESUPUESTO_TOTAL,
+        )
+        return ocr_remisiones.ResultadoExtraccion(
+            tipo_detectado="desconocido",
+            ocr_ok=False,
+            error="El análisis tardó demasiado; captura los campos manualmente. La foto ya quedó guardada.",
+        )
 
 
 def _resultado_a_response(resultado, foto_path: str) -> RemisionOCRResponse:
@@ -163,7 +196,7 @@ async def ocr_remision(
     few-shot. Si Ollama falla, responde 200 con ocr_ok=false e items vacíos:
     el personal captura a mano y el flujo no se rompe."""
     foto_path, contenido = await _guardar_foto(file)
-    resultado = await ocr_remisiones.extraer_con_ejemplos(contenido)
+    resultado = await _extraer_acotado(contenido)
     return _resultado_a_response(resultado, foto_path)
 
 
@@ -185,7 +218,7 @@ async def ocr_desde_sesion(
     sesion.estado = ESTADO_USADA
     await db.commit()
 
-    resultado = await ocr_remisiones.extraer_con_ejemplos(contenido)
+    resultado = await _extraer_acotado(contenido)
     return _resultado_a_response(resultado, sesion.foto_path)
 
 

@@ -768,6 +768,13 @@ export interface ProductoPuntosInspeccion {
 // ==========================================
 // ALMACÉN — Ubicaciones
 // ==========================================
+export interface LoteEnUbicacion {
+  lote_id: string
+  sku_producto: string
+  cantidad_actual: number
+  fecha_recepcion?: string
+}
+
 export interface UbicacionAlmacen {
   id: number
   nombre: string
@@ -776,6 +783,7 @@ export interface UbicacionAlmacen {
   capacidad_max?: number | null
   permite_mixing: boolean
   activa: boolean
+  lotes: LoteEnUbicacion[]
 }
 
 // ==========================================
@@ -807,6 +815,11 @@ export interface LoteInventario {
   bultos: number
 }
 
+export interface LotesInventarioPage {
+  items: LoteInventario[]
+  total: number
+}
+
 // ==========================================
 // ALMACÉN — Movimientos de Lote
 // ==========================================
@@ -817,21 +830,6 @@ export interface MovimientoLote {
   tipo: string
   cantidad: number
   detalles: Record<string, any>
-}
-
-// ==========================================
-// ALMACÉN — Inventario Consolidado
-// ==========================================
-export interface InventarioConsolidado {
-  sku: string
-  nombre?: string
-  tipo?: string
-  clase_producto?: string
-  stock_total: number
-  stock_por_ubicacion_agregado: Record<string, number>
-  stock_por_ubicacion_detalle: Record<string, number>
-  en_compra: number
-  en_produccion: number
 }
 
 // ==========================================
@@ -860,24 +858,30 @@ export interface EmbarqueAlmacen {
 }
 
 // ==========================================
-// ALMACÉN — Traslados a Producción
+// ALMACÉN — Traslados a Producción (escaneo FIFO)
 // ==========================================
-export interface TrasladoProduccionItem {
-  sku_componente: string
-  cantidad_requerida: number
-  cantidad_movida: number
+export interface VerificarLoteTraslado {
+  lote: LoteInventario
+  stock_total_sku: number
+  es_mas_antiguo: boolean
+  lote_prioritario_id?: string
+  lote_prioritario_ubicacion?: string
 }
 
-export interface TrasladoProduccion {
+export interface RegistroSalidaProduccion {
   id: number
-  id_traslado: string
-  op_id_origen: string
-  linea_produccion_destino?: string
-  fecha_creacion?: string
-  status: string
-  items: TrasladoProduccionItem[]
-  historial: any[]
-  creado_por?: string
+  fecha?: string
+  lote_id: string
+  sku_producto: string
+  nombre_producto?: string
+  cantidad: number
+  ubicacion_almacen_nombre: string
+  ubicacion_produccion_nombre: string
+}
+
+export interface RegistrosSalidaProduccionPage {
+  items: RegistroSalidaProduccion[]
+  total: number
 }
 
 // ==========================================

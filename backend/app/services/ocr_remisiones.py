@@ -110,6 +110,14 @@ TIMEOUT_PS = float(os.getenv("OCR_TIMEOUT_PS", "5"))
 TIMEOUT_ESTRUCTURACION_FRIO = float(os.getenv("OCR_TIMEOUT_FRIO", "90"))
 TIMEOUT_ESTRUCTURACION_CALIENTE = float(os.getenv("OCR_TIMEOUT_CALIENTE", "30"))
 
+# Techo duro de TODO el pipeline (Tesseract + clasificación + estructuración).
+# Los timeouts de arriba son por etapa; este es la garantía de extremo a extremo
+# y no depende de que su suma siga cuadrando si alguno se ajusta.
+# DEBE ser menor que experimental.proxyTimeout de frontend/next.config.ts: si el
+# proxy corta antes, el navegador recibe un 500 en vez del 200 + ocr_ok=false
+# que permite la captura manual — que es exactamente el bug que esto arregla.
+PRESUPUESTO_TOTAL = float(os.getenv("OCR_PRESUPUESTO_TOTAL", "100"))
+
 EXTENSIONES_IMG = (".jpg", ".jpeg", ".png")
 
 PROMPT_SISTEMA = (
@@ -384,11 +392,15 @@ async def _modelo_esta_caliente() -> bool:
         async with httpx.AsyncClient(timeout=TIMEOUT_PS) as client:
             res = await client.get(f"{OLLAMA_HOST}/api/ps")
             res.raise_for_status()
-            modelos = res.json().get("models", [])
-    except httpx.HTTPError:
+            modelos = res.json().get("models") or []
+        base = OLLAMA_TEXT_MODEL.split(":")[0]
+        return any((m.get("name") or "").split(":")[0] == base for m in modelos)
+    except Exception as e:
+        # Amplio a propósito: además de fallas de red, un Ollama que responda
+        # algo que no sea el JSON esperado revienta en .json()/.get(). Esta
+        # función jamás debe tumbar el request — sólo elige qué timeout usar.
+        logger.warning("OCR remisiones: no se pudo consultar /api/ps (%s)", e)
         return False
-    base = OLLAMA_TEXT_MODEL.split(":")[0]
-    return any((m.get("name") or "").split(":")[0] == base for m in modelos)
 
 
 def _clasificar_por_texto(texto_ocr: str) -> str:
@@ -493,7 +505,14 @@ async def extraer_con_ejemplos(imagen_bytes: bytes) -> ResultadoExtraccion:
             error="No se detectó texto legible en la foto; captura los campos manualmente",
         )
 
-    tipo = await asyncio.to_thread(_clasificar_por_texto, texto_ocr)
+    try:
+        tipo = await asyncio.to_thread(_clasificar_por_texto, texto_ocr)
+    except Exception as e:
+        # TF-IDF revienta con corpus degenerados ("empty vocabulary"). Sin tipo
+        # se pierden los ejemplos few-shot, pero la estructuración sigue: el
+        # prompt de sistema por sí solo ya describe el JSON esperado.
+        logger.error("OCR remisiones: clasificación falló (%s)", e)
+        tipo = "desconocido"
 
     mensajes = [{"role": "system", "content": PROMPT_SISTEMA}]
 

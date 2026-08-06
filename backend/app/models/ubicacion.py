@@ -11,7 +11,7 @@ class Ubicacion(Base):
     parent_id = Column(Integer, ForeignKey("ubicaciones.id"), nullable=True)
     tipo_zona = Column(String(50), default="ALMACEN", nullable=False)
     capacidad_max  = Column(Float, nullable=True)
-    permite_mixing = Column(Boolean, default=False, nullable=False)
+    permite_mixing = Column(Boolean, default=True, nullable=False)
     activa         = Column(Boolean, default=True, nullable=False)
 
     parent   = relationship("Ubicacion", remote_side=[id], backref="children")

@@ -19,7 +19,7 @@ from app.models.registro_scrap import RegistroScrap
 from app.models.ubicacion import Ubicacion
 from app.models.lote_inventario import LoteInventario, MovimientoLote
 from app.models.embarque import Embarque
-from app.models.orden_traslado import OrdenTraslado, OrdenTrasladoProduccion
+from app.models.orden_traslado import OrdenTraslado, RegistroSalidaProduccion
 from app.models.orden_produccion import OrdenProduccion
 from app.models.suministro_silo import SuministroSilo
 from app.models.plan_inyeccion import PlanInyeccion
@@ -66,7 +66,7 @@ __all__ = [
     "MovimientoLote",
     "Embarque",
     "OrdenTraslado",
-    "OrdenTrasladoProduccion",
+    "RegistroSalidaProduccion",
     "OrdenProduccion",
     "SuministroSilo",
     "PlanInyeccion",

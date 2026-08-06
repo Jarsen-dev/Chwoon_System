@@ -1,10 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, or_, update, delete
+from sqlalchemy import select, func, and_, or_, update, delete, cast, literal, String, Date
 from typing import Optional
-from datetime import datetime, timedelta, timezone, time
-from collections import defaultdict
+from datetime import datetime, timedelta, timezone, time, date
 from reportlab.pdfgen import canvas as pdf_canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
@@ -18,21 +17,20 @@ from app.core.deps import get_db, get_current_user, get_current_admin
 from app.models.usuario import Usuario, RolUsuario
 from app.models.ubicacion import Ubicacion
 from app.models.lote_inventario import LoteInventario, MovimientoLote
-from app.models.orden_traslado import OrdenTraslado, OrdenTrasladoProduccion
+from app.models.orden_traslado import OrdenTraslado, RegistroSalidaProduccion
 from app.models.producto import Producto
 from app.models.orden_compra import OrdenCompra, OrdenCompraItem, Proveedor
 from app.services.proveedor_score import registrar_evento
 from app.models.orden_venta import OrdenVenta, OrdenVentaItem
 from app.schemas.almacen import (
-    UbicacionCreate, UbicacionUpdate, UbicacionResponse,
-    LoteInventarioResponse, MovimientoLoteResponse,
+    UbicacionCreate, UbicacionUpdate, UbicacionResponse, LoteEnUbicacion,
+    LoteInventarioResponse, LotesInventarioPage, MovimientoLoteResponse,
     TransferenciaItem, TransferenciaBatchRequest,
-    AjusteLoteRequest, ScrapInventarioRequest,
+    AjusteLoteRequest, ScrapInventarioRequest, SolicitudModificacionRequest,
     TransferenciaEntreUbicacionesRequest,
     ConsumoFifoRequest,
-    InventarioConsolidadoResponse,
-    CrearTrasladoProduccionRequest, EjecutarMovimientoParcialRequest,
-    TrasladoProduccionResponse,
+    VerificarLoteTrasladoResponse, SurtirMaterialRequest,
+    RegistroSalidaProduccionResponse, RegistrosSalidaProduccionPage,
     IngresoCarritoEPSRequest,
     TrazabilidadResponse,
     AlmacenDashboard,
@@ -68,8 +66,21 @@ async def _registrar_movimiento(db: AsyncSession, lote_id: str, tipo: str, canti
     db.add(mov)
 
 async def _get_producto_map(db: AsyncSession) -> dict:
-    result = await db.execute(select(Producto))
+    # `productos.sku` no es único: se ordena para que, entre duplicados, el
+    # último en sobrescribir el dict sea el que trae nombre/descripcion.
+    nombre_expr = func.coalesce(func.nullif(Producto.nombre, ""), func.nullif(Producto.descripcion, ""))
+    result = await db.execute(
+        select(Producto).order_by(Producto.sku, nombre_expr.is_(None).desc(), Producto.id)
+    )
     return {p.sku: p for p in result.scalars().all()}
+
+
+def _nombre_producto(prod: Optional[Producto]) -> str:
+    """`nombre` suele venir vacío en el catálogo real: mismo fallback a
+    `descripcion` que usan productos.py y finanzas.py."""
+    if not prod:
+        return "N/A"
+    return prod.nombre or prod.descripcion or "N/A"
 
 
 async def _get_ubicacion_map(db: AsyncSession) -> dict:
@@ -117,10 +128,6 @@ async def dashboard_almacen(
 
     lotes_pendiente_iqc = (await db.execute(
         select(func.count(LoteInventario.id)).where(LoteInventario.estado_calidad == "Pendiente IQC")
-    )).scalar() or 0
-
-    tr_pend = (await db.execute(
-        select(func.count(OrdenTrasladoProduccion.id)).where(OrdenTrasladoProduccion.status == "Pendiente")
     )).scalar() or 0
 
     recepciones_hoy = (await db.execute(
@@ -199,7 +206,7 @@ async def dashboard_almacen(
         recepciones_hoy=recepciones_hoy,
         picking_pendientes=0,
         picking_completados_hoy=0,
-        traslados_pendientes=tr_pend,
+        traslados_pendientes=0,
         alertas_stock_minimo=[],
         alertas_lotes_bloqueados=alertas_bloqueados,
         stock_por_zona=stock_por_zona,
@@ -274,8 +281,39 @@ async def listar_ubicaciones(
     db: AsyncSession = Depends(get_db),
 ):
     require_almacen_role(user)
-    result = await db.execute(select(Ubicacion).order_by(Ubicacion.nombre))
-    return result.scalars().all()
+    ubicaciones = (
+        await db.execute(select(Ubicacion).order_by(Ubicacion.nombre))
+    ).scalars().all()
+
+    # Lotes activos por ubicación: alimenta el indicador visual de
+    # disponible/ocupado en la tab de Ubicaciones.
+    lotes_result = await db.execute(
+        select(LoteInventario)
+        .where(LoteInventario.ubicacion_id.isnot(None), LoteInventario.cantidad_actual > 0)
+        .order_by(LoteInventario.fecha_recepcion.desc())
+    )
+    por_ubicacion: dict[int, list] = {}
+    for lote in lotes_result.scalars().all():
+        por_ubicacion.setdefault(lote.ubicacion_id, []).append(LoteEnUbicacion(
+            lote_id=lote.lote_id,
+            sku_producto=lote.sku_producto,
+            cantidad_actual=lote.cantidad_actual,
+            fecha_recepcion=lote.fecha_recepcion,
+        ))
+
+    return [
+        UbicacionResponse(
+            id=u.id,
+            nombre=u.nombre,
+            parent_id=u.parent_id,
+            tipo_zona=u.tipo_zona,
+            capacidad_max=u.capacidad_max,
+            permite_mixing=u.permite_mixing,
+            activa=u.activa,
+            lotes=por_ubicacion.get(u.id, []),
+        )
+        for u in ubicaciones
+    ]
 
 
 @router.post("/ubicaciones", response_model=UbicacionResponse)
@@ -299,7 +337,7 @@ async def crear_ubicacion(
         parent_id=data.parent_id,
         tipo_zona=data.tipo_zona or "ALMACEN",
         capacidad_max=data.capacidad_max,
-        permite_mixing=data.permite_mixing if data.permite_mixing is not None else False,
+        permite_mixing=data.permite_mixing if data.permite_mixing is not None else True,
         activa=data.activa if data.activa is not None else True,
     )
     db.add(ub)
@@ -425,35 +463,99 @@ async def importar_ubicaciones(
 # ============================================================
 # INVENTARIO DE LOTES
 # ============================================================
-@router.get("/inventario", response_model=list[LoteInventarioResponse])
-@router.get("/inventario/", response_model=list[LoteInventarioResponse])
+@router.get("/inventario", response_model=LotesInventarioPage)
+@router.get("/inventario/", response_model=LotesInventarioPage)
 async def listar_inventario(
     estado: Optional[str] = None,
     sku: Optional[str] = None,
     ubicacion_id: Optional[int] = None,
+    search: Optional[str] = None,
+    fecha_inicio: Optional[date] = None,
+    fecha_fin: Optional[date] = None,
+    orden: str = "recientes",
+    limit: int = 50,
+    offset: int = 0,
     user: Usuario = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     require_almacen_role(user)
 
-    query = select(LoteInventario)
+    limit = max(1, min(limit, 200))
+    offset = max(0, offset)
+
+    # `productos.sku` no es único (hay SKUs repetidos en catálogo): DISTINCT ON
+    # deja un solo producto por SKU para que el join no duplique lotes.
+    # `nombre` normalmente viene vacío en el catálogo real: mismo fallback a
+    # `descripcion` que usan productos.py y finanzas.py. Entre duplicados del
+    # mismo SKU se prefiere el que sí trae texto (los primeros suelen venir vacíos).
+    nombre_expr = func.coalesce(func.nullif(Producto.nombre, ""), func.nullif(Producto.descripcion, ""))
+    prod = (
+        select(
+            Producto.sku,
+            nombre_expr.label("nombre"),
+            Producto.tipo,
+            Producto.clase_producto,
+        )
+        .distinct(Producto.sku)
+        .order_by(Producto.sku, nombre_expr.is_(None), Producto.id.desc())
+        .subquery()
+    )
+
+    filtros = []
     if estado:
-        query = query.where(LoteInventario.estado_calidad == estado)
+        filtros.append(LoteInventario.estado_calidad == estado)
     if sku:
-        query = query.where(LoteInventario.sku_producto == sku)
+        filtros.append(LoteInventario.sku_producto.ilike(f"%{sku.strip()}%"))
     if ubicacion_id is not None:
-        query = query.where(LoteInventario.ubicacion_id == ubicacion_id)
+        filtros.append(LoteInventario.ubicacion_id == ubicacion_id)
+    # Un lote agotado (cantidad_actual = 0) ya no debe aparecer en Todos los
+    # Lotes ni en el FIFO Viewer — mismo criterio que Ubicaciones y FIFO.
+    filtros.append(LoteInventario.cantidad_actual > 0)
+    if fecha_inicio:
+        filtros.append(cast(LoteInventario.fecha_recepcion, Date) >= fecha_inicio)
+    if fecha_fin:
+        filtros.append(cast(LoteInventario.fecha_recepcion, Date) <= fecha_fin)
+    if search and search.strip():
+        q = f"%{search.strip()}%"
+        filtros.append(or_(
+            LoteInventario.sku_producto.ilike(q),
+            prod.c.nombre.ilike(q),
+            cast(LoteInventario.cantidad_actual, String).ilike(q),
+            Ubicacion.nombre.ilike(q),
+            # los lotes sin ubicación se muestran como "IQC": que la búsqueda los alcance
+            and_(LoteInventario.ubicacion_id.is_(None), literal("IQC").ilike(q)),
+            LoteInventario.numero_remision.ilike(q),
+        ))
 
-    result = await db.execute(query.order_by(LoteInventario.fecha_recepcion.desc()))
-    lotes = result.scalars().all()
+    # El join reemplaza a _get_producto_map/_get_ubicacion_map: permite buscar por
+    # descripción y ubicación sin traerse las tablas completas en cada request.
+    def con_joins(stmt):
+        return (
+            stmt
+            .outerjoin(prod, prod.c.sku == LoteInventario.sku_producto)
+            .outerjoin(Ubicacion, Ubicacion.id == LoteInventario.ubicacion_id)
+            .where(*filtros)
+        )
 
-    prod_map = await _get_producto_map(db)
-    ub_map = await _get_ubicacion_map(db)
+    base = con_joins(select(
+        LoteInventario, prod.c.nombre, prod.c.tipo, prod.c.clase_producto, Ubicacion
+    ))
+
+    total = (await db.execute(
+        con_joins(select(func.count()).select_from(LoteInventario))
+    )).scalar() or 0
+
+    fecha_col = (
+        LoteInventario.fecha_recepcion.asc()
+        if orden == "antiguos"
+        else LoteInventario.fecha_recepcion.desc()
+    )
+    result = await db.execute(
+        base.order_by(fecha_col, LoteInventario.id).offset(offset).limit(limit)
+    )
 
     items = []
-    for lote in lotes:
-        prod = prod_map.get(lote.sku_producto)
-        ub = ub_map.get(lote.ubicacion_id)
+    for lote, nombre_prod, tipo_prod, clase_prod, ub in result.all():
         items.append(LoteInventarioResponse(
             id=lote.id,
             lote_id=lote.lote_id,
@@ -461,10 +563,10 @@ async def listar_inventario(
             cantidad_actual=lote.cantidad_actual,
             cantidad_inicial=lote.cantidad_inicial,
             ubicacion_id=lote.ubicacion_id,
-            nombre_ubicacion=ub.nombre if ub else "Área de Calidad",
-            nombre_producto=prod.nombre if prod else "N/A",
-            tipo_producto=prod.tipo if prod else "N/A",
-            clase_producto=prod.clase_producto if prod else "N/A",
+            nombre_ubicacion=ub.nombre if ub else "IQC",
+            nombre_producto=nombre_prod or "N/A",
+            tipo_producto=tipo_prod or "N/A",
+            clase_producto=clase_prod or "N/A",
             fecha_recepcion=lote.fecha_recepcion,
             oc_origen=lote.oc_origen,
             op_origen=lote.op_origen,
@@ -479,83 +581,7 @@ async def listar_inventario(
             lote_proveedor=lote.lote_proveedor,
             bultos=lote.bultos,
         ))
-    return items
-
-
-@router.get("/inventario/consolidado", response_model=list[InventarioConsolidadoResponse])
-@router.get("/inventario/consolidado/", response_model=list[InventarioConsolidadoResponse])
-async def inventario_consolidado(
-    user: Usuario = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    require_almacen_role(user)
-
-    prod_map = await _get_producto_map(db)
-    ub_map = await _get_ubicacion_map(db)
-
-    # Función para encontrar el padre raíz
-    def get_root_name(uid):
-        if not uid or uid not in ub_map:
-            return None
-        current = ub_map[uid]
-        while current.parent_id and current.parent_id in ub_map:
-            current = ub_map[current.parent_id]
-        return current.nombre
-
-    consolidado = {}
-    for sku, prod in prod_map.items():
-        consolidado[sku] = {
-            "sku": sku,
-            "nombre": prod.nombre,
-            "tipo": prod.tipo,
-            "clase_producto": prod.clase_producto,
-            "stock_total": 0.0,
-            "stock_por_ubicacion_agregado": defaultdict(float),
-            "stock_por_ubicacion_detalle": defaultdict(float),
-            "en_compra": 0.0,
-            "en_produccion": 0.0,
-        }
-
-    result = await db.execute(select(LoteInventario))
-    for lote in result.scalars().all():
-        if lote.sku_producto in consolidado:
-            cant = lote.cantidad_actual or 0
-            consolidado[lote.sku_producto]["stock_total"] += cant
-            root = get_root_name(lote.ubicacion_id)
-            if root:
-                consolidado[lote.sku_producto]["stock_por_ubicacion_agregado"][root] += cant
-            ub = ub_map.get(lote.ubicacion_id)
-            if ub and ub.nombre != "Área de Calidad":
-                consolidado[lote.sku_producto]["stock_por_ubicacion_detalle"][ub.nombre] += cant
-
-    # OC pendientes
-    oc_result = await db.execute(
-        select(OrdenCompra).where(OrdenCompra.status != "Completada")
-    )
-    for oc in oc_result.scalars().all():
-        items_result = await db.execute(
-            select(OrdenCompraItem).where(OrdenCompraItem.oc_db_id == oc.id)
-        )
-        for item in items_result.scalars().all():
-            if item.sku_producto in consolidado and consolidado[item.sku_producto]["tipo"] == "COMPONENTE":
-                pendiente = (item.cantidad_requerida or 0) - (item.cantidad_recibida or 0)
-                if pendiente > 0:
-                    consolidado[item.sku_producto]["en_compra"] += pendiente
-
-    response = []
-    for data in consolidado.values():
-        response.append(InventarioConsolidadoResponse(
-            sku=data["sku"],
-            nombre=data["nombre"],
-            tipo=data["tipo"],
-            clase_producto=data["clase_producto"],
-            stock_total=data["stock_total"],
-            stock_por_ubicacion_agregado=dict(data["stock_por_ubicacion_agregado"]),
-            stock_por_ubicacion_detalle=dict(data["stock_por_ubicacion_detalle"]),
-            en_compra=data["en_compra"],
-            en_produccion=data["en_produccion"],
-        ))
-    return response
+    return LotesInventarioPage(items=items, total=total)
 
 
 @router.get("/inventario/aprobados-sin-ubicacion", response_model=list[LoteInventarioResponse])
@@ -567,12 +593,14 @@ async def lotes_aprobados_sin_ubicacion(
     require_almacen_role(user)
 
     result = await db.execute(
-        select(LoteInventario).where(
+        select(LoteInventario)
+        .where(
             and_(
                 LoteInventario.estado_calidad == "Aprobado",
                 LoteInventario.ubicacion_id.is_(None),
             )
         )
+        .order_by(LoteInventario.fecha_recepcion.desc(), LoteInventario.id)
     )
     lotes = result.scalars().all()
     prod_map = await _get_producto_map(db)
@@ -587,14 +615,17 @@ async def lotes_aprobados_sin_ubicacion(
             cantidad_actual=lote.cantidad_actual,
             cantidad_inicial=lote.cantidad_inicial,
             ubicacion_id=None,
-            nombre_ubicacion="Área de Calidad",
-            nombre_producto=prod.nombre if prod else "N/A",
+            nombre_ubicacion="IQC",
+            nombre_producto=_nombre_producto(prod),
             tipo_producto=prod.tipo if prod else "N/A",
             clase_producto=prod.clase_producto if prod else "N/A",
             fecha_recepcion=lote.fecha_recepcion,
             oc_origen=lote.oc_origen,
             op_origen=lote.op_origen,
+            ov_origen=lote.ov_origen,
             estado_calidad=lote.estado_calidad,
+            numero_remision=lote.numero_remision,
+            bultos=lote.bultos,
         ))
     return items
 
@@ -626,7 +657,8 @@ async def transferir_lotes(
     db: AsyncSession = Depends(get_db),
 ):
     require_almacen_role(user)
-    now = ahora_local()
+    # ordenes_traslado.fecha es TIMESTAMP WITHOUT TIME ZONE: guardar naive
+    now = ahora_naive()
     traslado_id = f"OT-{now.strftime('%Y%m%d%H%M%S')}"
 
     items_traslado = []
@@ -715,6 +747,35 @@ async def scrap_inventario(
     })
     await db.commit()
     return {"message": f"Scrap registrado: {data.cantidad_scrap} unidades del lote {lote_id}"}
+
+
+@router.post("/inventario/{lote_id}/solicitud-modificacion")
+@router.post("/inventario/{lote_id}/solicitud-modificacion/")
+async def solicitar_modificacion_lote(
+    lote_id: str,
+    data: SolicitudModificacionRequest,
+    user: Usuario = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Levanta una solicitud de modificación sobre un lote.
+
+    Por ahora solo queda asentada en el historial del lote; el destino final
+    (bandeja, correo, etc.) se define después y se engancha aquí.
+    """
+    require_almacen_role(user)
+
+    result = await db.execute(select(LoteInventario).where(LoteInventario.lote_id == lote_id))
+    lote = result.scalar_one_or_none()
+    if not lote:
+        raise HTTPException(status_code=404, detail="Lote no encontrado.")
+
+    await _registrar_movimiento(db, lote_id, "SOLICITUD_MODIFICACION", 0, {
+        "motivo": data.motivo,
+        "mensaje": data.mensaje,
+        "solicitante": user.username,
+    })
+    await db.commit()
+    return {"message": f"Solicitud registrada para el lote {lote_id}"}
 
 
 @router.post("/inventario/transferir-entre-ubicaciones")
@@ -892,119 +953,222 @@ async def consumir_fifo(
 
 
 # ============================================================
-# TRASLADOS A PRODUCCIÓN
+# TRASLADOS A PRODUCCIÓN (escaneo FIFO)
 # ============================================================
-@router.get("/traslados-produccion", response_model=list[TrasladoProduccionResponse])
-@router.get("/traslados-produccion/", response_model=list[TrasladoProduccionResponse])
-async def listar_traslados_produccion(
-    status: Optional[str] = None,
-    user: Usuario = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    require_almacen_role(user)
-    query = select(OrdenTrasladoProduccion)
-    if status:
-        query = query.where(OrdenTrasladoProduccion.status == status)
-    result = await db.execute(query.order_by(OrdenTrasladoProduccion.fecha_creacion.desc()))
-    return result.scalars().all()
-
-
-@router.get("/traslados-produccion/historial", response_model=list[TrasladoProduccionResponse])
-@router.get("/traslados-produccion/historial/", response_model=list[TrasladoProduccionResponse])
-async def historial_traslados_produccion(
-    user: Usuario = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    require_almacen_role(user)
+async def _lote_mas_viejo_y_stock(db: AsyncSession, sku: str):
+    """Lote más viejo disponible (aprobado, ya ubicado, con stock) de un SKU,
+    más el stock total disponible de ese SKU. Mismo criterio que el FIFO Viewer
+    de Inventario (VistaFifo / orden=antiguos)."""
+    filtros = and_(
+        LoteInventario.sku_producto == sku,
+        LoteInventario.estado_calidad == "Aprobado",
+        LoteInventario.ubicacion_id.isnot(None),
+        LoteInventario.cantidad_actual > 0,
+    )
     result = await db.execute(
-        select(OrdenTrasladoProduccion).order_by(OrdenTrasladoProduccion.fecha_creacion.desc())
+        select(LoteInventario).where(filtros).order_by(LoteInventario.fecha_recepcion.asc(), LoteInventario.id.asc()).limit(1)
     )
-    return result.scalars().all()
+    mas_viejo = result.scalar_one_or_none()
+
+    stock_total = (await db.execute(
+        select(func.coalesce(func.sum(LoteInventario.cantidad_actual), 0)).where(filtros)
+    )).scalar() or 0
+
+    return mas_viejo, float(stock_total)
 
 
-@router.post("/traslados-produccion")
-@router.post("/traslados-produccion/")
-async def crear_traslado_produccion(
-    data: CrearTrasladoProduccionRequest,
+@router.get("/traslados/verificar-lote/{lote_id}", response_model=VerificarLoteTrasladoResponse)
+@router.get("/traslados/verificar-lote/{lote_id}/", response_model=VerificarLoteTrasladoResponse)
+async def verificar_lote_traslado(
+    lote_id: str,
     user: Usuario = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     require_almacen_role(user)
 
-    traslado_id = f"TR-PROD-{data.op_id}"
-    items = [{"sku_componente": i.sku, "cantidad_requerida": i.cantidad, "cantidad_movida": 0} for i in data.plan_de_consumo]
+    result = await db.execute(select(LoteInventario).where(LoteInventario.lote_id == lote_id))
+    lote = result.scalar_one_or_none()
+    if not lote:
+        raise HTTPException(status_code=404, detail="Lote no encontrado.")
+    if lote.ubicacion_id is None:
+        raise HTTPException(status_code=400, detail="Este lote aún no tiene ubicación asignada.")
+    if lote.estado_calidad != "Aprobado":
+        raise HTTPException(status_code=400, detail="Este lote no está aprobado por calidad.")
+    if lote.cantidad_actual <= 0:
+        raise HTTPException(status_code=400, detail="Este lote no tiene stock disponible.")
 
-    ot = OrdenTrasladoProduccion(
-        id_traslado=traslado_id,
-        op_id_origen=data.op_id,
-        linea_produccion_destino=data.linea_produccion or "ALMACEN DE ENSAMBLE",
-        fecha_creacion=ahora_local(),
-        status="Pendiente",
-        items=items,
-        historial=[],
-        creado_por=user.username,
+    ub_map = await _get_ubicacion_map(db)
+    prod_map = await _get_producto_map(db)
+    ub_lote = ub_map.get(lote.ubicacion_id)
+    prod = prod_map.get(lote.sku_producto)
+
+    lote_resp = LoteInventarioResponse(
+        id=lote.id,
+        lote_id=lote.lote_id,
+        sku_producto=lote.sku_producto,
+        cantidad_actual=lote.cantidad_actual,
+        cantidad_inicial=lote.cantidad_inicial,
+        ubicacion_id=lote.ubicacion_id,
+        nombre_ubicacion=ub_lote.nombre if ub_lote else "IQC",
+        nombre_producto=_nombre_producto(prod),
+        tipo_producto=prod.tipo if prod else "N/A",
+        clase_producto=prod.clase_producto if prod else "N/A",
+        fecha_recepcion=lote.fecha_recepcion,
+        oc_origen=lote.oc_origen,
+        op_origen=lote.op_origen,
+        ov_origen=lote.ov_origen,
+        estado_calidad=lote.estado_calidad,
+        numero_remision=lote.numero_remision,
+        bultos=lote.bultos,
     )
-    db.add(ot)
+
+    mas_viejo, stock_total = await _lote_mas_viejo_y_stock(db, lote.sku_producto)
+    es_mas_antiguo = bool(mas_viejo and mas_viejo.id == lote.id)
+
+    lote_prioritario_id = None
+    lote_prioritario_ubicacion = None
+    if not es_mas_antiguo and mas_viejo:
+        lote_prioritario_id = mas_viejo.lote_id
+        ub_prio = ub_map.get(mas_viejo.ubicacion_id)
+        lote_prioritario_ubicacion = ub_prio.nombre if ub_prio else "IQC"
+
+    return VerificarLoteTrasladoResponse(
+        lote=lote_resp,
+        stock_total_sku=stock_total,
+        es_mas_antiguo=es_mas_antiguo,
+        lote_prioritario_id=lote_prioritario_id,
+        lote_prioritario_ubicacion=lote_prioritario_ubicacion,
+    )
+
+
+@router.post("/traslados/surtir")
+@router.post("/traslados/surtir/")
+async def surtir_material(
+    data: SurtirMaterialRequest,
+    user: Usuario = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    require_almacen_role(user)
+
+    if not data.items:
+        raise HTTPException(status_code=400, detail="No hay materiales para surtir.")
+
+    result = await db.execute(select(Ubicacion).where(Ubicacion.id == data.ubicacion_produccion_id))
+    destino = result.scalar_one_or_none()
+    if not destino:
+        raise HTTPException(status_code=404, detail="Ubicación de producción no encontrada.")
+    if destino.tipo_zona != "PRODUCCION":
+        raise HTTPException(status_code=400, detail="La ubicación seleccionada no es una ubicación de producción.")
+
+    now = ahora_naive()
+    registrados = 0
+    for item in data.items:
+        result = await db.execute(select(LoteInventario).where(LoteInventario.lote_id == item.lote_id))
+        lote = result.scalar_one_or_none()
+        if not lote:
+            raise HTTPException(status_code=404, detail=f"Lote {item.lote_id} no encontrado.")
+        if item.cantidad <= 0:
+            raise HTTPException(status_code=400, detail=f"Cantidad inválida para {item.lote_id}.")
+        if lote.cantidad_actual < item.cantidad:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Stock insuficiente para {item.lote_id}: quedan {lote.cantidad_actual}.",
+            )
+
+        ub_origen = await db.get(Ubicacion, lote.ubicacion_id) if lote.ubicacion_id else None
+        origen_nombre = ub_origen.nombre if ub_origen else "IQC"
+
+        lote.cantidad_actual -= item.cantidad
+        await _registrar_movimiento(db, lote.lote_id, "SALIDA_PRODUCCION", -item.cantidad, {
+            "destino": destino.nombre,
+            "usuario": user.username,
+        })
+
+        db.add(RegistroSalidaProduccion(
+            fecha=now,
+            lote_id=lote.lote_id,
+            sku_producto=lote.sku_producto,
+            cantidad=item.cantidad,
+            ubicacion_almacen_nombre=origen_nombre,
+            ubicacion_produccion_nombre=destino.nombre,
+            creado_por=user.username,
+        ))
+        registrados += 1
+
     await db.commit()
-    return {"message": "Traslado creado", "id_traslado": traslado_id}
+    return {"message": "Material surtido correctamente", "registrados": registrados}
 
 
-@router.post("/traslados-produccion/{traslado_id}/ejecutar")
-@router.post("/traslados-produccion/{traslado_id}/ejecutar/")
-async def ejecutar_movimiento_parcial(
-    traslado_id: str,
-    data: EjecutarMovimientoParcialRequest,
+@router.get("/traslados/registros", response_model=RegistrosSalidaProduccionPage)
+@router.get("/traslados/registros/", response_model=RegistrosSalidaProduccionPage)
+async def listar_registros_salida_produccion(
+    search: Optional[str] = None,
+    fecha_inicio: Optional[date] = None,
+    fecha_fin: Optional[date] = None,
+    limit: int = 50,
+    offset: int = 0,
     user: Usuario = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     require_almacen_role(user)
 
-    result = await db.execute(
-        select(OrdenTrasladoProduccion).where(OrdenTrasladoProduccion.id_traslado == traslado_id)
+    limit = max(1, min(limit, 200))
+    offset = max(0, offset)
+
+    nombre_expr = func.coalesce(func.nullif(Producto.nombre, ""), func.nullif(Producto.descripcion, ""))
+    prod = (
+        select(Producto.sku, nombre_expr.label("nombre"))
+        .distinct(Producto.sku)
+        .order_by(Producto.sku, nombre_expr.is_(None), Producto.id.desc())
+        .subquery()
     )
-    traslado = result.scalar_one_or_none()
-    if not traslado:
-        raise HTTPException(status_code=404, detail="Traslado no encontrado.")
 
-    lotes_consumidos = {}
+    filtros = []
+    if fecha_inicio:
+        filtros.append(cast(RegistroSalidaProduccion.fecha, Date) >= fecha_inicio)
+    if fecha_fin:
+        filtros.append(cast(RegistroSalidaProduccion.fecha, Date) <= fecha_fin)
+    if search and search.strip():
+        q = f"%{search.strip()}%"
+        filtros.append(or_(
+            RegistroSalidaProduccion.sku_producto.ilike(q),
+            prod.c.nombre.ilike(q),
+            cast(RegistroSalidaProduccion.cantidad, String).ilike(q),
+            RegistroSalidaProduccion.ubicacion_almacen_nombre.ilike(q),
+            RegistroSalidaProduccion.ubicacion_produccion_nombre.ilike(q),
+        ))
 
-    for mov in data.movimientos:
-        plan = await _consumir_stock_fifo_v2(
-            db, mov.sku, mov.cantidad_a_mover,
-            detalles={"op_id": traslado_id, "autorizador": data.autorizador},
-            zonas_prioridad=["APROBADO"],
+    def con_joins(stmt):
+        return (
+            stmt
+            .outerjoin(prod, prod.c.sku == RegistroSalidaProduccion.sku_producto)
+            .where(*filtros)
         )
-        lotes_consumidos[mov.sku] = plan
 
-    # Actualizar traslado
-    items_actualizados = list(traslado.items or [])
-    total_req = 0
-    total_mov = 0
-    for item_db in items_actualizados:
-        sku_db = item_db.get("sku_componente")
-        movido_ahora = next((m.cantidad_a_mover for m in data.movimientos if m.sku == sku_db), 0)
-        item_db["cantidad_movida"] = item_db.get("cantidad_movida", 0) + movido_ahora
-        total_req += item_db.get("cantidad_requerida", 0)
-        total_mov += item_db.get("cantidad_movida", 0)
+    total = (await db.execute(
+        con_joins(select(func.count()).select_from(RegistroSalidaProduccion))
+    )).scalar() or 0
 
-    nuevo_estado = "En Proceso"
-    if total_mov >= total_req:
-        nuevo_estado = "Completado"
+    result = await db.execute(
+        con_joins(select(RegistroSalidaProduccion, prod.c.nombre))
+        .order_by(RegistroSalidaProduccion.fecha.desc(), RegistroSalidaProduccion.id.desc())
+        .offset(offset).limit(limit)
+    )
 
-    historial = list(traslado.historial or [])
-    historial.append({
-        "fecha": ahora_local().isoformat(),
-        "autorizador": data.autorizador,
-        "movimientos": [{"sku": m.sku, "cantidad_a_mover": m.cantidad_a_mover} for m in data.movimientos],
-        "lotes_consumidos": lotes_consumidos,
-    })
-
-    traslado.items = items_actualizados
-    traslado.status = nuevo_estado
-    traslado.historial = historial
-    await db.commit()
-
-    return {"message": "Movimiento ejecutado", "nuevo_status": nuevo_estado}
+    items = [
+        RegistroSalidaProduccionResponse(
+            id=reg.id,
+            fecha=reg.fecha,
+            lote_id=reg.lote_id,
+            sku_producto=reg.sku_producto,
+            nombre_producto=nombre_prod or "N/A",
+            cantidad=reg.cantidad,
+            ubicacion_almacen_nombre=reg.ubicacion_almacen_nombre,
+            ubicacion_produccion_nombre=reg.ubicacion_produccion_nombre,
+        )
+        for reg, nombre_prod in result.all()
+    ]
+    return RegistrosSalidaProduccionPage(items=items, total=total)
 
 
 # ============================================================
@@ -1062,7 +1226,7 @@ async def inventario_eps(
             cantidad_inicial=lote.cantidad_inicial,
             ubicacion_id=lote.ubicacion_id,
             nombre_ubicacion=ub.nombre if ub else "N/A",
-            nombre_producto=prod.nombre if prod else "N/A",
+            nombre_producto=_nombre_producto(prod),
             tipo_producto=prod.tipo if prod else "N/A",
             clase_producto=prod.clase_producto if prod else "N/A",
             fecha_recepcion=lote.fecha_recepcion,
@@ -1142,7 +1306,7 @@ async def obtener_trazabilidad(
         historial["info_lote"] = {
             "id": lote.lote_id,
             "sku_producto": lote.sku_producto,
-            "nombre_producto": prod.nombre if prod else "N/A",
+            "nombre_producto": _nombre_producto(prod),
             "cantidad_actual": lote.cantidad_actual,
             "cantidad_inicial": lote.cantidad_inicial,
             "ubicacion": ub.nombre if ub else "Sin ubicación",
@@ -1804,15 +1968,10 @@ async def limpiar_traslados_completados(
 ):
     fecha_limite = ahora_local() - timedelta(days=dias)
     result = await db.execute(
-        delete(OrdenTrasladoProduccion).where(
-            and_(
-                OrdenTrasladoProduccion.status == "Completado",
-                OrdenTrasladoProduccion.fecha_creacion < fecha_limite,
-            )
-        )
+        delete(RegistroSalidaProduccion).where(RegistroSalidaProduccion.fecha < fecha_limite)
     )
     await db.commit()
-    return {"message": f"Eliminados {result.rowcount} traslados completados con más de {dias} días"}
+    return {"message": f"Eliminados {result.rowcount} registros de salida a producción con más de {dias} días"}
 
 
 @router.post("/limpiar/movimientos-antiguos")

@@ -3,6 +3,16 @@ import type { NextConfig } from 'next'
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["100.111.35.87"],
 
+  experimental: {
+    // El default de Next son 30s (`proxyTimeout || 30000` en
+    // server/lib/router-utils/proxy-request.js). /api/remisiones/ocr corre
+    // Tesseract + inferencia en Ollama y puede tardar mucho más con el modelo
+    // frío: a los 30s el proxy mataba el socket y devolvía un 500 con HTML,
+    // pisando el 200 + ocr_ok=false que el backend sí manda para que Almacén
+    // capture a mano. Debe quedar POR ENCIMA de OCR_PRESUPUESTO_TOTAL.
+    proxyTimeout: 120_000,
+  },
+
   async rewrites() {
     const BACKEND = 'http://backend:8000'
 
@@ -166,12 +176,12 @@ const nextConfig: NextConfig = {
         { source: '/almacen/inventario/:id/scrap/',           destination: `${BACKEND}/almacen/inventario/:id/scrap/` },
         { source: '/almacen/inventario',                      destination: `${BACKEND}/almacen/inventario` },
         { source: '/almacen/inventario/',                     destination: `${BACKEND}/almacen/inventario/` },
-        { source: '/almacen/traslados-produccion/:id/ejecutar',  destination: `${BACKEND}/almacen/traslados-produccion/:id/ejecutar` },
-        { source: '/almacen/traslados-produccion/:id/ejecutar/', destination: `${BACKEND}/almacen/traslados-produccion/:id/ejecutar/` },
-        { source: '/almacen/traslados-produccion/historial',  destination: `${BACKEND}/almacen/traslados-produccion/historial` },
-        { source: '/almacen/traslados-produccion/historial/', destination: `${BACKEND}/almacen/traslados-produccion/historial/` },
-        { source: '/almacen/traslados-produccion',            destination: `${BACKEND}/almacen/traslados-produccion` },
-        { source: '/almacen/traslados-produccion/',           destination: `${BACKEND}/almacen/traslados-produccion/` },
+        { source: '/almacen/traslados/verificar-lote/:id',   destination: `${BACKEND}/almacen/traslados/verificar-lote/:id` },
+        { source: '/almacen/traslados/verificar-lote/:id/',  destination: `${BACKEND}/almacen/traslados/verificar-lote/:id/` },
+        { source: '/almacen/traslados/surtir',                destination: `${BACKEND}/almacen/traslados/surtir` },
+        { source: '/almacen/traslados/surtir/',               destination: `${BACKEND}/almacen/traslados/surtir/` },
+        { source: '/almacen/traslados/registros',              destination: `${BACKEND}/almacen/traslados/registros` },
+        { source: '/almacen/traslados/registros/',             destination: `${BACKEND}/almacen/traslados/registros/` },
         { source: '/almacen/traslados-historial',             destination: `${BACKEND}/almacen/traslados-historial` },
         { source: '/almacen/traslados-historial/',            destination: `${BACKEND}/almacen/traslados-historial/` },
         { source: '/almacen/eps/ubicaciones',                 destination: `${BACKEND}/almacen/eps/ubicaciones` },

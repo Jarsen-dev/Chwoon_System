@@ -354,6 +354,8 @@ async def get_system_status(
         ("psi_snapshots",         "psi_snapshots"),
         ("ordenes_venta",         "ordenes_venta"),
         ("envios_venta",          "envios_venta"),
+        ("recepciones_compra",    "recepciones_compra"),
+        ("ubicaciones",           "ubicaciones"),
     ]
 
     for nombre, tabla in tablas:
@@ -747,6 +749,52 @@ async def vaciar_envios_venta(
     return {
         "message": "Envíos de venta eliminados",
         "eliminados": result.rowcount,
+    }
+
+
+# ── POST /api/admin/db/vaciar-recepciones-compra ─────────────────────
+@router.post("/db/vaciar-recepciones-compra")
+@router.post("/db/vaciar-recepciones-compra/")
+async def vaciar_recepciones_compra(
+    db: AsyncSession = Depends(get_db),
+    _: Usuario = Depends(get_current_admin),
+):
+    """Vacía el registro de recepciones de compra (tab Recepciones de Almacén).
+
+    Solo borra la bitácora `recepciones_compra`: no toca `remisiones_recepcion`
+    (flujo separado de Recepciones por Foto) ni revierte cantidad_recibida en
+    OrdenCompraItem, el status de la OC, los lotes de inventario ya creados ni
+    los movimientos de stock — esos quedan intactos.
+    """
+    result = await db.execute(text("DELETE FROM recepciones_compra"))
+    await db.commit()
+    return {
+        "message": "Recepciones de compra eliminadas",
+        "eliminados": result.rowcount,
+    }
+
+
+# ── POST /api/admin/db/vaciar-ubicaciones ────────────────────────────
+@router.post("/db/vaciar-ubicaciones")
+@router.post("/db/vaciar-ubicaciones/")
+async def vaciar_ubicaciones(
+    db: AsyncSession = Depends(get_db),
+    _: Usuario = Depends(get_current_admin),
+):
+    """Vacía TODAS las ubicaciones de Almacén (racks, silos, zonas, etc).
+
+    Los lotes de inventario que apuntaban a alguna ubicación quedan con
+    ubicacion_id = NULL (pasan a "sin ubicar"), no se eliminan ni pierden
+    cantidad — solo se desvincula la posición física borrada.
+    """
+    r_lotes = await db.execute(
+        text("UPDATE lotes_inventario SET ubicacion_id = NULL WHERE ubicacion_id IS NOT NULL")
+    )
+    r_ubic = await db.execute(text("DELETE FROM ubicaciones"))
+    await db.commit()
+    return {
+        "message": f"Ubicaciones eliminadas ({r_lotes.rowcount} lotes quedaron sin ubicar)",
+        "eliminados": r_ubic.rowcount,
     }
 
 

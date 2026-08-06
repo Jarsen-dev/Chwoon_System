@@ -11,7 +11,7 @@ class UbicacionCreate(BaseModel):
     parent_id: Optional[int] = None
     tipo_zona: Optional[str] = "ALMACEN"
     capacidad_max: Optional[float] = None
-    permite_mixing: Optional[bool] = False
+    permite_mixing: Optional[bool] = True
     activa: Optional[bool] = True
 
 class UbicacionUpdate(BaseModel):
@@ -21,6 +21,12 @@ class UbicacionUpdate(BaseModel):
     permite_mixing: Optional[bool] = None
     activa: Optional[bool] = None
 
+class LoteEnUbicacion(BaseModel):
+    lote_id: str
+    sku_producto: str
+    cantidad_actual: float
+    fecha_recepcion: Optional[datetime] = None
+
 class UbicacionResponse(BaseModel):
     id: int
     nombre: str
@@ -29,6 +35,7 @@ class UbicacionResponse(BaseModel):
     capacidad_max: Optional[float] = None
     permite_mixing: bool
     activa: bool
+    lotes: List[LoteEnUbicacion] = []
 
     class Config:
         from_attributes = True
@@ -66,6 +73,11 @@ class LoteInventarioResponse(BaseModel):
         from_attributes = True
 
 
+class LotesInventarioPage(BaseModel):
+    items: List[LoteInventarioResponse]
+    total: int
+
+
 class RecepcionMaterialItem(BaseModel):
     sku_producto: str
     cantidad_recibida: float
@@ -95,6 +107,11 @@ class ScrapInventarioRequest(BaseModel):
     cantidad_scrap: float
     motivo: str
     responsable: str
+
+
+class SolicitudModificacionRequest(BaseModel):
+    motivo: str
+    mensaje: str
 
 
 class TransferenciaEntreUbicacionesRequest(BaseModel):
@@ -130,54 +147,43 @@ class MovimientoLoteResponse(BaseModel):
 
 
 # ==========================================
-# INVENTARIO CONSOLIDADO
+# TRASLADOS A PRODUCCIÓN (escaneo FIFO)
 # ==========================================
-class InventarioConsolidadoResponse(BaseModel):
-    sku: str
-    nombre: Optional[str] = None
-    tipo: Optional[str] = None
-    clase_producto: Optional[str] = None
-    stock_total: float = 0
-    stock_por_ubicacion_agregado: dict = {}
-    stock_por_ubicacion_detalle: dict = {}
-    en_compra: float = 0
-    en_produccion: float = 0
+class VerificarLoteTrasladoResponse(BaseModel):
+    lote: LoteInventarioResponse
+    stock_total_sku: float
+    es_mas_antiguo: bool
+    lote_prioritario_id: Optional[str] = None
+    lote_prioritario_ubicacion: Optional[str] = None
 
 
-# ==========================================
-# TRASLADOS A PRODUCCIÓN
-# ==========================================
-class TrasladoProduccionItemRequest(BaseModel):
-    sku: str
+class ItemSurtidoRequest(BaseModel):
+    lote_id: str
+    sku_producto: str
     cantidad: float
 
-class CrearTrasladoProduccionRequest(BaseModel):
-    op_id: str
-    plan_de_consumo: List[TrasladoProduccionItemRequest]
-    linea_produccion: Optional[str] = None
-
-class MovimientoParcialItem(BaseModel):
-    sku: str
-    cantidad_a_mover: float
-
-class EjecutarMovimientoParcialRequest(BaseModel):
-    movimientos: List[MovimientoParcialItem]
-    autorizador: str
+class SurtirMaterialRequest(BaseModel):
+    ubicacion_produccion_id: int
+    items: List[ItemSurtidoRequest]
 
 
-class TrasladoProduccionResponse(BaseModel):
+class RegistroSalidaProduccionResponse(BaseModel):
     id: int
-    id_traslado: str
-    op_id_origen: str
-    linea_produccion_destino: Optional[str] = None
-    fecha_creacion: Optional[datetime] = None
-    status: str
-    items: list = []
-    historial: list = []
-    creado_por: Optional[str] = None
+    fecha: Optional[datetime] = None
+    lote_id: str
+    sku_producto: str
+    nombre_producto: Optional[str] = None
+    cantidad: float
+    ubicacion_almacen_nombre: str
+    ubicacion_produccion_nombre: str
 
     class Config:
         from_attributes = True
+
+
+class RegistrosSalidaProduccionPage(BaseModel):
+    items: List[RegistroSalidaProduccionResponse]
+    total: int
 
 
 # ==========================================
