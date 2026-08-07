@@ -134,9 +134,10 @@ function VistaEscanear({ token, notificar, onSurtido }: {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      if (!modalSurtir && !scannerOpen && document.activeElement !== inputRef.current) {
-        inputRef.current?.focus();
-      }
+      if (modalSurtir || scannerOpen) return;
+      const tag = document.activeElement?.tagName ?? '';
+      if (['INPUT', 'SELECT', 'TEXTAREA'].includes(tag) && document.activeElement !== inputRef.current) return;
+      if (document.activeElement !== inputRef.current) inputRef.current?.focus();
     }, 500);
     return () => clearInterval(interval);
   }, [modalSurtir, scannerOpen]);

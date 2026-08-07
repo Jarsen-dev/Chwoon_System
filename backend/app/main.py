@@ -91,6 +91,7 @@ async def lifespan(app: FastAPI):
 
     logger.info("⏰ Iniciando scheduler de turnos...")
     scheduler = iniciar_scheduler()
+    ayudas_visuales_router.registrar_job_sync_ayudas(scheduler)
 
     logger.info("🚀 Backend listo")
     yield

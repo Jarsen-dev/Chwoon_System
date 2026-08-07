@@ -30,9 +30,16 @@ class LoteEtiquetaOut(BaseModel):
 
 # ── Inspección ────────────────────────────────────────────────────────
 class PuntoResultado(BaseModel):
+    """Legado — los puntos de inspección del producto. Ya no se envía."""
     punto: str
     especificacion: Optional[str] = None
     resultado: str  # "Conforme" | "No Conforme"
+
+
+class RespuestaInspeccion(BaseModel):
+    pregunta: str
+    respuesta: str                    # "Si" | "No"
+    motivo: Optional[str] = None      # obligatorio cuando respuesta == "No"
 
 
 class InspeccionCreate(BaseModel):
@@ -40,12 +47,25 @@ class InspeccionCreate(BaseModel):
     sku_producto: str
     nombre_producto: Optional[str] = None
     tipo_inspeccion: str  # IQC | LQC | OQC | DEVOLUCION
-    resultado_final: str  # Aprobado | Rechazado
+    resultado_final: str  # Aprobado | Rechazado | Cuarentena
     resultados_puntos: List[PuntoResultado] = []
+    respuestas: List[RespuestaInspeccion] = []
+    # Rutas devueltas por POST /calidad/incidencias/foto
+    fotos: List[str] = []
     oc_origen: Optional[str] = None
     op_origen: Optional[str] = None
     cantidad_inspeccionada: Optional[float] = 0
     notas: Optional[str] = None
+
+
+class SegundaRevisionCreate(BaseModel):
+    ahora_ok: bool
+    resultado: str                    # "Aprobado" | "Rechazado"
+    notas: Optional[str] = None
+
+
+class FotoIncidenciaOut(BaseModel):
+    ruta: str
 
 
 class InspeccionResponse(BaseModel):
@@ -59,6 +79,9 @@ class InspeccionResponse(BaseModel):
     inspector: str
     resultado_final: str
     resultados_puntos: Any
+    respuestas: Any = []
+    fotos: Any = []
+    segunda_revision: Any = None
     oc_origen: Optional[str]
     op_origen: Optional[str]
     cantidad_inspeccionada: float
@@ -67,6 +90,11 @@ class InspeccionResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class InspeccionesPage(BaseModel):
+    items: List[InspeccionResponse]
+    total: int
 
 
 # ── Scrap ─────────────────────────────────────────────────────────────

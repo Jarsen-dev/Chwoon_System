@@ -110,6 +110,31 @@ export interface ReindexAyudasResumen {
   errores:               string[]
 }
 
+/** Fase de espejo: Synology (SMB) → backend/static/ayudas_visuales */
+export interface SyncAyudasNube {
+  archivos_remotos:   number
+  copiados:           number
+  actualizados:       number
+  sin_cambios:        number
+  borrados:           number
+  bytes_descargados:  number
+  prune_omitido:      boolean
+  errores:            string[]
+}
+
+export interface SyncAyudasEstado {
+  estado:          'idle' | 'corriendo' | 'ok' | 'error'
+  fase:            string          // 'nube' | 'indice' | ''
+  actual:          number
+  total:           number
+  inicio:          string | null
+  fin:             string | null
+  disparado_por:   string
+  nube:            SyncAyudasNube | null
+  indice:          ReindexAyudasResumen | null
+  error:           string | null
+}
+
 export interface ProductoCreate {
   sku:                        string
   tipo?:                      string
@@ -313,7 +338,6 @@ export const TABS_POR_MODULO: Record<string, { id: string; label: string }[]> = 
   almacen: [
     { id: 'dashboard',    label: '📊 Dashboard'   },
     { id: 'recepciones',  label: '📥 Recepciones' },
-    { id: 'recepciones-ocr', label: '📸 Recepciones por Foto' },
     { id: 'inventario',   label: '📦 Inventario'  },
     { id: 'ubicaciones',  label: '📍 Ubicaciones' },
     { id: 'traslados',    label: '🔄 Traslados'   },
@@ -367,20 +391,8 @@ export interface OrdenCompraItem {
   sku_producto:       string
   nombre_producto:    string
   cantidad_requerida: number
-  cantidad_recibida:  number
   precio_unitario:    number
   moneda:             string
-}
-
-export interface RecepcionCompra {
-  id:                number
-  recepcion_id:      string
-  oc_id:             string
-  sku_producto:      string
-  cantidad_recibida: number
-  fecha_recepcion:   string
-  recibido_por?:     string
-  notas?:            string
 }
 
 export interface OrdenCompra {
@@ -396,7 +408,6 @@ export interface OrdenCompra {
   creado_por?:         string
   aprobado_por?:       string
   items:               OrdenCompraItem[]
-  recepciones?:        RecepcionCompra[]
   motivo_rechazo?:     string
   iva?:               number
   firma_compras?:     string
@@ -670,10 +681,32 @@ export function colorClasesSemaforo(v: number): string {
 // ==========================================
 // CALIDAD — Inspecciones
 // ==========================================
+/** Legado — los puntos de inspección del producto. Solo se lee del historial
+ *  anterior al cambio; el flujo actual usa `RespuestaInspeccion`. */
 export interface PuntoResultado {
   punto: string
   especificacion?: string
   resultado: string  // "Conforme" | "No Conforme"
+}
+
+/** Resultado posible de una inspección. */
+export type ResultadoInspeccion = 'Aprobado' | 'Rechazado' | 'Cuarentena'
+
+export interface RespuestaInspeccion {
+  pregunta: string
+  respuesta: 'Si' | 'No'
+  /** Obligatorio cuando la respuesta es "No" */
+  motivo?: string | null
+}
+
+/** Cierre de una inspección que estuvo en Cuarentena. */
+export interface SegundaRevision {
+  fecha: string
+  revisor: string
+  ahora_ok: boolean
+  resultado: 'Aprobado' | 'Rechazado'
+  notas?: string | null
+  motivos_previos: string[]
 }
 
 /** Lo que devuelve GET /calidad/lote/{id} al escanear una etiqueta en IQC.
@@ -692,7 +725,7 @@ export interface LoteEtiquetaInfo {
   po?:               string | null
   fecha_hoja:        string
   tipo_documento:    string
-  /** Pendiente IQC | Aprobado | Rechazado */
+  /** Pendiente IQC | Aprobado | Rechazado | Cuarentena */
   estado_calidad:    string
 }
 
@@ -705,13 +738,23 @@ export interface InspeccionCalidad {
   tipo_inspeccion: string
   fecha?: string
   inspector: string
+  /** Aprobado | Rechazado | Cuarentena */
   resultado_final: string
   resultados_puntos: PuntoResultado[]
+  respuestas?: RespuestaInspeccion[]
+  /** Rutas relativas: "incidencias_iqc/<lote_id>/<uuid>.jpg" */
+  fotos?: string[]
+  segunda_revision?: SegundaRevision | null
   oc_origen?: string
   op_origen?: string
   cantidad_inspeccionada: number
   notas?: string
   created_at?: string
+}
+
+export interface InspeccionesPage {
+  items: InspeccionCalidad[]
+  total: number
 }
 
 // ==========================================
@@ -935,44 +978,7 @@ export interface TrazabilidadLote {
 }
 
 // ==========================================
-// ALMACÉN — Recepciones de Compra
-// ==========================================
-export interface OrdenCompraAlmacenItem {
-  id?:                number
-  sku_producto:       string
-  nombre_producto:    string
-  cantidad_requerida: number
-  cantidad_recibida:  number
-}
-
-export interface RecepcionAlmacen {
-  id:                number
-  recepcion_id:      string
-  sku_producto:      string
-  cantidad_recibida: number
-  fecha_recepcion:   string
-  recibido_por?:     string
-  notas?:            string
-}
-
-export interface OrdenCompraAlmacen {
-  id:                   number
-  oc_id:                string
-  id_proveedor:         string
-  nombre_proveedor:     string
-  status:               string
-  origen?:              string
-  fecha_creacion:       string
-  fecha_actualizacion?: string
-  notas?:               string
-  creado_por?:          string
-  aprobado_por?:        string
-  items:                OrdenCompraAlmacenItem[]
-  recepciones?:         RecepcionAlmacen[]
-}
-
-// ==========================================
-// ALMACÉN — Recepciones por Foto (OCR)
+// ALMACÉN — Recepciones (captura por foto de la remisión, OCR)
 // ==========================================
 export interface RemisionOCRItem {
   numero_parte: string | null

@@ -9,10 +9,10 @@ TZ_LOCAL = timezone(timedelta(hours=-6))
 
 
 class RemisionRecepcion(Base):
-    """Recepción capturada desde foto de remisión física (flujo OCR de Almacén).
+    """Recepción capturada desde foto de remisión física (Almacén › Recepciones).
 
-    Independiente del flujo de Compras/OC (`recepciones_compra`): aquí el origen
-    es la hoja física del proveedor, no una orden de compra del sistema.
+    Independiente de Compras/OC: el origen es la hoja física del proveedor, no
+    una orden de compra del sistema.
     """
     __tablename__ = "remisiones_recepcion"
 

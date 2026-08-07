@@ -11,3 +11,4 @@ export { default as Badge } from './Badge';
 export { default as Pagination } from './Pagination';
 export { default as VisorFoto } from './VisorFoto';
 export { default as AutocompleteSku } from './AutocompleteSku';
+export { default as AyudasVisualesGrid } from './AyudasVisualesGrid';

@@ -45,7 +45,10 @@ pgadmin/pgpass
 
 # ── OpenCode ────────────────────────────────────
 .opencode/
-# ── Ayudas Visuales (PDFs + miniaturas, sincronizados por SSH — no van al repo) ──
+# ── Ayudas Visuales (espejo del share SMB del Synology + miniaturas — no van al repo) ──
 backend/static/ayudas_visuales/
 # ── Fotos de remisiones (evidencia capturada en runtime — no van al repo) ──
 backend/static/remisiones/
+# ── Fotos de incidencias de calidad (evidencia en runtime; la carpeta sí se versiona) ──
+backend/static/incidencias_iqc/*
+!backend/static/incidencias_iqc/.gitkeep

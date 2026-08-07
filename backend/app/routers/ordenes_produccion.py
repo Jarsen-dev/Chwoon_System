@@ -1083,7 +1083,7 @@ async def iniciar_pre_expansion(
         item_oc = OCItemModel(
             orden_compra_id=nueva_oc.id, sku_producto=data.sku_materia_prima,
             nombre_producto=nombre_mp, cantidad_requerida=faltante,
-            cantidad_recibida=0, precio_unitario=0, moneda="MXN",
+            precio_unitario=0, moneda="MXN",
         )
         db.add(item_oc)
         oc_generada = oc_id

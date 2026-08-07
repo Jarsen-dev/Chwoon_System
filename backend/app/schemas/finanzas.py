@@ -19,7 +19,6 @@ class OrdenCompraItemResponse(BaseModel):
     sku_producto: str
     nombre_producto: str
     cantidad_requerida: float
-    cantidad_recibida: float
     precio_unitario: float
     moneda: str
 
@@ -65,29 +64,6 @@ class OrdenCompraResponse(BaseModel):
     class Config:
         from_attributes = True
 
-
-# ========================
-# RECEPCIONES DE COMPRA
-# ========================
-class RecepcionCompraCreate(BaseModel):
-    oc_id: str
-    sku_producto: str
-    cantidad_recibida: float
-    notas: Optional[str] = None
-
-
-class RecepcionCompraResponse(BaseModel):
-    id: int
-    recepcion_id: str
-    oc_id: str
-    sku_producto: str
-    cantidad_recibida: float
-    fecha_recepcion: datetime
-    recibido_por: Optional[str] = None
-    notas: Optional[str] = None
-
-    class Config:
-        from_attributes = True
 
 class ValidarFinanzasRequest(BaseModel):
     accion: str  # Puede ser "aprobar" o "rechazar"

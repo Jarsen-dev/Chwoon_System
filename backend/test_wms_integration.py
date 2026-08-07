@@ -75,54 +75,6 @@ def test_producto():
         return sku
     fail(f"producto create: {data}")
 
-def test_oc_y_recepcion(sku):
-    log("=== OC + RECEPCION ===")
-    # crear OC
-    code, data = req("POST", "/finanzas/compras", {
-        "id_proveedor": "PROV-1", "nombre_proveedor": "Proveedor Test", "items": [
-            {"sku_producto": sku, "nombre_producto": "Test", "cantidad_requerida": 100, "precio_unitario": 10, "moneda": "MXN"}
-        ]
-    })
-    if code != 200:
-        # try list existing OC
-        code2, data2 = req("GET", "/almacen/recepciones/ordenes-compra")
-        if code2 == 200 and isinstance(data2, list) and len(data2) > 0:
-            oc_id = data2[0]["oc_id"]
-            log(f"Using existing OC {oc_id}")
-            return oc_id
-        fail(f"OC create: {data}")
-    oc_id = data["oc_id"]
-    log(f"Created OC {oc_id}")
-
-    # recepcionar
-    code, data = req("POST", "/almacen/recepciones/recepcion-lote", [
-        {"oc_id": oc_id, "sku_producto": sku, "cantidad_recibida": 50, "cantidad_bultos": 5, "numero_remision": "REM-001", "temperatura": 22.5}
-    ])
-    assert code == 200, f"recepcion failed: {data}"
-    assert len(data.get("lotes_creados", [])) > 0
-    lote_id = data["lotes_creados"][0]
-    log(f"Recepcion OK, lote={lote_id}")
-    return oc_id, lote_id
-
-def test_inventario(sku, lote_id):
-    log("=== INVENTARIO ===")
-    code, data = req("GET", f"/almacen/inventario?sku={sku}")
-    assert code == 200 and isinstance(data, list)
-    lote = next((l for l in data if l["lote_id"] == lote_id), None)
-    assert lote is not None, "Lote not found in inventario"
-    assert lote["bultos"] == 5
-    assert lote["numero_remision"] == "REM-001"
-    log("Inventario OK")
-
-def test_fifo(sku):
-    log("=== FIFO ===")
-    code, data = req("POST", "/almacen/inventario/consumir-fifo", {
-        "sku": sku, "cantidad": 10, "detalles": {"test": True}
-    })
-    assert code == 200, f"FIFO failed: {data}"
-    assert len(data.get("plan", [])) > 0
-    log(f"FIFO OK, plan={data['plan']}")
-
 def test_dashboard():
     log("=== DASHBOARD ===")
     code, data = req("GET", "/almacen/dashboard")
@@ -130,29 +82,6 @@ def test_dashboard():
     assert "total_lotes_activos" in data
     assert "stock_por_zona" in data
     log(f"Dashboard OK: activos={data['total_lotes_activos']}")
-
-def test_picking(sku, ubicacion_id):
-    log("=== PICKING ===")
-    # crear picking
-    code, data = req("POST", "/almacen/picking/crear", {
-        "tipo_origen": "OV", "origen_id": "OV-TEST-001", "items": [{"sku": sku, "cantidad_requerida": 5}]
-    })
-    assert code == 200, f"picking create failed: {data}"
-    picking_id = data["picking_id"]
-    log(f"Picking created {picking_id}")
-
-    # confirmar lote
-    lote_asignado = data["items"][0]["lotes_asignados"][0]["lote_id"]
-    code, data = req("POST", f"/almacen/picking/{picking_id}/confirmar-lote", {
-        "sku": sku, "lote_id": lote_asignado, "cantidad_confirmada": 5
-    })
-    assert code == 200, f"confirm failed: {data}"
-    log("Picking confirm OK")
-
-    # completar
-    code, data = req("POST", f"/almacen/picking/{picking_id}/completar", {})
-    assert code == 200
-    log("Picking complete OK")
 
 def test_conteo(sku):
     log("=== CONTEO FISICO ===")
@@ -205,14 +134,14 @@ def main():
     else:
         fail("Server not up")
 
+    # NOTA: los tests de recepción / inventario / FIFO / picking se eliminaron
+    # junto con el flujo clásico de Recepciones (era el único que sembraba lotes
+    # vía API). Recepciones ahora es el flujo por foto, que requiere una imagen
+    # de remisión y no se puede automatizar desde este script.
     login()
     _, ubic_id = test_ubicaciones()
     sku = test_producto()
-    oc_id, lote_id = test_oc_y_recepcion(sku)
-    test_inventario(sku, lote_id)
-    test_fifo(sku)
     test_dashboard()
-    test_picking(sku, ubic_id)
     test_conteo(sku)
     test_alertas(sku)
     log("\n🎉 ALL TESTS PASSED")

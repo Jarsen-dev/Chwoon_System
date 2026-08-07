@@ -17,7 +17,6 @@ const API_PREFIXES = [
   '/finanzas/',
   '/calidad/',
   '/almacen/dashboard',
-  '/almacen/recepciones',
   '/almacen/ubicaciones',
   '/almacen/inventario',
   '/almacen/embarques',

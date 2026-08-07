@@ -13,6 +13,7 @@ import {
   ProductoPage,
   AyudaVisual,
   ReindexAyudasResumen,
+  SyncAyudasEstado,
   ProductoCreate,
   ProductoUpdate,
   BomItem,
@@ -23,6 +24,8 @@ import {
   PlanVentasSemana,
   CalidadDashboard,
   InspeccionCalidad,
+  InspeccionesPage,
+  RespuestaInspeccion,
   LoteEtiquetaInfo,
   RegistroScrapItem,
   ProductoPuntosInspeccion,
@@ -38,7 +41,6 @@ import {
   TrazabilidadLote,
   OrdenProduccion as OrdenProduccionType,
   OrdenUnificada,
-  OrdenCompraAlmacen,
   LogisticaDashboard,
   ReporteManualInyeccion,
   ProveedorItem,
@@ -343,6 +345,7 @@ export function ayudaVisualPdfUrl(id: number): string {
   return `${API_URL}/ayudas-visuales/${id}/pdf`
 }
 
+/** Reindexa solo el disco local, sin tocar el Synology (fallback offline). */
 export async function reindexarAyudasVisuales(token: string): Promise<ReindexAyudasResumen> {
   const res = await fetch(`${API_URL}/ayudas-visuales/reindexar`, {
     method: 'POST',
@@ -352,6 +355,26 @@ export async function reindexarAyudasVisuales(token: string): Promise<ReindexAyu
     const err = await res.json().catch(() => ({}))
     throw new Error(err.detail || 'Error al reindexar ayudas visuales')
   }
+  return res.json()
+}
+
+/** Lanza el espejo Synology → disco + reindexado. Responde de inmediato:
+ *  el avance se consulta con getSyncAyudasEstado(). */
+export async function iniciarSyncAyudas(token: string): Promise<SyncAyudasEstado> {
+  const res = await fetch(`${API_URL}/ayudas-visuales/sync`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.detail || 'Error al iniciar la sincronización de ayudas visuales')
+  }
+  return res.json()
+}
+
+export async function getSyncAyudasEstado(): Promise<SyncAyudasEstado> {
+  const res = await fetch(`${API_URL}/ayudas-visuales/sync/estado`)
+  if (!res.ok) throw new Error('Error consultando el estado de la sincronización')
   return res.json()
 }
 
@@ -725,50 +748,6 @@ export async function getProveedores(token: string): Promise<ProveedorItem[]> {
   return res.json()
 }
 
-export async function registrarRecepcion(token: string, data: {
-  oc_id: string
-  sku_producto: string
-  cantidad_recibida: number
-  notas?: string
-}): Promise<{ message: string; recepcion_id: string; nuevo_status_oc: string }> {
-  const res = await fetch(`${API_URL}/finanzas/compras/recepcion`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify(data),
-  })
-  if (!res.ok) {
-    const err = await res.json()
-    throw new Error(err.detail || 'Error al registrar recepción')
-  }
-  return res.json()
-}
-
-export async function registrarRecepcionLote(token: string, data: {
-  oc_id: string
-  sku_producto: string
-  cantidad_recibida: number
-  notas?: string
-}[]): Promise<{ message: string; recepciones: string[]; nuevo_status_oc: string }> {
-  const res = await fetch(`${API_URL}/finanzas/compras/recepcion-lote`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify(data),
-  })
-  if (!res.ok) {
-    const err = await res.json()
-    throw new Error(err.detail || 'Error al registrar recepciones')
-  }
-  return res.json()
-}
-
-export async function getRecepciones(token: string): Promise<any[]> {
-  const res = await fetch(`${API_URL}/finanzas/recepciones`, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  if (!res.ok) throw new Error('Error al obtener recepciones')
-  return res.json()
-}
-
 export async function descargarPdfOrdenCompra(token: string, ocId: string): Promise<void> {
   const res = await fetch(`${API_URL}/finanzas/compras/${ocId}/pdf`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -1045,17 +1024,24 @@ export async function getCalidadDashboard(token: string): Promise<CalidadDashboa
 // ==========================================
 export async function getInspecciones(
   token: string,
-  params?: { tipo?: string; resultado?: string; fecha_desde?: string; fecha_hasta?: string; limite?: number }
-): Promise<InspeccionCalidad[]> {
+  params?: {
+    tipo?: string; resultado?: string; fecha_desde?: string; fecha_hasta?: string;
+    search?: string; limit?: number; offset?: number;
+  },
+  signal?: AbortSignal,
+): Promise<InspeccionesPage> {
   const searchParams = new URLSearchParams()
   if (params?.tipo) searchParams.append('tipo', params.tipo)
   if (params?.resultado) searchParams.append('resultado', params.resultado)
   if (params?.fecha_desde) searchParams.append('fecha_desde', params.fecha_desde)
   if (params?.fecha_hasta) searchParams.append('fecha_hasta', params.fecha_hasta)
-  if (params?.limite) searchParams.append('limite', params.limite.toString())
+  if (params?.search?.trim()) searchParams.append('search', params.search.trim())
+  if (params?.limit != null) searchParams.append('limit', String(params.limit))
+  if (params?.offset != null) searchParams.append('offset', String(params.offset))
   const qs = searchParams.toString()
   const res = await fetch(`${API_URL}/calidad/inspecciones${qs ? `?${qs}` : ''}`, {
     headers: { Authorization: `Bearer ${token}` },
+    signal,
   })
   if (!res.ok) throw new Error('Error al obtener inspecciones')
   return res.json()
@@ -1074,8 +1060,13 @@ export async function registrarInspeccion(token: string, data: {
   sku_producto: string
   nombre_producto?: string
   tipo_inspeccion: string
+  /** Aprobado | Rechazado | Cuarentena */
   resultado_final: string
+  /** Legado: ya no se envía desde IQC/LQC/OQC */
   resultados_puntos: { punto: string; especificacion?: string; resultado: string }[]
+  respuestas?: RespuestaInspeccion[]
+  /** Rutas devueltas por subirFotoIncidencia */
+  fotos?: string[]
   oc_origen?: string
   op_origen?: string
   cantidad_inspeccionada?: number
@@ -1091,6 +1082,61 @@ export async function registrarInspeccion(token: string, data: {
     throw new Error(err.detail || 'Error al registrar inspección')
   }
   return res.json()
+}
+
+/** Cierra una inspección en Cuarentena. Actualiza el mismo registro. */
+export async function registrarSegundaRevision(
+  token: string,
+  inspeccionId: string,
+  data: { ahora_ok: boolean; resultado: 'Aprobado' | 'Rechazado'; notas?: string },
+): Promise<{ message: string; inspeccion_id: string; resultado: string; lote_actualizado: boolean }> {
+  const res = await fetch(`${API_URL}/calidad/inspecciones/${encodeURIComponent(inspeccionId)}/segunda-revision`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.detail || 'Error al registrar la segunda revisión')
+  }
+  return res.json()
+}
+
+// ==========================================
+// CALIDAD — Evidencia fotográfica de incidencias
+// ==========================================
+/** Sube una foto de evidencia; se guarda en static/incidencias_iqc/<loteId>/.
+ *  Se llama antes de registrar la inspección: el inspector fotografía y luego
+ *  decide entre Rechazo y Cuarentena. Devuelve la ruta relativa a guardar. */
+export async function subirFotoIncidencia(token: string, loteId: string, file: File): Promise<string> {
+  const form = new FormData()
+  form.append('lote_id', loteId)
+  form.append('file', file)
+  const res = await fetch(`${API_URL}/calidad/incidencias/foto`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.detail || 'No se pudo guardar la foto')
+  }
+  const data = await res.json()
+  return data.ruta as string
+}
+
+/** El endpoint pide token y un <img src> no manda cabeceras: se baja como blob
+ *  y se pinta con un object URL (mismo patrón que las fotos de remisiones). */
+export async function getFotoIncidenciaBlob(token: string, ruta: string): Promise<Blob> {
+  const partes = ruta.split('/')
+  const nombre = partes.pop() || ''
+  const loteId = partes.pop() || ''
+  const res = await fetch(
+    `${API_URL}/calidad/incidencias/${encodeURIComponent(loteId)}/${encodeURIComponent(nombre)}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  )
+  if (!res.ok) throw new Error('No se pudo cargar la foto')
+  return res.blob()
 }
 
 export async function descargarPdfInspeccion(token: string, inspeccionId: string): Promise<void> {
@@ -1112,11 +1158,7 @@ export async function descargarPdfInspeccion(token: string, inspeccionId: string
 // ==========================================
 // CALIDAD — Puntos de inspección
 // ==========================================
-/**
- * Resuelve el QR de una etiqueta de lote para IQC. Sustituye al viejo
- * getInfoLote (/finanzas/lote/{id}), que parseaba el string del lote y
- * adivinaba el SKU con un ILIKE sobre recepciones_compra.
- */
+/** Resuelve el QR de una etiqueta de lote para IQC. */
 export async function getLoteEtiqueta(token: string, loteId: string): Promise<LoteEtiquetaInfo> {
   const res = await fetch(`${API_URL}/calidad/lote/${encodeURIComponent(loteId)}`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -1209,86 +1251,6 @@ export async function getAlmacenDashboard(token: string): Promise<AlmacenDashboa
   })
   if (!res.ok) throw new Error('Error al obtener dashboard de almacén')
   return res.json()
-}
-
-// ==========================================
-// ALMACÉN — Recepciones de Compra
-// ==========================================
-export async function getOrdenesCompraAlmacen(token: string, status?: string): Promise<OrdenCompraAlmacen[]> {
-  const params = status ? `?status=${status}` : ''
-  const res = await fetch(`${API_URL}/almacen/recepciones/ordenes-compra${params}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  if (!res.ok) throw new Error('Error al obtener órdenes de compra')
-  return res.json()
-}
-
-export async function getOrdenCompraAlmacen(token: string, ocId: string): Promise<OrdenCompraAlmacen> {
-  const res = await fetch(`${API_URL}/almacen/recepciones/ordenes-compra/${ocId}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  if (!res.ok) throw new Error('Error al obtener orden de compra')
-  return res.json()
-}
-
-export async function registrarRecepcionLoteAlmacen(token: string, data: {
-  oc_id: string
-  sku_producto: string
-  cantidad_recibida: number
-  notas?: string
-  cantidad_bultos?: number
-  numero_remision?: string
-  temperatura?: number
-  recibido_en_zona?: string
-}[]): Promise<{ message: string; recepciones: string[]; nuevo_status_oc: string }> {
-  const res = await fetch(`${API_URL}/almacen/recepciones/recepcion-lote`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify(data),
-  })
-  if (!res.ok) {
-    const err = await res.json()
-    throw new Error(err.detail || 'Error al registrar recepciones')
-  }
-  return res.json()
-}
-
-export async function descargarEtiquetaLoteAlmacen(token: string, ocId: string, sku: string): Promise<void> {
-  const res = await fetch(`${API_URL}/almacen/recepciones/ordenes-compra/${ocId}/etiqueta-lote/${encodeURIComponent(sku)}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  if (!res.ok) {
-    const err = await res.json()
-    throw new Error(err.detail || 'Error al generar etiqueta de lote')
-  }
-  const blob = await res.blob()
-  const url = window.URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `ETIQUETA_LOTE_${ocId}_${sku}.pdf`
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  window.URL.revokeObjectURL(url)
-}
-
-export async function descargarPdfDetalleOCAlmacen(token: string, ocId: string): Promise<void> {
-  const res = await fetch(`${API_URL}/almacen/recepciones/ordenes-compra/${ocId}/pdf-detalle`, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  if (!res.ok) {
-    const err = await res.json()
-    throw new Error(err.detail || 'Error al generar PDF detalle')
-  }
-  const blob = await res.blob()
-  const url = window.URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `${ocId}_recepcion.pdf`
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  window.URL.revokeObjectURL(url)
 }
 
 // ==========================================
@@ -1732,7 +1694,7 @@ export async function cancelarPicking(token: string, pickingId: string): Promise
 }
 
 // ==========================================
-// ALMACÉN — Recepciones por Foto (OCR)
+// ALMACÉN — Recepciones (captura por foto de la remisión, OCR)
 // ==========================================
 // URL relativa como todo lo demás: una absoluta a un puerto propio (ej.
 // :8000) rompe bajo HTTPS sin importar el protocolo que se use — https falla

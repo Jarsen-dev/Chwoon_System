@@ -23,3 +23,4 @@ pytz
 alembic
 psycopg2-binary
 httpx
+smbprotocol

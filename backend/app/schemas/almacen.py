@@ -78,15 +78,6 @@ class LotesInventarioPage(BaseModel):
     total: int
 
 
-class RecepcionMaterialItem(BaseModel):
-    sku_producto: str
-    cantidad_recibida: float
-
-class RecepcionMaterialRequest(BaseModel):
-    oc_id: str
-    items: List[RecepcionMaterialItem]
-
-
 class TransferenciaItem(BaseModel):
     lote_id: str
     sku_producto: str
@@ -234,66 +225,6 @@ class AlmacenDashboard(BaseModel):
     alertas_stock_minimo: list = []
     alertas_lotes_bloqueados: list = []
     stock_por_zona: dict = {}
-
-
-# ==========================================
-# RECEPCIONES DE COMPRA (vista Almacén)
-# ==========================================
-class RecepcionAlmacenCreate(BaseModel):
-    oc_id: str
-    sku_producto: str
-    cantidad_recibida: float
-    notas: Optional[str] = None
-    cantidad_bultos: Optional[int] = 1
-    numero_remision: Optional[str] = None
-    temperatura: Optional[float] = None
-    recibido_en_zona: Optional[str] = "DOCK"
-
-
-class OrdenCompraAlmacenItemResponse(BaseModel):
-    id: int
-    sku_producto: str
-    nombre_producto: str
-    cantidad_requerida: float
-    cantidad_recibida: float
-
-    class Config:
-        from_attributes = True
-
-
-class RecepcionAlmacenResponse(BaseModel):
-    id: int
-    recepcion_id: str
-    sku_producto: str
-    cantidad_recibida: float
-    fecha_recepcion: Optional[datetime] = None
-    recibido_por: Optional[str] = None
-    notas: Optional[str] = None
-    cantidad_bultos: Optional[int] = None
-    numero_remision: Optional[str] = None
-    temperatura: Optional[float] = None
-    recibido_en_zona: Optional[str] = None
-
-    class Config:
-        from_attributes = True
-
-
-class OrdenCompraAlmacenResponse(BaseModel):
-    id: int
-    oc_id: str
-    id_proveedor: str
-    nombre_proveedor: str
-    status: str
-    origen: Optional[str] = "FINANZAS"
-    fecha_creacion: Optional[datetime] = None
-    fecha_actualizacion: Optional[datetime] = None
-    notas: Optional[str] = None
-    creado_por: Optional[str] = None
-    items: List[OrdenCompraAlmacenItemResponse] = []
-    recepciones: List[RecepcionAlmacenResponse] = []
-
-    class Config:
-        from_attributes = True
 
 
 # ==========================================

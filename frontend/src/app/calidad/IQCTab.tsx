@@ -4,15 +4,15 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import {
   getLoteEtiqueta,
-  getPuntosInspeccion,
   registrarInspeccion,
   descargarPdfInspeccion,
 } from '@/lib/api';
-import type { PuntoResultado, ProductoPuntosInspeccion, LoteEtiquetaInfo } from '@/types';
+import type { LoteEtiquetaInfo } from '@/types';
 import { Button } from '@/components/ui';
+import InspeccionEvaluacion, { type EvaluacionPayload } from '@/components/calidad/InspeccionEvaluacion';
 import {
   IconBuscar, IconAlertas, IconCerrar, IconOk, IconCalidad, IconInventario,
-  IconRecepciones, IconDocumento, IconPendiente, IconCamara,
+  IconRecepciones, IconDocumento, IconCamara,
 } from '@/lib/icons';
 
 interface Props {
@@ -32,18 +32,23 @@ const MSG_FORMATO_INVALIDO =
  *  teclado — mismo tratamiento que ScannerTab y CuartoSecadoTab. */
 const normalizarLote = (texto: string) => texto.toUpperCase().replace(/\?/g, '_');
 
+const ESTILO_RESULTADO: Record<string, { caja: string; texto: string; icono: typeof IconOk }> = {
+  Aprobado:   { caja: 'bg-green-900/20 border-green-500/50', texto: 'text-green-400', icono: IconOk },
+  Rechazado:  { caja: 'bg-red-900/20 border-red-500/50',     texto: 'text-red-400',   icono: IconCerrar },
+  Cuarentena: { caja: 'bg-amber-900/20 border-amber-500/50', texto: 'text-amber-400', icono: IconAlertas },
+};
+
 export default function IQCTab({ token }: Props) {
   // ── Estado ────────────────────────────────────────────────────────
   const [modo, setModo] = useState<ModoVista>('scanner');
   const [inputValue, setInputValue] = useState('');
   const [loteInfo, setLoteInfo] = useState<LoteEtiquetaInfo | null>(null);
-  const [puntosProducto, setPuntosProducto] = useState<ProductoPuntosInspeccion | null>(null);
-  const [resultadosPuntos, setResultadosPuntos] = useState<PuntoResultado[]>([]);
   const [notas, setNotas] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [ultimaInspeccionId, setUltimaInspeccionId] = useState<string | null>(null);
+  const [ultimoResultado, setUltimoResultado] = useState<string | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const scanTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -100,31 +105,8 @@ export default function IQCTab({ token }: Props) {
     setSuccess('');
 
     try {
-      // 1. Obtener info del lote
       const info = await getLoteEtiqueta(token, codigo);
       setLoteInfo(info);
-
-      // 2. Obtener puntos de inspección del producto
-      if (info.sku_producto) {
-        try {
-          const puntos = await getPuntosInspeccion(token, info.sku_producto);
-          setPuntosProducto(puntos);
-
-          // Inicializar resultados de puntos IQC
-          const puntosIQC = puntos.puntos_inspeccion_iqc || [];
-          setResultadosPuntos(
-            puntosIQC.map((p: any) => ({
-              punto: p.punto || p.nombre || p.name || String(p),
-              especificacion: p.especificacion || p.spec || '',
-              resultado: '',
-            }))
-          );
-        } catch {
-          setPuntosProducto(null);
-          setResultadosPuntos([]);
-        }
-      }
-
       setModo('info');
     } catch (err: any) {
       setError(err.message || 'Error al consultar lote');
@@ -222,46 +204,23 @@ export default function IQCTab({ token }: Props) {
     setModo('inspeccion');
   };
 
-  // ── Actualizar resultado de un punto ──────────────────────────────
-  const actualizarPunto = (index: number, resultado: string) => {
-    setResultadosPuntos(prev =>
-      prev.map((p, i) => (i === index ? { ...p, resultado } : p))
-    );
-  };
-
-  // ── Calcular resultado final ──────────────────────────────────────
-  const calcularResultadoFinal = (): string => {
-    if (resultadosPuntos.length === 0) return 'Aprobado';
-    const todosConformes = resultadosPuntos.every(
-      p => p.resultado === 'Conforme'
-    );
-    return todosConformes ? 'Aprobado' : 'Rechazado';
-  };
-
-  // ── Todos los puntos evaluados ────────────────────────────────────
-  const todosEvaluados = resultadosPuntos.length === 0 || resultadosPuntos.every(p => p.resultado !== '');
-
   // ── Enviar inspección ─────────────────────────────────────────────
-  const enviarInspeccion = async () => {
+  const enviarInspeccion = async (payload: EvaluacionPayload) => {
     if (!loteInfo) return;
 
     setLoading(true);
     setError('');
 
     try {
-      const resultado = calcularResultadoFinal();
-
       const res = await registrarInspeccion(token, {
         lote_id: loteInfo.lote_id,
         sku_producto: loteInfo.sku_producto,
         nombre_producto: loteInfo.nombre_producto || undefined,
         tipo_inspeccion: 'IQC',
-        resultado_final: resultado,
-        resultados_puntos: resultadosPuntos.map(p => ({
-          punto: p.punto,
-          especificacion: p.especificacion || '',
-          resultado: p.resultado || 'No evaluado',
-        })),
+        resultado_final: payload.resultado_final,
+        resultados_puntos: [],
+        respuestas: payload.respuestas,
+        fotos: payload.fotos,
         // Sin oc_origen: esta recepción viene de una hoja de remisión, no de
         // una OC (por eso tampoco corre el scoring de proveedor en el backend).
         cantidad_inspeccionada: loteInfo.cantidad,
@@ -269,7 +228,8 @@ export default function IQCTab({ token }: Props) {
       });
 
       setUltimaInspeccionId(res.inspeccion_id);
-      setSuccess(`Inspección ${res.inspeccion_id} registrada — Resultado: ${resultado}`);
+      setUltimoResultado(payload.resultado_final);
+      setSuccess(`Inspección ${res.inspeccion_id} registrada — Resultado: ${payload.resultado_final}`);
       setModo('resultado');
     } catch (err: any) {
       setError(err.message || 'Error al registrar inspección');
@@ -292,11 +252,10 @@ export default function IQCTab({ token }: Props) {
   const nuevoEscaneo = () => {
     setModo('scanner');
     setLoteInfo(null);
-    setPuntosProducto(null);
-    setResultadosPuntos([]);
     setNotas('');
     setInputValue('');
     setUltimaInspeccionId(null);
+    setUltimoResultado(null);
     setError('');
     setSuccess('');
     setTimeout(() => inputRef.current?.focus(), 100);
@@ -415,22 +374,22 @@ export default function IQCTab({ token }: Props) {
                   <span className="font-mono text-white">{loteInfo.lote_id}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400">SKU:</span>
+                  <span className="text-gray-400">Número de parte:</span>
                   <span className="font-mono text-white">{loteInfo.sku_producto}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Nombre:</span>
-                  <span className="text-white">{loteInfo.nombre_producto || 'N/A'}</span>
+                <div className="flex justify-between gap-3">
+                  <span className="text-gray-400 shrink-0">Descripción:</span>
+                  <span className="text-white text-right">{loteInfo.nombre_producto || 'N/A'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Cantidad de esta caja:</span>
+                  <span className="text-gray-400">Cantidad:</span>
                   <span className="text-white font-semibold">
                     {loteInfo.cantidad.toLocaleString('es-MX')} {loteInfo.unidad_de_medida || ''}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Bulto:</span>
-                  <span className="text-white">Caja {loteInfo.secuencia} de {loteInfo.total_etiquetas}</span>
+                  <span className="text-gray-400">Tarima:</span>
+                  <span className="text-white">{loteInfo.secuencia} de {loteInfo.total_etiquetas}</span>
                 </div>
               </div>
             </div>
@@ -467,23 +426,6 @@ export default function IQCTab({ token }: Props) {
             </div>
           </div>
 
-          {/* Puntos de inspección disponibles */}
-          {puntosProducto && puntosProducto.puntos_inspeccion_iqc.length > 0 && (
-            <div className="bg-gray-900 rounded-xl border border-gray-700 p-6">
-              <h3 className="text-lg font-semibold text-yellow-400 mb-3 flex items-center gap-2"><IconDocumento size={18} aria-hidden /> Puntos de Inspección IQC</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {puntosProducto.puntos_inspeccion_iqc.map((p: any, i: number) => (
-                  <div key={i} className="bg-gray-800 rounded-lg px-4 py-2 text-sm flex items-center gap-2">
-                    <span className="text-cyan-400">•</span>
-                    <span>{p.punto || p.nombre || p.name || String(p)}</span>
-                    {p.especificacion && (
-                      <span className="text-gray-500 ml-auto text-xs">{p.especificacion}</span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       )}
 
@@ -501,124 +443,37 @@ export default function IQCTab({ token }: Props) {
             <Button variant="secondary" onClick={() => setModo('info')}>Volver a Info</Button>
           </div>
 
-          {/* Tabla de puntos de inspección */}
-          {resultadosPuntos.length > 0 ? (
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-gray-800">
-                    <th className="text-left px-6 py-3 text-sm font-semibold text-gray-300">#</th>
-                    <th className="text-left px-6 py-3 text-sm font-semibold text-gray-300">Punto de Inspección</th>
-                    <th className="text-left px-6 py-3 text-sm font-semibold text-gray-300">Especificación</th>
-                    <th className="text-center px-6 py-3 text-sm font-semibold text-gray-300">Resultado</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {resultadosPuntos.map((punto, idx) => (
-                    <tr key={idx} className={`border-t border-gray-800 ${
-                      punto.resultado === 'Conforme' ? 'bg-green-900/10' :
-                      punto.resultado === 'No Conforme' ? 'bg-red-900/10' : ''
-                    }`}>
-                      <td className="px-6 py-3 text-sm text-gray-500">{idx + 1}</td>
-                      <td className="px-6 py-3 text-sm text-white">{punto.punto}</td>
-                      <td className="px-6 py-3 text-sm text-gray-400">{punto.especificacion || '—'}</td>
-                      <td className="px-6 py-3">
-                        <div className="flex gap-2 justify-center">
-                          <button
-                            onClick={() => actualizarPunto(idx, 'Conforme')}
-                            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                              punto.resultado === 'Conforme'
-                                ? 'bg-green-600 text-white'
-                                : 'bg-gray-700 text-gray-300 hover:bg-green-800 hover:text-green-300'
-                            }`}
-                          >
-                            <IconOk size={14} aria-hidden /> Conforme
-                          </button>
-                          <button
-                            onClick={() => actualizarPunto(idx, 'No Conforme')}
-                            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                              punto.resultado === 'No Conforme'
-                                ? 'bg-red-600 text-white'
-                                : 'bg-gray-700 text-gray-300 hover:bg-red-800 hover:text-red-300'
-                            }`}
-                          >
-                            <IconCerrar size={14} aria-hidden /> No Conforme
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="bg-gray-900 rounded-xl border border-yellow-500/30 p-6 text-center">
-              <p className="text-yellow-400 flex items-center justify-center gap-2"><IconAlertas size={16} aria-hidden /> Este producto no tiene puntos de inspección IQC configurados.</p>
-              <p className="text-gray-300 text-sm mt-2">La inspección se registrará sin puntos de evaluación.</p>
-            </div>
-          )}
-
-          {/* Notas */}
-          <div className="bg-gray-900 rounded-xl border border-gray-700 p-6">
-            <label className="block text-sm font-semibold text-gray-300 mb-2 flex items-center gap-2"><IconDocumento size={16} aria-hidden /> Notas (opcional)</label>
-            <textarea
-              value={notas}
-              onChange={(e) => setNotas(e.target.value)}
-              placeholder="Observaciones adicionales de la inspección..."
-              className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-sm text-white
-                         placeholder-gray-500 focus:outline-none focus:border-cyan-500 resize-y"
-              rows={3}
-            />
-          </div>
-
-          {/* Resumen y enviar */}
-          <div className="bg-gray-900 rounded-xl border border-gray-700 p-6 flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-400">
-                Puntos evaluados: <span className="text-white font-semibold">
-                  {resultadosPuntos.filter(p => p.resultado).length}/{resultadosPuntos.length}
-                </span>
-              </p>
-              <p className="text-sm mt-1">
-                Resultado esperado:{' '}
-                <span className={`inline-flex items-center gap-1 font-bold ${
-                  !todosEvaluados ? 'text-gray-400' :
-                  calcularResultadoFinal() === 'Aprobado' ? 'text-green-400' : 'text-red-400'
-                }`}>
-                  {!todosEvaluados ? 'Pendiente...' : calcularResultadoFinal() === 'Aprobado' ? <><IconOk size={14} aria-hidden /> APROBADO</> : <><IconCerrar size={14} aria-hidden /> RECHAZADO</>}
-                </span>
-              </p>
-            </div>
-            <Button
-              size="lg"
-              onClick={enviarInspeccion}
-              disabled={loading || (!todosEvaluados && resultadosPuntos.length > 0)}
-              leftIcon={loading ? IconPendiente : IconOk}
-            >
-              {loading ? 'Registrando...' : 'Registrar Inspección'}
-            </Button>
-          </div>
+          {/* Ayudas visuales + preguntas + notas + evidencia */}
+          <InspeccionEvaluacion
+            token={token}
+            sku={loteInfo.sku_producto}
+            loteId={loteInfo.lote_id}
+            onRegistrar={enviarInspeccion}
+            guardando={loading}
+            notas={notas}
+            onNotasChange={setNotas}
+          />
         </div>
       )}
 
       {/* ═══ MODO: RESULTADO ═══ */}
       {modo === 'resultado' && loteInfo && (
         <div className="space-y-6">
-          <div className={`rounded-xl border-2 p-8 text-center ${
-            calcularResultadoFinal() === 'Aprobado'
-              ? 'bg-green-900/20 border-green-500/50'
-              : 'bg-red-900/20 border-red-500/50'
-          }`}>
+          <div className={`rounded-xl border-2 p-8 text-center ${ESTILO_RESULTADO[ultimoResultado ?? 'Rechazado'].caja}`}>
             <div className="flex justify-center mb-4">
-              {calcularResultadoFinal() === 'Aprobado'
-                ? <IconOk size={56} className="text-green-400" aria-hidden />
-                : <IconCerrar size={56} className="text-red-400" aria-hidden />}
+              {(() => {
+                const Icono = ESTILO_RESULTADO[ultimoResultado ?? 'Rechazado'].icono;
+                return <Icono size={56} className={ESTILO_RESULTADO[ultimoResultado ?? 'Rechazado'].texto} aria-hidden />;
+              })()}
             </div>
-            <h2 className={`text-3xl font-bold ${
-              calcularResultadoFinal() === 'Aprobado' ? 'text-green-400' : 'text-red-400'
-            }`}>
-              {calcularResultadoFinal() === 'Aprobado' ? 'APROBADO' : 'RECHAZADO'}
+            <h2 className={`text-3xl font-bold ${ESTILO_RESULTADO[ultimoResultado ?? 'Rechazado'].texto}`}>
+              {(ultimoResultado ?? 'Rechazado').toUpperCase()}
             </h2>
+            {ultimoResultado === 'Cuarentena' && (
+              <p className="text-amber-300/80 text-sm mt-2">
+                El lote queda retenido; resuélvelo desde Historial → Cuarentena → Segunda revisión.
+              </p>
+            )}
             <p className="text-gray-400 mt-2">
               Lote: <span className="font-mono text-white">{loteInfo.lote_id}</span>
               {' — '}SKU: <span className="font-mono text-white">{loteInfo.sku_producto}</span>

@@ -16,6 +16,9 @@ class TipoInspeccion(str, enum.Enum):
 class ResultadoInspeccion(str, enum.Enum):
     Aprobado = "Aprobado"
     Rechazado = "Rechazado"
+    # Retención: el lote no entra a inventario, pero se puede recuperar en una
+    # segunda revisión que lo cierra como Aprobado o Rechazado.
+    Cuarentena = "Cuarentena"
 
 
 def _ahora_naive():
@@ -35,7 +38,15 @@ class Inspeccion(Base):
     fecha                  = Column(DateTime, default=_ahora_naive)
     inspector              = Column(String(100), nullable=False)
     resultado_final        = Column(SAEnum(ResultadoInspeccion), nullable=False)
+    # Legado: los puntos de inspección del producto. Ya no se escribe — se
+    # conserva para que el historial anterior al cambio siga siendo legible.
     resultados_puntos      = Column(JSON, default=[])
+    # [{pregunta, respuesta: "Si"|"No", motivo}] — el nuevo flujo de evaluación
+    respuestas             = Column(JSON, default=[])
+    # Rutas relativas a static/: "incidencias_iqc/<lote_id>/<uuid>.jpg"
+    fotos                  = Column(JSON, default=[])
+    # {fecha, revisor, ahora_ok, resultado, notas, motivos_previos: []}
+    segunda_revision       = Column(JSON, nullable=True)
     oc_origen              = Column(String(100), nullable=True)
     op_origen              = Column(String(100), nullable=True)
     # Float, no Integer: las cantidades de remisión son Numeric(12,2) y las de

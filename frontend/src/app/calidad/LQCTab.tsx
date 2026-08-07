@@ -5,15 +5,15 @@ import { Html5Qrcode } from 'html5-qrcode';
 import {
   getProducto,
   searchProductos,
-  getPuntosInspeccion,
   registrarInspeccion,
   descargarPdfInspeccion,
 } from '@/lib/api';
-import type { PuntoResultado, ProductoPuntosInspeccion, CaracteristicasInyeccion } from '@/types';
+import type { CaracteristicasInyeccion } from '@/types';
 import { Button } from '@/components/ui';
+import InspeccionEvaluacion, { type EvaluacionPayload } from '@/components/calidad/InspeccionEvaluacion';
 import {
   IconProduccion, IconCalidad, IconCamara, IconInventario, IconInyeccion,
-  IconDocumento, IconOk, IconCerrar, IconAlertas, IconBuscar, IconPendiente,
+  IconDocumento, IconOk, IconCerrar, IconAlertas, IconBuscar,
 } from '@/lib/icons';
 
 interface Props {
@@ -65,18 +65,23 @@ function parseQRInyeccion(codigo: string): {
   return { parte, turno, fecha, maquina, carrito };
 }
 
+const ESTILO_RESULTADO: Record<string, { caja: string; texto: string; icono: typeof IconOk }> = {
+  Aprobado:   { caja: 'bg-green-900/20 border-green-500/50', texto: 'text-green-400', icono: IconOk },
+  Rechazado:  { caja: 'bg-red-900/20 border-red-500/50',     texto: 'text-red-400',   icono: IconCerrar },
+  Cuarentena: { caja: 'bg-amber-900/20 border-amber-500/50', texto: 'text-amber-400', icono: IconAlertas },
+};
+
 export default function LQCTab({ token }: Props) {
   // ── Estado ────────────────────────────────────────────────────────
   const [modo, setModo] = useState<ModoVista>('scanner');
   const [inputValue, setInputValue] = useState('');
   const [loteInfo, setLoteInfo] = useState<LoteInfoLQC | null>(null);
-  const [puntosProducto, setPuntosProducto] = useState<ProductoPuntosInspeccion | null>(null);
-  const [resultadosPuntos, setResultadosPuntos] = useState<PuntoResultado[]>([]);
   const [notas, setNotas] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [ultimaInspeccionId, setUltimaInspeccionId] = useState<string | null>(null);
+  const [ultimoResultado, setUltimoResultado] = useState<string | null>(null);
 
   // ── Scanner cámara ────────────────────────────────────────────────
   const [scannerOpen, setScannerOpen] = useState(false);
@@ -153,14 +158,6 @@ export default function LQCTab({ token }: Props) {
 
       const skuCompleto = producto.sku;
 
-      // Obtener puntos LQC (usar SKU completo)
-      let puntos: ProductoPuntosInspeccion | null = null;
-      try {
-        puntos = await getPuntosInspeccion(token, skuCompleto);
-      } catch {
-        puntos = null;
-      }
-
       setLoteInfo({
         qr_raw: raw.trim().toUpperCase(),
         numero_parte: parsed.parte,
@@ -182,26 +179,15 @@ export default function LQCTab({ token }: Props) {
         caracteristicas_inyeccion: producto.caracteristicas_inyeccion,
       });
 
-      setPuntosProducto(puntos);
-      if (puntos && puntos.puntos_inspeccion_lqc) {
-        setResultadosPuntos(
-          puntos.puntos_inspeccion_lqc.map((p: any) => ({
-            punto: p.punto || p.nombre || p.name || String(p),
-            especificacion: p.especificacion || p.spec || '',
-            resultado: '',
-          }))
-        );
-      } else {
-        setResultadosPuntos([]);
-      }
-
       setModo('info');
     } catch (err: any) {
       setError(err.message || 'Error al procesar código QR');
     } finally {
       setLoading(false);
     }
-  }, [token]);
+    // Sin dependencias: getProducto y searchProductos son endpoints públicos,
+    // aquí ya no se piden los puntos de inspección con el token.
+  }, []);
 
   // Guardar ref siempre actualizada
   useEffect(() => {
@@ -292,51 +278,33 @@ export default function LQCTab({ token }: Props) {
     setModo('inspeccion');
   };
 
-  // ── Actualizar resultado de un punto ──────────────────────────────
-  const actualizarPunto = (index: number, resultado: string) => {
-    setResultadosPuntos(prev =>
-      prev.map((p, i) => (i === index ? { ...p, resultado } : p))
-    );
-  };
-
-  // ── Calcular resultado final ──────────────────────────────────────
-  const calcularResultadoFinal = (): string => {
-    if (resultadosPuntos.length === 0) return 'Aprobado';
-    const todosConformes = resultadosPuntos.every(
-      p => p.resultado === 'Conforme'
-    );
-    return todosConformes ? 'Aprobado' : 'Rechazado';
-  };
-
-  // ── Todos los puntos evaluados ────────────────────────────────────
-  const todosEvaluados = resultadosPuntos.length === 0 || resultadosPuntos.every(p => p.resultado !== '');
-
   // ── Enviar inspección ─────────────────────────────────────────────
-  const enviarInspeccion = async () => {
+  const enviarInspeccion = async (payload: EvaluacionPayload) => {
     if (!loteInfo) return;
 
     setLoading(true);
     setError('');
 
     try {
-      const resultado = calcularResultadoFinal();
-
       const res = await registrarInspeccion(token, {
+        // El QR del carrito identifica el lote inspeccionado: nombra la carpeta
+        // de evidencia y llena la columna Lote ID del historial. El backend solo
+        // toca lotes_inventario cuando el tipo es IQC, así que no afecta stock.
+        lote_id: loteInfo.qr_raw,
         sku_producto: loteInfo.sku_producto,
         nombre_producto: loteInfo.nombre_producto || undefined,
         tipo_inspeccion: 'LQC',
-        resultado_final: resultado,
-        resultados_puntos: resultadosPuntos.map(p => ({
-          punto: p.punto,
-          especificacion: p.especificacion || '',
-          resultado: p.resultado || 'No evaluado',
-        })),
+        resultado_final: payload.resultado_final,
+        resultados_puntos: [],
+        respuestas: payload.respuestas,
+        fotos: payload.fotos,
         cantidad_inspeccionada: loteInfo.cantidad_carrito,
         notas: notas || undefined,
       });
 
       setUltimaInspeccionId(res.inspeccion_id);
-      setSuccess(`Inspección LQC ${res.inspeccion_id} — Resultado: ${resultado}`);
+      setUltimoResultado(payload.resultado_final);
+      setSuccess(`Inspección LQC ${res.inspeccion_id} — Resultado: ${payload.resultado_final}`);
       setModo('resultado');
     } catch (err: any) {
       setError(err.message || 'Error al registrar inspección');
@@ -359,11 +327,10 @@ export default function LQCTab({ token }: Props) {
   const nuevoEscaneo = () => {
     setModo('scanner');
     setLoteInfo(null);
-    setPuntosProducto(null);
-    setResultadosPuntos([]);
     setNotas('');
     setInputValue('');
     setUltimaInspeccionId(null);
+    setUltimoResultado(null);
     setError('');
     setSuccess('');
     setTimeout(() => inputRef.current?.focus(), 100);
@@ -558,23 +525,6 @@ export default function LQCTab({ token }: Props) {
             </div>
           </div>
 
-          {/* Puntos de inspección disponibles */}
-          {puntosProducto && puntosProducto.puntos_inspeccion_lqc && puntosProducto.puntos_inspeccion_lqc.length > 0 && (
-            <div className="bg-gray-900 rounded-xl border border-gray-700 p-6">
-              <h3 className="text-lg font-semibold text-yellow-400 mb-3 flex items-center gap-2"><IconDocumento size={18} aria-hidden /> Puntos de Inspección LQC</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {puntosProducto.puntos_inspeccion_lqc.map((p: any, i: number) => (
-                  <div key={i} className="bg-gray-800 rounded-lg px-4 py-2 text-sm flex items-center gap-2">
-                    <span className="text-purple-400">•</span>
-                    <span>{p.punto || p.nombre || p.name || String(p)}</span>
-                    {p.especificacion && (
-                      <span className="text-gray-500 ml-auto text-xs">{p.especificacion}</span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       )}
 
@@ -592,124 +542,37 @@ export default function LQCTab({ token }: Props) {
             <Button variant="secondary" onClick={() => setModo('info')}>Volver a Info</Button>
           </div>
 
-          {/* Tabla de puntos de inspección */}
-          {resultadosPuntos.length > 0 ? (
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-gray-800">
-                    <th className="text-left px-6 py-3 text-sm font-semibold text-gray-300">#</th>
-                    <th className="text-left px-6 py-3 text-sm font-semibold text-gray-300">Punto de Inspección</th>
-                    <th className="text-left px-6 py-3 text-sm font-semibold text-gray-300">Especificación</th>
-                    <th className="text-center px-6 py-3 text-sm font-semibold text-gray-300">Resultado</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {resultadosPuntos.map((punto, idx) => (
-                    <tr key={idx} className={`border-t border-gray-800 ${
-                      punto.resultado === 'Conforme' ? 'bg-green-900/10' :
-                      punto.resultado === 'No Conforme' ? 'bg-red-900/10' : ''
-                    }`}>
-                      <td className="px-6 py-3 text-sm text-gray-500">{idx + 1}</td>
-                      <td className="px-6 py-3 text-sm text-white">{punto.punto}</td>
-                      <td className="px-6 py-3 text-sm text-gray-400">{punto.especificacion || '—'}</td>
-                      <td className="px-6 py-3">
-                        <div className="flex gap-2 justify-center">
-                          <button
-                            onClick={() => actualizarPunto(idx, 'Conforme')}
-                            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                              punto.resultado === 'Conforme'
-                                ? 'bg-green-600 text-white'
-                                : 'bg-gray-700 text-gray-300 hover:bg-green-800 hover:text-green-300'
-                            }`}
-                          >
-                            <IconOk size={14} aria-hidden /> Conforme
-                          </button>
-                          <button
-                            onClick={() => actualizarPunto(idx, 'No Conforme')}
-                            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                              punto.resultado === 'No Conforme'
-                                ? 'bg-red-600 text-white'
-                                : 'bg-gray-700 text-gray-300 hover:bg-red-800 hover:text-red-300'
-                            }`}
-                          >
-                            <IconCerrar size={14} aria-hidden /> No Conforme
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="bg-gray-900 rounded-xl border border-yellow-500/30 p-6 text-center">
-              <p className="text-yellow-400 flex items-center justify-center gap-2"><IconAlertas size={16} aria-hidden /> Este producto no tiene puntos de inspección LQC configurados.</p>
-              <p className="text-gray-300 text-sm mt-2">La inspección se registrará sin puntos de evaluación.</p>
-            </div>
-          )}
-
-          {/* Notas */}
-          <div className="bg-gray-900 rounded-xl border border-gray-700 p-6">
-            <label className="block text-sm font-semibold text-gray-300 mb-2 flex items-center gap-2"><IconDocumento size={16} aria-hidden /> Notas (opcional)</label>
-            <textarea
-              value={notas}
-              onChange={(e) => setNotas(e.target.value)}
-              placeholder="Observaciones adicionales de la inspección..."
-              className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-sm text-white
-                         placeholder-gray-500 focus:outline-none focus:border-purple-500 resize-y"
-              rows={3}
-            />
-          </div>
-
-          {/* Resumen y enviar */}
-          <div className="bg-gray-900 rounded-xl border border-gray-700 p-6 flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-400">
-                Puntos evaluados: <span className="text-white font-semibold">
-                  {resultadosPuntos.filter(p => p.resultado).length}/{resultadosPuntos.length}
-                </span>
-              </p>
-              <p className="text-sm mt-1">
-                Resultado esperado:{' '}
-                <span className={`inline-flex items-center gap-1 font-bold ${
-                  !todosEvaluados ? 'text-gray-400' :
-                  calcularResultadoFinal() === 'Aprobado' ? 'text-green-400' : 'text-red-400'
-                }`}>
-                  {!todosEvaluados ? 'Pendiente...' : calcularResultadoFinal() === 'Aprobado' ? <><IconOk size={14} aria-hidden /> APROBADO</> : <><IconCerrar size={14} aria-hidden /> RECHAZADO</>}
-                </span>
-              </p>
-            </div>
-            <Button
-              size="lg"
-              onClick={enviarInspeccion}
-              disabled={loading || (!todosEvaluados && resultadosPuntos.length > 0)}
-              leftIcon={loading ? IconPendiente : IconOk}
-            >
-              {loading ? 'Registrando...' : 'Registrar Inspección LQC'}
-            </Button>
-          </div>
+          {/* Ayudas visuales + preguntas + notas + evidencia */}
+          <InspeccionEvaluacion
+            token={token}
+            sku={loteInfo.sku_producto}
+            loteId={loteInfo.qr_raw}
+            onRegistrar={enviarInspeccion}
+            guardando={loading}
+            notas={notas}
+            onNotasChange={setNotas}
+          />
         </div>
       )}
 
       {/* ═══ MODO: RESULTADO ═══ */}
       {modo === 'resultado' && loteInfo && (
         <div className="space-y-6">
-          <div className={`rounded-xl border-2 p-8 text-center ${
-            calcularResultadoFinal() === 'Aprobado'
-              ? 'bg-green-900/20 border-green-500/50'
-              : 'bg-red-900/20 border-red-500/50'
-          }`}>
+          <div className={`rounded-xl border-2 p-8 text-center ${ESTILO_RESULTADO[ultimoResultado ?? 'Rechazado'].caja}`}>
             <div className="flex justify-center mb-4">
-              {calcularResultadoFinal() === 'Aprobado'
-                ? <IconOk size={56} className="text-green-400" aria-hidden />
-                : <IconCerrar size={56} className="text-red-400" aria-hidden />}
+              {(() => {
+                const Icono = ESTILO_RESULTADO[ultimoResultado ?? 'Rechazado'].icono;
+                return <Icono size={56} className={ESTILO_RESULTADO[ultimoResultado ?? 'Rechazado'].texto} aria-hidden />;
+              })()}
             </div>
-            <h2 className={`text-3xl font-bold ${
-              calcularResultadoFinal() === 'Aprobado' ? 'text-green-400' : 'text-red-400'
-            }`}>
-              {calcularResultadoFinal() === 'Aprobado' ? 'APROBADO' : 'RECHAZADO'}
+            <h2 className={`text-3xl font-bold ${ESTILO_RESULTADO[ultimoResultado ?? 'Rechazado'].texto}`}>
+              {(ultimoResultado ?? 'Rechazado').toUpperCase()}
             </h2>
+            {ultimoResultado === 'Cuarentena' && (
+              <p className="text-amber-300/80 text-sm mt-2">
+                Resuélvelo desde Historial → Cuarentena → Segunda revisión.
+              </p>
+            )}
             <p className="text-gray-400 mt-2">
               Parte: <span className="font-mono text-white">{loteInfo.numero_parte_completo}</span>
               {' — '}SKU: <span className="font-mono text-white">{loteInfo.sku_producto}</span>

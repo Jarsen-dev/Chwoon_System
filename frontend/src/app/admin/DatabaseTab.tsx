@@ -7,7 +7,7 @@ import {
   IconDatabase, IconSistema, IconActualizar, IconCerrar, IconConfig, IconAlertas,
   IconEtiquetas, IconGrafico, IconContador, IconCamara, IconSecado, IconPreExpansion,
   IconProduccion, IconVentas, IconInventario, IconEliminar, IconCompletado,
-  IconDocumento, IconDemanda, IconLogistica, IconRecepciones, IconCompras,
+  IconDocumento, IconDemanda, IconLogistica,
   IconUbicaciones, type LucideIcon,
 } from '@/lib/icons'
 
@@ -413,33 +413,6 @@ export default function DatabaseTab({ token }: Props) {
               'vaciar-ubicaciones',
               'Vaciar Ubicaciones',
               '¿ELIMINAR TODAS las ubicaciones de Almacén (racks, silos, zonas)? Los lotes de inventario que estaban en alguna ubicación quedarán como "sin ubicar" (no se eliminan ni pierden cantidad). Acción NO reversible.'
-            )}
-            danger
-          />
-        </div>
-      </div>
-
-      {/* ═══ ACCIONES COMPRAS ═══ */}
-      <div>
-        <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider mb-1 flex items-center gap-2">
-          <IconCompras size={16} aria-hidden /> Compras — Limpieza de Datos
-        </h3>
-        <p className="text-xs text-gray-500 mb-4">
-          Estas acciones eliminan registros del módulo de Compras. Son irreversibles.
-        </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <DbActionCard
-            icon={IconRecepciones}
-            title="Vaciar Recepciones de Compra"
-            description="Elimina TODAS las recepciones registradas en Almacén › Recepciones (no afecta Recepciones por Foto)"
-            count={getCount('recepciones_compra')}
-            buttonLabel="Vaciar Recepciones"
-            buttonColor="bg-red-600 hover:bg-red-700"
-            loading={dbActionLoading === 'vaciar-recepciones-compra'}
-            onClick={() => confirmarAccionDB(
-              'vaciar-recepciones-compra',
-              'Vaciar Recepciones de Compra',
-              '¿ELIMINAR TODAS las recepciones de compra (Almacén › Recepciones)? Esto NO afecta las Recepciones por Foto (remisiones OCR), ni revierte las cantidades ya recibidas en las OC, el estado de las órdenes, ni los lotes de inventario ya generados. Acción NO reversible.'
             )}
             danger
           />

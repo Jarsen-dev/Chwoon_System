@@ -9,7 +9,6 @@ import { getModuleTheme } from '@/lib/theme';
 import {
   IconDashboard,
   IconRecepciones,
-  IconCamara,
   IconInventario,
   IconUbicaciones,
   IconTraslados,
@@ -20,7 +19,6 @@ import {
   IconConfig,
 } from '@/lib/icons';
 import DashboardTab    from './DashboardTab';
-import RecepcionesTab  from './RecepcionesTab';
 import RecepcionesOCRTab from './RecepcionesOCRTab';
 import InventarioTab   from './InventarioTab';
 import UbicacionesTab  from './UbicacionesTab';
@@ -34,7 +32,6 @@ import ConfiguracionTab from './ConfiguracionTab';
 const ALL_TABS: TabDef[] = [
   { id: 'dashboard',     label: 'Dashboard',     icon: IconDashboard },
   { id: 'recepciones',   label: 'Recepciones',   icon: IconRecepciones },
-  { id: 'recepciones-ocr', label: 'Recepciones por Foto', icon: IconCamara },
   { id: 'inventario',    label: 'Inventario',    icon: IconInventario },
   { id: 'ubicaciones',   label: 'Ubicaciones',   icon: IconUbicaciones },
   { id: 'traslados',     label: 'Traslados',     icon: IconTraslados },
@@ -88,8 +85,7 @@ export default function AlmacenPage() {
       onLogout={logout}
     >
       {activeTab === 'dashboard'    && <DashboardTab    token={token} />}
-      {activeTab === 'recepciones'  && <RecepcionesTab  token={token} />}
-      {activeTab === 'recepciones-ocr' && <RecepcionesOCRTab token={token} />}
+      {activeTab === 'recepciones'  && <RecepcionesOCRTab token={token} />}
       {activeTab === 'inventario'   && <InventarioTab   token={token} />}
       {activeTab === 'ubicaciones'  && <UbicacionesTab  token={token} />}
       {activeTab === 'traslados'    && <TrasladosTab    token={token} />}

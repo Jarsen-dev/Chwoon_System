@@ -1,6 +1,6 @@
 'use client'
 
-import { ProductoItem, ProductoListItem, ProductoCreate, ProductoUpdate, BomItem, AyudaVisual } from '@/types'
+import { ProductoItem, ProductoListItem, ProductoCreate, ProductoUpdate, BomItem, SyncAyudasEstado } from '@/types'
 import { useCallback, useEffect, useState, useRef } from 'react'
 import {
   getProductosPage,
@@ -15,14 +15,12 @@ import {
   actualizarBom,
   importarProductosExcel,
   importarBomExcel,
-  getAyudasVisuales,
-  reindexarAyudasVisuales,
-  ayudaVisualThumbnailUrl,
-  ayudaVisualPdfUrl,
+  iniciarSyncAyudas,
+  getSyncAyudasEstado,
 } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
-import { Modal, Button, LoadingSpinner, Pagination } from '@/components/ui'
+import { Modal, Button, LoadingSpinner, Pagination, AyudasVisualesGrid } from '@/components/ui'
 import {
   IconOk, IconAlertas, IconInfo, IconEliminar, IconLista, IconNuevo, IconGuardar,
   IconBuscar, IconInventario, IconEditar, IconDocumento, IconPendiente,
@@ -51,6 +49,14 @@ const UNIDADES_BOM = [
   { value: 'm', label: 'Metro (m)' },
   { value: 'kg', label: 'Kilogramo (Kg)' },
 ]
+// Texto del botón mientras corre el sync: fase + avance (0 = aún contando)
+const etiquetaSync = (e: SyncAyudasEstado | null) => {
+  const avance = e && e.total > 0 ? ` ${e.actual}/${e.total}` : '…'
+  if (e?.fase === 'nube') return `Sincronizando${avance}`
+  if (e?.fase === 'indice') return `Indexando${avance}`
+  return 'Sincronizando…'
+}
+
 // Unidad a mostrar: la guardada gana; BOMs legados sin unidad se infieren de la cantidad
 const unidadBom = (item: BomItem) =>
   item.unidad || (Number.isInteger(item.cantidad) ? 'pza' : 'm')
@@ -160,8 +166,10 @@ export default function ProductosTab() {
   // Ayudas Visuales Modal
   const { rol, token } = useAuth()
   const [avModal, setAvModal] = useState<ProductoListItem | null>(null)
-  const [ayudas, setAyudas] = useState<AyudaVisual[] | null>(null) // null = cargando
-  const [isReindexing, setIsReindexing] = useState(false)
+  // Sync del espejo Synology → disco: corre en background, se sigue por polling.
+  const [syncEstado, setSyncEstado] = useState<SyncAyudasEstado | null>(null)
+  const syncPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const isReindexing = syncEstado?.estado === 'corriendo'
 
   useEffect(() => {
     setShowInyeccion(formData.clase_producto === 'INYECCIÓN')
@@ -728,53 +736,113 @@ export default function ProductosTab() {
   }
 
   // ── Ayudas Visuales ──
-  const openAvModal = async (item: ProductoListItem) => {
-    setAvModal(item)
-    setAyudas(null)
-    try {
-      setAyudas(await getAyudasVisuales(item.sku))
-    } catch {
-      setAyudas([])
+  // La carga vive dentro de AyudasVisualesGrid; aquí solo se abre el modal.
+  const openAvModal = (item: ProductoListItem) => setAvModal(item)
+
+  const detenerPolling = () => {
+    if (syncPollRef.current) {
+      clearInterval(syncPollRef.current)
+      syncPollRef.current = null
+    }
+  }
+
+  const reportarSync = (e: SyncAyudasEstado) => {
+    if (e.estado === 'error') {
       setModalInfo({
-        title: 'Error de Conexión',
-        message: 'No se pudieron cargar las ayudas visuales.',
+        title: 'Error al Sincronizar',
+        message: e.error || 'No se pudo sincronizar con la nube.',
+        type: 'error',
+      })
+      return
+    }
+    const { nube: n, indice: i } = e
+    const detalles = [
+      n
+        ? `Nube: ${n.archivos_remotos} PDFs en el Synology → ${n.copiados} copiados, ` +
+          `${n.actualizados} actualizados, ${n.borrados} borrados, ${n.sin_cambios} sin cambios`
+        : '',
+      n?.prune_omitido
+        ? 'Aviso: hubo errores de lectura en la nube, así que no se borró nada del espejo local.'
+        : '',
+      i
+        ? `Índice: ${i.indexados} ayudas (${i.nuevos} nuevas, ${i.actualizados} actualizadas, ` +
+          `${i.eliminados} eliminadas), ${i.thumbnails_generados} miniaturas generadas`
+        : '',
+      i?.sin_producto.length
+        ? `Sin producto asociado (${i.sin_producto.length}): ${i.sin_producto.slice(0, 10).join(', ')}${i.sin_producto.length > 10 ? '…' : ''}`
+        : '',
+      n?.errores.length
+        ? `Errores de nube (${n.errores.length}): ${n.errores.slice(0, 5).join(' | ')}`
+        : '',
+      i?.errores.length
+        ? `Errores de índice (${i.errores.length}): ${i.errores.slice(0, 5).join(' | ')}`
+        : '',
+    ]
+      .filter(Boolean)
+      .join('\n')
+
+    const huboErrores = Boolean(n?.errores.length || i?.errores.length || n?.prune_omitido)
+    setModalInfo({
+      title: 'Sincronización Completada',
+      message: detalles,
+      type: huboErrores ? 'info' : 'success',
+    })
+  }
+
+  const iniciarPolling = () => {
+    detenerPolling()
+    syncPollRef.current = setInterval(async () => {
+      try {
+        const e = await getSyncAyudasEstado()
+        setSyncEstado(e)
+        if (e.estado !== 'corriendo') {
+          detenerPolling()
+          reportarSync(e)
+        }
+      } catch {
+        // Backend inalcanzable a media corrida: dejar de sondear y avisar.
+        detenerPolling()
+        setSyncEstado(null)
+        setModalInfo({
+          title: 'Error de Conexión',
+          message: 'Se perdió la conexión con el backend durante la sincronización.',
+          type: 'error',
+        })
+      }
+    }, 2000)
+  }
+
+  const handleReindexAyudas = async () => {
+    if (!token || isReindexing) return
+    try {
+      setSyncEstado(await iniciarSyncAyudas(token))
+      iniciarPolling()
+    } catch (e) {
+      setSyncEstado(null)
+      setModalInfo({
+        title: 'Error al Sincronizar',
+        message: e instanceof Error ? e.message : 'Error al sincronizar ayudas visuales.',
         type: 'error',
       })
     }
   }
 
-  const handleReindexAyudas = async () => {
-    if (!token) return
-    setIsReindexing(true)
-    try {
-      const r = await reindexarAyudasVisuales(token)
-      const detalles = [
-        `Archivos PDF encontrados: ${r.total_archivos}`,
-        `Indexados: ${r.indexados} (${r.nuevos} nuevos, ${r.actualizados} actualizados)`,
-        `Eliminados: ${r.eliminados}`,
-        `Miniaturas generadas: ${r.thumbnails_generados}`,
-        r.sin_producto.length
-          ? `Sin producto asociado (${r.sin_producto.length}): ${r.sin_producto.slice(0, 10).join(', ')}${r.sin_producto.length > 10 ? '…' : ''}`
-          : '',
-        r.errores.length ? `Errores (${r.errores.length}): ${r.errores.slice(0, 5).join(' | ')}` : '',
-      ]
-        .filter(Boolean)
-        .join('\n')
-      setModalInfo({
-        title: 'Reindexado Completado',
-        message: detalles,
-        type: r.errores.length ? 'info' : 'success',
+  // Refleja un sync ya en curso (el nocturno, u otro usuario) al entrar al tab.
+  useEffect(() => {
+    if (rol !== 'admin' && rol !== 'supervisor') return
+    let vivo = true
+    getSyncAyudasEstado()
+      .then((e) => {
+        if (!vivo || e.estado !== 'corriendo') return
+        setSyncEstado(e)
+        iniciarPolling()
       })
-    } catch (e) {
-      setModalInfo({
-        title: 'Error al Reindexar',
-        message: e instanceof Error ? e.message : 'Error al reindexar ayudas visuales.',
-        type: 'error',
-      })
-    } finally {
-      setIsReindexing(false)
+      .catch(() => {})
+    return () => {
+      vivo = false
+      if (syncPollRef.current) clearInterval(syncPollRef.current)
     }
-  }
+  }, [rol])
 
   // ── Badges de controles ──
   const controlBadge = (control: string) => {
@@ -1325,59 +1393,16 @@ export default function ProductosTab() {
       {/* MODAL AYUDAS VISUALES */}
       <Modal
         open={!!avModal}
-        onClose={() => { setAvModal(null); setAyudas(null) }}
+        onClose={() => setAvModal(null)}
         size="4xl"
         title={<span className="flex items-center gap-2 text-amber-400"><IconDocumento size={18} aria-hidden /> Ayudas Visuales — {avModal?.sku}</span>}
-        footer={<Button variant="secondary" onClick={() => { setAvModal(null); setAyudas(null) }}>Cerrar</Button>}
+        footer={<Button variant="secondary" onClick={() => setAvModal(null)}>Cerrar</Button>}
       >
-        {ayudas === null ? (
-          <div className="py-10 text-center">
-            <LoadingSpinner />
-            <p className="text-gray-400 text-sm mt-2">Cargando ayudas visuales...</p>
-          </div>
-        ) : ayudas.length === 0 ? (
-          <div className="py-10 text-center text-gray-400">
-            <IconDocumento size={36} className="mx-auto mb-2 text-gray-600" aria-hidden />
-            <p className="text-sm">Este producto no tiene ayudas visuales indexadas.</p>
-            <p className="text-xs text-gray-500 mt-1">
-              Verifica que el PDF incluya el No. de Parte en el nombre y ejecuta &quot;Reindexar AV&quot;.
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-            {ayudas.map((av) => (
-              <button
-                key={av.id}
-                type="button"
-                onClick={() => window.open(ayudaVisualPdfUrl(av.id), '_blank', 'noopener')}
-                className="group text-left bg-gray-800 hover:bg-gray-700 border border-gray-700 hover:border-amber-500/50 rounded-lg overflow-hidden transition"
-                title={`${av.nombre_archivo}\n${av.ruta}`}
-              >
-                <div className="w-full aspect-[3/4] bg-white flex items-center justify-center overflow-hidden">
-                  {av.tiene_thumbnail ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={ayudaVisualThumbnailUrl(av.id)}
-                      alt={av.nombre_archivo}
-                      loading="lazy"
-                      className="w-full h-full object-contain"
-                    />
-                  ) : (
-                    <IconDocumento size={40} className="text-gray-400" aria-hidden />
-                  )}
-                </div>
-                <div className="p-2">
-                  {av.codigo_av && (
-                    <p className="text-xs font-bold text-amber-400 truncate">{av.codigo_av}</p>
-                  )}
-                  <p className="text-xs text-gray-300 truncate">{av.nombre_archivo}</p>
-                  <p className="text-[10px] text-gray-500 truncate">
-                    {av.ruta.split('/').slice(0, -1).join(' / ') || '—'}
-                  </p>
-                </div>
-              </button>
-            ))}
-          </div>
+        {avModal && (
+          <AyudasVisualesGrid
+            sku={avModal.sku}
+            onError={(message) => setModalInfo({ title: 'Error de Conexión', message, type: 'error' })}
+          />
         )}
       </Modal>
 
@@ -1752,7 +1777,7 @@ export default function ProductosTab() {
                   leftIcon={isReindexing ? IconPendiente : IconDocumento}
                   className="bg-amber-600 hover:bg-amber-700 text-white"
                 >
-                  {isReindexing ? 'Reindexando...' : 'Reindexar AV'}
+                  {isReindexing ? etiquetaSync(syncEstado) : 'Reindexar AV'}
                 </Button>
               )}
             </>

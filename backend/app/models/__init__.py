@@ -10,7 +10,7 @@ from app.models.registro_paro import RegistroParo
 from app.models.historial_turno import HistorialTurno
 from app.models.usuario import Usuario
 from app.models.producto import Producto
-from app.models.orden_compra import OrdenCompra, OrdenCompraItem, RecepcionCompra
+from app.models.orden_compra import OrdenCompra, OrdenCompraItem
 from app.models.orden_venta import OrdenVenta, OrdenVentaItem, EnvioVenta
 from app.models.devolucion import Devolucion
 from app.models.plan_ventas import PlanVentas
@@ -53,7 +53,6 @@ __all__ = [
     "Producto",
     "OrdenCompra",
     "OrdenCompraItem",
-    "RecepcionCompra",
     "OrdenVenta",
     "OrdenVentaItem",
     "EnvioVenta",

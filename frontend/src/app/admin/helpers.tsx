@@ -4,7 +4,7 @@ import {
   IconDashboard, IconUsuarios, IconLogs, IconDatabase, IconSistema, IconEmpresa,
   IconInventario, IconEnsamble, IconDocumento, IconCamara, IconSecado, IconEtiquetas,
   IconContador, IconAlertas, IconParo, IconGrafico, IconCompras, IconVentas,
-  IconRecepciones, IconTag, IconLogistica, IconDevoluciones, IconFecha, IconCalidad,
+  IconTag, IconLogistica, IconDevoluciones, IconFecha, IconCalidad,
   IconEliminar, IconProduccion, IconContacto, type LucideIcon,
 } from '@/lib/icons'
 
@@ -117,7 +117,7 @@ export function getTablaIcon(nombre: string): LucideIcon {
     contador_carritos: IconContador, anomalias: IconAlertas,
     registros_paros: IconParo, historial_turnos: IconGrafico,
     ordenes_compra: IconCompras, ordenes_compra_items: IconInventario,
-    recepciones_compra: IconRecepciones, ordenes_venta: IconVentas,
+    ordenes_venta: IconVentas,
     ordenes_venta_items: IconTag, envios_venta: IconLogistica,
     devoluciones: IconDevoluciones, planes_venta: IconFecha,
     inspecciones: IconCalidad, registros_scrap: IconEliminar,

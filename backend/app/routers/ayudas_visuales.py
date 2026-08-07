@@ -1,8 +1,9 @@
 import asyncio
+import logging
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
@@ -14,7 +15,16 @@ from app.core.deps import get_supervisor_or_admin
 from app.models.ayuda_visual import AyudaVisual
 from app.models.producto import Producto
 from app.models.usuario import Usuario
-from app.schemas.ayudas_visuales import AyudaVisualOut, ReindexResumen
+from app.schemas.ayudas_visuales import (
+    AyudaVisualOut,
+    ReindexResumen,
+    SyncEstado,
+    SyncResumenOut,
+)
+from app.services import ayudas_sync
+from app.services.ayudas_sync import SmbNoDisponible, es_pdf_indexable
+
+logger = logging.getLogger(__name__)
 
 # /app/app/routers/ → /app/static/ayudas_visuales (mismo volumen que Logo.png)
 AYUDAS_ROOT = Path(__file__).resolve().parents[2] / "static" / "ayudas_visuales"
@@ -71,11 +81,9 @@ def _render_thumbnail(pdf_path: Path, out_path: Path, width: int = THUMB_WIDTH) 
 
 
 def _archivo_valido(f: Path) -> bool:
-    if f.suffix.lower() != ".pdf" or not f.is_file():
-        return False
-    # Excluir la caché de miniaturas y archivos ocultos/temporales de OneDrive
-    rel_parts = f.relative_to(AYUDAS_ROOT).parts
-    return not any(p.startswith(".") or p.startswith("~") for p in rel_parts)
+    # Mismo criterio que usa el espejo al copiar y podar, para que disco e
+    # índice nunca discrepen (excluye .thumbnails y temporales de OneDrive).
+    return es_pdf_indexable(f, AYUDAS_ROOT)
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -133,21 +141,11 @@ async def thumbnail_ayuda(av_id: int, db: AsyncSession = Depends(get_db)):
     )
 
 
-@router.post("/reindexar", response_model=ReindexResumen)
-@router.post("/reindexar/", response_model=ReindexResumen)
-async def reindexar_ayudas(
-    db: AsyncSession = Depends(get_db),
-    current_user: Usuario = Depends(get_supervisor_or_admin),
-):
+async def _reindexar_db(db: AsyncSession, progreso=None) -> ReindexResumen:
     """Escanea static/ayudas_visuales/ recursivamente, asocia cada PDF a su
     producto por SKU en el nombre del archivo y genera miniaturas faltantes.
     Idempotente: upsert por ruta; elimina filas cuyos archivos ya no existen."""
-    if not AYUDAS_ROOT.is_dir():
-        raise HTTPException(
-            status_code=404,
-            detail=f"No existe la carpeta de ayudas visuales ({AYUDAS_ROOT}). "
-                   "Sincroniza los PDFs al servidor primero.",
-        )
+    AYUDAS_ROOT.mkdir(parents=True, exist_ok=True)
     THUMBS_DIR.mkdir(parents=True, exist_ok=True)
 
     skus_result = await db.execute(select(Producto.sku))
@@ -163,7 +161,9 @@ async def reindexar_ayudas(
     errores: List[str] = []
     rutas_vistas = set()
 
-    for f in archivos:
+    for i, f in enumerate(archivos, start=1):
+        if progreso:
+            progreso("indice", i, len(archivos))
         ruta = f.relative_to(AYUDAS_ROOT).as_posix()
         sku = extraer_sku(f.stem, skus_upper)
         if not sku:
@@ -223,3 +223,135 @@ async def reindexar_ayudas(
         sin_producto=sorted(sin_producto),
         errores=errores,
     )
+
+
+@router.post("/reindexar", response_model=ReindexResumen)
+@router.post("/reindexar/", response_model=ReindexResumen)
+async def reindexar_ayudas(
+    db: AsyncSession = Depends(get_db),
+    current_user: Usuario = Depends(get_supervisor_or_admin),
+):
+    """Reindexa SOLO el disco local, sin tocar la nube.
+
+    Fallback para cuando el Synology no está disponible o se copiaron PDFs a
+    mano. El flujo normal es POST /sync, que espeja y luego reindexa."""
+    return await _reindexar_db(db)
+
+
+# ══════════════════════════════════════════════════════════════════════
+# SYNC EN BACKGROUND (espejo Synology → disco + reindexado)
+# ══════════════════════════════════════════════════════════════════════
+
+# Estado en memoria del proceso: hay un solo contenedor backend, así que no
+# hace falta persistirlo. Se consulta por polling desde la UI.
+_estado: dict = {
+    "estado": "idle",
+    "fase": "",
+    "actual": 0,
+    "total": 0,
+    "inicio": None,
+    "fin": None,
+    "disparado_por": "",
+    "nube": None,
+    "indice": None,
+    "error": None,
+}
+_sync_lock = asyncio.Lock()   # serializa el arranque desde el endpoint
+_run_lock = asyncio.Lock()    # garantiza un solo sync a la vez (manual o nocturno)
+
+
+def _progreso(fase: str, actual: int, total: int) -> None:
+    _estado["fase"] = fase
+    _estado["actual"] = actual
+    _estado["total"] = total
+
+
+async def _run_sync(disparado_por: str) -> None:
+    """Fase 1: espejo SMB → disco. Fase 2: reindexado de la DB sobre ese disco."""
+    if _run_lock.locked():
+        # El nocturno y el botón pueden coincidir: el segundo se descarta y deja
+        # intacto el estado del que ya va corriendo.
+        logger.info("Sync de ayudas visuales ya en curso; se ignora el disparo de %s", disparado_por)
+        return
+
+    async with _run_lock:
+        await _ejecutar_sync(disparado_por)
+
+
+async def _ejecutar_sync(disparado_por: str) -> None:
+    _estado.update(
+        estado="corriendo", fase="nube", actual=0, total=0,
+        inicio=datetime.utcnow().isoformat(), fin=None,
+        disparado_por=disparado_por, nube=None, indice=None, error=None,
+    )
+    try:
+        resumen_nube = await asyncio.to_thread(
+            ayudas_sync.sincronizar_espejo, AYUDAS_ROOT, _progreso
+        )
+        _estado["nube"] = SyncResumenOut(**vars(resumen_nube))
+
+        _estado.update(fase="indice", actual=0, total=0)
+        async with AsyncSessionLocal() as db:
+            _estado["indice"] = await _reindexar_db(db, _progreso)
+
+        _estado.update(estado="ok", fase="")
+    except SmbNoDisponible as e:
+        logger.warning("Sync de ayudas visuales abortado: %s", e)
+        # El espejo local queda intacto: las AV se siguen viendo.
+        _estado.update(
+            estado="error", fase="",
+            error=f"{e} — el espejo local se conservó sin cambios.",
+        )
+    except Exception as e:
+        logger.exception("Error en sync de ayudas visuales")
+        _estado.update(estado="error", fase="", error=str(e))
+    finally:
+        _estado["fin"] = datetime.utcnow().isoformat()
+
+
+@router.post("/sync", response_model=SyncEstado)
+@router.post("/sync/", response_model=SyncEstado)
+async def iniciar_sync(
+    current_user: Usuario = Depends(get_supervisor_or_admin),
+):
+    """Lanza el espejo contra el Synology y responde de inmediato.
+
+    El avance se consulta con GET /ayudas-visuales/sync/estado."""
+    async with _sync_lock:
+        if _estado["estado"] == "corriendo":
+            raise HTTPException(
+                status_code=409,
+                detail=f"Ya hay una sincronización en curso "
+                       f"(iniciada por {_estado['disparado_por'] or 'el sistema'}).",
+            )
+        _estado.update(estado="corriendo", fase="nube", actual=0, total=0)
+        asyncio.create_task(_run_sync(current_user.username))
+
+    return SyncEstado(**_estado)
+
+
+@router.get("/sync/estado", response_model=SyncEstado)
+@router.get("/sync/estado/", response_model=SyncEstado)
+async def estado_sync():
+    """Estado del sync actual o del último terminado (incluye el nocturno)."""
+    return SyncEstado(**_estado)
+
+
+def registrar_job_sync_ayudas(scheduler) -> None:
+    """Registra el sync nocturno si AYUDAS_SYNC_AUTO está activo (.env)."""
+    if not ayudas_sync.sync_automatico_activo():
+        logger.info("🌙 Sync automático de ayudas visuales desactivado (AYUDAS_SYNC_AUTO)")
+        return
+
+    from apscheduler.triggers.cron import CronTrigger
+
+    hora, minuto = ayudas_sync.hora_sync_automatico()
+    scheduler.add_job(
+        _run_sync,
+        trigger=CronTrigger(hour=hora, minute=minuto),
+        args=["scheduler"],
+        id="sync_ayudas_visuales",
+        replace_existing=True,
+        misfire_grace_time=3600,
+    )
+    logger.info("🌙 Sync automático de ayudas visuales programado a las %02d:%02d", hora, minuto)

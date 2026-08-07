@@ -1,23 +1,26 @@
 'use client';
 
 import { useState } from 'react';
-import { registrarInspeccion, getPuntosInspeccion, descargarPdfInspeccion } from '@/lib/api';
-import type { PuntoResultado, ProductoPuntosInspeccion } from '@/types';
+import { registrarInspeccion, getProducto, descargarPdfInspeccion } from '@/lib/api';
+import type { ProductoItem } from '@/types';
 import { Button } from '@/components/ui';
+import InspeccionEvaluacion, { type EvaluacionPayload } from '@/components/calidad/InspeccionEvaluacion';
 import {
   IconOQC, IconAlertas, IconDocumento, IconActualizar, IconBuscar,
-  IconPendiente, IconOk, IconCerrar,
+  IconPendiente, IconOk,
 } from '@/lib/icons';
 
 interface Props {
   token: string;
 }
 
+/** El Lote ID nombra la carpeta de evidencia en el servidor, así que se acota a
+ *  lo que el backend acepta como nombre de carpeta. */
+const LOTE_ID_RE = /^[A-Za-z0-9_-]{1,150}$/;
+
 export default function OQCTab({ token }: Props) {
   const [sku, setSku] = useState('');
-  const [skuBuscado, setSkuBuscado] = useState(false);
-  const [puntosProducto, setPuntosProducto] = useState<ProductoPuntosInspeccion | null>(null);
-  const [resultadosPuntos, setResultadosPuntos] = useState<PuntoResultado[]>([]);
+  const [producto, setProducto] = useState<ProductoItem | null>(null);
   const [notas, setNotas] = useState('');
   const [cantidad, setCantidad] = useState('');
   const [loteId, setLoteId] = useState('');
@@ -26,22 +29,14 @@ export default function OQCTab({ token }: Props) {
   const [success, setSuccess] = useState('');
   const [ultimaInspeccionId, setUltimaInspeccionId] = useState<string | null>(null);
 
+  const loteIdValido = LOTE_ID_RE.test(loteId.trim());
+
   const buscarProducto = async () => {
     if (!sku.trim()) return;
     setLoading(true);
     setError('');
     try {
-      const puntos = await getPuntosInspeccion(token, sku.trim());
-      setPuntosProducto(puntos);
-      const puntosOQC = puntos.puntos_inspeccion_oqc || [];
-      setResultadosPuntos(
-        puntosOQC.map((p: any) => ({
-          punto: p.punto || p.nombre || p.name || String(p),
-          especificacion: p.especificacion || p.spec || '',
-          resultado: '',
-        }))
-      );
-      setSkuBuscado(true);
+      setProducto(await getProducto(sku.trim()));
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -49,41 +44,25 @@ export default function OQCTab({ token }: Props) {
     }
   };
 
-  const actualizarPunto = (index: number, resultado: string) => {
-    setResultadosPuntos(prev =>
-      prev.map((p, i) => (i === index ? { ...p, resultado } : p))
-    );
-  };
-
-  const todosEvaluados = resultadosPuntos.length === 0 || resultadosPuntos.every(p => p.resultado !== '');
-
-  const calcularResultado = (): string => {
-    if (resultadosPuntos.length === 0) return 'Aprobado';
-    return resultadosPuntos.every(p => p.resultado === 'Conforme') ? 'Aprobado' : 'Rechazado';
-  };
-
-  const enviarInspeccion = async () => {
-    if (!puntosProducto) return;
+  const enviarInspeccion = async (payload: EvaluacionPayload) => {
+    if (!producto) return;
     setLoading(true);
     setError('');
     try {
-      const resultado = calcularResultado();
       const res = await registrarInspeccion(token, {
-        lote_id: loteId || undefined,
-        sku_producto: puntosProducto.sku,
-        nombre_producto: puntosProducto.nombre,
+        lote_id: loteId.trim() || undefined,
+        sku_producto: producto.sku,
+        nombre_producto: producto.descripcion,
         tipo_inspeccion: 'OQC',
-        resultado_final: resultado,
-        resultados_puntos: resultadosPuntos.map(p => ({
-          punto: p.punto,
-          especificacion: p.especificacion || '',
-          resultado: p.resultado || 'No evaluado',
-        })),
+        resultado_final: payload.resultado_final,
+        resultados_puntos: [],
+        respuestas: payload.respuestas,
+        fotos: payload.fotos,
         cantidad_inspeccionada: parseInt(cantidad) || 0,
         notas: notas || undefined,
       });
       setUltimaInspeccionId(res.inspeccion_id);
-      setSuccess(`Inspección OQC ${res.inspeccion_id} — ${resultado}`);
+      setSuccess(`Inspección OQC ${res.inspeccion_id} — ${payload.resultado_final}`);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -93,9 +72,7 @@ export default function OQCTab({ token }: Props) {
 
   const reiniciar = () => {
     setSku('');
-    setSkuBuscado(false);
-    setPuntosProducto(null);
-    setResultadosPuntos([]);
+    setProducto(null);
     setNotas('');
     setCantidad('');
     setLoteId('');
@@ -128,7 +105,7 @@ export default function OQCTab({ token }: Props) {
         <p className="text-gray-300 text-sm mt-1">Inspección de salida — Producto final</p>
       </div>
 
-      {!skuBuscado && (
+      {!producto && (
         <div className="bg-gray-900 rounded-xl border border-indigo-500/30 p-6">
           <label className="block text-sm font-semibold text-gray-300 mb-2">SKU del Producto Final</label>
           <div className="flex gap-3">
@@ -152,28 +129,28 @@ export default function OQCTab({ token }: Props) {
         </div>
       )}
 
-      {skuBuscado && puntosProducto && (
+      {producto && (
         <>
           <div className="bg-gray-900 rounded-xl border border-gray-700 p-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <p className="text-sm text-gray-400">SKU</p>
-                <p className="font-mono text-white">{puntosProducto.sku}</p>
+                <p className="text-sm text-gray-400">Número de parte</p>
+                <p className="font-mono text-white">{producto.sku}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-400">Nombre</p>
-                <p className="text-white">{puntosProducto.nombre}</p>
+                <p className="text-sm text-gray-400">Descripción</p>
+                <p className="text-white">{producto.descripcion}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-400">Tipo</p>
-                <p className="text-white">{puntosProducto.tipo}</p>
+                <p className="text-white">{producto.tipo}</p>
               </div>
             </div>
           </div>
 
           <div className="bg-gray-900 rounded-xl border border-gray-700 p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-semibold text-gray-300 mb-1">Lote ID (opcional)</label>
+              <label className="block text-sm font-semibold text-gray-300 mb-1">Lote ID</label>
               <input
                 value={loteId}
                 onChange={(e) => setLoteId(e.target.value)}
@@ -181,6 +158,11 @@ export default function OQCTab({ token }: Props) {
                            placeholder-gray-500 focus:outline-none focus:border-indigo-500"
                 placeholder="ID del lote..."
               />
+              <p className="text-xs text-gray-500 mt-1">
+                {loteId.trim() && !loteIdValido
+                  ? <span className="text-amber-400">Solo letras, números, guiones y guiones bajos.</span>
+                  : 'Requerido para poder adjuntar evidencia fotográfica.'}
+              </p>
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-300 mb-1">Cantidad Inspeccionada</label>
@@ -195,81 +177,20 @@ export default function OQCTab({ token }: Props) {
             </div>
           </div>
 
-          {resultadosPuntos.length > 0 ? (
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-gray-800">
-                    <th className="text-left px-6 py-3 text-sm font-semibold text-gray-300">#</th>
-                    <th className="text-left px-6 py-3 text-sm font-semibold text-gray-300">Punto</th>
-                    <th className="text-left px-6 py-3 text-sm font-semibold text-gray-300">Especificación</th>
-                    <th className="text-center px-6 py-3 text-sm font-semibold text-gray-300">Resultado</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {resultadosPuntos.map((punto, idx) => (
-                    <tr key={idx} className={`border-t border-gray-800 ${
-                      punto.resultado === 'Conforme' ? 'bg-green-900/10' :
-                      punto.resultado === 'No Conforme' ? 'bg-red-900/10' : ''
-                    }`}>
-                      <td className="px-6 py-3 text-sm text-gray-500">{idx + 1}</td>
-                      <td className="px-6 py-3 text-sm text-white">{punto.punto}</td>
-                      <td className="px-6 py-3 text-sm text-gray-400">{punto.especificacion || '—'}</td>
-                      <td className="px-6 py-3">
-                        <div className="flex gap-2 justify-center">
-                          <button onClick={() => actualizarPunto(idx, 'Conforme')}
-                            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                              punto.resultado === 'Conforme'
-                                ? 'bg-green-600 text-white'
-                                : 'bg-gray-700 text-gray-300 hover:bg-green-800'
-                            }`}
-                          >
-                            <IconOk size={14} aria-hidden /> Conforme
-                          </button>
-                          <button
-                            onClick={() => actualizarPunto(idx, 'No Conforme')}
-                            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                              punto.resultado === 'No Conforme'
-                                ? 'bg-red-600 text-white'
-                                : 'bg-gray-700 text-gray-300 hover:bg-red-800'
-                            }`}
-                          >
-                            <IconCerrar size={14} aria-hidden /> No Conforme
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="bg-gray-900 rounded-xl border border-yellow-500/30 p-6 text-center">
-              <p className="text-yellow-400 flex items-center justify-center gap-2"><IconAlertas size={16} aria-hidden /> Sin puntos de inspección OQC configurados.</p>
-            </div>
-          )}
-
-          <div className="bg-gray-900 rounded-xl border border-gray-700 p-6 space-y-4">
-            <textarea
-              value={notas}
-              onChange={(e) => setNotas(e.target.value)}
-              placeholder="Notas adicionales..."
-              className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-sm text-white
-                         placeholder-gray-500 focus:outline-none focus:border-indigo-500 resize-y"
-              rows={2}
-            />
-            <div className="flex items-center justify-between">
-              <Button variant="secondary" onClick={reiniciar}>Reiniciar</Button>
-              <Button
-                size="lg"
-                onClick={enviarInspeccion}
-                disabled={loading || (!todosEvaluados && resultadosPuntos.length > 0)}
-                leftIcon={loading ? IconPendiente : IconOk}
-              >
-                {loading ? 'Registrando...' : 'Registrar Inspección OQC'}
-              </Button>
-            </div>
+          <div className="bg-gray-900 rounded-xl border border-gray-700 p-6">
+            <Button variant="secondary" onClick={reiniciar}>Reiniciar</Button>
           </div>
+
+          {/* Ayudas visuales + preguntas + notas + evidencia */}
+          <InspeccionEvaluacion
+            token={token}
+            sku={producto.sku}
+            loteId={loteIdValido ? loteId.trim() : undefined}
+            onRegistrar={enviarInspeccion}
+            guardando={loading}
+            notas={notas}
+            onNotasChange={setNotas}
+          />
         </>
       )}
     </div>

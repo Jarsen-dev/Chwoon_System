@@ -18,7 +18,7 @@ from reportlab.lib.enums import TA_RIGHT, TA_CENTER, TA_LEFT
 from reportlab.lib.pagesizes import letter
 
 from app.core.deps import get_current_user, get_db
-from app.models.orden_compra import OrdenCompra, OrdenCompraItem, Proveedor, ProveedorMaterial, RecepcionCompra, ProveedorEvento
+from app.models.orden_compra import OrdenCompra, OrdenCompraItem, Proveedor, ProveedorMaterial, ProveedorEvento
 from app.services.proveedor_score import recalcular_score, registrar_evento
 from app.models.orden_venta import OrdenVenta, OrdenVentaItem, EnvioVenta
 from app.models.devolucion import Devolucion
@@ -32,7 +32,6 @@ from app.services.pdf_generator import generar_pdf_orden_compra
 from app.core.deps import get_db, get_current_user, get_current_compras, get_current_finanzas
 from app.schemas.finanzas import (
     OrdenCompraCreate, OrdenCompraUpdate, OrdenCompraResponse, ProveedorCreate, ProveedorResponse, ProveedorUpdate,
-    RecepcionCompraCreate, RecepcionCompraResponse,
     OrdenVentaCreate, OrdenVentaUpdate, OrdenVentaResponse,
     EnvioVentaCreate,
     DevolucionCreate, DevolucionResponse, DisposicionDevolucionCreate,
@@ -545,7 +544,6 @@ async def listar_ordenes_compra(
                     "sku_producto": item.sku_producto,
                     "nombre_producto": item.nombre_producto,
                     "cantidad_requerida": item.cantidad_requerida,
-                    "cantidad_recibida": item.cantidad_recibida,
                     "precio_unitario": item.precio_unitario,
                     "moneda": item.moneda,
                 }
@@ -587,7 +585,6 @@ async def crear_orden_compra(
             sku_producto=item_data.sku_producto,
             nombre_producto=item_data.nombre_producto,
             cantidad_requerida=item_data.cantidad_requerida,
-            cantidad_recibida=0,
             precio_unitario=item_data.precio_unitario,
             moneda=item_data.moneda,
         )
@@ -705,7 +702,6 @@ async def aprobar_orden_compra(
                     sku_producto=item_data.sku_producto,
                     nombre_producto=item_data.nombre_producto,
                     cantidad_requerida=item_data.cantidad_requerida,
-                    cantidad_recibida=0,
                     precio_unitario=item_data.precio_unitario,
                     moneda=item_data.moneda,
                 )
@@ -737,12 +733,6 @@ async def obtener_orden_compra(
     )
     items = items_result.scalars().all()
 
-    recepciones_result = await db.execute(
-        select(RecepcionCompra).where(RecepcionCompra.orden_compra_id == orden.id)
-        .order_by(RecepcionCompra.fecha_recepcion.desc())
-    )
-    recepciones = recepciones_result.scalars().all()
-
     return {
         "id": orden.id,
         "oc_id": orden.oc_id,
@@ -760,23 +750,10 @@ async def obtener_orden_compra(
                 "sku_producto": i.sku_producto,
                 "nombre_producto": i.nombre_producto,
                 "cantidad_requerida": i.cantidad_requerida,
-                "cantidad_recibida": i.cantidad_recibida,
                 "precio_unitario": i.precio_unitario,
                 "moneda": i.moneda,
             }
             for i in items
-        ],
-        "recepciones": [
-            {
-                "id": r.id,
-                "recepcion_id": r.recepcion_id,
-                "sku_producto": r.sku_producto,
-                "cantidad_recibida": r.cantidad_recibida,
-                "fecha_recepcion": r.fecha_recepcion.isoformat() if r.fecha_recepcion else None,
-                "recibido_por": r.recibido_por,
-                "notas": r.notas,
-            }
-            for r in recepciones
         ],
     }
 
@@ -1070,7 +1047,6 @@ async def actualizar_orden_compra(
                 sku_producto=item_data.sku_producto,
                 nombre_producto=item_data.nombre_producto,
                 cantidad_requerida=item_data.cantidad_requerida,
-                cantidad_recibida=0,
                 precio_unitario=item_data.precio_unitario,
                 moneda=item_data.moneda,
             )
@@ -1094,129 +1070,9 @@ async def eliminar_orden_compra(
     if not orden:
         raise HTTPException(status_code=404, detail="Orden de compra no encontrada")
 
-    rec_count = (await db.execute(
-        select(func.count(RecepcionCompra.id)).where(RecepcionCompra.orden_compra_id == orden.id)
-    )).scalar() or 0
-
-    if rec_count > 0:
-        raise HTTPException(
-            status_code=400,
-            detail=f"No se puede eliminar. La OC {oc_id} ya tiene {rec_count} recepciones registradas."
-        )
-
     await db.delete(orden)
     await db.commit()
     return {"message": f"Orden {oc_id} eliminada"}
-
-
-@router.get("/recepciones")
-@router.get("/recepciones/")
-async def listar_recepciones(
-    limite: int = Query(100, ge=1, le=500),
-    db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user),
-):
-    require_compras_role(current_user)
-
-    result = await db.execute(
-        select(RecepcionCompra).order_by(RecepcionCompra.fecha_recepcion.desc()).limit(limite)
-    )
-    recepciones = result.scalars().all()
-
-    return [
-        {
-            "id": r.id,
-            "recepcion_id": r.recepcion_id,
-            "oc_id": r.oc_id,
-            "sku_producto": r.sku_producto,
-            "cantidad_recibida": r.cantidad_recibida,
-            "fecha_recepcion": r.fecha_recepcion.isoformat() if r.fecha_recepcion else None,
-            "recibido_por": r.recibido_por,
-            "notas": r.notas,
-        }
-        for r in recepciones
-    ]
-
-@router.get("/lote/{lote_id}")
-@router.get("/lote/{lote_id}/")
-async def obtener_info_lote(
-    lote_id: str,
-    db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user),
-):
-    require_compras_role(current_user)
-
-    partes = lote_id.split("-")
-    if len(partes) != 3:
-        raise HTTPException(status_code=400, detail="Formato de Lote ID inválido. Esperado: YYYYMMDD-XXXX-N")
-
-    fecha_str, sku_suffix, rec_count_str = partes
-
-    result = await db.execute(
-        select(RecepcionCompra).where(
-            RecepcionCompra.sku_producto.ilike(f"%{sku_suffix}")
-        ).order_by(RecepcionCompra.fecha_recepcion.desc())
-    )
-    recepciones = result.scalars().all()
-
-    if not recepciones:
-        raise HTTPException(status_code=404, detail=f"No se encontraron recepciones para el lote {lote_id}")
-
-    recepciones_filtradas = [
-        r for r in recepciones
-        if r.fecha_recepcion and r.fecha_recepcion.strftime("%Y%m%d") == fecha_str
-    ]
-
-    recs_finales = recepciones_filtradas if recepciones_filtradas else recepciones
-
-    if not recs_finales:
-        raise HTTPException(status_code=404, detail=f"No se encontraron recepciones para el lote {lote_id}")
-
-    rec_principal = recs_finales[0]
-    sku_completo = rec_principal.sku_producto
-    oc_id = rec_principal.oc_id
-
-    oc_result = await db.execute(select(OrdenCompra).where(OrdenCompra.oc_id == oc_id))
-    orden = oc_result.scalar_one_or_none()
-
-    item = None
-    if orden:
-        item_result = await db.execute(
-            select(OrdenCompraItem).where(
-                and_(
-                    OrdenCompraItem.orden_compra_id == orden.id,
-                    OrdenCompraItem.sku_producto == sku_completo,
-                )
-            )
-        )
-        item = item_result.scalar_one_or_none()
-
-    cantidad_total = sum(r.cantidad_recibida for r in recs_finales if r.sku_producto == sku_completo)
-
-    return {
-        "lote_id": lote_id,
-        "sku_producto": sku_completo,
-        "nombre_producto": item.nombre_producto if item else None,
-        "oc_id": oc_id,
-        "nombre_proveedor": orden.nombre_proveedor if orden else None,
-        "cantidad_total_recibida": cantidad_total,
-        "cantidad_requerida": item.cantidad_requerida if item else None,
-        "precio_unitario": item.precio_unitario if item else None,
-        "moneda": item.moneda if item else "MXN",
-        "status_oc": orden.status if orden else None,
-        "total_recepciones": len(recs_finales),
-        "recepciones": [
-            {
-                "recepcion_id": r.recepcion_id,
-                "cantidad_recibida": r.cantidad_recibida,
-                "fecha_recepcion": r.fecha_recepcion.isoformat() if r.fecha_recepcion else None,
-                "recibido_por": r.recibido_por,
-                "notas": r.notas,
-            }
-            for r in recs_finales
-            if r.sku_producto == sku_completo
-        ],
-    }
 
 
 # ========================

@@ -18,7 +18,7 @@ import { DataTable, Badge, Button } from '@/components/ui'
 import {
   IconCompras, IconFiltro, IconActualizar, IconNuevo, IconCerrar, IconAlertas,
   IconCompletado, IconInventario, IconProduccion, IconFinanzas, IconVer,
-  IconEditar, IconEliminar, IconDocumento, IconRecepciones, IconFecha, IconFirmar, IconOk,
+  IconEditar, IconEliminar, IconDocumento, IconFecha, IconFirmar, IconOk,
 } from '@/lib/icons'
 
 interface Props { token: string }
@@ -922,48 +922,22 @@ export default function ComprasTab({ token }: Props) {
                         <th className="px-4 py-2 text-left text-gray-400 text-xs">SKU</th>
                         <th className="px-4 py-2 text-left text-gray-400 text-xs">Descripción</th>
                         <th className="px-4 py-2 text-right text-gray-400 text-xs">Requerida</th>
-                        <th className="px-4 py-2 text-right text-gray-400 text-xs">Recibida</th>
                         <th className="px-4 py-2 text-right text-gray-400 text-xs">Precio Unit.</th>
-                        <th className="px-4 py-2 text-right text-gray-400 text-xs">Progreso</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-700">
-                      {ordenDetalle.items.map((item: any, idx: number) => {
-                        const pct = item.cantidad_requerida > 0
-                          ? Math.min(100, (item.cantidad_recibida / item.cantidad_requerida) * 100) : 0
-                        const pctColor = pct >= 100 ? 'text-green-400' : pct > 0 ? 'text-yellow-400' : 'text-gray-500'
-                        return (
-                          <tr key={idx}>
-                            <td className="px-4 py-2 font-mono text-emerald-400 whitespace-nowrap">{item.sku_producto}</td>
-                            <td className="px-4 py-2">{item.nombre_producto}</td>
-                            <td className="px-4 py-2 text-right">{item.cantidad_requerida}</td>
-                            <td className="px-4 py-2 text-right">{item.cantidad_recibida}</td>
-                            <td className="px-4 py-2 text-right whitespace-nowrap">{formatCurrency(item.precio_unitario)}</td>
-                            <td className="px-4 py-2 text-right"><span className={`font-medium ${pctColor}`}>{pct.toFixed(0)}%</span></td>
-                          </tr>
-                        )
-                      })}
+                      {ordenDetalle.items.map((item: any, idx: number) => (
+                        <tr key={idx}>
+                          <td className="px-4 py-2 font-mono text-emerald-400 whitespace-nowrap">{item.sku_producto}</td>
+                          <td className="px-4 py-2">{item.nombre_producto}</td>
+                          <td className="px-4 py-2 text-right">{item.cantidad_requerida}</td>
+                          <td className="px-4 py-2 text-right whitespace-nowrap">{formatCurrency(item.precio_unitario)}</td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
               </div>
-              {ordenDetalle.recepciones?.length > 0 && (
-                <div>
-                  <h4 className="text-sm font-semibold text-gray-300 mb-2 flex items-center gap-2"><IconRecepciones size={16} aria-hidden /> Historial de Recepciones</h4>
-                  <div className="space-y-2">
-                    {ordenDetalle.recepciones.map((rec: any) => (
-                      <div key={rec.recepcion_id} className="bg-gray-800/30 rounded-lg p-3 border border-gray-700 flex justify-between items-start">
-                        <div>
-                          <p className="text-sm font-mono text-blue-400">{rec.recepcion_id}</p>
-                          <p className="text-xs text-gray-400">{rec.sku_producto} — Cantidad: {rec.cantidad_recibida} — {rec.recibido_por || 'N/A'}</p>
-                          {rec.notas && <p className="text-xs text-gray-500 mt-1"><span className="text-gray-400">Nota:</span> {rec.notas}</p>}
-                        </div>
-                        <p className="text-xs text-gray-500 shrink-0 ml-4">{formatDate(rec.fecha_recepcion)}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
             <div className="p-6 border-t border-gray-800 flex justify-end">
               <button onClick={() => setShowDetalleModal(false)}
